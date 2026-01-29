@@ -69,12 +69,34 @@ function isEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
 }
 
+/**
+ * ✅ Wichtig: robustes Parsing für de-DE Eingaben
+ * - entfernt Währung/Spaces
+ * - entfernt Tausenderpunkte
+ * - Komma => Punkt
+ */
+function normalizeMoneyString(v?: string) {
+  if (!v) return ""
+  const raw = String(v).trim()
+  if (!raw) return ""
+
+  // alles außer Ziffern, Punkt, Komma, Minus entfernen
+  const cleaned = raw.replace(/[^\d,.-]/g, "")
+  if (!cleaned) return ""
+
+  // Wenn Komma vorkommt, ist es sehr wahrscheinlich Dezimaltrennzeichen im DE-Format
+  if (cleaned.includes(",")) {
+    return cleaned.replace(/\./g, "").replace(",", ".")
+  }
+
+  // Kein Komma => Punkte sind sehr wahrscheinlich Tausendertrenner (DE-Format)
+  return cleaned.replace(/\./g, "")
+}
+
 function parseMoneyToNumber(v?: string) {
-  if (!v) return 0
-  const cleaned = String(v).replace(/[^\d,.-]/g, "").trim()
-  if (!cleaned) return 0
-  const normalized = cleaned.replace(/\./g, "").replace(",", ".")
-  const n = Number(normalized)
+  const norm = normalizeMoneyString(v)
+  if (!norm) return 0
+  const n = Number(norm)
   return Number.isFinite(n) ? n : 0
 }
 
@@ -83,32 +105,24 @@ function formatMoneyFromNumber(n: number) {
   return nfCurrency.format(n)
 }
 
-function clampNumberString(v: string) {
-  return v.replace(/[^\d,.-]/g, "").replace(",", ".").trim()
-}
-
-/* ────────────────────────────────────────────────────────────────
-   submitFinal types
-──────────────────────────────────────────────────────────────── */
-
 type SubmitResponse = {
   ok?: boolean
   caseId?: string
   caseRef?: string
   existingAccount?: boolean
-  // optional, falls du sowas später serverseitig liefern willst
   nextUrl?: string
 }
 
 /**
  * ✅ FINAL: deine URL-Struktur laut Screenshot
  * - Bankenauswahl: /baufinanzierung/auswahl
- * - Live: /baufinanzierung/auswahl/live (wird später aus der Auswahl-Page heraus verlinkt)
  */
 function buildNextUrl(opts: {
   caseId: string
   caseRef?: string
   existingAccount?: boolean
+  loanAmount?: number
+  years?: number
 }) {
   const base = "/baufinanzierung/auswahl"
 
@@ -117,12 +131,12 @@ function buildNextUrl(opts: {
   if (opts.caseRef) params.set("caseRef", opts.caseRef)
   if (opts.existingAccount) params.set("existing", "1")
 
+  // ✅ Damit Auswahlseite nicht auf Default 300k/30 fällt
+  if (opts.loanAmount && Number.isFinite(opts.loanAmount)) params.set("loanAmount", String(Math.round(opts.loanAmount)))
+  if (opts.years && Number.isFinite(opts.years)) params.set("years", String(Math.round(opts.years)))
+
   return `${base}?${params.toString()}`
 }
-
-/* ────────────────────────────────────────────────────────────────
-   Steps
-──────────────────────────────────────────────────────────────── */
 
 const steps = [
   { id: "contact", title: "Kontakt" },
@@ -133,10 +147,6 @@ const steps = [
 ] as const
 
 type StepId = (typeof steps)[number]["id"]
-
-/* ────────────────────────────────────────────────────────────────
-   Component
-──────────────────────────────────────────────────────────────── */
 
 export default function BaufiWizard({
   baufi,
@@ -185,14 +195,12 @@ export default function BaufiWizard({
   const [emailCheckBusy, setEmailCheckBusy] = useState(false)
   const emailTimer = useRef<number | null>(null)
 
-  // Jump to first step when started from page
   useEffect(() => {
     setStep("contact")
     setError(null)
     setSuccessMsg(null)
   }, [startNonce])
 
-  // Load draft
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DRAFT_KEY)
@@ -204,7 +212,6 @@ export default function BaufiWizard({
     }
   }, [])
 
-  // Persist draft
   useEffect(() => {
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
@@ -213,7 +220,6 @@ export default function BaufiWizard({
     }
   }, [draft])
 
-  // Debounced email check
   useEffect(() => {
     if (emailTimer.current) window.clearTimeout(emailTimer.current)
     const email = draft.primary.email.trim().toLowerCase()
@@ -246,7 +252,6 @@ export default function BaufiWizard({
     draft.primary.last_name.trim().length > 0 &&
     isEmail(draft.primary.email)
 
-  // Haushaltsrechnung: CO-Einkommen wird addiert
   const calc = useMemo(() => {
     const net = parseMoneyToNumber(draft.primary.net_income_monthly)
     const other = parseMoneyToNumber(draft.primary.other_income_monthly)
@@ -315,31 +320,32 @@ export default function BaufiWizard({
     if (prev) setStep(prev)
   }
 
-  /**
-   * ✅ FINAL: Submit -> immer /baufinanzierung/auswahl?caseId=...&caseRef=...&existing=1
-   * Keine Recommendation / kein Routing nach /baufinanzierung/live
-   */
   async function submitFinal() {
     setBusy(true)
     setError(null)
     setSuccessMsg(null)
 
     try {
+      // ✅ Für Auswahl-Seite: loanAmount als Beispiel = purchase_price (kannst du später ersetzen)
+      const loanAmountExample = parseMoneyToNumber(baufi.purchase_price || "")
+      const yearsExample = 30
+
       const payload = {
         baufi: {
           ...baufi,
-          purchase_price: clampNumberString(baufi.purchase_price ?? ""),
+          // ✅ wichtig: keine Tausenderpunkte, Komma -> Punkt
+          purchase_price: normalizeMoneyString(baufi.purchase_price ?? ""),
         },
         primary: {
           ...draft.primary,
-          net_income_monthly: clampNumberString(draft.primary.net_income_monthly ?? ""),
-          other_income_monthly: clampNumberString(draft.primary.other_income_monthly ?? ""),
-          expenses_monthly: clampNumberString(draft.primary.expenses_monthly ?? ""),
-          existing_loans_monthly: clampNumberString(draft.primary.existing_loans_monthly ?? ""),
+          net_income_monthly: normalizeMoneyString(draft.primary.net_income_monthly ?? ""),
+          other_income_monthly: normalizeMoneyString(draft.primary.other_income_monthly ?? ""),
+          expenses_monthly: normalizeMoneyString(draft.primary.expenses_monthly ?? ""),
+          existing_loans_monthly: normalizeMoneyString(draft.primary.existing_loans_monthly ?? ""),
         },
         co: draft.co.map((c) => ({
           ...c,
-          net_income_monthly: clampNumberString(c.net_income_monthly ?? ""),
+          net_income_monthly: normalizeMoneyString(c.net_income_monthly ?? ""),
         })),
         redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/set-password`,
         language: "de",
@@ -354,7 +360,6 @@ export default function BaufiWizard({
       const json = (await res.json().catch(() => ({}))) as SubmitResponse
       if (!res.ok) throw new Error((json as any)?.error || "Abschluss fehlgeschlagen.")
 
-      // Server kann optional direkt eine Next-URL liefern
       if (json?.nextUrl) {
         localStorage.removeItem(DRAFT_KEY)
         router.push(json.nextUrl)
@@ -379,6 +384,8 @@ export default function BaufiWizard({
         caseId,
         caseRef,
         existingAccount,
+        loanAmount: loanAmountExample > 0 ? loanAmountExample : undefined,
+        years: yearsExample,
       })
 
       localStorage.removeItem(DRAFT_KEY)

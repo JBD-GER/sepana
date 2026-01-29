@@ -36,16 +36,34 @@ type Payload = {
   language?: string
 }
 
-function numOrNull(v?: string) {
-  if (!v) return null
-  const x = String(v).replace(",", ".").trim()
-  if (x === "") return null
-  const n = Number(x)
-  return Number.isFinite(n) ? n : null
-}
-
 function isEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+}
+
+/**
+ * ✅ robust: "3.200 €" => 3200, "3.200" => 3200, "3,200" => 3.2 (falls wirklich so gemeint)
+ * In DE ist Komma Dezimaltrennzeichen, Punkt Tausender
+ */
+function numOrNull(v?: string) {
+  if (v === undefined || v === null) return null
+  const raw = String(v).trim()
+  if (!raw) return null
+
+  const cleaned = raw.replace(/[^\d,.-]/g, "")
+  if (!cleaned) return null
+
+  let normalized = cleaned
+
+  if (normalized.includes(",")) {
+    // DE: Punkt tausender, Komma dezimal
+    normalized = normalized.replace(/\./g, "").replace(",", ".")
+  } else {
+    // kein Komma => Punkte sind sehr wahrscheinlich tausender
+    normalized = normalized.replace(/\./g, "")
+  }
+
+  const n = Number(normalized)
+  return Number.isFinite(n) ? n : null
 }
 
 async function nextCaseRef(sb: ReturnType<typeof supabaseAdmin>) {
@@ -106,7 +124,6 @@ export async function POST(req: Request) {
         },
       })
 
-      // Falls Supabase hier "already registered" o.ä. wirft → dann als existing behandeln
       if (invite.error) {
         const again = await findUserIdByEmail(sb, email)
         if (again) {
@@ -126,13 +143,12 @@ export async function POST(req: Request) {
 
     // 3) profiles upsert (auch bei existing)
     await sb.from("profiles").upsert({
-  id: userId,
-  email,
-  role: "customer",
-})
+      id: userId,
+      email,
+      role: "customer",
+    })
 
-
-    // 4) Case anlegen (Vergleich immer im Portal speichern)
+    // 4) Case anlegen
     const caseRef = await nextCaseRef(sb)
 
     const { data: createdCase, error: caseErr } = await sb
@@ -152,7 +168,7 @@ export async function POST(req: Request) {
     if (caseErr) throw caseErr
     const caseId = createdCase.id as string
 
-    // 5) Applicants speichern
+    // 5) Applicants speichern (✅ korrekt normalisiert)
     const primaryRow = {
       case_id: caseId,
       role: "primary",
