@@ -2,9 +2,11 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 
 const ACCENT = "#091840"
+const PORTAL_HREF = "/app"
 
 function cn(...c: Array<string | false | null | undefined>) {
   return c.filter(Boolean).join(" ")
@@ -46,6 +48,12 @@ export default function Header() {
   const panelRef = useRef<HTMLDivElement | null>(null)
   const btnRef = useRef<HTMLButtonElement | null>(null)
 
+  // ✅ WICHTIG: Supabase Client als Singleton pro Component (nicht pro Render neu)
+  const supabase = useMemo(() => createBrowserSupabaseClient(), [])
+
+  const [isAuthed, setIsAuthed] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
+
   // ESC + outside click (mobile friendly)
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -67,6 +75,43 @@ export default function Header() {
       document.removeEventListener("pointerdown", onPointerDown)
     }
   }, [open])
+
+  // ✅ Auth check: getSession() + onAuthStateChange (robust in Next/Client)
+  useEffect(() => {
+    let alive = true
+
+    async function boot() {
+      try {
+        const { data, error } = await supabase.auth.getSession()
+        if (!alive) return
+        if (error) console.error("Header getSession error:", error)
+        setIsAuthed(!!data.session?.user)
+      } catch (e) {
+        console.error("Header auth boot error:", e)
+        if (!alive) return
+        setIsAuthed(false)
+      } finally {
+        if (!alive) return
+        setAuthChecked(true)
+      }
+    }
+
+    boot()
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthed(!!session?.user)
+      setAuthChecked(true)
+    })
+
+    return () => {
+      alive = false
+      sub.subscription.unsubscribe()
+    }
+  }, [supabase])
+
+  const authLink = isAuthed
+    ? { href: PORTAL_HREF, label: "Portal" }
+    : { href: "/login", label: "Login" }
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
@@ -104,14 +149,18 @@ export default function Header() {
 
           <div className="mx-1 h-6 w-px bg-slate-200/70" aria-hidden />
 
+          {/* ✅ Login / Portal (dynamisch) */}
           <Link
-            href="/login"
-            className="rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-white/70 hover:shadow-sm hover:ring-1 hover:ring-slate-200/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+            href={authLink.href}
+            className={cn(
+              "rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-white/70 hover:shadow-sm hover:ring-1 hover:ring-slate-200/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300",
+              !authChecked && "opacity-60 pointer-events-none"
+            )}
           >
-            Login
+            {authChecked ? authLink.label : "…"}
           </Link>
 
-          {/* ✅ Vergleich starten -> /baufinanzierung */}
+          {/* Vergleich starten */}
           <Link
             href="/baufinanzierung"
             className="ml-2 inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
@@ -121,7 +170,7 @@ export default function Header() {
           </Link>
         </nav>
 
-        {/* Mobile Toggle (Hamburger <-> X) */}
+        {/* Mobile Toggle */}
         <button
           ref={btnRef}
           className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/70 shadow-sm transition hover:bg-white hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
@@ -129,11 +178,15 @@ export default function Header() {
           aria-label={open ? "Menü schließen" : "Menü öffnen"}
           aria-expanded={open}
         >
-          {open ? <IconX className="h-5 w-5 text-slate-900" /> : <IconMenu className="h-5 w-5 text-slate-900" />}
+          {open ? (
+            <IconX className="h-5 w-5 text-slate-900" />
+          ) : (
+            <IconMenu className="h-5 w-5 text-slate-900" />
+          )}
         </button>
       </div>
 
-      {/* Mobile Dropdown Panel (normal, modern) */}
+      {/* Mobile Dropdown Panel */}
       <div
         ref={panelRef}
         className={cn(
@@ -155,15 +208,19 @@ export default function Header() {
               </Link>
             ))}
 
+            {/* ✅ Login / Portal (dynamisch) */}
             <Link
-              href="/login"
+              href={authLink.href}
               onClick={() => setOpen(false)}
-              className="rounded-2xl px-3 py-3 text-sm text-slate-900 transition hover:bg-white hover:shadow-sm hover:ring-1 hover:ring-slate-200/70"
+              className={cn(
+                "rounded-2xl px-3 py-3 text-sm text-slate-900 transition hover:bg-white hover:shadow-sm hover:ring-1 hover:ring-slate-200/70",
+                !authChecked && "opacity-60 pointer-events-none"
+              )}
             >
-              Login
+              {authChecked ? authLink.label : "…"}
             </Link>
 
-            {/* ✅ Vergleich starten -> /baufinanzierung */}
+            {/* Vergleich starten */}
             <Link
               href="/baufinanzierung"
               onClick={() => setOpen(false)}

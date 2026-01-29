@@ -1,16 +1,17 @@
-'use client'
+"use client"
 
-import { createBrowserSupabaseClient } from '@/lib/supabase/browser'
+import { useRouter } from "next/navigation"
 
 export default function LogoutButton() {
-  const supabase = createBrowserSupabaseClient()
+  const router = useRouter()
 
   return (
     <button
       className="border rounded p-2"
       onClick={async () => {
-        await supabase.auth.signOut()
-        window.location.href = '/'
+        await fetch("/api/auth/logout", { method: "POST" })
+        router.push("/")
+        router.refresh()
       }}
     >
       Logout

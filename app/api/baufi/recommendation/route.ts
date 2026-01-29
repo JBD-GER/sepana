@@ -1,4 +1,3 @@
-// app/api/baufi/recommendation/route.ts
 export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
@@ -6,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 type Recommendation = {
   recommended: "online" | "live"
-  confidence: number // 0..1
+  confidence: number
   headline: string
   reasoning: string[]
   risk_flags: string[]
@@ -26,12 +25,9 @@ function num(v: unknown) {
   return Number.isFinite(n) ? n : 0
 }
 
-function clamp01(x: number) {
-  return Math.max(0, Math.min(1, x))
-}
-
 function heuristic(calc: { surplus: number; ratio: number; income: number; out: number }): Recommendation {
   const risk_flags: string[] = []
+
   if (calc.income <= 0) risk_flags.push("Keine Einnahmen angegeben.")
   if (calc.surplus <= 0) risk_flags.push("Haushaltsrechnung negativ oder ohne Puffer.")
   if (calc.ratio < 0.08) risk_flags.push("Sehr geringer finanzieller Puffer.")
@@ -45,108 +41,21 @@ function heuristic(calc: { surplus: number; ratio: number; income: number; out: 
     confidence: tight ? 0.82 : 0.74,
     headline: tight
       ? "Empfehlung: Live-Beratung (damit es wirklich passt)"
-      : "Empfehlung: Online-Vergleich (günstig & schnell)",
+      : "Empfehlung: Online (Bank auswählen & Abschluss starten)",
     reasoning: tight
       ? [
           "Ihre Haushaltsrechnung wirkt knapp – Banken unterscheiden sich hier stark.",
-          "In der Beratung können wir Stellschrauben prüfen (Laufzeit, Tilgung, Nebenkostenpuffer).",
-          "So vermeiden Sie unnötige Ablehnungen und sparen Zeit.",
+          "Live sparen Sie Zeit und vermeiden unnötige Ablehnungen.",
+          "Danach können Sie immer noch in den Online-Abschluss wechseln.",
         ]
       : [
-          "Ihr Puffer wirkt solide – ideal für einen schnellen, günstigen Vergleich.",
-          "Online können Sie mehrere Konditionen transparent vergleichen.",
-          "Bei Fragen können Sie jederzeit auf Live-Beratung wechseln.",
+          "Ihr Puffer wirkt solide – Sie können direkt eine Bank auswählen.",
+          "Online ist schnell und transparent.",
+          "Bei Unsicherheit wechseln Sie jederzeit zur Live-Beratung.",
         ],
     risk_flags,
     transparency_note:
-      "Hinweis: Das ist eine Einschätzung auf Basis Ihrer Angaben. Verbindliche Konditionen ergeben sich erst aus Bankprüfung (Bonität, Objekt, Unterlagen).",
-  }
-}
-
-// Nur im Graubereich AI callen (Kosten sparen)
-function shouldUseAI(calc: { surplus: number; ratio: number; income: number }) {
-  if (calc.income <= 0) return false
-  if (calc.surplus <= 0) return false // dann eh live
-  // “Graubereich” – hier kann AI Nuancen liefern
-  return calc.ratio >= 0.10 && calc.ratio <= 0.16
-}
-
-async function callOpenAI(input: unknown): Promise<Recommendation | null> {
-  const key = process.env.OPENAI_API_KEY
-  if (!key) return null
-
-  const res = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-5",
-      reasoning: { effort: "low" },
-      instructions:
-        "Du bist ein Finanzierungs-Routing-Assistent. Du gibst KEINE verbindlichen Zinsen/Bankzusagen. " +
-        "Du entscheidest transparent zwischen 'online' (günstig & schnell) und 'live' (wenn knapp/komplex). " +
-        "Wenn Haushaltsrechnung knapp ist: klar zu Live raten. " +
-        "Gib ausschließlich JSON nach Schema zurück, ohne zusätzlichen Text.",
-      input: [
-        {
-          role: "user",
-          content:
-            "Entscheide zwischen Online-Vergleich und Live-Beratung anhand der Zahlen. Gib JSON exakt nach Schema zurück.",
-        },
-        { role: "user", content: JSON.stringify(input) },
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "baufi_recommendation",
-          schema: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              recommended: { type: "string", enum: ["online", "live"] },
-              confidence: { type: "number" },
-              headline: { type: "string" },
-              reasoning: { type: "array", items: { type: "string" } },
-              risk_flags: { type: "array", items: { type: "string" } },
-              transparency_note: { type: "string" },
-            },
-            required: ["recommended", "confidence", "headline", "reasoning", "risk_flags", "transparency_note"],
-          },
-        },
-      },
-    }),
-  })
-
-  if (!res.ok) return null
-
-  const json: any = await res.json().catch(() => null)
-  if (!json) return null
-
-  // robustes Extrahieren (je nach API/SDK-Form)
-  const text: string | null =
-    json.output_text ??
-    json?.output?.[0]?.content?.[0]?.text ??
-    json?.output?.[0]?.content?.[0]?.output_text ??
-    null
-
-  if (!text) return null
-
-  try {
-    const parsed = JSON.parse(text) as Recommendation
-
-    // Minimale Validierung/Absicherung
-    if (parsed.recommended !== "online" && parsed.recommended !== "live") return null
-    if (!Array.isArray(parsed.reasoning) || !Array.isArray(parsed.risk_flags)) return null
-    if (typeof parsed.headline !== "string" || typeof parsed.transparency_note !== "string") return null
-
-    return {
-      ...parsed,
-      confidence: clamp01(typeof parsed.confidence === "number" ? parsed.confidence : 0.75),
-    }
-  } catch {
-    return null
+      "Hinweis: Einschätzung auf Basis Ihrer Angaben. Verbindliche Konditionen ergeben sich erst aus Bankprüfung (Bonität, Objekt, Unterlagen).",
   }
 }
 
@@ -159,9 +68,7 @@ export async function GET(req: Request) {
 
   if (!caseId) return NextResponse.json({ error: "caseId fehlt" }, { status: 400 })
 
-  // Minimaler Zugriffsschutz via caseRef (wenn vorhanden)
   const { data: c, error: cErr } = await sb.from("cases").select("id, case_ref").eq("id", caseId).maybeSingle()
-
   if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 })
   if (!c) return NextResponse.json({ error: "Case nicht gefunden" }, { status: 404 })
   if (c.case_ref && caseRef && c.case_ref !== caseRef) {
@@ -176,7 +83,6 @@ export async function GET(req: Request) {
   if (aErr) return NextResponse.json({ error: aErr.message }, { status: 500 })
 
   const apps = (appsRaw || []) as CaseApplicantRow[]
-
   const primary =
     apps.find((x) => x.role === "primary") ??
     ({
@@ -200,37 +106,18 @@ export async function GET(req: Request) {
   const surplus = income - out
   const ratio = income > 0 ? surplus / income : -1
 
-  const baseRec = heuristic({ surplus, ratio, income, out })
-
-  const aiInput = {
-    income_monthly: income,
-    out_monthly: out,
-    surplus_monthly: surplus,
-    surplus_ratio: ratio,
-    base_recommendation: baseRec,
-  }
-
-  const ai = shouldUseAI({ surplus, ratio, income }) ? await callOpenAI(aiInput) : null
-
-  const finalRec = ai
-    ? {
-        ...ai,
-        confidence: clamp01(typeof ai.confidence === "number" ? ai.confidence : baseRec.confidence),
-        // Safety: wenn AI “online” empfiehlt aber Zahlen tight sind → override auf live (keine falsche Guidance)
-        recommended: surplus <= 0 || ratio < 0.1 ? "live" : ai.recommended,
-      }
-    : baseRec
+  const rec = heuristic({ surplus, ratio, income, out })
 
   return NextResponse.json({
     ok: true,
     caseId,
-    recommendation: finalRec,
+    recommendation: rec,
     meta: {
       income_monthly: income,
       out_monthly: out,
       surplus_monthly: surplus,
       surplus_ratio: ratio,
-      used_ai: !!ai,
+      used_ai: false,
     },
   })
 }

@@ -2,6 +2,7 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 
 export type BaufiEckdaten = {
@@ -87,6 +88,39 @@ function clampNumberString(v: string) {
 }
 
 /* ────────────────────────────────────────────────────────────────
+   submitFinal types
+──────────────────────────────────────────────────────────────── */
+
+type SubmitResponse = {
+  ok?: boolean
+  caseId?: string
+  caseRef?: string
+  existingAccount?: boolean
+  // optional, falls du sowas später serverseitig liefern willst
+  nextUrl?: string
+}
+
+/**
+ * ✅ FINAL: deine URL-Struktur laut Screenshot
+ * - Bankenauswahl: /baufinanzierung/auswahl
+ * - Live: /baufinanzierung/auswahl/live (wird später aus der Auswahl-Page heraus verlinkt)
+ */
+function buildNextUrl(opts: {
+  caseId: string
+  caseRef?: string
+  existingAccount?: boolean
+}) {
+  const base = "/baufinanzierung/auswahl"
+
+  const params = new URLSearchParams()
+  params.set("caseId", opts.caseId)
+  if (opts.caseRef) params.set("caseRef", opts.caseRef)
+  if (opts.existingAccount) params.set("existing", "1")
+
+  return `${base}?${params.toString()}`
+}
+
+/* ────────────────────────────────────────────────────────────────
    Steps
 ──────────────────────────────────────────────────────────────── */
 
@@ -111,9 +145,14 @@ export default function BaufiWizard({
   baufi: BaufiEckdaten
   startNonce: number
 }) {
+  const router = useRouter()
+
   const [step, setStep] = useState<StepId>("contact")
   const stepIndex = useMemo(() => steps.findIndex((s) => s.id === step), [step])
-  const progress = useMemo(() => Math.round(((stepIndex + 1) / steps.length) * 100), [stepIndex])
+  const progress = useMemo(
+    () => Math.round(((stepIndex + 1) / steps.length) * 100),
+    [stepIndex]
+  )
 
   const [draft, setDraft] = useState<WizardDraft>({
     primary: {
@@ -214,7 +253,10 @@ export default function BaufiWizard({
     const exp = parseMoneyToNumber(draft.primary.expenses_monthly)
     const loans = parseMoneyToNumber(draft.primary.existing_loans_monthly)
 
-    const coIncome = (draft.co || []).reduce((sum, c) => sum + parseMoneyToNumber(c.net_income_monthly), 0)
+    const coIncome = (draft.co || []).reduce(
+      (sum, c) => sum + parseMoneyToNumber(c.net_income_monthly),
+      0
+    )
 
     const totalIncome = net + other + coIncome
     const totalOut = exp + loans
@@ -273,6 +315,10 @@ export default function BaufiWizard({
     if (prev) setStep(prev)
   }
 
+  /**
+   * ✅ FINAL: Submit -> immer /baufinanzierung/auswahl?caseId=...&caseRef=...&existing=1
+   * Keine Recommendation / kein Routing nach /baufinanzierung/live
+   */
   async function submitFinal() {
     setBusy(true)
     setError(null)
@@ -305,20 +351,38 @@ export default function BaufiWizard({
         body: JSON.stringify(payload),
       })
 
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json?.error || "Abschluss fehlgeschlagen.")
+      const json = (await res.json().catch(() => ({}))) as SubmitResponse
+      if (!res.ok) throw new Error((json as any)?.error || "Abschluss fehlgeschlagen.")
 
-      if (json?.existingAccount) {
-        setSuccessMsg(
-          "Es gibt bereits ein Konto zu dieser E-Mail. Wir haben Ihren Vergleich im Portal hinterlegt – bitte melden Sie sich an."
-        )
-      } else {
-        setSuccessMsg(
-          "Geschafft! Sie erhalten jetzt eine E-Mail mit dem Einladungslink. Dort legen Sie nur noch Ihr Passwort fest."
-        )
+      // Server kann optional direkt eine Next-URL liefern
+      if (json?.nextUrl) {
+        localStorage.removeItem(DRAFT_KEY)
+        router.push(json.nextUrl)
+        return
       }
 
+      const caseId = json?.caseId
+      const caseRef = json?.caseRef
+      const existingAccount = !!json?.existingAccount
+
+      if (!caseId) {
+        setSuccessMsg(
+          existingAccount
+            ? "Es gibt bereits ein Konto zu dieser E-Mail. Wir haben Ihren Vergleich im Portal hinterlegt – bitte melden Sie sich an."
+            : "Geschafft! Sie erhalten jetzt eine E-Mail mit dem Einladungslink. Dort legen Sie nur noch Ihr Passwort fest."
+        )
+        localStorage.removeItem(DRAFT_KEY)
+        return
+      }
+
+      const nextUrl = buildNextUrl({
+        caseId,
+        caseRef,
+        existingAccount,
+      })
+
       localStorage.removeItem(DRAFT_KEY)
+      router.push(nextUrl)
     } catch (e: any) {
       setError(e?.message ?? "Unbekannter Fehler.")
     } finally {
@@ -335,7 +399,9 @@ export default function BaufiWizard({
             <p className="text-sm text-slate-600">
               Schritt {stepIndex + 1} von {steps.length}
             </p>
-            <p className="truncate text-base font-medium text-slate-900">{steps[stepIndex]?.title}</p>
+            <p className="truncate text-base font-medium text-slate-900">
+              {steps[stepIndex]?.title}
+            </p>
           </div>
           <div className="shrink-0 text-sm text-slate-700 tabular-nums">{progress}%</div>
         </div>
@@ -370,14 +436,14 @@ export default function BaufiWizard({
             )
           })}
         </div>
-
-        {/* ✅ KEINE Eckdaten hier – laut Wunsch */}
       </div>
 
       {/* Body */}
       <div className="px-4 py-5 sm:px-6">
         {error && (
-          <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">{error}</div>
+          <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
+            {error}
+          </div>
         )}
         {successMsg && (
           <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800">
@@ -405,7 +471,10 @@ export default function BaufiWizard({
         )}
 
         {step === "residence" && (
-          <ResidenceStep value={draft.primary} onChange={(v) => setDraft((d) => ({ ...d, primary: v }))} />
+          <ResidenceStep
+            value={draft.primary}
+            onChange={(v) => setDraft((d) => ({ ...d, primary: v }))}
+          />
         )}
 
         {step === "household" && (
@@ -418,7 +487,10 @@ export default function BaufiWizard({
         )}
 
         {step === "co" && (
-          <CoApplicantsStep items={draft.co} onChange={(items) => setDraft((d) => ({ ...d, co: items }))} />
+          <CoApplicantsStep
+            items={draft.co}
+            onChange={(items) => setDraft((d) => ({ ...d, co: items }))}
+          />
         )}
 
         {step === "review" && <ReviewStep draft={draft} calc={calc} />}
@@ -471,7 +543,11 @@ export default function BaufiWizard({
                 busy && "cursor-not-allowed opacity-70"
               )}
             >
-              {busy ? "Wird abgeschlossen…" : emailExists ? "Abschließen & im Portal speichern" : "Abschließen & Invite senden"}
+              {busy
+                ? "Wird abgeschlossen…"
+                : emailExists
+                  ? "Abschließen & im Portal speichern"
+                  : "Abschließen & Invite senden"}
             </button>
           )}
         </div>
@@ -504,7 +580,15 @@ function Card({
   )
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string
+  hint?: string
+  children: React.ReactNode
+}) {
   return (
     <label className="block">
       <div className="mb-1 flex items-baseline justify-between gap-3">
@@ -629,7 +713,9 @@ function ContactStep({
                 Zu dieser E-Mail existiert bereits ein Konto. Nach dem Abschluss wird der Vergleich im Portal hinterlegt.
               </div>
             ) : (
-              <div className="mt-2 text-xs text-slate-500">Tipp: Nutzen Sie eine E-Mail, auf die Sie sicher Zugriff haben.</div>
+              <div className="mt-2 text-xs text-slate-500">
+                Tipp: Nutzen Sie eine E-Mail, auf die Sie sicher Zugriff haben.
+              </div>
             )}
           </div>
 
@@ -644,11 +730,18 @@ function ContactStep({
           </Field>
 
           <Field label="Geburtsdatum (optional)" hint="für Konditionen relevant">
-            <Input type="date" value={value.birth_date ?? ""} onChange={(e) => onChange({ ...value, birth_date: e.target.value })} />
+            <Input
+              type="date"
+              value={value.birth_date ?? ""}
+              onChange={(e) => onChange({ ...value, birth_date: e.target.value })}
+            />
           </Field>
 
           <Field label="Familienstand (optional)">
-            <Select value={value.marital_status ?? ""} onChange={(e) => onChange({ ...value, marital_status: e.target.value })}>
+            <Select
+              value={value.marital_status ?? ""}
+              onChange={(e) => onChange({ ...value, marital_status: e.target.value })}
+            >
               <option value="">Bitte wählen</option>
               <option value="single">Ledig</option>
               <option value="married">Verheiratet</option>
@@ -667,25 +760,47 @@ function ContactStep({
   )
 }
 
-function ResidenceStep({ value, onChange }: { value: PrimaryApplicant; onChange: (v: PrimaryApplicant) => void }) {
+function ResidenceStep({
+  value,
+  onChange,
+}: {
+  value: PrimaryApplicant
+  onChange: (v: PrimaryApplicant) => void
+}) {
   return (
     <div className="space-y-4">
       <Card title="Adresse & Wohnsituation" subtitle="Optional – aber sehr hilfreich für eine saubere Einordnung.">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Straße / Nr.">
-            <Input value={value.address_street ?? ""} onChange={(e) => onChange({ ...value, address_street: e.target.value })} placeholder="Musterstraße 12" />
+            <Input
+              value={value.address_street ?? ""}
+              onChange={(e) => onChange({ ...value, address_street: e.target.value })}
+              placeholder="Musterstraße 12"
+            />
           </Field>
 
           <Field label="PLZ">
-            <Input value={value.address_zip ?? ""} onChange={(e) => onChange({ ...value, address_zip: e.target.value })} inputMode="numeric" placeholder="12345" />
+            <Input
+              value={value.address_zip ?? ""}
+              onChange={(e) => onChange({ ...value, address_zip: e.target.value })}
+              inputMode="numeric"
+              placeholder="12345"
+            />
           </Field>
 
           <Field label="Ort">
-            <Input value={value.address_city ?? ""} onChange={(e) => onChange({ ...value, address_city: e.target.value })} placeholder="Berlin" />
+            <Input
+              value={value.address_city ?? ""}
+              onChange={(e) => onChange({ ...value, address_city: e.target.value })}
+              placeholder="Berlin"
+            />
           </Field>
 
           <Field label="Wohnstatus">
-            <Select value={value.housing_status ?? ""} onChange={(e) => onChange({ ...value, housing_status: e.target.value })}>
+            <Select
+              value={value.housing_status ?? ""}
+              onChange={(e) => onChange({ ...value, housing_status: e.target.value })}
+            >
               <option value="">Bitte wählen</option>
               <option value="rent">Miete</option>
               <option value="owner">Eigentum</option>
@@ -714,7 +829,6 @@ function ResidenceStep({ value, onChange }: { value: PrimaryApplicant; onChange:
                 </Select>
               </Field>
 
-              {/* ✅ Status als Dropdown */}
               <Field label="Status (Anstellungsverhältnis)">
                 <Select
                   value={value.employment_status ?? ""}
@@ -733,7 +847,11 @@ function ResidenceStep({ value, onChange }: { value: PrimaryApplicant; onChange:
               </Field>
 
               <Field label="Arbeitgeber (optional)" hint="Firma / Branche">
-                <Input value={value.employer_name ?? ""} onChange={(e) => onChange({ ...value, employer_name: e.target.value })} placeholder="z. B. Muster GmbH" />
+                <Input
+                  value={value.employer_name ?? ""}
+                  onChange={(e) => onChange({ ...value, employer_name: e.target.value })}
+                  placeholder="z. B. Muster GmbH"
+                />
               </Field>
             </div>
           </Card>
@@ -770,7 +888,10 @@ function HouseholdScoreBar({ score, label }: { score: number; label: string }) {
 
       <div className="mt-3">
         <div className="relative h-3 overflow-hidden rounded-full bg-slate-100">
-          <div className="h-full rounded-full bg-slate-900 transition-[width] duration-300" style={{ width: `${clamped}%` }} />
+          <div
+            className="h-full rounded-full bg-slate-900 transition-[width] duration-300"
+            style={{ width: `${clamped}%` }}
+          />
           <div className="absolute top-1/2 h-5 w-0 -translate-y-1/2 border-l border-slate-900/40" style={{ left: "33%" }} />
           <div className="absolute top-1/2 h-5 w-0 -translate-y-1/2 border-l border-slate-900/40" style={{ left: "66%" }} />
         </div>
@@ -814,28 +935,44 @@ function HouseholdStep({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Field label="Nettoeinkommen / Monat">
-              <MoneyInput value={value.net_income_monthly ?? ""} onChange={(v) => onChange({ ...value, net_income_monthly: v })} placeholder="z. B. 3.200" />
+              <MoneyInput
+                value={value.net_income_monthly ?? ""}
+                onChange={(v) => onChange({ ...value, net_income_monthly: v })}
+                placeholder="z. B. 3.200"
+              />
             </Field>
             <Tip>Wenn schwankend: Durchschnitt der letzten 3–6 Monate.</Tip>
           </div>
 
           <div className="space-y-2">
             <Field label="Weitere Einnahmen / Monat" hint="z. B. Kindergeld">
-              <MoneyInput value={value.other_income_monthly ?? ""} onChange={(v) => onChange({ ...value, other_income_monthly: v })} placeholder="z. B. 300" />
+              <MoneyInput
+                value={value.other_income_monthly ?? ""}
+                onChange={(v) => onChange({ ...value, other_income_monthly: v })}
+                placeholder="z. B. 300"
+              />
             </Field>
             <Tip>Nur regelmäßige Einnahmen eintragen.</Tip>
           </div>
 
           <div className="space-y-2">
             <Field label="Fixkosten / Monat" hint="inkl. Miete, Versicherungen">
-              <MoneyInput value={value.expenses_monthly ?? ""} onChange={(v) => onChange({ ...value, expenses_monthly: v })} placeholder="z. B. 1.200" />
+              <MoneyInput
+                value={value.expenses_monthly ?? ""}
+                onChange={(v) => onChange({ ...value, expenses_monthly: v })}
+                placeholder="z. B. 1.200"
+              />
             </Field>
             <Tip>Konservativ schätzen spart später Rückfragen.</Tip>
           </div>
 
           <div className="space-y-2">
             <Field label="Bestehende Kredite / Monat" hint="Raten / Leasing">
-              <MoneyInput value={value.existing_loans_monthly ?? ""} onChange={(v) => onChange({ ...value, existing_loans_monthly: v })} placeholder="z. B. 150" />
+              <MoneyInput
+                value={value.existing_loans_monthly ?? ""}
+                onChange={(v) => onChange({ ...value, existing_loans_monthly: v })}
+                placeholder="z. B. 150"
+              />
             </Field>
             <Tip>Nur feste monatliche Verpflichtungen.</Tip>
           </div>
@@ -847,12 +984,19 @@ function HouseholdStep({
           <Card title="Ergebnis (live)" subtitle="Weitere Kreditnehmer werden automatisch addiert.">
             <div className="space-y-2 text-sm">
               <Row label="Einnahmen gesamt" value={formatMoneyFromNumber(calc.totalIncome)} />
-              {coCount > 0 ? <Row label={`davon weitere Kreditnehmer (${coCount})`} value={formatMoneyFromNumber(calc.coIncome)} /> : null}
+              {coCount > 0 ? (
+                <Row
+                  label={`davon weitere Kreditnehmer (${coCount})`}
+                  value={formatMoneyFromNumber(calc.coIncome)}
+                />
+              ) : null}
               <Row label="Ausgaben gesamt" value={formatMoneyFromNumber(calc.totalOut)} />
 
               <div className="mt-2 rounded-2xl border border-slate-200 bg-white/60 px-3 py-2">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-slate-900 tabular-nums">Überschuss/Defizit: {surplusStr}</div>
+                  <div className="text-sm font-medium text-slate-900 tabular-nums">
+                    Überschuss/Defizit: {surplusStr}
+                  </div>
                   <div className="text-xs text-slate-600 tabular-nums">{ratioPct}% Puffer</div>
                 </div>
                 <div className="mt-2 text-xs text-slate-600">{calc.tip}</div>
@@ -876,7 +1020,13 @@ function Row({ label, value }: { label: string; value: string }) {
   )
 }
 
-function CoApplicantsStep({ items, onChange }: { items: CoApplicant[]; onChange: (items: CoApplicant[]) => void }) {
+function CoApplicantsStep({
+  items,
+  onChange,
+}: {
+  items: CoApplicant[]
+  onChange: (items: CoApplicant[]) => void
+}) {
   function add() {
     onChange([...items, { first_name: "", last_name: "", birth_date: "", employment_status: "", net_income_monthly: "" }])
   }
@@ -922,11 +1072,18 @@ function CoApplicantsStep({ items, onChange }: { items: CoApplicant[]; onChange:
                   <Input value={c.last_name} onChange={(e) => update(i, { last_name: e.target.value })} />
                 </Field>
                 <Field label="Geburtsdatum">
-                  <Input type="date" value={c.birth_date ?? ""} onChange={(e) => update(i, { birth_date: e.target.value })} />
+                  <Input
+                    type="date"
+                    value={c.birth_date ?? ""}
+                    onChange={(e) => update(i, { birth_date: e.target.value })}
+                  />
                 </Field>
 
                 <Field label="Beschäftigungsstatus" hint="Dropdown ist optional">
-                  <Select value={c.employment_status ?? ""} onChange={(e) => update(i, { employment_status: e.target.value })}>
+                  <Select
+                    value={c.employment_status ?? ""}
+                    onChange={(e) => update(i, { employment_status: e.target.value })}
+                  >
                     <option value="">Bitte wählen</option>
                     <option value="employed">Angestellt</option>
                     <option value="self_employed">Selbstständig</option>
@@ -940,7 +1097,11 @@ function CoApplicantsStep({ items, onChange }: { items: CoApplicant[]; onChange:
 
                 <div className="sm:col-span-2 space-y-2">
                   <Field label="Nettoeinkommen / Monat" hint="optional">
-                    <MoneyInput value={c.net_income_monthly ?? ""} onChange={(v) => update(i, { net_income_monthly: v })} placeholder="z. B. 2.800" />
+                    <MoneyInput
+                      value={c.net_income_monthly ?? ""}
+                      onChange={(v) => update(i, { net_income_monthly: v })}
+                      placeholder="z. B. 2.800"
+                    />
                   </Field>
                   <Tip>Tipp: Wenn jemand nicht mitfinanziert, bitte nicht hinzufügen.</Tip>
                 </div>
@@ -996,7 +1157,10 @@ function ReviewStep({
             </Section>
 
             <Section title="Adresse & Situation">
-              <KV k="Adresse" v={[p.address_street, p.address_zip, p.address_city].filter(Boolean).join(", ") || "—"} />
+              <KV
+                k="Adresse"
+                v={[p.address_street, p.address_zip, p.address_city].filter(Boolean).join(", ") || "—"}
+              />
               <KV k="Wohnstatus" v={p.housing_status || "—"} />
               <KV k="Beschäftigungsverhältnis" v={labelEmploymentType(p.employment_type)} />
               <KV k="Status" v={labelEmploymentStatus(p.employment_status)} />
@@ -1007,7 +1171,9 @@ function ReviewStep({
           <div className="space-y-3">
             <Section title="Haushaltsrechnung (Monat)">
               <KV k="Einnahmen gesamt" v={formatMoneyFromNumber(calc.totalIncome)} />
-              {draft.co.length > 0 ? <KV k={`davon weitere Kreditnehmer (${draft.co.length})`} v={formatMoneyFromNumber(calc.coIncome)} /> : null}
+              {draft.co.length > 0 ? (
+                <KV k={`davon weitere Kreditnehmer (${draft.co.length})`} v={formatMoneyFromNumber(calc.coIncome)} />
+              ) : null}
               <KV k="Ausgaben gesamt" v={formatMoneyFromNumber(calc.totalOut)} />
               <KV k="Überschuss/Defizit" v={nfCurrency.format(calc.surplus)} />
               <KV k="Bewertung" v={`${calc.label} (${Math.max(0, Math.min(100, calc.score))}/100)`} />
@@ -1023,7 +1189,9 @@ function ReviewStep({
                 <ul className="space-y-2">
                   {draft.co.map((c, i) => {
                     const name =
-                      c.first_name || c.last_name ? `${c.first_name} ${c.last_name}`.trim() : `Kreditnehmer ${i + 2}`
+                      c.first_name || c.last_name
+                        ? `${c.first_name} ${c.last_name}`.trim()
+                        : `Kreditnehmer ${i + 2}`
                     const income = c.net_income_monthly ? c.net_income_monthly : "—"
                     return (
                       <li key={i} className="rounded-2xl border border-slate-200 bg-white/60 px-3 py-2">
@@ -1049,8 +1217,8 @@ function ReviewStep({
         <div className="mt-4 rounded-2xl border border-slate-200 bg-white/60 px-4 py-3 text-sm text-slate-700">
           <div className="font-medium text-slate-900">Was passiert als Nächstes?</div>
           <div className="mt-1 text-slate-600">
-            Nach dem Abschluss wird der Vergleich in Ihrem Portal gespeichert. Wenn noch kein Konto existiert, erhalten Sie zusätzlich
-            einen Einladungslink per E-Mail, um Ihr Passwort festzulegen.
+            Nach dem Abschluss wird der Vergleich in Ihrem Portal gespeichert. Wenn noch kein Konto existiert, erhalten Sie zusätzlich einen
+            Einladungslink per E-Mail, um Ihr Passwort festzulegen.
           </div>
         </div>
       </Card>

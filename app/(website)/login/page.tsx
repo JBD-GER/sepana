@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import AuthShell from "../components/AuthShell"
-import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { Alert, Button, Icon, Input } from "../components/auth/ui"
 
 function normalizeError(message: string) {
@@ -14,15 +14,23 @@ function normalizeError(message: string) {
   return message || "Fehler"
 }
 
+function safeNext(next?: string | null) {
+  if (!next) return null
+  if (!next.startsWith("/")) return null
+  if (next.startsWith("/login")) return null
+  return next
+}
+
 export default function LoginPage() {
-  const supabase = useMemo(() => createBrowserSupabaseClient(), [])
+  const sp = useSearchParams()
+  const next = safeNext(sp.get("next"))
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPw, setShowPw] = useState(false)
 
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
-
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({})
 
   function validate() {
@@ -40,9 +48,19 @@ export default function LoginPage() {
 
     setBusy(true)
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) throw error
-      window.location.href = "/app"
+      const r = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok || !data?.ok) {
+        throw new Error(data?.error || "Login fehlgeschlagen")
+      }
+
+      // ✅ jetzt existieren HttpOnly Cookies -> Proxy erkennt user -> /app klappt
+      window.location.href = next || "/app"
     } catch (err: any) {
       setMsg({ type: "err", text: normalizeError(err?.message ?? "") })
     } finally {
