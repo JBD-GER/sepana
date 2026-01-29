@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { requireCustomer } from "@/lib/app/requireCustomer"
+import { authFetch } from "@/lib/app/authFetch"
 
 type DashboardResp = {
   openCases: number
@@ -10,15 +11,16 @@ type DashboardResp = {
 export default async function CustomerDashboard() {
   await requireCustomer()
 
-  // server fetch (same origin)
-  const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/api/app/dashboard`, {
-    cache: "no-store",
-    headers: { "x-internal": "1" },
-  }).catch(() => null)
+  const res = await authFetch("/api/app/dashboard").catch(() => null)
 
-  const data: DashboardResp = res && res.ok
-    ? await res.json()
-    : { openCases: 0, assignedAdvisorEmail: null, tip: "Halten Sie Ihre Unterlagen bereit – das beschleunigt die Zusage." }
+  const data: DashboardResp =
+    res && res.ok
+      ? await res.json()
+      : {
+          openCases: 0,
+          assignedAdvisorEmail: null,
+          tip: "Halten Sie Ihre Unterlagen bereit – das beschleunigt die Zusage.",
+        }
 
   return (
     <div className="space-y-6">

@@ -10,7 +10,6 @@ export default async function AdminAdvisorsPage() {
   await requireAdmin()
   const admin = supabaseAdmin()
 
-  // Berater kommen aus profiles.role = advisor
   const { data: advisors } = await admin
     .from("profiles")
     .select("user_id,created_at")
@@ -19,7 +18,6 @@ export default async function AdminAdvisorsPage() {
 
   const advisorIds = (advisors ?? []).map((a) => a.user_id)
 
-  // Cases + Offer KPIs pro Berater
   const { data: cases } = advisorIds.length
     ? await admin.from("cases").select("id,assigned_advisor_id").in("assigned_advisor_id", advisorIds)
     : { data: [] as any[] }
@@ -27,7 +25,7 @@ export default async function AdminAdvisorsPage() {
   const { data: offers } = advisorIds.length
     ? await admin
         .from("case_offers")
-        .select("id,provider_id,case_id,loan_amount,status")
+        .select("id,case_id,loan_amount,status")
         .in("status", ["sent", "accepted"])
     : { data: [] as any[] }
 
@@ -37,7 +35,6 @@ export default async function AdminAdvisorsPage() {
     casesByAdvisor.set(c.assigned_advisor_id, (casesByAdvisor.get(c.assigned_advisor_id) ?? 0) + 1)
   }
 
-  // Offer-Volume: wir summieren je Advisor über Cases (über case_id -> assigned_advisor_id)
   const caseToAdvisor = new Map<string, string>()
   for (const c of cases ?? []) if (c.assigned_advisor_id) caseToAdvisor.set(c.id, c.assigned_advisor_id)
 
@@ -52,8 +49,6 @@ export default async function AdminAdvisorsPage() {
     if (o.status === "accepted") closedVolByAdvisor.set(adv, (closedVolByAdvisor.get(adv) ?? 0) + amount)
   }
 
-  // Emails nur über Auth Admin API sinnvoll abrufbar
-  // (Wir holen alles in einem Rutsch und mappen)
   const { data: usersPage } = await admin.auth.admin.listUsers({ page: 1, perPage: 2000 })
   const emailById = new Map<string, string>()
   for (const u of usersPage.users) emailById.set(u.id, u.email ?? "")
@@ -62,9 +57,7 @@ export default async function AdminAdvisorsPage() {
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold text-slate-900">Berater</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Berater per Einladung hinzufügen und KPIs je Berater ansehen.
-        </p>
+        <p className="mt-1 text-sm text-slate-600">Berater per Einladung hinzufügen und KPIs je Berater ansehen.</p>
       </div>
 
       <InviteAdvisorForm />
@@ -94,6 +87,7 @@ export default async function AdminAdvisorsPage() {
                   </tr>
                 )
               })}
+
               {(advisors ?? []).length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-slate-500" colSpan={4}>

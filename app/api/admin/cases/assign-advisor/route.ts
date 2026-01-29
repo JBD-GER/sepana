@@ -1,31 +1,32 @@
+// app/api/admin/cases/assign-advisor/route.ts
+import { NextResponse } from "next/server"
+import { requireAdmin } from "@/lib/admin/requireAdmin"
+import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
+
 export const runtime = "nodejs"
 
-import { NextResponse } from "next/server"
-import { supabaseAdmin  } from "@/lib/supabase/supabaseAdmin"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
-
-async function assertAdmin() {
-  const supabase = await createServerSupabaseClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.user) return false
-  const { data: profile } = await supabase.from("profiles").select("role").eq("user_id", session.user.id).single()
-  return profile?.role === "admin"
-}
-
 export async function POST(req: Request) {
-  const ok = await assertAdmin()
-  if (!ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    await requireAdmin()
+    const admin = supabaseAdmin()
 
-  const { caseId, advisorId } = await req.json()
-  if (!caseId) return NextResponse.json({ error: "Missing caseId" }, { status: 400 })
+    const body = await req.json().catch(() => null)
+    const caseId = body?.caseId as string | undefined
+    const advisorId = (body?.advisorId as string | null | undefined) ?? null
 
-  const admin = supabaseAdmin ()
+    if (!caseId) {
+      return NextResponse.json({ ok: false, error: "caseId fehlt" }, { status: 400 })
+    }
 
-  const { error } = await admin
-    .from("cases")
-    .update({ assigned_advisor_id: advisorId ?? null })
-    .eq("id", caseId)
+    const { error } = await admin
+      .from("cases")
+      .update({ assigned_advisor_id: advisorId })
+      .eq("id", caseId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ ok: true })
+    if (error) throw error
+
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
+  }
 }

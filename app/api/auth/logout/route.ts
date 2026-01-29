@@ -1,30 +1,29 @@
-import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
+// app/api/auth/logout/route.ts
+import { NextResponse } from "next/server"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
 
-export const runtime = 'nodejs'
+export const runtime = "nodejs"
 
-export async function POST() {
-  const cookieStore = await cookies()
-  const res = NextResponse.json({ ok: true })
+function safeNext(next: string | null) {
+  if (!next) return "/login"
+  if (!next.startsWith("/")) return "/login"
+  if (next.startsWith("/api")) return "/login"
+  return next
+}
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            res.cookies.set(name, value, options)
-          })
-        },
-      },
-    }
-  )
+export async function GET(req: Request) {
+  const url = new URL(req.url)
+  const next = safeNext(url.searchParams.get("next"))
 
+  const supabase = await createServerSupabaseClient()
   await supabase.auth.signOut()
-  return res
+
+  // harte Weiterleitung
+  return NextResponse.redirect(new URL(next, url.origin), 303)
+}
+
+export async function POST(req: Request) {
+  const supabase = await createServerSupabaseClient()
+  await supabase.auth.signOut()
+  return NextResponse.json({ ok: true }, { headers: { "cache-control": "no-store" } })
 }

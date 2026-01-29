@@ -1,4 +1,6 @@
+import Link from "next/link"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
+import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import MetricCard from "./ui/MetricCard"
 
 function eur(n: number) {
@@ -6,15 +8,16 @@ function eur(n: number) {
 }
 
 export default async function AdminDashboard() {
-  const { supabase, session } = await requireAdmin()
+  const { user } = await requireAdmin()
+  const admin = supabaseAdmin()
 
   const [{ data: offers }, { data: cases }, { data: docs }] = await Promise.all([
-    supabase
+    admin
       .from("case_offers")
       .select("loan_amount,status,created_at")
       .in("status", ["sent", "accepted"]),
-    supabase.from("cases").select("id,status,case_type,created_at"),
-    supabase.from("documents").select("id,size_bytes,created_at"),
+    admin.from("cases").select("id,status,case_type,created_at"),
+    admin.from("documents").select("id,size_bytes,created_at"),
   ])
 
   const offerVolume = (offers ?? []).reduce((sum, o) => sum + Number(o.loan_amount ?? 0), 0)
@@ -33,7 +36,7 @@ export default async function AdminDashboard() {
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold text-slate-900">Admin Übersicht</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Eingeloggt als: <span className="font-medium text-slate-900">{session.user.email}</span>
+          Eingeloggt als: <span className="font-medium text-slate-900">{user.email}</span>
         </p>
       </div>
 
@@ -47,18 +50,18 @@ export default async function AdminDashboard() {
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="text-sm font-medium text-slate-900">Quick Actions</div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <a
+          <Link
             href="/admin/berater"
             className="rounded-xl border border-slate-200/70 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm hover:border-slate-300"
           >
             Berater einladen
-          </a>
-          <a
+          </Link>
+          <Link
             href="/admin/faelle"
             className="rounded-xl border border-slate-200/70 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm hover:border-slate-300"
           >
             Fälle verwalten
-          </a>
+          </Link>
         </div>
       </div>
     </div>

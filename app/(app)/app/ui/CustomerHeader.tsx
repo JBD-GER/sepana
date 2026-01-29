@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 
 const ACCENT = "#091840"
@@ -39,6 +39,8 @@ function IconMenu(props: React.SVGProps<SVGSVGElement>) {
 
 export default function CustomerHeader() {
   const pathname = usePathname()
+  const router = useRouter()
+
   const [open, setOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const btnRef = useRef<HTMLButtonElement | null>(null)
@@ -68,26 +70,26 @@ export default function CustomerHeader() {
     }
   }, [open])
 
-  // Auth user email
+  // ✅ Auth: getUser() + Events -> refresh
   useEffect(() => {
     let alive = true
 
-    async function boot() {
+    async function refreshAuth() {
       try {
-        const { data } = await supabase.auth.getSession()
+        const { data, error } = await supabase.auth.getUser()
         if (!alive) return
-        setEmail(data.session?.user?.email ?? null)
+        if (error) console.error("CustomerHeader getUser error:", error)
+        setEmail(data.user?.email ?? null)
       } finally {
         if (!alive) return
         setAuthChecked(true)
       }
     }
 
-    boot()
+    refreshAuth()
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setEmail(session?.user?.email ?? null)
-      setAuthChecked(true)
+    const { data: sub } = supabase.auth.onAuthStateChange(async () => {
+      await refreshAuth()
     })
 
     return () => {
@@ -96,10 +98,12 @@ export default function CustomerHeader() {
     }
   }, [supabase])
 
-  async function logout() {
-    await supabase.auth.signOut()
-    window.location.href = "/login"
-  }
+async function logout() {
+  // KEIN router.refresh/replace – das ist hier genau das Problem
+  window.location.assign(`/api/auth/logout?next=/login&_ts=${Date.now()}`)
+}
+
+
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
@@ -112,14 +116,7 @@ export default function CustomerHeader() {
           onClick={() => setOpen(false)}
         >
           <span className="inline-flex items-center rounded-2xl border border-slate-200/70 bg-white/80 shadow-sm backdrop-blur px-3 py-2 transition group-hover:shadow-md group-hover:border-slate-300/70">
-            <Image
-              src="/og.png"
-              alt="SEPANA"
-              width={210}
-              height={64}
-              priority
-              className="h-11 w-auto md:h-8"
-            />
+            <Image src="/og.png" alt="SEPANA" width={210} height={64} priority className="h-11 w-auto md:h-8" />
           </span>
         </Link>
 
@@ -218,9 +215,7 @@ export default function CustomerHeader() {
 
             <div className="mt-2 rounded-2xl border border-slate-200/70 bg-white/70 p-3 shadow-sm">
               <div className="text-xs text-slate-500">Eingeloggt als</div>
-              <div className="mt-1 text-sm font-medium text-slate-900">
-                {authChecked ? (email ?? "—") : "…"}
-              </div>
+              <div className="mt-1 text-sm font-medium text-slate-900">{authChecked ? (email ?? "—") : "…"}</div>
             </div>
 
             <button
@@ -239,9 +234,7 @@ export default function CustomerHeader() {
               Online Filiale
             </Link>
 
-            <p className="pt-2 text-xs text-slate-500">
-              Alles mobil optimiert – klar & übersichtlich.
-            </p>
+            <p className="pt-2 text-xs text-slate-500">Alles mobil optimiert – klar & übersichtlich.</p>
           </div>
         </div>
       </div>

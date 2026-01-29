@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { useMemo, useState } from "react"
 
 export default function AssignAdvisorButton({
@@ -13,6 +14,7 @@ export default function AssignAdvisorButton({
   advisorIds: string[]
   emailById: Record<string, string>
 }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<string>(currentAdvisorId ?? "")
   const [loading, setLoading] = useState(false)
@@ -32,11 +34,13 @@ export default function AssignAdvisorButton({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ caseId, advisorId: selected || null }),
       })
-      const json = await res.json()
+      const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || "Zuweisung fehlgeschlagen")
-      setMsg("Gespeichert ✅ (Reload nötig)")
+
+      setMsg("Gespeichert ✅")
+      router.refresh()
     } catch (e: any) {
-      setMsg(e.message ?? "Fehler")
+      setMsg(e?.message ?? "Fehler")
     } finally {
       setLoading(false)
     }
@@ -49,6 +53,7 @@ export default function AssignAdvisorButton({
         <button
           className="text-xs text-slate-600 hover:text-slate-900"
           onClick={() => setOpen((v) => !v)}
+          type="button"
         >
           {open ? "Schließen" : "Öffnen"}
         </button>
@@ -60,6 +65,7 @@ export default function AssignAdvisorButton({
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
             className="w-full rounded-xl border border-slate-200/70 bg-white px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-indigo-200"
+            disabled={loading}
           >
             <option value="">— keinen —</option>
             {options.map((o) => (
@@ -73,6 +79,7 @@ export default function AssignAdvisorButton({
             onClick={save}
             disabled={loading}
             className="w-full rounded-xl border border-slate-200/70 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm hover:border-slate-300 disabled:opacity-60"
+            type="button"
           >
             {loading ? "Speichere..." : "Speichern"}
           </button>

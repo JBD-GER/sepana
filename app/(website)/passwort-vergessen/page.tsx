@@ -36,7 +36,8 @@ export default function ForgotPasswordPage() {
     setBusy(true)
     try {
       const origin = window.location.origin
-      const redirectTo = `${origin}/einladung?mode=reset`
+      // ✅ Supabase schickt Link -> /auth/confirm exchange -> redirect -> /einladung?mode=reset
+      const redirectTo = `${origin}/auth/confirm?mode=reset`
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
       if (error) throw error
       setMsg({ type: "ok", text: "E-Mail wurde versendet. Bitte Postfach prüfen." })
@@ -64,9 +65,7 @@ export default function ForgotPasswordPage() {
           <Alert type={msg.type}>
             {msg.text}
             {msg.type === "ok" ? (
-              <div className="mt-1 text-xs opacity-80">
-                Wenn nichts ankommt: Spam prüfen oder nach 2 Minuten erneut versuchen.
-              </div>
+              <div className="mt-1 text-xs opacity-80">Wenn nichts ankommt: Spam prüfen oder nach 2 Minuten erneut versuchen.</div>
             ) : null}
           </Alert>
         )}

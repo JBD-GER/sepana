@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import AuthShell from "../components/AuthShell"
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { Alert, Button, Icon, Input } from "../components/auth/ui"
 
 function normalizeError(message: string) {
@@ -11,7 +12,7 @@ function normalizeError(message: string) {
   if (m.includes("invalid login credentials")) return "E-Mail oder Passwort ist falsch."
   if (m.includes("email not confirmed")) return "Bitte bestätigen Sie zuerst Ihre E-Mail."
   if (m.includes("too many requests")) return "Zu viele Versuche. Bitte kurz warten und erneut versuchen."
-  return message || "Fehler"
+  return message || "Login fehlgeschlagen."
 }
 
 function safeNext(next?: string | null) {
@@ -22,8 +23,11 @@ function safeNext(next?: string | null) {
 }
 
 export default function LoginPage() {
+  const supabase = useMemo(() => createBrowserSupabaseClient(), [])
+  const router = useRouter()
   const sp = useSearchParams()
-  const next = safeNext(sp.get("next"))
+
+  const next = safeNext(sp.get("next")) || "/app"
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -48,19 +52,12 @@ export default function LoginPage() {
 
     setBusy(true)
     try {
-      const r = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      })
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
 
-      const data = await r.json().catch(() => ({}))
-      if (!r.ok || !data?.ok) {
-        throw new Error(data?.error || "Login fehlgeschlagen")
-      }
-
-      // ✅ jetzt existieren HttpOnly Cookies -> Proxy erkennt user -> /app klappt
-      window.location.href = next || "/app"
+      // ✅ wichtig: Server/Middleware/Header sehen Auth sofort
+      router.refresh()
+      router.replace(next)
     } catch (err: any) {
       setMsg({ type: "err", text: normalizeError(err?.message ?? "") })
     } finally {

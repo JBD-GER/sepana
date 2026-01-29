@@ -2,13 +2,14 @@ import LogoutButton from "@/components/LogoutButton"
 import { requireCustomer } from "@/lib/app/requireCustomer"
 
 export default async function ProfilPage() {
-  const { supabase, session } = await requireCustomer()
+  const { supabase, user } = await requireCustomer()
 
-  // Wir nehmen den “primary applicant” aus case_applicants (neuester)
   const { data: applicant } = await supabase
     .from("case_applicants")
-    .select("first_name,last_name,email,phone,birth_date,nationality,marital_status,address_street,address_zip,address_city,housing_status,employment_type,employment_status,employer_name,net_income_monthly")
-    .eq("created_by", session.user.id)
+    .select(
+      "first_name,last_name,email,phone,birth_date,nationality,marital_status,address_street,address_zip,address_city,housing_status,employment_type,employment_status,employer_name,net_income_monthly"
+    )
+    .eq("created_by", user.id)
     .eq("role", "primary")
     .order("created_at", { ascending: false })
     .limit(1)
@@ -18,16 +19,18 @@ export default async function ProfilPage() {
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold text-slate-900">Profil</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Ihre hinterlegten Daten (read-only).
-        </p>
+        <p className="mt-1 text-sm text-slate-600">Ihre hinterlegten Daten (read-only).</p>
       </div>
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="text-sm font-medium text-slate-900">Account</div>
         <div className="mt-2 text-sm text-slate-700">
-          <div><span className="text-slate-500">E-Mail:</span> {session.user.email}</div>
-          <div><span className="text-slate-500">User-ID:</span> {session.user.id}</div>
+          <div>
+            <span className="text-slate-500">E-Mail:</span> {user.email}
+          </div>
+          <div>
+            <span className="text-slate-500">User-ID:</span> {user.id}
+          </div>
         </div>
 
         <div className="mt-5 h-px bg-slate-200/70" />
@@ -42,7 +45,10 @@ export default async function ProfilPage() {
             <Field label="Geburtsdatum" value={applicant.birth_date} />
             <Field label="Staatsangehörigkeit" value={applicant.nationality} />
             <Field label="Familienstand" value={applicant.marital_status} />
-            <Field label="Adresse" value={[applicant.address_street, applicant.address_zip, applicant.address_city].filter(Boolean).join(", ")} />
+            <Field
+              label="Adresse"
+              value={[applicant.address_street, applicant.address_zip, applicant.address_city].filter(Boolean).join(", ")}
+            />
             <Field label="Wohnstatus" value={applicant.housing_status} />
             <Field label="Beschäftigung (Typ)" value={applicant.employment_type} />
             <Field label="Beschäftigung (Status)" value={applicant.employment_status} />

@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 
 type Offer = {
@@ -11,12 +12,12 @@ type Offer = {
 }
 
 export default function UpdateOfferStatus({
-  caseId,
   offers,
 }: {
   caseId: string
   offers: Offer[]
 }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -30,11 +31,13 @@ export default function UpdateOfferStatus({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ offerId, ...patch }),
       })
-      const json = await res.json()
+      const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || "Update fehlgeschlagen")
-      setMsg("Offer aktualisiert ✅ (Reload nötig)")
+
+      setMsg("Offer aktualisiert ✅")
+      router.refresh()
     } catch (e: any) {
-      setMsg(e.message ?? "Fehler")
+      setMsg(e?.message ?? "Fehler")
     } finally {
       setLoading(false)
     }
@@ -47,6 +50,7 @@ export default function UpdateOfferStatus({
         <button
           className="text-xs text-slate-600 hover:text-slate-900"
           onClick={() => setOpen((v) => !v)}
+          type="button"
         >
           {open ? "Schließen" : `Öffnen (${offers.length})`}
         </button>
@@ -63,7 +67,7 @@ export default function UpdateOfferStatus({
                   <div className="text-xs text-slate-700">
                     Status: <span className="font-medium text-slate-900">{o.status}</span>
                   </div>
-                  <div className="text-xs text-slate-500">{o.loan_amount ?? 0} €</div>
+                  <div className="text-xs text-slate-500">{Number(o.loan_amount ?? 0).toLocaleString("de-DE")} €</div>
                 </div>
 
                 <div className="mt-2 grid grid-cols-2 gap-2">
@@ -95,6 +99,7 @@ export default function UpdateOfferStatus({
           )}
 
           {msg ? <div className="text-xs text-slate-600">{msg}</div> : null}
+
           {offers.length > 3 ? (
             <div className="text-xs text-slate-500">Weitere Angebote werden später als Detailseite ergänzt.</div>
           ) : null}

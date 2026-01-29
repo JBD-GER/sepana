@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import AuthShell from "../components/AuthShell"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { Alert, Button, Icon, Input, PasswordStrength } from "../components/auth/ui"
@@ -13,10 +14,20 @@ function normalizeError(message: string) {
   return message || "Fehler"
 }
 
-export default function InvitationPage() {
+export default function InvitationOrResetPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), [])
+  const router = useRouter()
+  const sp = useSearchParams()
+
+  const mode = sp.get("mode") || "invite" // invite | reset
+  const title = mode === "reset" ? "Neues Passwort setzen" : "Einladung annehmen"
+  const subtitle =
+    mode === "reset"
+      ? "Setzen Sie ein neues Passwort für Ihr Konto."
+      : "Setzen Sie ein Passwort, um den Zugang zu aktivieren."
+
   const [loading, setLoading] = useState(true)
-  const [hasSession, setHasSession] = useState(false)
+  const [hasUser, setHasUser] = useState(false)
 
   const [password, setPassword] = useState("")
   const [password2, setPassword2] = useState("")
@@ -25,15 +36,19 @@ export default function InvitationPage() {
 
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
-
   const [errors, setErrors] = useState<{ p1?: string; p2?: string }>({})
 
   useEffect(() => {
+    let alive = true
     ;(async () => {
-      const { data } = await supabase.auth.getSession()
-      setHasSession(!!data.session)
+      const { data } = await supabase.auth.getUser()
+      if (!alive) return
+      setHasUser(!!data.user)
       setLoading(false)
     })()
+    return () => {
+      alive = false
+    }
   }, [supabase])
 
   function validate() {
@@ -49,11 +64,10 @@ export default function InvitationPage() {
     e.preventDefault()
     setMsg(null)
 
-    if (!hasSession) {
+    if (!hasUser) {
       setMsg({ type: "err", text: "Der Link ist ungültig oder abgelaufen. Bitte neuen Link anfordern." })
       return
     }
-
     if (!validate()) return
 
     setBusy(true)
@@ -62,7 +76,8 @@ export default function InvitationPage() {
       if (error) throw error
 
       setMsg({ type: "ok", text: "Passwort gesetzt. Sie werden weitergeleitet…" })
-      setTimeout(() => (window.location.href = "/app"), 900)
+      router.refresh()
+      setTimeout(() => router.replace("/app"), 650)
     } catch (err: any) {
       setMsg({ type: "err", text: normalizeError(err?.message ?? "") })
     } finally {
@@ -71,10 +86,10 @@ export default function InvitationPage() {
   }
 
   return (
-    <AuthShell title="Einladung / Passwort setzen" subtitle="Setzen Sie ein Passwort, um den Zugang zu aktivieren.">
+    <AuthShell title={title} subtitle={subtitle}>
       {loading ? (
         <div className="text-sm text-slate-600">Lade…</div>
-      ) : !hasSession ? (
+      ) : !hasUser ? (
         <div className="grid gap-4">
           <Alert type="err" title="Link ungültig oder abgelaufen">
             Bitte fordern Sie einen neuen Link an oder gehen Sie zurück zum Login.
@@ -93,9 +108,7 @@ export default function InvitationPage() {
             </Link>
           </div>
 
-          <div className="text-xs text-slate-500">
-            Hinweis: Aus Sicherheitsgründen laufen Links nach einiger Zeit ab.
-          </div>
+          <div className="text-xs text-slate-500">Hinweis: Aus Sicherheitsgründen laufen Links nach einiger Zeit ab.</div>
         </div>
       ) : (
         <form onSubmit={submit} className="grid gap-4" noValidate>
@@ -118,7 +131,6 @@ export default function InvitationPage() {
               </button>
             }
           />
-
           <div className="-mt-1">
             <PasswordStrength value={password} />
           </div>
@@ -149,9 +161,7 @@ export default function InvitationPage() {
             Passwort setzen <Icon name="spark" className="h-4 w-4" />
           </Button>
 
-          <div className="text-xs text-slate-500">
-            Nach dem Setzen werden Sie automatisch weitergeleitet.
-          </div>
+          <div className="text-xs text-slate-500">Nach dem Setzen werden Sie automatisch weitergeleitet.</div>
         </form>
       )}
     </AuthShell>

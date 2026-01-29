@@ -56,7 +56,6 @@ function pickLatestTerms(terms: Term[]) {
   return map
 }
 
-// kleiner Runtime-Guard, damit TS happy ist und du keine "GenericStringError" Casts brauchst
 function isTermArray(v: unknown): v is Term[] {
   return (
     Array.isArray(v) &&
@@ -71,36 +70,65 @@ function isTermArray(v: unknown): v is Term[] {
   )
 }
 
+function normalizeProductType(v: string | null) {
+  const t = String(v || "baufi").toLowerCase()
+  if (t === "konsum") return "konsum"
+  return "baufi"
+}
+
 export async function GET(req: Request) {
   const sb = supabaseAdmin()
   const url = new URL(req.url)
-  const productType = (url.searchParams.get("product") || "baufi").toLowerCase()
+  const productType = normalizeProductType(url.searchParams.get("product"))
 
   try {
-    // 1) Alle Banken (immer alle anzeigen)
-    const { data: providersRaw, error: pErr } = await sb
+    /**
+     * ✅ WICHTIG:
+     * Wir holen nur Provider, die EIN passendes provider_product haben (inner join).
+     * Damit kommen keine “Konsum-only” Banken mehr durch, wenn product=baufi.
+     */
+    const { data: rows, error: pErr } = await sb
       .from("providers")
-      .select("id,type,name,slug,website_url,logo_horizontal_path,logo_icon_path,preferred_logo_variant,is_active")
+      .select(
+        `
+          id,type,name,slug,website_url,logo_horizontal_path,logo_icon_path,preferred_logo_variant,is_active,
+          provider_products!inner(id,provider_id,product_type,is_available_online,is_available_live,is_active)
+        `
+      )
       .eq("type", "bank")
       .eq("is_active", true)
+      .eq("provider_products.product_type", productType)
+      .eq("provider_products.is_active", true)
       .order("name", { ascending: true })
 
     if (pErr) throw pErr
-    const providers: Provider[] = (providersRaw ?? []) as unknown as Provider[]
 
-    // 2) Produkte (baufi/konsum)
-    const { data: productsRaw, error: prodErr } = await sb
-      .from("provider_products")
-      .select("id,provider_id,product_type,is_available_online,is_available_live,is_active")
-      .eq("product_type", productType)
-      .eq("is_active", true)
+    const safeRows = (rows ?? []) as Array<
+      Provider & { provider_products: ProviderProduct[] }
+    >
 
-    if (prodErr) throw prodErr
-    const products: ProviderProduct[] = (productsRaw ?? []) as unknown as ProviderProduct[]
+    // pro Provider nehmen wir das passende Produkt (normalerweise 1:1)
+    const itemsBase = safeRows
+      .map((p) => {
+        const prod = Array.isArray(p.provider_products) ? p.provider_products[0] : null
+        const provider: Provider = {
+          id: p.id,
+          type: p.type,
+          name: p.name,
+          slug: p.slug,
+          website_url: p.website_url ?? null,
+          logo_horizontal_path: p.logo_horizontal_path ?? null,
+          logo_icon_path: p.logo_icon_path ?? null,
+          preferred_logo_variant: p.preferred_logo_variant ?? null,
+          is_active: !!p.is_active,
+        }
+        return { provider, product: prod }
+      })
+      .filter((x) => !!x.product) as Array<{ provider: Provider; product: ProviderProduct }>
 
-    const productIds = products.map((x) => x.id)
+    const productIds = itemsBase.map((x) => x.product.id)
 
-    // 3) Terms (latest pro Produkt)
+    // latest term pro Produkt
     let termsMap = new Map<string, Term>()
     if (productIds.length) {
       const { data: termsRaw, error: tErr } = await sb
@@ -119,14 +147,9 @@ export async function GET(req: Request) {
       termsMap = pickLatestTerms(safeTerms)
     }
 
-    // Merge
-    const productByProvider = new Map<string, ProviderProduct>()
-    for (const pr of products) productByProvider.set(pr.provider_id, pr)
-
-    const result = providers.map((p) => {
-      const prod = productByProvider.get(p.id) || null
-      const term = prod ? termsMap.get(prod.id) || null : null
-      return { provider: p, product: prod, term }
+    const result = itemsBase.map(({ provider, product }) => {
+      const term = termsMap.get(product.id) || null
+      return { provider, product, term }
     })
 
     return NextResponse.json({ ok: true, productType, items: result })

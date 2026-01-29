@@ -20,12 +20,7 @@ const NAV = [
 function IconX(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" {...props}>
-      <path
-        d="M6 6l12 12M18 6L6 18"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
     </svg>
   )
 }
@@ -33,12 +28,7 @@ function IconX(props: React.SVGProps<SVGSVGElement>) {
 function IconMenu(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" {...props}>
-      <path
-        d="M5 7h14M5 12h14M5 17h14"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
+      <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
     </svg>
   )
 }
@@ -48,18 +38,16 @@ export default function Header() {
   const panelRef = useRef<HTMLDivElement | null>(null)
   const btnRef = useRef<HTMLButtonElement | null>(null)
 
-  // ✅ WICHTIG: Supabase Client als Singleton pro Component (nicht pro Render neu)
   const supabase = useMemo(() => createBrowserSupabaseClient(), [])
 
   const [isAuthed, setIsAuthed] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
 
-  // ESC + outside click (mobile friendly)
+  // ESC + outside click
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false)
     }
-
     function onPointerDown(e: PointerEvent) {
       if (!open) return
       const t = e.target as Node
@@ -76,18 +64,17 @@ export default function Header() {
     }
   }, [open])
 
-  // ✅ Auth check: getSession() + onAuthStateChange (robust in Next/Client)
+  // ✅ Auth check: getUser() (statt getSession) + bei Events nochmal getUser()
   useEffect(() => {
     let alive = true
 
-    async function boot() {
+    async function refreshAuth() {
       try {
-        const { data, error } = await supabase.auth.getSession()
+        const { data, error } = await supabase.auth.getUser()
         if (!alive) return
-        if (error) console.error("Header getSession error:", error)
-        setIsAuthed(!!data.session?.user)
+        if (error) console.error("Header getUser error:", error)
+        setIsAuthed(!!data.user)
       } catch (e) {
-        console.error("Header auth boot error:", e)
         if (!alive) return
         setIsAuthed(false)
       } finally {
@@ -96,11 +83,10 @@ export default function Header() {
       }
     }
 
-    boot()
+    refreshAuth()
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthed(!!session?.user)
-      setAuthChecked(true)
+    const { data: sub } = supabase.auth.onAuthStateChange(async () => {
+      await refreshAuth()
     })
 
     return () => {
@@ -109,9 +95,7 @@ export default function Header() {
     }
   }, [supabase])
 
-  const authLink = isAuthed
-    ? { href: PORTAL_HREF, label: "Portal" }
-    : { href: "/login", label: "Login" }
+  const authLink = isAuthed ? { href: PORTAL_HREF, label: "Portal" } : { href: "/login", label: "Login" }
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
@@ -124,14 +108,7 @@ export default function Header() {
           onClick={() => setOpen(false)}
         >
           <span className="inline-flex items-center rounded-2xl border border-slate-200/70 bg-white/80 shadow-sm backdrop-blur px-3 py-2 transition group-hover:shadow-md group-hover:border-slate-300/70">
-            <Image
-              src="/og.png"
-              alt="SEPANA"
-              width={210}
-              height={64}
-              priority
-              className="h-11 w-auto md:h-8"
-            />
+            <Image src="/og.png" alt="SEPANA" width={210} height={64} priority className="h-11 w-auto md:h-8" />
           </span>
         </Link>
 
@@ -149,18 +126,17 @@ export default function Header() {
 
           <div className="mx-1 h-6 w-px bg-slate-200/70" aria-hidden />
 
-          {/* ✅ Login / Portal (dynamisch) */}
+          {/* Login / Portal */}
           <Link
             href={authLink.href}
             className={cn(
               "rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-white/70 hover:shadow-sm hover:ring-1 hover:ring-slate-200/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300",
-              !authChecked && "opacity-60 pointer-events-none"
+              !authChecked && "pointer-events-none opacity-60"
             )}
           >
             {authChecked ? authLink.label : "…"}
           </Link>
 
-          {/* Vergleich starten */}
           <Link
             href="/baufinanzierung"
             className="ml-2 inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
@@ -178,11 +154,7 @@ export default function Header() {
           aria-label={open ? "Menü schließen" : "Menü öffnen"}
           aria-expanded={open}
         >
-          {open ? (
-            <IconX className="h-5 w-5 text-slate-900" />
-          ) : (
-            <IconMenu className="h-5 w-5 text-slate-900" />
-          )}
+          {open ? <IconX className="h-5 w-5 text-slate-900" /> : <IconMenu className="h-5 w-5 text-slate-900" />}
         </button>
       </div>
 
@@ -208,19 +180,17 @@ export default function Header() {
               </Link>
             ))}
 
-            {/* ✅ Login / Portal (dynamisch) */}
             <Link
               href={authLink.href}
               onClick={() => setOpen(false)}
               className={cn(
                 "rounded-2xl px-3 py-3 text-sm text-slate-900 transition hover:bg-white hover:shadow-sm hover:ring-1 hover:ring-slate-200/70",
-                !authChecked && "opacity-60 pointer-events-none"
+                !authChecked && "pointer-events-none opacity-60"
               )}
             >
               {authChecked ? authLink.label : "…"}
             </Link>
 
-            {/* Vergleich starten */}
             <Link
               href="/baufinanzierung"
               onClick={() => setOpen(false)}
@@ -230,9 +200,7 @@ export default function Header() {
               Vergleich starten
             </Link>
 
-            <p className="pt-2 text-xs text-slate-500">
-              Schnell & kostenlos – dauert nur 2 Minuten.
-            </p>
+            <p className="pt-2 text-xs text-slate-500">Schnell & kostenlos – dauert nur 2 Minuten.</p>
           </div>
         </div>
       </div>

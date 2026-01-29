@@ -2,13 +2,13 @@ import { requireCustomer } from "@/lib/app/requireCustomer"
 import FeedbackForm from "./ui/FeedbackForm"
 
 export default async function FeedbackPage() {
-  const { supabase, session } = await requireCustomer()
+  const { supabase, user } = await requireCustomer()
 
   const { data: cases } = await supabase
     .from("cases")
     .select("id,case_ref,status,created_at")
     .eq("case_type", "baufi")
-    .eq("customer_id", session.user.id)
+    .eq("customer_id", user.id)
     .order("created_at", { ascending: false })
     .limit(50)
 
@@ -21,7 +21,7 @@ export default async function FeedbackPage() {
         </p>
       </div>
 
-      <FeedbackForm cases={(cases ?? []).map(c => ({ id: c.id, label: c.case_ref || c.id.slice(0, 8) }))} />
+      <FeedbackForm cases={(cases ?? []).map((c) => ({ id: c.id, label: c.case_ref || c.id.slice(0, 8) }))} />
     </div>
   )
 }

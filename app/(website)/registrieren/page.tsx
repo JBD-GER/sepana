@@ -13,6 +13,11 @@ function normalizeError(message: string) {
   return message || "Fehler"
 }
 
+function getSiteUrl() {
+  if (typeof window !== "undefined") return window.location.origin
+  return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+}
+
 export default function RegisterPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), [])
   const [email, setEmail] = useState("")
@@ -43,10 +48,14 @@ export default function RegisterPage() {
 
     setBusy(true)
     try {
+      const siteUrl = getSiteUrl()
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          // ✅ falls Email-Confirm aktiv ist -> Link geht hierhin
+          emailRedirectTo: `${siteUrl}/auth/confirm?mode=signup`,
           data: {
             accept_privacy: true,
             accept_agb: true,

@@ -32,28 +32,28 @@ export default async function AdminCasesPage() {
 
   const advisorIds = (advisors ?? []).map((a) => a.user_id)
 
-  // Email mapping (admin list users)
-  const { data: usersPage } = await admin.auth.admin.listUsers({ page: 1, perPage: 2000 })
+  const { data: usersPage, error: usersErr } = await admin.auth.admin.listUsers({ page: 1, perPage: 2000 })
+  if (usersErr) {
+    // optional: du kannst hier einen UI-Hinweis rendern; ich lasse es bewusst leise, aber du siehst es im Log
+    console.error("listUsers error:", usersErr)
+  }
+
   const emailById = new Map<string, string>()
-  for (const u of usersPage.users) emailById.set(u.id, u.email ?? "")
+  for (const u of usersPage?.users ?? []) emailById.set(u.id, u.email ?? "")
 
   const offersByCase = new Map<string, any[]>()
-  for (const o of offers ?? []) {
-    offersByCase.set(o.case_id, [...(offersByCase.get(o.case_id) ?? []), o])
-  }
+  for (const o of offers ?? []) offersByCase.set(o.case_id, [...(offersByCase.get(o.case_id) ?? []), o])
 
   const docsByCase = new Map<string, any[]>()
-  for (const d of docs ?? []) {
-    docsByCase.set(d.case_id, [...(docsByCase.get(d.case_id) ?? []), d])
-  }
+  for (const d of docs ?? []) docsByCase.set(d.case_id, [...(docsByCase.get(d.case_id) ?? []), d])
+
+  const emailByIdObj = Object.fromEntries(emailById.entries())
 
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold text-slate-900">Fälle & Unterlagen</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Berater zuweisen, Vorgänge/Status bearbeiten, Unterlagen einsehen.
-        </p>
+        <p className="mt-1 text-sm text-slate-600">Berater zuweisen, Vorgänge/Status bearbeiten, Unterlagen einsehen.</p>
       </div>
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
@@ -76,7 +76,9 @@ export default async function AdminCasesPage() {
                 const caseOffers = offersByCase.get(c.id) ?? []
                 const caseDocs = docsByCase.get(c.id) ?? []
                 const custEmail = emailById.get(c.customer_id) || c.customer_id
-                const advEmail = c.assigned_advisor_id ? (emailById.get(c.assigned_advisor_id) || c.assigned_advisor_id) : "—"
+                const advEmail = c.assigned_advisor_id
+                  ? (emailById.get(c.assigned_advisor_id) || c.assigned_advisor_id)
+                  : "—"
 
                 return (
                   <tr key={c.id} className="border-b border-slate-200/60 last:border-0 hover:bg-slate-50/60 align-top">
@@ -86,9 +88,11 @@ export default async function AdminCasesPage() {
                         {c.case_type} • {dt(c.created_at)}
                       </div>
                     </td>
+
                     <td className="px-4 py-3 text-slate-700">{custEmail}</td>
                     <td className="px-4 py-3 text-slate-700">{c.status}</td>
                     <td className="px-4 py-3 text-slate-700">{advEmail}</td>
+
                     <td className="px-4 py-3 text-slate-700">
                       <div className="text-xs text-slate-500">{caseDocs.length} Datei(en)</div>
                       {caseDocs.slice(0, 2).map((d) => (
@@ -98,24 +102,23 @@ export default async function AdminCasesPage() {
                       ))}
                       {caseDocs.length > 2 ? <div className="text-xs text-slate-500">…</div> : null}
                     </td>
+
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-2">
                         <AssignAdvisorButton
                           caseId={c.id}
                           currentAdvisorId={c.assigned_advisor_id}
                           advisorIds={advisorIds}
-                          emailById={Object.fromEntries(emailById.entries())}
+                          emailById={emailByIdObj}
                         />
 
-                        <UpdateOfferStatus
-                          caseId={c.id}
-                          offers={caseOffers}
-                        />
+                        <UpdateOfferStatus caseId={c.id} offers={caseOffers} />
                       </div>
                     </td>
                   </tr>
                 )
               })}
+
               {(cases ?? []).length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-slate-500" colSpan={6}>
@@ -158,6 +161,7 @@ export default async function AdminCasesPage() {
                   <td className="px-4 py-3 text-slate-700">{dt(d.created_at)}</td>
                 </tr>
               ))}
+
               {(docs ?? []).length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-slate-500" colSpan={5}>

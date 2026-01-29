@@ -1,47 +1,51 @@
+// app/api/admin/invite-advisor/route.ts
+import { NextResponse } from "next/server"
+import { requireAdmin } from "@/lib/admin/requireAdmin"
+import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
+
 export const runtime = "nodejs"
 
-import { NextResponse } from "next/server"
-import { supabaseAdmin  } from "@/lib/supabase/supabaseAdmin"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
-
-async function assertAdmin() {
-  const supabase = await createServerSupabaseClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.user) return null
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("user_id", session.user.id)
-    .single()
-
-  if (!profile || profile.role !== "admin") return null
-  return session.user.id
+function isEmail(s: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)
 }
 
 export async function POST(req: Request) {
-  const adminUserId = await assertAdmin()
-  if (!adminUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    await requireAdmin()
+    const admin = supabaseAdmin()
 
-  const { email } = await req.json()
-  if (!email || typeof email !== "string") {
-    return NextResponse.json({ error: "Missing email" }, { status: 400 })
+    const body = await req.json().catch(() => null)
+    const email = String(body?.email ?? "").trim().toLowerCase()
+    if (!isEmail(email)) return NextResponse.json({ ok: false, error: "Ungültige E-Mail" }, { status: 400 })
+
+    // Invite link soll auf deine Seite führen, wo Passwort gesetzt wird:
+    // -> /einladung?mode=invite
+    const redirectTo =
+      process.env.NEXT_PUBLIC_SITE_URL
+        ? `${process.env.NEXT_PUBLIC_SITE_URL}/einladung?mode=invite`
+        : undefined
+
+    const { data, error } = await admin.auth.admin.inviteUserByEmail(email, redirectTo ? { redirectTo } : undefined)
+    if (error) throw error
+
+    const invitedUserId = data?.user?.id
+    if (!invitedUserId) {
+      return NextResponse.json({ ok: false, error: "Invite ok, aber keine user.id erhalten" }, { status: 500 })
+    }
+
+    // Profile sicherstellen (role=advisor)
+    const { error: upErr } = await admin.from("profiles").upsert(
+      {
+        user_id: invitedUserId,
+        role: "advisor",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    )
+    if (upErr) throw upErr
+
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
-
-  const admin = supabaseAdmin ()
-
-  // Invite User (Supabase sends email)
-  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: { role: "advisor" },
-  })
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-
-  const userId = data.user?.id
-  if (!userId) return NextResponse.json({ error: "No user id returned" }, { status: 500 })
-
-  // Ensure profiles row
-  await admin.from("profiles").upsert({ user_id: userId, role: "advisor" })
-
-  return NextResponse.json({ ok: true, userId })
 }

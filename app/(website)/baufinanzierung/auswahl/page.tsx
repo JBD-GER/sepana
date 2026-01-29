@@ -38,6 +38,45 @@ function metric(label: string, value: string) {
   )
 }
 
+function BonusBox({ amount }: { amount: number }) {
+  const amountStr = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(amount)
+
+  return (
+    <div className="rounded-3xl border border-white/60 bg-white/70 p-4 shadow-sm backdrop-blur-xl">
+      <div className="flex items-start gap-3">
+        <div
+          className="flex h-11 w-11 items-center justify-center rounded-2xl text-white shadow-sm"
+          style={{ background: ACCENT }}
+          aria-hidden="true"
+        >
+          🎁
+        </div>
+
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-slate-900">Bonus bei erfolgreichem Abschluss</div>
+
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
+            <div className="text-3xl font-semibold leading-none text-slate-900">{amountStr} €</div>
+            <div className="text-sm font-medium text-slate-900">extra für Sie</div>
+          </div>
+
+          <div className="mt-2 text-xs text-slate-600">
+            Gutschrift nach erfolgreicher Finanzierung/Abschluss gemäß Bedingungen.
+          </div>
+
+          <div className="mt-3">
+            <div className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/70 px-3 py-1 text-xs text-slate-900 shadow-sm ring-1 ring-inset ring-white/40 backdrop-blur-xl">
+              Tipp: Starten Sie jetzt – dauert wirklich nur kurz.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ✅ entfernt: "350€ Bonus ist im Prozess dauerhaft sichtbar." */}
+    </div>
+  )
+}
+
 async function getBaseUrl() {
   const h = await headers()
   const host = h.get("x-forwarded-host") || h.get("host") || "localhost:3000"
@@ -87,17 +126,33 @@ type MetricsResponse = {
   }
 }
 
+type SortKey = "rate" | "tilgung" | "zins"
+
 function rankLabel(i: number) {
   if (i === 0) return "Top-Angebot"
   return `${i + 1}. Wahl`
 }
 
-// ✅ Logo kommt aus Supabase Storage (Bucket logo_banken) über unsere Route
+function sortLabel(s: SortKey) {
+  if (s === "tilgung") return "Tilgungsanteil"
+  if (s === "zins") return "Effektivzins"
+  return "Rate"
+}
+
 function logoUrl(provider: any) {
   const prefer = provider?.preferred_logo_variant === "icon" ? "icon" : "horizontal"
   const file = prefer === "icon" ? provider?.logo_icon_path : provider?.logo_horizontal_path
   if (!file) return null
   return `/api/baufi/logo?bucket=logo_banken&path=${encodeURIComponent(String(file))}`
+}
+
+function buildHref(basePath: string, qp: Record<string, string | undefined>) {
+  const u = new URL("http://x" + basePath)
+  for (const [k, v] of Object.entries(qp)) {
+    if (v != null && String(v).length) u.searchParams.set(k, String(v))
+  }
+  const qs = u.searchParams.toString()
+  return qs ? `${basePath}?${qs}` : basePath
 }
 
 export default async function Page({
@@ -109,6 +164,7 @@ export default async function Page({
     existing?: string
     loanAmount?: string
     years?: string
+    sort?: string
   }>
 }) {
   const sp = await searchParams
@@ -118,6 +174,8 @@ export default async function Page({
 
   const loanAmount = Math.max(50_000, toNumber(sp.loanAmount) || 300_000)
   const years = clamp(Math.round(toNumber(sp.years) || 30), 5, 35)
+
+  const sort: SortKey = sp.sort === "tilgung" ? "tilgung" : sp.sort === "zins" ? "zins" : "rate"
 
   const providers = await fetchJson<ProvidersResponse>(`/api/baufi/providers?product=baufi`)
   const metricsRes = caseId
@@ -129,138 +187,197 @@ export default async function Page({
   const m = metricsRes?.ok ? metricsRes.metrics : null
   const surplusRatio = m?.surplus_ratio ?? 0.12
 
-  const liveHref = `/baufinanzierung/auswahl/live?caseId=${encodeURIComponent(caseId)}&caseRef=${encodeURIComponent(
-    caseRef
-  )}${existing ? "&existing=1" : ""}`
-
   const disclaimer =
     "Unverbindliche Konditions-Vorschau. Finale Konditionen sind tagesaktuell sowie objekt- & bonitätsabhängig."
 
-  // ✅ Build offers: Variation + Tilgung + Rate Split
+  const activeBonusEUR = 350
+
   const offers =
-    (providers?.items || []).map(({ provider, product, term }) => {
-      const baseApr = pickAprPercent(term)
-      const shownApr = clamp(personalizeApr(baseApr, surplusRatio) + providerAprSpread(provider.slug), 0.5, 12)
+    (providers?.items || [])
+      .filter((x) => !!x.product)
+      .map(({ provider, product, term }) => {
+        const baseApr = pickAprPercent(term)
+        const shownApr = clamp(personalizeApr(baseApr, surplusRatio) + providerAprSpread(provider.slug), 0.5, 12)
 
-      const tilgungPct = pickTilgungPct(provider.slug, surplusRatio)
-      const pay = monthlyFromAprAndTilgung({ principal: loanAmount, aprPercent: shownApr, tilgungPct })
+        const tilgungPct = pickTilgungPct(provider.slug, surplusRatio)
+        const pay = monthlyFromAprAndTilgung({ principal: loanAmount, aprPercent: shownApr, tilgungPct })
 
-      const availableOnline = !!product?.is_available_online
-      const availableLive = !!product?.is_available_live
+        const availableOnline = !!product?.is_available_online
+        const availableLive = !!product?.is_available_live
 
-      const srep = term?.special_repayment_free_pct
-        ? `${term.special_repayment_free_pct}% p.a.`
-        : term?.special_repayment_free_note || "produktabhängig"
+        const srep = term?.special_repayment_free_pct
+          ? `${term.special_repayment_free_pct}% p.a.`
+          : term?.special_repayment_free_note || "produktabhängig"
 
-      const zbind =
-        term?.zinsbindung_min_years || term?.zinsbindung_max_years
-          ? `${term.zinsbindung_min_years ?? "—"}–${term.zinsbindung_max_years ?? "—"} Jahre`
-          : "objektabhängig"
+        const zbind =
+          term?.zinsbindung_min_years || term?.zinsbindung_max_years
+            ? `${term.zinsbindung_min_years ?? "—"}–${term.zinsbindung_max_years ?? "—"} Jahre`
+            : "objektabhängig"
 
-      const nextHref = `/baufinanzierung/auswahl/abschluss?provider=${encodeURIComponent(
-        provider.slug
-      )}&caseId=${encodeURIComponent(caseId)}&caseRef=${encodeURIComponent(caseRef)}&loanAmount=${encodeURIComponent(
-        String(loanAmount)
-      )}&years=${encodeURIComponent(String(years))}`
+        const nextHref = buildHref("/baufinanzierung/auswahl/abschluss", {
+          provider: provider.slug,
+          caseId,
+          caseRef,
+          loanAmount: String(loanAmount),
+          years: String(years),
+        })
 
-      return {
-        provider,
-        product,
-        term,
-        shownApr,
-        tilgungPct,
-        pay,
-        availableOnline,
-        availableLive,
-        srep,
-        zbind,
-        nextHref,
-      }
-    }) || []
+        return {
+          provider,
+          product,
+          term,
+          shownApr,
+          tilgungPct,
+          pay,
+          availableOnline,
+          availableLive,
+          srep,
+          zbind,
+          nextHref,
+        }
+      }) || []
 
-  // ✅ Sort: erst online-abschließbar nach günstigster Monatsrate, dann der Rest
-  const sorted = offers
-    .slice()
-    .sort((a, b) => {
-      const ao = a.availableOnline ? 0 : 1
-      const bo = b.availableOnline ? 0 : 1
-      if (ao !== bo) return ao - bo
-      return a.pay.monthly - b.pay.monthly
-    })
+  const sorted = offers.slice().sort((a, b) => {
+    if (sort === "tilgung") {
+      const d = b.pay.principalMonthly - a.pay.principalMonthly
+      if (d !== 0) return d
+      const r = a.pay.monthly - b.pay.monthly
+      if (r !== 0) return r
+      return (b.availableOnline ? 0 : 1) - (a.availableOnline ? 0 : 1)
+    }
+
+    if (sort === "zins") {
+      const d = a.shownApr - b.shownApr
+      if (d !== 0) return d
+      const r = a.pay.monthly - b.pay.monthly
+      if (r !== 0) return r
+      return (b.availableOnline ? 0 : 1) - (a.availableOnline ? 0 : 1)
+    }
+
+    const d = a.pay.monthly - b.pay.monthly
+    if (d !== 0) return d
+    const z = a.shownApr - b.shownApr
+    if (z !== 0) return z
+    return (b.availableOnline ? 0 : 1) - (a.availableOnline ? 0 : 1)
+  })
+
+  const sortHrefBase = {
+    caseId,
+    caseRef,
+    existing: existing ? "1" : undefined,
+    loanAmount: String(loanAmount),
+    years: String(years),
+  } as Record<string, string | undefined>
+
+  const hrefRate = buildHref("/baufinanzierung/auswahl", { ...sortHrefBase, sort: "rate" })
+  const hrefTilg = buildHref("/baufinanzierung/auswahl", { ...sortHrefBase, sort: "tilgung" })
+  const hrefZins = buildHref("/baufinanzierung/auswahl", { ...sortHrefBase, sort: "zins" })
 
   return (
     <div className="space-y-4">
-      {/* HERO */}
-      <div className="rounded-[2rem] border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur-xl sm:p-6">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr] lg:items-start">
-          {/* LEFT */}
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              <Pill>DSGVO-konform</Pill>
-              <Pill>Banken übersichtlich</Pill>
-              <Pill>Start im Portal</Pill>
-              {existing ? <Pill>Bestehendes Konto erkannt</Pill> : null}
-            </div>
+{/* HERO (mit Bonus-Box rechts + Metrics volle Breite unten) */}
+<div className="rounded-[2rem] border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur-xl sm:p-6">
+  <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr] lg:items-start">
+    {/* TOP LEFT */}
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        <Pill>DSGVO-konform</Pill>
+        <Pill>Banken übersichtlich</Pill>
+        <Pill>Start im Portal</Pill>
+        {existing ? <Pill>Bestehendes Konto erkannt</Pill> : null}
+      </div>
 
-            <h1 className="text-2xl font-semibold leading-tight text-slate-900 sm:text-3xl">
-              Wählen Sie jetzt Ihre Bank –<br className="hidden sm:block" />
-              dann starten Sie den Abschluss.
-            </h1>
+      <h1 className="text-2xl font-semibold leading-tight text-slate-900 sm:text-3xl">
+        Wählen Sie jetzt Ihre Bank –<br className="hidden sm:block" />
+        dann starten Sie den Abschluss.
+      </h1>
 
-            <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
-              Ihre Angaben sind gespeichert. Sie wählen eine Bank und können anschließend direkt im Portal starten.
-              Wenn es knapp/komplex ist, wechseln Sie zur Live-Beratung.
-            </p>
+      <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
+        Ihre Angaben sind gespeichert. Sie wählen eine Bank und können anschließend direkt im Portal starten.
+      </p>
+    </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {metric("Fall-Referenz", metricsRes?.caseRef || caseRef || "—")}
-              {metric("Darlehen (Beispiel)", formatEUR(loanAmount))}
-              {metric("Laufzeit (Beispiel)", `${years} Jahre`)}
-            </div>
+    {/* TOP RIGHT */}
+    <div className="lg:pt-1">
+      <BonusBox amount={activeBonusEUR} />
+    </div>
 
-            {m ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {metric("Einnahmen/Monat", formatEUR(m.income_monthly))}
-                {metric("Ausgaben/Monat", formatEUR(m.out_monthly))}
-                {metric("Puffer/Monat", formatEUR(m.surplus_monthly))}
-              </div>
-            ) : null}
+    {/* ✅ BOTTOM: volle Breite über beide Spalten */}
+    <div className="space-y-3 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {metric("Fall-Referenz", metricsRes?.caseRef || caseRef || "—")}
+        {metric("Darlehen (Beispiel)", formatEUR(loanAmount))}
+        {metric("Laufzeit (Beispiel)", `${years} Jahre`)}
+      </div>
 
-            <div className="text-xs text-slate-500">{disclaimer}</div>
+      {m ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {metric("Einnahmen/Monat", formatEUR(m.income_monthly))}
+          {metric("Ausgaben/Monat", formatEUR(m.out_monthly))}
+          {metric("Puffer/Monat", formatEUR(m.surplus_monthly))}
+        </div>
+      ) : null}
+
+      <div className="text-xs text-slate-500">{disclaimer}</div>
+    </div>
+  </div>
+</div>
+
+
+      {/* ✅ SORT BAR – volle Breite */}
+      <div className="w-full rounded-3xl border border-white/60 bg-white/65 p-3 shadow-sm backdrop-blur-xl">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm font-medium text-slate-900">
+            Sortierung: <span className="text-slate-600">{sortLabel(sort)}</span>
           </div>
 
-          {/* RIGHT: LIVE BOX */}
-          <div className="rounded-3xl border border-white/60 bg-white/70 p-4 shadow-sm backdrop-blur-xl">
-            <div className="flex items-start gap-3">
-              <div
-                className="flex h-11 w-11 items-center justify-center rounded-2xl text-white shadow-sm"
-                style={{ background: ACCENT }}
-              >
-                ☎
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-slate-900">Live-Beratung</div>
-                <div className="mt-1 text-xs text-slate-600">
-                  Wenn es knapp/komplex ist: lieber einmal sauber prüfen als Ablehnungen sammeln.
-                </div>
-              </div>
-            </div>
+          <div className="grid grid-cols-3 gap-2">
+            <Link
+              href={hrefRate}
+              className={[
+                "inline-flex items-center justify-center rounded-2xl px-3 py-2 text-xs font-medium shadow-sm ring-1 ring-inset backdrop-blur-xl transition active:scale-[0.99]",
+                sort === "rate"
+                  ? "text-white"
+                  : "border border-slate-200/80 bg-white/70 text-slate-900 ring-white/40 hover:bg-white/90 hover:border-slate-300",
+              ].join(" ")}
+              style={sort === "rate" ? { background: ACCENT } : undefined}
+            >
+              Rate
+            </Link>
 
             <Link
-              href={liveHref}
-              className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-2.5 text-sm font-medium text-slate-900 shadow-sm ring-1 ring-inset ring-white/40 backdrop-blur-xl transition hover:bg-white/90 hover:border-slate-300 hover:shadow-md active:scale-[0.99]"
+              href={hrefTilg}
+              className={[
+                "inline-flex items-center justify-center rounded-2xl px-3 py-2 text-xs font-medium shadow-sm ring-1 ring-inset backdrop-blur-xl transition active:scale-[0.99]",
+                sort === "tilgung"
+                  ? "text-white"
+                  : "border border-slate-200/80 bg-white/70 text-slate-900 ring-white/40 hover:bg-white/90 hover:border-slate-300",
+              ].join(" ")}
+              style={sort === "tilgung" ? { background: ACCENT } : undefined}
             >
-              Zur Live-Beratung
+              Tilgung
+            </Link>
+
+            <Link
+              href={hrefZins}
+              className={[
+                "inline-flex items-center justify-center rounded-2xl px-3 py-2 text-xs font-medium shadow-sm ring-1 ring-inset backdrop-blur-xl transition active:scale-[0.99]",
+                sort === "zins"
+                  ? "text-white"
+                  : "border border-slate-200/80 bg-white/70 text-slate-900 ring-white/40 hover:bg-white/90 hover:border-slate-300",
+              ].join(" ")}
+              style={sort === "zins" ? { background: ACCENT } : undefined}
+            >
+              Zins
             </Link>
           </div>
         </div>
       </div>
 
-      {/* BANK LIST – volle Breite, nicht eng */}
+      {/* BANK LIST */}
       <div className="space-y-4">
         {sorted.map((o, i) => {
           const top = i === 0
-
           const logo = logoUrl(o.provider)
           const statusPill = o.availableOnline ? "Online-Abschluss möglich" : "Abschluss mit Beratung"
 
@@ -281,12 +398,10 @@ export default async function Page({
                 style={{ background: ACCENT }}
               />
 
-              {/* Header row */}
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex items-center gap-3">
                     {logo ? (
-                      // ✅ absichtlich <img>, damit kein Next-Optimizer-Stress
                       <img
                         src={logo}
                         alt={o.provider.name}
@@ -320,7 +435,6 @@ export default async function Page({
                 </div>
               </div>
 
-              {/* Metrics grid (mobile clean, desktop breit) */}
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
                 <div className="rounded-2xl border border-slate-200 bg-white/60 px-4 py-3">
                   <div className="text-[11px] text-slate-600">Monatsrate</div>
@@ -347,7 +461,6 @@ export default async function Page({
                 </div>
               </div>
 
-              {/* Split + Notes */}
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-white/60 px-4 py-3">
                   <div className="text-xs font-medium text-slate-900">Erste Rate (Aufteilung)</div>
@@ -385,7 +498,6 @@ export default async function Page({
                 </div>
               </div>
 
-              {/* CTA row: immer Button */}
               <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <Link
                   href={o.nextHref}
@@ -404,7 +516,6 @@ export default async function Page({
         })}
       </div>
 
-      {/* FOOTER */}
       <div className="rounded-3xl border border-white/60 bg-white/55 p-4 text-sm text-slate-600 shadow-sm backdrop-blur-xl">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
