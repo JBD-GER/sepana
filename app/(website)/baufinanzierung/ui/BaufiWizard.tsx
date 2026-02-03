@@ -433,7 +433,7 @@ export default function BaufiWizard({
   return (
     <div className="overflow-hidden rounded-3xl border border-white/60 bg-white/70 shadow-sm backdrop-blur-xl">
       {/* Header / Progress */}
-      <div className="sticky top-[64px] z-10 rounded-3xl border-b border-white/60 bg-white/70 px-4 py-4 backdrop-blur-xl sm:top-[72px] sm:px-6">
+      <div className="z-10 rounded-3xl border-b border-white/60 bg-white/85 px-4 py-4 backdrop-blur-xl md:sticky md:top-[72px] sm:px-6">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm text-slate-600">
