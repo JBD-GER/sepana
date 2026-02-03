@@ -293,7 +293,7 @@ export default function ExtraDataForm({ caseId, caseRef }: { caseId: string; cas
 
         <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4">
           <div className="text-xs font-semibold text-slate-700">Weitere Angaben</div>
-          <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             <label className="text-xs text-slate-600">
               Aktuelle Warmmiete
               <input
@@ -304,7 +304,7 @@ export default function ExtraDataForm({ caseId, caseRef }: { caseId: string; cas
                 className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm disabled:bg-slate-50"
               />
             </label>
-            <label className="flex items-center gap-2 text-xs text-slate-600">
+            <label className="self-start flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 md:mt-5">
               <input
                 type="checkbox"
                 checked={!!additional.current_warm_rent_none}
@@ -330,7 +330,7 @@ export default function ExtraDataForm({ caseId, caseRef }: { caseId: string; cas
                 className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
               />
             </label>
-            <label className="flex items-center gap-2 text-xs text-slate-600">
+            <label className="self-start flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 md:mt-5">
               <input
                 type="checkbox"
                 checked={!!additional.probation}
@@ -426,7 +426,7 @@ export default function ExtraDataForm({ caseId, caseRef }: { caseId: string; cas
 
         <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4">
           <div className="text-xs font-semibold text-slate-700">Kinder</div>
-          <div className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+          <label className="mt-2 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
             <input
               type="checkbox"
               checked={!!additional.has_children}
@@ -434,7 +434,7 @@ export default function ExtraDataForm({ caseId, caseRef }: { caseId: string; cas
               className="h-4 w-4 rounded border-slate-300 text-slate-900"
             />
             Kinder vorhanden
-          </div>
+          </label>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="text-xs text-slate-600">
               Unterhaltseinnahmen / Monat

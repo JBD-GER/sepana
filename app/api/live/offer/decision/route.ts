@@ -5,6 +5,15 @@ import { logCaseEvent, buildEmailHtml, sendEmail, getCaseMeta } from "@/lib/noti
 
 export const runtime = "nodejs"
 
+async function syncCaseOfferStatus(caseId: string, client: ReturnType<typeof supabaseAdmin>) {
+  const { data: offers } = await client.from("case_offers").select("status").eq("case_id", caseId)
+  const statuses = (offers ?? []).map((row: any) => String(row?.status ?? "").toLowerCase())
+  const hasAccepted = statuses.includes("accepted")
+  const hasOpen = statuses.includes("sent") || statuses.includes("draft")
+  const nextCaseStatus = hasAccepted ? "offer_accepted" : hasOpen ? "offer_sent" : "offer_rejected"
+  await client.from("cases").update({ status: nextCaseStatus }).eq("id", caseId)
+}
+
 export async function POST(req: Request) {
   const { supabase, user, role } = await getUserAndRole()
   const admin = supabaseAdmin()
@@ -54,39 +63,61 @@ export async function POST(req: Request) {
   }
 
   const nextStatus = decision === "accept" ? "accepted" : "rejected"
+  if (nextStatus === "accepted") {
+    const { data: acceptedOffer } = await admin
+      .from("case_offers")
+      .select("id")
+      .eq("case_id", offer.case_id)
+      .eq("status", "accepted")
+      .neq("id", offerId)
+      .limit(1)
+      .maybeSingle()
+    if (acceptedOffer) {
+      return NextResponse.json({ ok: false, error: "already_accepted" }, { status: 409 })
+    }
+  }
+
   const client = user ? supabase : admin
   const patch: any = { status: nextStatus }
   if (nextStatus === "accepted") {
-    patch.bank_status = "submitted"
+    patch.bank_status = "documents"
     patch.bank_confirmed_at = null
   }
   const { error } = await client.from("case_offers").update(patch).eq("id", offerId)
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
 
   if (nextStatus === "accepted") {
-    await client.from("cases").update({ status: "offer_accepted" }).eq("id", offer.case_id)
+    // Pro Fall nur eine Angebotsannahme: offene Alternativen werden geschlossen.
+    await client
+      .from("case_offers")
+      .update({ status: "rejected" })
+      .eq("case_id", offer.case_id)
+      .neq("id", offerId)
+      .in("status", ["draft", "sent"])
+
+    await syncCaseOfferStatus(offer.case_id, admin)
     await logCaseEvent({
       caseId: offer.case_id,
       actorId: user?.id ?? null,
       actorRole: role ?? "customer",
       type: "offer_accepted",
       title: "Angebot angenommen",
-      body: "Der Kunde hat das Angebot angenommen. Die Bank wurde eingereicht.",
+      body: "Der Kunde hat das Angebot angenommen. Dokumente werden nun angefordert.",
     })
     const caseMeta = await getCaseMeta(offer.case_id)
     if (caseMeta?.customer_email) {
       const html = buildEmailHtml({
-        title: "Angebot bei der Bank eingereicht",
-        intro: "Ihr finales Angebot wurde bei der Bank eingereicht.",
+        title: "Bitte Unterlagen hochladen",
+        intro: "Ihr finales Angebot wurde angenommen. Bitte laden Sie nun alle benoetigten Unterlagen hoch.",
         steps: [
-          "Wir informieren Sie, sobald eine Rueckmeldung der Bank vorliegt.",
-          "Bei Rueckfragen melden wir uns direkt bei Ihnen.",
+          "Oeffnen Sie den Bereich Dokumente in Ihrem Fall.",
+          "Laden Sie dort alle benoetigten Unterlagen vollstaendig hoch.",
         ],
       })
-      await sendEmail({ to: caseMeta.customer_email, subject: "Angebot eingereicht", html })
+      await sendEmail({ to: caseMeta.customer_email, subject: "Unterlagen fuer Ihre Finanzierung hochladen", html })
     }
   } else {
-    await client.from("cases").update({ status: "offer_rejected" }).eq("id", offer.case_id)
+    await syncCaseOfferStatus(offer.case_id, admin)
     await logCaseEvent({
       caseId: offer.case_id,
       actorId: user?.id ?? null,

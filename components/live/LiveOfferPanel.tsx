@@ -70,6 +70,10 @@ function buildTermNotes(term?: ProviderItem["term"]) {
   return parts.join("\n")
 }
 
+function normalizeDecimalInput(value: string) {
+  return value.replace(/\./g, ",")
+}
+
 export default function LiveOfferPanel({ caseId }: { caseId: string }) {
   const supabase = useMemo(() => createBrowserSupabaseClientNoAuth(), [])
   const [providers, setProviders] = useState<ProviderItem[]>([])
@@ -149,7 +153,7 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
         setStatusNote("Angebot wurde abgelehnt. Du kannst ein neues Angebot erstellen.")
         setStatusTone("danger")
       } else if (nextStatus === "draft") {
-        setStatusNote("Angebot erstellt. Kunde kann es jetzt annehmen oder ablehnen.")
+        setStatusNote("Angebot als Entwurf erstellt. Erst nach Status 'Abgeschickt' ist es fuer den Kunden sichtbar.")
         setStatusTone("neutral")
       } else if (nextStatus === "sent") {
         setStatusNote("Angebot ist gesendet. Warte auf Feedback vom Kunden.")
@@ -188,7 +192,7 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
               setStatusTone("danger")
             } else if (next.status === "draft") {
               setToast("Angebot wurde erstellt.")
-              setStatusNote("Angebot erstellt. Kunde kann es jetzt annehmen oder ablehnen.")
+              setStatusNote("Angebot als Entwurf erstellt. Erst nach Status 'Abgeschickt' ist es fuer den Kunden sichtbar.")
               setStatusTone("neutral")
             } else if (next.status === "sent") {
               setToast("Angebot wurde gesendet.")
@@ -222,10 +226,6 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
       setMsg("Angebot wurde bereits angenommen.")
       return
     }
-    if (offerStatus === "sent" || offerStatus === "draft") {
-      setMsg("Es gibt bereits ein aktives Angebot.")
-      return
-    }
     setBusy(true)
     try {
       const term = providerById.get(providerId)?.term
@@ -251,7 +251,7 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok || !json?.ok) {
-        setMsg(json?.error === "offer_exists" ? "Es gibt bereits ein aktives Angebot." : "Senden fehlgeschlagen.")
+        setMsg(json?.error === "offer_exists" ? "Es gibt bereits ein angenommenes Angebot." : "Senden fehlgeschlagen.")
         return
       }
       setOfferStatus("draft")
@@ -261,7 +261,7 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
     }
   }
 
-  const locked = offerStatus === "accepted" || offerStatus === "sent" || offerStatus === "draft"
+  const locked = offerStatus === "accepted"
 
   const overlayView =
     overlay && typeof document !== "undefined"
@@ -340,8 +340,9 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
           <label className="text-xs text-slate-600">Rate / Monat</label>
           <input
             value={rateMonthly}
-            onChange={(e) => setRateMonthly(e.target.value)}
-            placeholder="z.B. 1250"
+            onChange={(e) => setRateMonthly(normalizeDecimalInput(e.target.value))}
+            inputMode="decimal"
+            placeholder="z.B. 1250,50"
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
             disabled={locked}
           />
@@ -351,8 +352,9 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
           <label className="text-xs text-slate-600">Effektivzins %</label>
           <input
             value={aprEffective}
-            onChange={(e) => setAprEffective(e.target.value)}
-            placeholder="z.B. 3.2"
+            onChange={(e) => setAprEffective(normalizeDecimalInput(e.target.value))}
+            inputMode="decimal"
+            placeholder="z.B. 3,2"
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
             disabled={locked}
           />
@@ -362,8 +364,9 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
           <label className="text-xs text-slate-600">Nominalzins %</label>
           <input
             value={interestNominal}
-            onChange={(e) => setInterestNominal(e.target.value)}
-            placeholder="z.B. 3.0"
+            onChange={(e) => setInterestNominal(normalizeDecimalInput(e.target.value))}
+            inputMode="decimal"
+            placeholder="z.B. 3,0"
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
             disabled={locked}
           />
@@ -373,8 +376,9 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
           <label className="text-xs text-slate-600">Tilgung %</label>
           <input
             value={tilgungPct}
-            onChange={(e) => setTilgungPct(e.target.value)}
-            placeholder="z.B. 2.0"
+            onChange={(e) => setTilgungPct(normalizeDecimalInput(e.target.value))}
+            inputMode="decimal"
+            placeholder="z.B. 2,0"
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
             disabled={locked}
           />

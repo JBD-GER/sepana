@@ -34,15 +34,41 @@ function dataUrlToBytes(input: string) {
   return new Uint8Array(binary)
 }
 
+function normalizeRightAngle(page: any) {
+  try {
+    const raw = Number(page?.getRotation?.()?.angle ?? 0)
+    const normalized = ((raw % 360) + 360) % 360
+    if (normalized === 90 || normalized === 180 || normalized === 270) return normalized
+  } catch {
+    // ignore
+  }
+  return 0
+}
+
 function percentToPdfCoords(page: any, f: SignatureField) {
   const w = page.getWidth()
   const h = page.getHeight()
-  const x = (f.x / 100) * w
-  const yTop = (f.y / 100) * h
-  const fieldW = (f.width / 100) * w
-  const fieldH = (f.height / 100) * h
+  const xPct = Number(f.x || 0)
+  const yPct = Number(f.y || 0)
+  const wPct = Number(f.width || 0)
+  const hPct = Number(f.height || 0)
+  const rotation = normalizeRightAngle(page)
+
+  // Keep field placement aligned with the editor preview for upside-down source PDFs.
+  if (rotation === 180) {
+    const fieldW = (wPct / 100) * w
+    const fieldH = (hPct / 100) * h
+    const x = ((100 - xPct - wPct) / 100) * w
+    const y = (yPct / 100) * h
+    return { x, y, fieldW, fieldH, rotation }
+  }
+
+  const x = (xPct / 100) * w
+  const yTop = (yPct / 100) * h
+  const fieldW = (wPct / 100) * w
+  const fieldH = (hPct / 100) * h
   const y = h - yTop - fieldH
-  return { x, y, fieldW, fieldH }
+  return { x, y, fieldW, fieldH, rotation }
 }
 
 export async function renderSignedPdf(opts: {
@@ -55,7 +81,7 @@ export async function renderSignedPdf(opts: {
 }) {
   const pdfLib = await import("pdf-lib").catch(() => null)
   if (!pdfLib) throw new Error("pdf_lib_missing")
-  const { PDFDocument, StandardFonts, rgb } = pdfLib
+  const { PDFDocument, StandardFonts, rgb, degrees } = pdfLib
 
   let pdfDoc: any
   if (opts.originalMime?.includes("pdf")) {
@@ -93,7 +119,8 @@ export async function renderSignedPdf(opts: {
   for (const f of opts.fields) {
     const page = pages[f.page - 1]
     if (!page) continue
-    const { x, y, fieldW, fieldH } = percentToPdfCoords(page, f)
+    const { x, y, fieldW, fieldH, rotation } = percentToPdfCoords(page, f)
+    const upsideDown = rotation === 180
     const val =
       f.owner === "advisor"
         ? opts.values.advisor?.[f.id]
@@ -104,27 +131,36 @@ export async function renderSignedPdf(opts: {
       if (!bytes) continue
       const img = await pdfDoc.embedPng(bytes)
       page.drawImage(img, {
-        x,
-        y,
+        x: upsideDown ? x + fieldW : x,
+        y: upsideDown ? y + fieldH : y,
         width: fieldW,
         height: fieldH,
+        ...(upsideDown ? { rotate: degrees(180) } : {}),
       })
     } else if (f.type === "checkbox") {
       if (val) {
         const size = Math.min(14, Math.max(12, fieldH * 0.6))
-        page.drawText("X", { x: x + 2, y: y + 2, size, font, color: rgb(0, 0, 0) })
+        page.drawText("X", {
+          x: upsideDown ? x + fieldW - 2 : x + 2,
+          y: upsideDown ? y + fieldH - 2 : y + 2,
+          size,
+          font,
+          color: rgb(0, 0, 0),
+          ...(upsideDown ? { rotate: degrees(180) } : {}),
+        })
       }
     } else {
       const text = typeof val === "string" ? val : ""
       if (text) {
         const size = Math.min(14, Math.max(12, fieldH * 0.45))
         page.drawText(text, {
-          x: x + 2,
-          y: y + Math.max(2, fieldH * 0.2),
+          x: upsideDown ? x + fieldW - 2 : x + 2,
+          y: upsideDown ? y + fieldH - Math.max(2, fieldH * 0.2) : y + Math.max(2, fieldH * 0.2),
           size,
           font,
           color: rgb(0.1, 0.1, 0.1),
           maxWidth: fieldW - 4,
+          ...(upsideDown ? { rotate: degrees(180) } : {}),
         })
       }
     }

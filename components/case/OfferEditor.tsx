@@ -9,6 +9,10 @@ type ProviderItem = {
 
 type OfferStatus = "draft" | "sent" | "accepted" | "rejected" | null
 
+function normalizeDecimalInput(value: string) {
+  return value.replace(/\./g, ",")
+}
+
 export default function OfferEditor({ caseId }: { caseId: string }) {
   const router = useRouter()
   const [providers, setProviders] = useState<ProviderItem[]>([])
@@ -46,7 +50,7 @@ export default function OfferEditor({ caseId }: { caseId: string }) {
       if (latest === "accepted") {
         setStatusNote("Angebot wurde angenommen. Kein weiteres Angebot moeglich.")
       } else if (latest === "draft") {
-        setStatusNote("Angebot wurde erstellt. Kunde kann es annehmen oder ablehnen.")
+        setStatusNote("Angebot wurde als Entwurf erstellt. Erst nach Status 'Abgeschickt' sieht es der Kunde.")
       } else if (latest === "sent") {
         setStatusNote("Angebot ist gesendet. Warte auf Feedback vom Kunden.")
       } else if (latest === "rejected") {
@@ -84,23 +88,23 @@ export default function OfferEditor({ caseId }: { caseId: string }) {
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok || !json?.ok) {
-        setMsg(json?.error || "Fehler beim Erstellen.")
+        setMsg(json?.error === "offer_exists" ? "Es gibt bereits ein angenommenes Angebot." : json?.error || "Fehler beim Erstellen.")
         return
       }
       router.refresh()
       setStatus("draft")
-      setStatusNote("Angebot wurde erstellt. Kunde kann es annehmen oder ablehnen.")
+      setStatusNote("Angebot wurde als Entwurf erstellt. Erst nach Status 'Abgeschickt' sieht es der Kunde.")
     } finally {
       setBusy(false)
     }
   }
 
-  const blocked = status === "draft" || status === "sent" || status === "accepted"
+  const blocked = status === "accepted"
 
   return (
     <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
       <div className="text-sm font-medium text-slate-900">Finales Angebot erstellen</div>
-      <p className="mt-1 text-xs text-slate-600">Ein finales Angebot pro Fall. Bei Ablehnung kannst du ein neues senden.</p>
+      <p className="mt-1 text-xs text-slate-600">Du kannst mehrere finale Angebote anlegen. Sichtbar fuer den Kunden erst mit Status "Abgeschickt".</p>
 
       {statusNote ? <div className="mt-2 text-xs text-slate-600">{statusNote}</div> : null}
       {msg ? <div className="mt-2 text-xs text-rose-600">{msg}</div> : null}
@@ -138,9 +142,10 @@ export default function OfferEditor({ caseId }: { caseId: string }) {
           Rate / Monat
           <input
             value={rateMonthly}
-            onChange={(e) => setRateMonthly(e.target.value)}
+            onChange={(e) => setRateMonthly(normalizeDecimalInput(e.target.value))}
+            inputMode="decimal"
             disabled={busy || blocked}
-            placeholder="z.B. 1250"
+            placeholder="z.B. 1250,50"
             className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
           />
         </label>
@@ -149,9 +154,10 @@ export default function OfferEditor({ caseId }: { caseId: string }) {
           Effektivzins %
           <input
             value={aprEffective}
-            onChange={(e) => setAprEffective(e.target.value)}
+            onChange={(e) => setAprEffective(normalizeDecimalInput(e.target.value))}
+            inputMode="decimal"
             disabled={busy || blocked}
-            placeholder="z.B. 3.2"
+            placeholder="z.B. 3,2"
             className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
           />
         </label>
@@ -160,9 +166,10 @@ export default function OfferEditor({ caseId }: { caseId: string }) {
           Nominalzins %
           <input
             value={interestNominal}
-            onChange={(e) => setInterestNominal(e.target.value)}
+            onChange={(e) => setInterestNominal(normalizeDecimalInput(e.target.value))}
+            inputMode="decimal"
             disabled={busy || blocked}
-            placeholder="z.B. 3.0"
+            placeholder="z.B. 3,0"
             className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
           />
         </label>
@@ -171,9 +178,10 @@ export default function OfferEditor({ caseId }: { caseId: string }) {
           Tilgung %
           <input
             value={tilgungPct}
-            onChange={(e) => setTilgungPct(e.target.value)}
+            onChange={(e) => setTilgungPct(normalizeDecimalInput(e.target.value))}
+            inputMode="decimal"
             disabled={busy || blocked}
-            placeholder="z.B. 2.0"
+            placeholder="z.B. 2,0"
             className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
           />
         </label>

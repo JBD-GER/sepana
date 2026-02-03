@@ -263,7 +263,7 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       className={cn(
-        "h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[15px] text-slate-900 shadow-sm outline-none transition",
+        "h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 shadow-sm outline-none transition sm:text-[15px]",
         "placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200",
         props.disabled && "cursor-not-allowed bg-slate-50 text-slate-500",
         props.className
@@ -292,7 +292,7 @@ function Select({
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         className={cn(
-          "h-11 w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 pr-10 text-[15px] text-slate-900 shadow-sm outline-none transition",
+          "h-11 w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 pr-10 text-base text-slate-900 shadow-sm outline-none transition sm:text-[15px]",
           "focus:border-slate-300 focus:ring-2 focus:ring-slate-200",
           disabled && "cursor-not-allowed bg-slate-50 text-slate-500",
           className
@@ -333,7 +333,7 @@ function MoneyInput({
       placeholder={placeholder || "z. B. 300.000"}
       disabled={disabled}
       className={cn(
-        "h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[15px] text-slate-900 shadow-sm outline-none transition",
+        "h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 shadow-sm outline-none transition sm:text-[15px]",
         "placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200",
         disabled && "cursor-not-allowed bg-slate-50 text-slate-500",
         className
@@ -1369,7 +1369,7 @@ export default function LiveCasePanel({
           </Card>
 
           <Card title="Wohnkosten & Haushalt">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               <Field
                 label="Aktuelle Warmmiete"
                 required={!additional.current_warm_rent_none}
@@ -1383,7 +1383,7 @@ export default function LiveCasePanel({
                   className={missingFieldStyle("additional.current_warm_rent")}
                 />
               </Field>
-              <div className="flex items-end rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-2">
+              <div className="self-start rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-2">
                 <label className="flex items-center gap-2 text-sm text-slate-700">
                   <input
                     type="checkbox"
@@ -1415,8 +1415,8 @@ export default function LiveCasePanel({
           </Card>
 
           <Card title="Arbeitsdetails">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <div className="md:col-span-1 flex items-end rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="self-start rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-2">
                 <label className="flex items-center gap-2 text-sm text-slate-700">
                   <input
                     type="checkbox"
@@ -1456,7 +1456,7 @@ export default function LiveCasePanel({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div
                 className={cn(
-                  "flex items-center gap-2 rounded-2xl border px-3 py-2",
+                  "self-start flex items-center gap-2 rounded-2xl border px-3 py-2",
                   additional.has_children && isFieldMissing("children.required")
                     ? "border-amber-200 bg-amber-50/70"
                     : "border-slate-200/70 bg-white/70"

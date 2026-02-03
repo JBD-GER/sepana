@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useId, useMemo, useState } from "react"
 
 type Item = {
@@ -30,6 +31,7 @@ export default function NotificationLog({
   types = [],
   excludeTypes = [],
   enableCustomerFilter = false,
+  caseHrefBase = "",
 }: {
   limit?: number
   title?: string
@@ -37,6 +39,7 @@ export default function NotificationLog({
   types?: string[]
   excludeTypes?: string[]
   enableCustomerFilter?: boolean
+  caseHrefBase?: string
 }) {
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
@@ -157,20 +160,44 @@ export default function NotificationLog({
         <div className="mt-3 text-sm text-slate-500">Noch keine Benachrichtigungen vorhanden.</div>
       ) : (
         <div className="mt-3 space-y-2">
-          {items.map((item) => (
-            <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-              <div className="text-xs text-slate-500">{dt(item.created_at)}</div>
-              {item.counterpart_name || item.case_ref ? (
-                <div className="mt-1 text-[11px] text-slate-500">
-                  {item.counterpart_name ? `Kontakt: ${item.counterpart_name}` : null}
-                  {item.counterpart_name && item.case_ref ? " | " : ""}
-                  {item.case_ref ? `Fall ${item.case_ref}` : ""}
-                </div>
-              ) : null}
-              <div className="mt-1 text-sm font-semibold text-slate-900">{item.title}</div>
-              <div className="mt-1 text-xs text-slate-600">{item.body}</div>
-            </div>
-          ))}
+          {items.map((item) => {
+            const href =
+              caseHrefBase && item.case_id ? `${caseHrefBase.replace(/\/+$/, "")}/${item.case_id}` : null
+
+            const content = (
+              <>
+                <div className="text-xs text-slate-500">{dt(item.created_at)}</div>
+                {item.counterpart_name || item.case_ref ? (
+                  <div className="mt-1 text-[11px] text-slate-500">
+                    {item.counterpart_name ? `Kontakt: ${item.counterpart_name}` : null}
+                    {item.counterpart_name && item.case_ref ? " | " : ""}
+                    {item.case_ref ? `Fall ${item.case_ref}` : ""}
+                  </div>
+                ) : null}
+                <div className="mt-1 text-sm font-semibold text-slate-900">{item.title}</div>
+                <div className="mt-1 text-xs text-slate-600">{item.body}</div>
+                {href ? <div className="mt-2 text-[11px] font-semibold text-slate-700">Zur Detailansicht</div> : null}
+              </>
+            )
+
+            if (href) {
+              return (
+                <Link
+                  key={item.id}
+                  href={href}
+                  className="block rounded-2xl border border-slate-200 bg-slate-50 p-3 transition hover:border-slate-300 hover:bg-white"
+                >
+                  {content}
+                </Link>
+              )
+            }
+
+            return (
+              <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                {content}
+              </div>
+            )
+          })}
         </div>
       )}
 

@@ -71,12 +71,17 @@ export async function GET(req: Request) {
         .eq("case_id", id)
         .order("created_at", { ascending: false })
         .limit(5),
-      readClient
-        .from("case_offers")
-        .select("id,case_id,provider_id,product_type,status,bank_status,loan_amount,rate_monthly,interest_nominal,apr_effective,term_months,zinsbindung_years,special_repayment,created_at")
-        .eq("case_id", id)
-        .order("created_at", { ascending: false })
-        .limit(50),
+      (() => {
+        let query = readClient
+          .from("case_offers")
+          .select("id,case_id,provider_id,product_type,status,bank_status,bank_feedback_note,loan_amount,rate_monthly,interest_nominal,apr_effective,term_months,zinsbindung_years,special_repayment,created_at")
+          .eq("case_id", id)
+          .order("created_at", { ascending: false })
+          .limit(50)
+        // Kunden sehen finale Angebote erst, wenn sie freigegeben (sent) wurden.
+        if (role === "customer") query = query.in("status", ["sent", "accepted", "rejected"])
+        return query
+      })(),
       readClient
         .from("documents")
         .select("id,case_id,request_id,file_name,file_path,mime_type,size_bytes,created_at")

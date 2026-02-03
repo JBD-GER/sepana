@@ -158,8 +158,20 @@ export default async function CustomerDashboard() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
-        <NotificationLog limit={3} title="Terminverlauf" scope="inbox" types={APPOINTMENT_LOG_TYPES} />
-        <NotificationLog limit={3} title="Benachrichtigungen" scope="inbox" excludeTypes={APPOINTMENT_LOG_TYPES} />
+        <NotificationLog
+          limit={3}
+          title="Terminverlauf"
+          scope="inbox"
+          types={APPOINTMENT_LOG_TYPES}
+          caseHrefBase="/app/faelle"
+        />
+        <NotificationLog
+          limit={3}
+          title="Benachrichtigungen"
+          scope="inbox"
+          excludeTypes={APPOINTMENT_LOG_TYPES}
+          caseHrefBase="/app/faelle"
+        />
       </section>
     </div>
   )

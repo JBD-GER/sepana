@@ -64,10 +64,13 @@ export function translateBankStatus(raw?: string | null) {
   const s = String(raw ?? "").trim().toLowerCase()
   const map: Record<string, string> = {
     submitted: "Eingereicht",
+    documents: "Dokumente",
     approved: "Angenommen",
     accepted: "Angenommen",
     declined: "Abgelehnt",
     rejected: "Abgelehnt",
+    questions: "Rueckfragen",
+    rueckfragen: "Rueckfragen",
   }
   return map[s] ?? prettify(s)
 }

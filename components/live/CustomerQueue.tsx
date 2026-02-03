@@ -17,6 +17,34 @@ type LiveQueueUpdate = {
   guest_token?: string | null
 }
 
+const BAUFI_FACTS = [
+  "Eine laengere Zinsbindung gibt mehr Planungssicherheit, ist aber meist etwas teurer.",
+  "Schon 0,2 % Zinsunterschied koennen ueber die Laufzeit viele tausend Euro ausmachen.",
+  "Mehr Eigenkapital verbessert in der Regel die Konditionen deutlich.",
+  "Die Haushaltsrechnung ist fuer Banken oft wichtiger als Einzelwerte im Formular.",
+  "Sondertilgungen geben Flexibilitaet bei Gehaltserhoehungen oder Boni.",
+  "Ein realistischer Puffer fuer Nebenkosten hilft gegen spaetere Engpaesse.",
+  "Bereitstellungszinsen koennen bei Bauprojekten relevant werden.",
+  "Forward-Darlehen sichern fruehzeitig heutige Konditionen fuer die Zukunft.",
+  "Der Effektivzins ist meist aussagekraeftiger als nur der Sollzins.",
+  "Region, Objektart und Bonitaet beeinflussen die Bankenbewertung stark.",
+  "Eine solide Anschlussfinanzierungsstrategie spart spaeter oft viel Geld.",
+  "Auch kleine bestehende Kredite beeinflussen die Gesamttragfaehigkeit.",
+  "Ein sauberer, aktueller Unterlagenstand beschleunigt den Entscheidungsprozess.",
+  "Nicht nur der Preis, auch die Vertragsflexibilitaet ist wichtig.",
+  "Tilgungswechsel kann bei veraendertem Einkommen hilfreich sein.",
+  "Familienplanung sollte bei Laufzeit und Rate mitbedacht werden.",
+  "KfW-Programme koennen je nach Vorhaben interessante Bausteine sein.",
+  "Eine zu knappe Rate kann spaeter zu Nachfinanzierungsdruck fuehren.",
+  "Banken schauen auf Stabilitaet von Einkommen und Beschaeftigung.",
+  "Auch kleine Schufa-Themen koennen den Zinssatz beeinflussen.",
+  "Bei Neubau sind Zeitplanung und Abrufstrategie besonders wichtig.",
+  "Nebenkosten wie Notar, Steuer und Makler sollten voll eingeplant sein.",
+  "Ein realistischer Beleihungsauslauf verbessert oft den Zinssatz.",
+  "Vergleichbar wird ein Angebot erst mit denselben Laufzeit- und Tilgungsparametern.",
+  "Fragen zur Bankrueckmeldung am besten sofort mit dem Berater klaeren.",
+] as const
+
 export default function CustomerQueue({
   caseId,
   caseRef,
@@ -177,14 +205,31 @@ export default function CustomerQueue({
       ) : null}
 
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-        Bitte bleiben Sie auf dieser Seite. Sobald ein Berater annimmt, starten wir automatisch.
+        <div className="font-semibold text-slate-900">Wichtiger Hinweis</div>
+        <div className="mt-1">
+          Bitte verlassen Sie dieses Fenster nicht. In wenigen Minuten geht es los - Ihr Berater ist aktuell noch im aktiven Gespraech.
+        </div>
+        <div className="mt-2 text-xs text-slate-600">
+          Sobald der Berater frei ist, starten wir die Live-Beratung automatisch.
+        </div>
       </div>
+
+      <details className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+        <summary className="cursor-pointer font-semibold text-slate-900">
+          25 wissenswerte Infos zur Baufinanzierung
+        </summary>
+        <ol className="mt-3 grid list-decimal gap-2 pl-5 text-xs text-slate-600 sm:grid-cols-2 sm:gap-x-6">
+          {BAUFI_FACTS.map((fact, index) => (
+            <li key={index}>{fact}</li>
+          ))}
+        </ol>
+      </details>
 
       <button
         onClick={leaveQueue}
         className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm"
       >
-        Warteschlange verlassen
+        Warteschlange verlassen und zur Bankauswahl
       </button>
     </div>
   )

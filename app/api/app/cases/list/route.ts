@@ -39,6 +39,7 @@ type OfferRow = {
   provider_id: string | null
   status: string | null
   bank_status: string | null
+  bank_feedback_note: string | null
   bank_confirmed_at: string | null
   loan_amount: number | null
   rate_monthly: number | null
@@ -185,7 +186,7 @@ export async function GET(req: Request) {
     caseIds.length
       ? supabase
           .from("case_offers")
-          .select("id,case_id,provider_id,status,bank_status,bank_confirmed_at,loan_amount,rate_monthly,apr_effective,interest_nominal,zinsbindung_years,special_repayment,created_at")
+          .select("id,case_id,provider_id,status,bank_status,bank_feedback_note,bank_confirmed_at,loan_amount,rate_monthly,apr_effective,interest_nominal,zinsbindung_years,special_repayment,created_at")
           .in("case_id", caseIds)
       : Promise.resolve({ data: [] as OfferRow[] }),
     caseIds.length
@@ -196,13 +197,20 @@ export async function GET(req: Request) {
 
   const docRows = (docs ?? []) as DocRow[]
   const offerRows = (offers ?? []) as OfferRow[]
+  const visibleOfferRows =
+    role === "customer"
+      ? offerRows.filter((row) => {
+          const status = String(row.status ?? "").toLowerCase()
+          return status === "sent" || status === "accepted" || status === "rejected"
+        })
+      : offerRows
   const previewRows = (previews ?? []) as PreviewRow[]
 
   const docsCountByCase = new Map<string, number>()
   for (const row of docRows) docsCountByCase.set(row.case_id, (docsCountByCase.get(row.case_id) ?? 0) + 1)
 
   const offersByCase = new Map<string, OfferRow[]>()
-  for (const row of offerRows) {
+  for (const row of visibleOfferRows) {
     const list = offersByCase.get(row.case_id) ?? []
     list.push(row)
     offersByCase.set(row.case_id, list)

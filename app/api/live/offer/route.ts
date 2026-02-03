@@ -7,7 +7,23 @@ export const runtime = "nodejs"
 
 function num(v: any) {
   if (v === null || v === undefined || v === "") return null
-  const n = Number(v)
+  const raw = String(v).trim().replace(/\s+/g, "")
+  if (!raw) return null
+  const hasComma = raw.includes(",")
+  const hasDot = raw.includes(".")
+  let normalized = raw
+  if (hasComma && hasDot) {
+    if (raw.lastIndexOf(",") > raw.lastIndexOf(".")) {
+      // de-DE style: 1.234,56
+      normalized = raw.replace(/\./g, "").replace(",", ".")
+    } else {
+      // en-US style: 1,234.56
+      normalized = raw.replace(/,/g, "")
+    }
+  } else if (hasComma) {
+    normalized = raw.replace(/\./g, "").replace(",", ".")
+  }
+  const n = Number(normalized)
   return Number.isFinite(n) ? n : null
 }
 
@@ -60,7 +76,7 @@ export async function GET(req: Request) {
 
   const readClient = admin
   const selectFields =
-    "id,status,bank_status,provider_id,loan_amount,rate_monthly,apr_effective,interest_nominal,term_months,zinsbindung_years,tilgung_pct,special_repayment,notes_for_customer,created_at"
+    "id,status,bank_status,bank_feedback_note,provider_id,loan_amount,rate_monthly,apr_effective,interest_nominal,term_months,zinsbindung_years,tilgung_pct,special_repayment,notes_for_customer,created_at"
 
   if (includeHistory) {
     const { data: offers } = await readClient
@@ -107,14 +123,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "not_assigned" }, { status: 403 })
   }
 
-  const { data: existing } = await supabase
+  const { data: acceptedOffer } = await supabase
     .from("case_offers")
     .select("id,status")
     .eq("case_id", caseId)
-    .order("created_at", { ascending: false })
+    .eq("status", "accepted")
     .limit(1)
     .maybeSingle()
-  if (existing && ["draft", "sent", "accepted"].includes(existing.status)) {
+  if (acceptedOffer) {
     return NextResponse.json({ ok: false, error: "offer_exists" }, { status: 409 })
   }
 

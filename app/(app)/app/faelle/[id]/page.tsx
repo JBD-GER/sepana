@@ -9,6 +9,7 @@ import { translateCaseStatus, translateOfferStatus } from "@/lib/caseStatus"
 import OfferList from "@/components/case/OfferList"
 import LiveCasePanel from "@/components/live/LiveCasePanel"
 import CaseAppointmentPanel from "@/components/appointments/CaseAppointmentPanel"
+import AdvisorCard from "@/components/case/AdvisorCard"
 
 type Resp = {
   case: {
@@ -197,29 +198,14 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
       </div>
 
       {advisor ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start gap-4">
-            <div className="h-16 w-16 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-              {advisorAvatar ? <img src={advisorAvatar} alt="" className="h-full w-full object-cover" /> : null}
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs text-slate-500">Dein Berater</div>
-              <div className="text-lg font-semibold text-slate-900">{advisor.display_name ?? "-"}</div>
-              <div className="mt-1 text-sm text-slate-700">{advisor.bio ?? "-"}</div>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600">
-                {advisor.phone ? <span>Tel: {advisor.phone}</span> : null}
-                {advisor.email ? <span>E-Mail: {advisor.email}</span> : null}
-              </div>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {(advisor.languages ?? []).map((l) => (
-                  <span key={l} className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-700">
-                    {l}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <AdvisorCard
+          displayName={advisor.display_name}
+          bio={advisor.bio}
+          phone={advisor.phone}
+          email={advisor.email}
+          languages={advisor.languages ?? []}
+          avatarUrl={advisorAvatar}
+        />
       ) : null}
 
       <LiveCasePanel caseId={c.id} caseRef={c.case_ref ?? null} defaultCollapsed />
@@ -304,11 +290,14 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="text-sm font-medium text-slate-900">Finale Angebote</div>
-        <p className="mt-1 text-xs text-slate-600">Diese Angebote werden spaeter vom Berater erstellt und freigegeben.</p>
+        <p className="mt-1 text-xs text-slate-600">
+          Diese Angebote werden vom Berater freigegeben. Wichtig: Es ist nur eine Angebotsannahme moeglich.
+        </p>
         <OfferList
           offers={data.offers ?? []}
           canManage={data.viewer_role === "advisor" || data.viewer_role === "admin"}
-          filterStatuses={["accepted", "rejected"]}
+          canRespond={data.viewer_role === "customer"}
+          filterStatuses={["sent", "accepted", "rejected"]}
         />
       </div>
 

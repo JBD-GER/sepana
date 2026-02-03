@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
@@ -154,7 +155,18 @@ export default async function AdminLogsPage({
                       <div className="font-medium text-slate-900">{l.title}</div>
                       <div className="mt-1 text-xs text-slate-600">{l.body}</div>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{caseRef}</td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {l.case_id ? (
+                        <Link
+                          href={`/admin/faelle/${l.case_id}`}
+                          className="text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900"
+                        >
+                          {caseRef}
+                        </Link>
+                      ) : (
+                        caseRef
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-slate-700">
                       {actorLabel(l.recipient_id, l.recipient_role)}
                     </td>

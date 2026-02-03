@@ -275,8 +275,10 @@ export default function SignaturePanel({
       const json = await res.json().catch(() => ({}))
       if (!res.ok || !json?.ok) throw new Error(json?.error || "Fehler")
       await refresh()
+      return true
     } catch (e: any) {
       setMsg(e?.message ?? "Fehler")
+      return false
     } finally {
       setBusy(false)
     }
@@ -379,7 +381,7 @@ function SignatureRequestCard({
   busy: boolean
   onSaveFields: (id: string, fields: SignatureField[]) => Promise<void>
   onUploadSigned: (id: string, files: FileList) => Promise<void>
-  onSubmitDigital: (id: string, values: Record<string, any>) => Promise<void>
+  onSubmitDigital: (id: string, values: Record<string, any>) => Promise<boolean>
 }) {
   const [editorOpen, setEditorOpen] = useState(false)
   const [signOpen, setSignOpen] = useState(false)
@@ -393,6 +395,7 @@ function SignatureRequestCard({
       : "Entwurf"
   const alreadySigned = canEdit ? !!req.advisor_signed_at : !!req.customer_signed_at
   const advisorLabel = advisorRequired ? (req.advisor_signed_at ? shortIso(req.advisor_signed_at) : "--") : "nicht erforderlich"
+  const canOpenSign = canEdit ? advisorRequired : true
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -445,13 +448,19 @@ function SignatureRequestCard({
               Editor oeffnen
             </button>
           ) : null}
-          <button
-            onClick={() => setSignOpen(true)}
-            className="rounded-full border border-slate-900 bg-slate-900 px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
-            disabled={alreadySigned}
-          >
-            {alreadySigned ? "Bereits unterschrieben" : "Unterschreiben"}
-          </button>
+          {canOpenSign ? (
+            <button
+              onClick={() => setSignOpen(true)}
+              className="rounded-full border border-slate-900 bg-slate-900 px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
+              disabled={alreadySigned}
+            >
+              {alreadySigned ? "Bereits unterschrieben" : "Unterschreiben"}
+            </button>
+          ) : (
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600">
+              Nur Kundensignatur erforderlich
+            </span>
+          )}
         </div>
       </div>
 
@@ -538,6 +547,7 @@ function SignatureEditorModal({
     pdfReloadKey
   )
   const pageCount = pdfPageCount ?? Math.max(1, ...fields.map((f) => Number(f.page || 1)))
+  const showPagePicker = pageCount > 1
   const pagesWithFields = new Set(fields.map((f) => f.page))
 
   const canEditFields = canEdit && !req.advisor_signed_at && !req.customer_signed_at
@@ -660,9 +670,9 @@ function SignatureEditorModal({
   }, [fields])
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="flex h-[85vh] w-full max-w-[1200px] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+    <div className="fixed inset-0 z-[70] bg-slate-900/45 p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+      <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl sm:h-[85vh] sm:max-w-[1200px] sm:rounded-3xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5 sm:px-5 sm:py-3">
           <div>
             <div className="text-sm font-semibold text-slate-900">{req.title}</div>
             <div className="text-xs text-slate-500">
@@ -678,33 +688,35 @@ function SignatureEditorModal({
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col gap-0 md:flex-row">
-          <div className="flex w-full border-b border-slate-200 bg-slate-50 p-3 md:w-[180px] md:flex-col md:border-b-0 md:border-r">
-            <div className="text-[11px] font-semibold text-slate-600">Seiten</div>
-            <div className="mt-2 flex max-h-[70vh] flex-1 flex-wrap gap-2 overflow-auto md:flex-col">
-              {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => {
-                const hasField = pagesWithFields.has(p)
-                const active = p === page
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPage(p)}
-                    className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs ${
-                      active
-                        ? "border-slate-900 bg-slate-900 text-white"
-                        : "border-slate-200 bg-white text-slate-700"
-                    }`}
-                  >
-                    <span>Seite {p}</span>
-                    {hasField ? <span className="ml-2 h-2 w-2 rounded-full bg-emerald-500" /> : null}
-                  </button>
-                )
-              })}
+        <div className="flex flex-1 flex-col gap-0 xl:flex-row">
+          {showPagePicker ? (
+            <div className="flex w-full items-center gap-2 border-b border-slate-200 bg-slate-50 p-3 xl:w-[180px] xl:flex-col xl:items-stretch xl:border-b-0 xl:border-r">
+              <div className="shrink-0 text-[11px] font-semibold text-slate-600">Seiten</div>
+              <div className="flex flex-1 gap-2 overflow-x-auto py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:mt-2 xl:max-h-[70vh] xl:flex-col xl:overflow-auto">
+                {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => {
+                  const hasField = pagesWithFields.has(p)
+                  const active = p === page
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPage(p)}
+                      className={`shrink-0 flex items-center justify-between rounded-lg border px-3 py-2 text-xs ${
+                        active
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-slate-200 bg-white text-slate-700"
+                      }`}
+                    >
+                      <span>Seite {p}</span>
+                      {hasField ? <span className="ml-2 h-2 w-2 rounded-full bg-emerald-500" /> : null}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          <div className="flex flex-1 flex-col p-4">
+          <div className="flex flex-1 flex-col p-3 sm:p-4">
             <div className="flex items-center justify-between text-xs text-slate-600">
               <div className="flex items-center gap-2">
                 {canEdit ? (
@@ -760,7 +772,7 @@ function SignatureEditorModal({
 
             <div
               ref={pageFrameRef}
-              className="relative mt-3 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+              className="relative mt-3 min-h-[38vh] flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 sm:min-h-0"
             >
               <div
                 ref={pageRef}
@@ -849,7 +861,7 @@ function SignatureEditorModal({
                     value={pdfPassword}
                     onChange={(e) => setPdfPassword(e.target.value)}
                     placeholder="PDF Passwort"
-                    className="w-full rounded-lg border border-amber-200 bg-white px-2 py-1 text-xs"
+                    className="w-full rounded-lg border border-amber-200 bg-white px-2 py-1 text-sm"
                   />
                   <button
                     type="button"
@@ -874,7 +886,7 @@ function SignatureEditorModal({
 
           </div>
 
-          <div className="w-full border-t border-slate-200 bg-slate-50 p-4 md:w-[360px] md:border-l md:border-t-0">
+          <div className="w-full border-t border-slate-200 bg-slate-50 p-3 sm:p-4 xl:w-[360px] xl:border-l xl:border-t-0">
             <div className="flex items-center justify-between">
               <div className="text-sm font-semibold text-slate-900">Felder</div>
               {canEditFields ? (
@@ -971,7 +983,7 @@ function SignatureSignModal({
   busy: boolean
   onClose: () => void
   onUploadSigned: (id: string, files: FileList) => Promise<void>
-  onSubmitDigital: (id: string, values: Record<string, any>) => Promise<void>
+  onSubmitDigital: (id: string, values: Record<string, any>) => Promise<boolean>
 }) {
   const actor: "advisor" | "customer" = canEdit ? "advisor" : "customer"
   const [values, setValues] = useState<Record<string, any>>(req.my_values ?? {})
@@ -1011,6 +1023,7 @@ function SignatureSignModal({
     pdfReloadKey
   )
   const pageCount = pdfPageCount ?? Math.max(1, ...fields.map((f) => Number(f.page || 1)))
+  const showPagePicker = pageCount > 1
   const pagesWithFields = new Set(fields.map((f) => f.page))
   const actorFields = fields.filter((f) => f.owner === actor)
   const pageFields = fields.filter((f) => f.page === page)
@@ -1018,7 +1031,7 @@ function SignatureSignModal({
   const advisorValues = valuesByRole.advisor ?? {}
   const customerValues = valuesByRole.customer ?? {}
   const alreadySigned = canEdit ? !!req.advisor_signed_at : !!req.customer_signed_at
-  const canSign = canEdit ? true : advisorRequired ? !!req.advisor_signed_at : true
+  const canSign = canEdit ? advisorRequired : advisorRequired ? !!req.advisor_signed_at : true
   const signTotal = advisorRequired ? 2 : 1
   const signCount = (req.customer_signed_at ? 1 : 0) + (advisorRequired && req.advisor_signed_at ? 1 : 0)
   const advisorLabel = advisorRequired ? (req.advisor_signed_at ? shortIso(req.advisor_signed_at) : "--") : "nicht erforderlich"
@@ -1042,9 +1055,9 @@ function SignatureSignModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="flex h-[85vh] w-full max-w-[1200px] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+    <div className="fixed inset-0 z-[70] bg-slate-900/45 p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+      <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl sm:h-[85vh] sm:max-w-[1200px] sm:rounded-3xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5 sm:px-5 sm:py-3">
           <div>
             <div className="text-sm font-semibold text-slate-900">Unterschrift: {req.title}</div>
             <div className="text-xs text-slate-500">
@@ -1060,33 +1073,35 @@ function SignatureSignModal({
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col gap-0 md:flex-row">
-          <div className="flex w-full border-b border-slate-200 bg-slate-50 p-3 md:w-[180px] md:flex-col md:border-b-0 md:border-r">
-            <div className="text-[11px] font-semibold text-slate-600">Seiten</div>
-            <div className="mt-2 flex max-h-[70vh] flex-1 flex-wrap gap-2 overflow-auto md:flex-col">
-              {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => {
-                const hasField = pagesWithFields.has(p)
-                const active = p === page
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPage(p)}
-                    className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs ${
-                      active
-                        ? "border-slate-900 bg-slate-900 text-white"
-                        : "border-slate-200 bg-white text-slate-700"
-                    }`}
-                  >
-                    <span>Seite {p}</span>
-                    {hasField ? <span className="ml-2 h-2 w-2 rounded-full bg-emerald-500" /> : null}
-                  </button>
-                )
-              })}
+        <div className="flex flex-1 flex-col gap-0 xl:flex-row">
+          {showPagePicker ? (
+            <div className="flex w-full items-center gap-2 border-b border-slate-200 bg-slate-50 p-3 xl:w-[180px] xl:flex-col xl:items-stretch xl:border-b-0 xl:border-r">
+              <div className="shrink-0 text-[11px] font-semibold text-slate-600">Seiten</div>
+              <div className="flex flex-1 gap-2 overflow-x-auto py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:mt-2 xl:max-h-[70vh] xl:flex-col xl:overflow-auto">
+                {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => {
+                  const hasField = pagesWithFields.has(p)
+                  const active = p === page
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPage(p)}
+                      className={`shrink-0 flex items-center justify-between rounded-lg border px-3 py-2 text-xs ${
+                        active
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-slate-200 bg-white text-slate-700"
+                      }`}
+                    >
+                      <span>Seite {p}</span>
+                      {hasField ? <span className="ml-2 h-2 w-2 rounded-full bg-emerald-500" /> : null}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          <div className="flex flex-1 flex-col p-4">
+          <div className="flex flex-1 flex-col p-3 sm:p-4">
             <div className="flex items-center justify-between text-xs text-slate-600">
               <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] text-slate-700">
                 {actor === "advisor" ? "Berater" : "Kunde"}
@@ -1098,7 +1113,7 @@ function SignatureSignModal({
 
             <div
               ref={pageFrameRef}
-              className="relative mt-3 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+              className="relative mt-3 min-h-[38vh] flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 sm:min-h-0"
             >
               <div
                 ref={pageRef}
@@ -1182,7 +1197,7 @@ function SignatureSignModal({
                     value={pdfPassword}
                     onChange={(e) => setPdfPassword(e.target.value)}
                     placeholder="PDF Passwort"
-                    className="w-full rounded-lg border border-amber-200 bg-white px-2 py-1 text-xs"
+                    className="w-full rounded-lg border border-amber-200 bg-white px-2 py-1 text-sm"
                   />
                   <button
                     type="button"
@@ -1206,7 +1221,7 @@ function SignatureSignModal({
             ) : null}
           </div>
 
-          <div className="w-full border-t border-slate-200 bg-slate-50 p-4 md:w-[360px] md:border-l md:border-t-0">
+          <div className="w-full border-t border-slate-200 bg-slate-50 p-3 sm:p-4 xl:w-[360px] xl:border-l xl:border-t-0">
             <div className="text-sm font-semibold text-slate-900">Ausfuellen</div>
             {req.requires_wet_signature ? (
               <div className="mt-3">
@@ -1259,7 +1274,7 @@ function SignatureSignModal({
                       <input
                         value={String(values[f.id] ?? "")}
                         onChange={(e) => setValues({ ...values, [f.id]: e.target.value })}
-                        className="mt-2 w-full rounded-lg border border-slate-300 px-2 py-2 text-xs"
+                        className="mt-2 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
                       />
                     )}
                   </div>
@@ -1268,7 +1283,10 @@ function SignatureSignModal({
             )}
 
             <button
-              onClick={() => onSubmitDigital(req.id, values)}
+              onClick={async () => {
+                const ok = await onSubmitDigital(req.id, values)
+                if (ok) onClose()
+              }}
               disabled={busy || alreadySigned || req.requires_wet_signature || !canSign}
               className="mt-4 w-full rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
             >
@@ -1374,7 +1392,7 @@ function SignaturePad({
     <div className="rounded-xl border border-slate-300 bg-white p-2">
       <canvas
         ref={canvasRef}
-        className="h-[120px] w-full rounded-lg bg-white"
+        className="h-[150px] w-full rounded-lg bg-white sm:h-[120px]"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

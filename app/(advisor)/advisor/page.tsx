@@ -212,6 +212,7 @@ export default async function AdvisorDashboard() {
           scope="inbox"
           types={APPOINTMENT_LOG_TYPES}
           enableCustomerFilter
+          caseHrefBase="/advisor/faelle"
         />
         <NotificationLog
           limit={5}
@@ -219,6 +220,7 @@ export default async function AdvisorDashboard() {
           scope="inbox"
           excludeTypes={APPOINTMENT_LOG_TYPES}
           enableCustomerFilter
+          caseHrefBase="/advisor/faelle"
         />
       </section>
 
