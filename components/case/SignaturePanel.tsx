@@ -1418,7 +1418,7 @@ function usePdfDocument(
     let active = true
     ;(async () => {
       try {
-        const pdfModule = await import("pdfjs-dist/build/pdf")
+        const pdfModule = await import("pdfjs-dist")
         const pdfjs: any = (pdfModule as any).default ?? pdfModule
         ensurePdfWorker(pdfjs)
         const res = await fetch(url)

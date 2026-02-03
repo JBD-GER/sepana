@@ -13,6 +13,17 @@ type Offer = {
   created_at: string
 }
 
+const OFFER_STATUSES = ["draft", "sent", "accepted", "rejected"] as const
+const BANK_DECISIONS = ["approved", "declined"] as const
+
+function isOfferStatus(value: string): value is (typeof OFFER_STATUSES)[number] {
+  return OFFER_STATUSES.includes(value as (typeof OFFER_STATUSES)[number])
+}
+
+function isBankDecision(value: string): value is (typeof BANK_DECISIONS)[number] {
+  return BANK_DECISIONS.includes(value as (typeof BANK_DECISIONS)[number])
+}
+
 export default function UpdateOfferStatus({
   offers,
 }: {
@@ -24,7 +35,7 @@ export default function UpdateOfferStatus({
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
-  async function update(offerId: string, patch: Partial<Offer> & { bank_status?: string }) {
+  async function update(offerId: string, patch: Partial<Offer>) {
     setMsg(null)
     setLoading(true)
     try {
@@ -80,7 +91,10 @@ export default function UpdateOfferStatus({
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <select
                     defaultValue={o.status}
-                    onChange={(e) => update(o.id, { status: e.target.value as any })}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (isOfferStatus(value)) update(o.id, { status: value })
+                    }}
                     className="rounded-lg border border-slate-200/70 bg-white px-2 py-1 text-xs"
                     disabled={loading}
                   >
@@ -108,7 +122,7 @@ export default function UpdateOfferStatus({
                       defaultValue={o.bank_status && o.bank_status !== "submitted" ? o.bank_status : ""}
                       onChange={(e) => {
                         const value = e.target.value
-                        if (value) update(o.id, { bank_status: value })
+                        if (isBankDecision(value)) update(o.id, { bank_status: value })
                       }}
                       className="w-full rounded-lg border border-slate-200/70 bg-white px-2 py-1 text-xs"
                       disabled={loading}

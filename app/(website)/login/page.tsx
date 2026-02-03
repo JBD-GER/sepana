@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { Suspense, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import AuthShell from "../components/AuthShell"
@@ -22,7 +22,7 @@ function safeNext(next?: string | null) {
   return next
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), [])
   const router = useRouter()
   const sp = useSearchParams()
@@ -124,5 +124,21 @@ export default function LoginPage() {
         <p className="text-xs leading-relaxed text-slate-500">Tipp: Nutzen Sie Ihr Portal fuer Uploads und Status statt langer Mailverlaeufe.</p>
       </form>
     </AuthShell>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthShell title="Login" subtitle="Melden Sie sich an und setzen Sie Ihren Baufinanzierungsprozess nahtlos fort.">
+          <div className="rounded-2xl border border-slate-200/90 bg-slate-50/80 px-4 py-3 text-sm text-slate-600">
+            Lade Login...
+          </div>
+        </AuthShell>
+      }
+    >
+      <LoginPageContent />
+    </Suspense>
   )
 }

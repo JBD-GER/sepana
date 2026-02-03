@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { createBrowserSupabaseClientNoAuth } from "@/lib/supabase/browser"
 
 type ProviderItem = {
@@ -9,6 +10,7 @@ type ProviderItem = {
 }
 
 type OfferStatus = "draft" | "sent" | "accepted" | "rejected" | null
+type OfferRealtimeUpdate = { status?: OfferStatus }
 
 function formatEUR(n: number | null | undefined) {
   if (n == null || Number.isNaN(Number(n))) return "-"
@@ -105,8 +107,8 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "case_offers", filter: `case_id=eq.${caseId}` },
-        (payload) => {
-          const next = payload.new as any
+        (payload: RealtimePostgresChangesPayload<OfferRealtimeUpdate>) => {
+          const next = payload.new as Partial<OfferRealtimeUpdate>
           if (next?.status) {
             if (next.status === "accepted") {
               setToast("Angebot wurde angenommen.")

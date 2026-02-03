@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import {
   Room,
   RoomEvent,
@@ -247,8 +248,8 @@ export default function LiveRoomClient({
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "live_queue_tickets", filter: `id=eq.${ticketId}` },
-        (payload) => {
-          const next = payload.new as TicketUpdate
+        (payload: RealtimePostgresChangesPayload<TicketUpdate>) => {
+          const next = payload.new as Partial<TicketUpdate>
           if (next?.status) setTicketStatus(next.status)
           if (next?.accepted_at) setAcceptedAt(next.accepted_at)
           if (next?.ended_at) setEndedAt(next.ended_at)

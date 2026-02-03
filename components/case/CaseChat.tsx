@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 
 type Message = {
@@ -52,10 +53,11 @@ export default function CaseChat({
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "case_notes", filter: `case_id=eq.${caseId}` },
-        (payload) => {
-          const m = payload.new as Message
+        (payload: RealtimePostgresChangesPayload<Message>) => {
+          const m = payload.new as Partial<Message>
+          if (!m?.id || !m?.author_id || !m?.created_at || typeof m.body !== "string") return
           if (m.visibility !== "shared") return
-          setMessages((prev) => (prev.find((x) => x.id === m.id) ? prev : [...prev, m]))
+          setMessages((prev) => (prev.find((x) => x.id === m.id) ? prev : [...prev, m as Message]))
         }
       )
       .subscribe()

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import AuthShell from "../components/AuthShell"
@@ -13,7 +13,7 @@ function normalizeError(message: string) {
   return message || "Fehler"
 }
 
-export default function InvitationOrResetPage() {
+function InvitationOrResetPageContent() {
   const supabase = useMemo(
     () =>
       createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
@@ -257,5 +257,21 @@ export default function InvitationOrResetPage() {
         </form>
       )}
     </AuthShell>
+  )
+}
+
+export default function InvitationOrResetPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthShell title="Einladung annehmen" subtitle="Setzen Sie ein Passwort, um Ihren Zugang zu aktivieren.">
+          <div className="rounded-2xl border border-slate-200/90 bg-slate-50/80 px-4 py-3 text-sm text-slate-600">
+            Lade Zugangsdaten...
+          </div>
+        </AuthShell>
+      }
+    >
+      <InvitationOrResetPageContent />
+    </Suspense>
   )
 }

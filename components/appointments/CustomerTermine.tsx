@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { formatDate, formatTime, isSameDay } from "@/components/appointments/utils"
 
@@ -16,6 +17,11 @@ type AppointmentItem = {
   status?: string | null
   advisor_waiting_at?: string | null
   customer_waiting_at?: string | null
+}
+
+type LiveQueueTicketRow = {
+  id?: string | null
+  status?: string | null
 }
 
 function sortByStart(a: AppointmentItem, b: AppointmentItem) {
@@ -94,8 +100,8 @@ export default function CustomerTermine() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "live_queue_tickets", filter: `customer_id=eq.${userId}` },
-        (payload) => {
-          const next = payload.new as { status?: string | null; id?: string | null }
+        (payload: RealtimePostgresChangesPayload<LiveQueueTicketRow>) => {
+          const next = payload.new as Partial<LiveQueueTicketRow> | null
           if (next?.status !== "active" || !next?.id) return
           router.push(`/live/${next.id}`)
         }

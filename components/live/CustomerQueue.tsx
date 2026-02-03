@@ -2,12 +2,18 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 
 type Ticket = {
   id: string
   status: string
   created_at: string
+  guest_token?: string | null
+}
+
+type LiveQueueUpdate = {
+  status?: string | null
   guest_token?: string | null
 }
 
@@ -90,8 +96,8 @@ export default function CustomerQueue({
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "live_queue_tickets", filter: `id=eq.${ticket.id}` },
-        async (payload) => {
-          const next = payload.new as any
+        async (payload: RealtimePostgresChangesPayload<LiveQueueUpdate>) => {
+          const next = payload.new as Partial<LiveQueueUpdate>
           if (next?.guest_token) {
             setGuestToken(next.guest_token)
             try {
@@ -100,13 +106,16 @@ export default function CustomerQueue({
               // ignore
             }
           }
-          setTicket((prev) => (prev ? { ...prev, status: next.status } : prev))
-          if (next.status === "active") {
+          const nextStatus = next.status
+          if (typeof nextStatus === "string") {
+            setTicket((prev) => (prev ? { ...prev, status: nextStatus } : prev))
+          }
+          if (nextStatus === "active") {
             const token = next?.guest_token || guestToken
             const guestParam = token ? `?guest=${encodeURIComponent(token)}` : ""
             router.replace(`/live/${ticket.id}${guestParam}`)
           }
-          if (next.status === "cancelled" || next.status === "ended") {
+          if (nextStatus === "cancelled" || nextStatus === "ended") {
             if (!rejoinRef.current) {
               rejoinRef.current = true
               const newTicket = await joinQueue()

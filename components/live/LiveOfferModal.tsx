@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { createBrowserSupabaseClientNoAuth } from "@/lib/supabase/browser"
 
 type Offer = {
@@ -78,7 +79,7 @@ export default function LiveOfferModal({
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "case_offers", filter: `case_id=eq.${caseId}` },
-        (payload) => {
+        (payload: RealtimePostgresChangesPayload<Offer>) => {
           const next = payload.new as Offer
           if (next.status === "sent" || next.status === "draft") setOffer(next)
           if (next.status === "accepted" || next.status === "rejected") setOffer(null)
