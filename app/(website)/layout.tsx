@@ -13,9 +13,9 @@ export default function WebsiteLayout({ children }: { children: React.ReactNode 
       <Script id="google-ads-gtag" strategy="afterInteractive">
         {`
           window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', '${GOOGLE_ADS_ID}');
+          window.gtag = window.gtag || function(){ window.dataLayer.push(arguments); };
+          window.gtag('js', new Date());
+          window.gtag('config', '${GOOGLE_ADS_ID}', { send_page_view: true });
         `}
       </Script>
       <InviteHashRedirect />

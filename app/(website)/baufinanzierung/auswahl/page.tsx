@@ -14,6 +14,7 @@ import {
   clamp,
 } from "@/lib/baufi/calc"
 import SelectionSummaryEditor from "./ui/SelectionSummaryEditor"
+import GoogleAdsAuswahlConversion from "./ui/GoogleAdsAuswahlConversion"
 
 export const metadata: Metadata = {
   title: "Baufinanzierung Auswahl",
@@ -344,6 +345,7 @@ export default async function Page({
 
   return (
     <div className="w-full overflow-x-clip space-y-4">
+      <GoogleAdsAuswahlConversion />
 {/* HERO (mit Bonus-Box rechts + Metrics volle Breite unten) */}
 <div className="rounded-[2rem] border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur-xl sm:p-6">
   <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr] lg:items-start">
