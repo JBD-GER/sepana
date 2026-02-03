@@ -25,7 +25,7 @@ function splitLanguages(v: string) {
 function avatarSrc(path?: string | null) {
   if (!path) return null
   if (/^(https?:)?\/\//i.test(path) || path.startsWith("data:")) return path
-  return `/api/baufi/logo?bucket=advisor_avatars&path=${encodeURIComponent(path)}`
+  return `/api/baufi/logo?bucket=advisor_avatars&width=256&height=256&quality=100&resize=cover&path=${encodeURIComponent(path)}`
 }
 
 export default function AdvisorRowEditor({

@@ -11,11 +11,31 @@ function safePath(input: string) {
   return p
 }
 
+function parseBoundedInt(raw: string | null, min: number, max: number) {
+  if (!raw) return null
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return null
+  const v = Math.floor(n)
+  if (v < min || v > max) return null
+  return v
+}
+
+function parseResize(raw: string | null) {
+  if (!raw) return null
+  const value = raw.trim().toLowerCase()
+  if (value === "cover" || value === "contain" || value === "fill") return value
+  return null
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url)
   const path = safePath(url.searchParams.get("path") || "")
   const bucket = url.searchParams.get("bucket") || "logo_banken"
   const raw = url.searchParams.get("raw") === "1"
+  const width = parseBoundedInt(url.searchParams.get("width"), 16, 4096)
+  const height = parseBoundedInt(url.searchParams.get("height"), 16, 4096)
+  const quality = parseBoundedInt(url.searchParams.get("quality"), 20, 100)
+  const resize = parseResize(url.searchParams.get("resize"))
 
   if (!path) return NextResponse.json({ ok: false, error: "path fehlt" }, { status: 400 })
 
@@ -37,8 +57,18 @@ export async function GET(req: Request) {
     })
   }
 
-  // 1 Stunde gültig
-  const { data, error } = await sb.storage.from(bucket).createSignedUrl(path, 60 * 60)
+  const options: any = {}
+  if (width || height || quality || resize) {
+    options.transform = {
+      ...(width ? { width } : {}),
+      ...(height ? { height } : {}),
+      ...(quality ? { quality } : {}),
+      ...(resize ? { resize } : {}),
+    }
+  }
+
+  // 1 Stunde gueltig
+  const { data, error } = await sb.storage.from(bucket).createSignedUrl(path, 60 * 60, options)
   if (error || !data?.signedUrl) {
     return NextResponse.json({ ok: false, error: error?.message ?? "Logo nicht gefunden" }, { status: 404 })
   }

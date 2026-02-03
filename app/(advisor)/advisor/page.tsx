@@ -50,7 +50,7 @@ export default async function AdvisorDashboard() {
   const activeCount = (activeLive ?? []).length
   const avatarPath = profile?.photo_path ?? null
   const avatarUrl = avatarPath
-    ? `/api/baufi/logo?bucket=advisor_avatars&path=${encodeURIComponent(avatarPath)}`
+    ? `/api/baufi/logo?bucket=advisor_avatars&width=256&height=256&quality=100&resize=cover&path=${encodeURIComponent(avatarPath)}`
     : null
 
   const displayName = profile?.display_name || user.email?.split("@")[0] || "Berater"

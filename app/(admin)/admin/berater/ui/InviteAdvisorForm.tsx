@@ -137,7 +137,7 @@ export default function InviteAdvisorForm() {
               <div className="h-12 w-12 overflow-hidden rounded-full border border-slate-300 bg-white">
                 {photoPath ? (
                   <img
-                    src={`/api/baufi/logo?bucket=advisor_avatars&path=${encodeURIComponent(photoPath)}`}
+                    src={`/api/baufi/logo?bucket=advisor_avatars&width=256&height=256&quality=100&resize=cover&path=${encodeURIComponent(photoPath)}`}
                     alt=""
                     className="h-full w-full object-cover"
                   />

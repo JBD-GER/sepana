@@ -171,7 +171,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   )
   const previewLogoUrl = previewProviderLogoPath ? logoSrc(previewProviderLogoPath) : null
   const advisorAvatar = advisor?.photo_path
-    ? `/api/baufi/logo?bucket=advisor_avatars&path=${encodeURIComponent(advisor.photo_path)}`
+    ? `/api/baufi/logo?bucket=advisor_avatars&width=256&height=256&quality=100&resize=cover&path=${encodeURIComponent(advisor.photo_path)}`
     : null
 
   return (
