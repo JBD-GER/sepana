@@ -1,5 +1,6 @@
-﻿import Link from "next/link"
+import Link from "next/link"
 import Image from "next/image"
+import LogoutButton from "@/components/LogoutButton"
 
 function NavItem({ href, label }: { href: string; label: string }) {
   return (
@@ -32,12 +33,11 @@ export default function AdminHeader() {
           <NavItem href="/admin/faelle" label="Faelle & Unterlagen" />
           <NavItem href="/admin/termine" label="Termine" />
           <NavItem href="/admin/logs" label="Logs" />
-          <Link
-            href="/api/auth/logout?next=/login"
+          <LogoutButton
+            label="Logout"
+            nextPath="/login"
             className="rounded-xl border border-slate-200/80 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300"
-          >
-            Logout
-          </Link>
+          />
         </nav>
       </div>
     </header>
