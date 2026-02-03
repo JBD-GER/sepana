@@ -19,12 +19,13 @@ export async function POST(req: Request) {
     if (role !== "customer") {
       return NextResponse.json({ ok: false, error: "not_allowed" }, { status: 403 })
     }
-    const { error } = await admin
+    let query = admin
       .from("live_queue_tickets")
       .update({ status: "cancelled", ended_at: new Date().toISOString() })
-      .eq("id", ticketId)
       .eq("customer_id", user.id)
       .eq("status", "waiting")
+    query = caseId ? query.eq("case_id", caseId) : query.eq("id", ticketId)
+    const { error } = await query
 
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
     return NextResponse.json({ ok: true })
@@ -52,7 +53,6 @@ export async function POST(req: Request) {
   const { error } = await admin
     .from("live_queue_tickets")
     .update({ status: "cancelled", ended_at: new Date().toISOString() })
-    .eq("id", ticketId)
     .eq("case_id", caseId)
     .eq("status", "waiting")
 

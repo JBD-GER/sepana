@@ -233,24 +233,6 @@ export async function POST(req: Request) {
       await admin.from("live_queue_tickets").update({ guest_token: tokenToReturn }).eq("id", keep.id)
     }
 
-    try {
-      const alert = await sendQueueAlert({
-        caseId,
-        caseRef: caseRow.case_ref ?? null,
-        caseType: caseRow.case_type ?? null,
-        customerId,
-        ticketId: keep.id,
-        waitMinutes,
-        onlineCount,
-        availableCount,
-      })
-      if (!alert?.ok) {
-        console.warn("[live-queue-alert] no mail sent for existing waiting ticket", alert)
-      }
-    } catch (mailError) {
-      console.error("[live-queue-alert] failed for existing waiting ticket", mailError)
-    }
-
     return NextResponse.json({
       ok: true,
       ticket: keep,
@@ -273,28 +255,60 @@ export async function POST(req: Request) {
     .single()
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
 
-  try {
-    const alert = await sendQueueAlert({
-      caseId,
-      caseRef: caseRow.case_ref ?? null,
-      caseType: caseRow.case_type ?? null,
-      customerId,
-      ticketId: created.id,
-      waitMinutes,
-      onlineCount,
-      availableCount,
-    })
-    if (!alert?.ok) {
-      console.warn("[live-queue-alert] no mail sent for new waiting ticket", alert)
+  let effectiveTicket = created
+  let shouldSendAlert = true
+
+  const { data: waitingNow } = await admin
+    .from("live_queue_tickets")
+    .select("id,status,created_at,room_name,guest_token")
+    .eq("case_id", caseId)
+    .eq("status", "waiting")
+    .order("created_at", { ascending: true })
+
+  const waitingList = Array.isArray(waitingNow) ? waitingNow : []
+  if (waitingList.length > 1) {
+    const keep = waitingList[0]
+    const dropIds = waitingList.slice(1).map((x: any) => x.id).filter(Boolean)
+    if (dropIds.length) {
+      await admin
+        .from("live_queue_tickets")
+        .update({ status: "cancelled", ended_at: new Date().toISOString() })
+        .in("id", dropIds)
     }
-  } catch (mailError) {
-    console.error("[live-queue-alert] failed", mailError)
+    effectiveTicket = keep
+    shouldSendAlert = keep.id === created.id
+  }
+
+  let tokenToReturn = effectiveTicket?.guest_token ?? guestToken
+  if (!user && !tokenToReturn && effectiveTicket?.id) {
+    tokenToReturn = guestToken
+    await admin.from("live_queue_tickets").update({ guest_token: tokenToReturn }).eq("id", effectiveTicket.id)
+  }
+
+  if (shouldSendAlert) {
+    try {
+      const alert = await sendQueueAlert({
+        caseId,
+        caseRef: caseRow.case_ref ?? null,
+        caseType: caseRow.case_type ?? null,
+        customerId,
+        ticketId: effectiveTicket.id,
+        waitMinutes,
+        onlineCount,
+        availableCount,
+      })
+      if (!alert?.ok) {
+        console.warn("[live-queue-alert] no mail sent for new waiting ticket", alert)
+      }
+    } catch (mailError) {
+      console.error("[live-queue-alert] failed", mailError)
+    }
   }
 
   return NextResponse.json({
     ok: true,
-    ticket: created,
-    guestToken: created?.guest_token ?? guestToken,
+    ticket: effectiveTicket,
+    guestToken: tokenToReturn,
     waitMinutes,
     onlineCount,
     availableCount,
