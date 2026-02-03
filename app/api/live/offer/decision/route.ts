@@ -83,6 +83,7 @@ export async function POST(req: Request) {
       await sendEmail({ to: caseMeta.customer_email, subject: "Angebot eingereicht", html })
     }
   } else {
+    await client.from("cases").update({ status: "offer_rejected" }).eq("id", offer.case_id)
     await logCaseEvent({
       caseId: offer.case_id,
       actorId: user?.id ?? null,

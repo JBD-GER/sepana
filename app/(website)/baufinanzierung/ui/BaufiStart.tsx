@@ -189,6 +189,9 @@ export default function BaufiStart() {
                         Gutschrift nach erfolgreicher Finanzierung/Abschluss gemäß Bedingungen.
                       </div>
 
+                      <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900">
+                        Hinweis: Die Auszahlung erfolgt erst, wenn der Antrag von der Bank bewilligt wurde und eine Auszahlungsgenehmigung vorliegt.
+                      </div>
                       <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
                         Tipp: Starten Sie jetzt – dauert wirklich nur kurz.
                       </div>
@@ -281,6 +284,9 @@ export default function BaufiStart() {
               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
                 <span className="font-semibold" style={{ color: PRIMARY }}>350 € Bonus</span>{" "}
                 <span className="text-slate-700">bei erfolgreichem Abschluss</span>
+                <div className="mt-2 text-xs leading-relaxed text-slate-600">
+                  Auszahlung erst nach Bankbewilligung und vorliegender Auszahlungsgenehmigung.
+                </div>
               </div>
             </div>
           </div>
@@ -296,3 +302,4 @@ export default function BaufiStart() {
     </div>
   )
 }
+

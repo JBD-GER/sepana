@@ -196,14 +196,10 @@ export async function GET(req: Request) {
   function bestOfferSummary(list: OfferRow[]): PreviewSummary | null {
     if (!list?.length) return null
 
-    const accepted = list.filter((x) => x?.status === "accepted")
-    const source = accepted.length ? accepted : list
-
-    // "best" = niedrigster Effektivzins, sonst neuestes
-    const withApr = source.filter((x) => x?.apr_effective != null)
-    const picked = withApr.length
-      ? withApr.sort((a, b) => Number(a.apr_effective) - Number(b.apr_effective))[0]
-      : source.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))[0]
+    // Fuer die Uebersicht immer den zeitlich neuesten Offer-Stand zeigen.
+    const picked = list
+      .slice()
+      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))[0]
 
     const prov = picked?.provider_id ? providerMap.get(picked.provider_id) : null
 
@@ -253,21 +249,22 @@ export async function GET(req: Request) {
       const previewSum = latestPreviewSummary(previewsByCase.get(c.id) ?? [])
       const allOffers = offersByCase.get(c.id) ?? []
       const offerSum = bestOfferSummary(allOffers)
-      const hasAccepted = allOffers.some((o) => o.status === "accepted")
-      const latestOfferStatus = allOffers
+      const latestOffer = allOffers
         .slice()
-        .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))[0]?.status ?? null
-      const statusDisplay = hasAccepted
-        ? "offer_accepted"
-        : latestOfferStatus === "rejected"
-          ? "offer_rejected"
-          : latestOfferStatus === "sent"
-            ? "offer_sent"
-            : latestOfferStatus === "draft"
-              ? "offer_created"
-              : previewSum
-                ? "comparison_ready"
-                : c.status
+        .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))[0] ?? null
+      const latestOfferStatus = latestOffer?.status ?? null
+      const statusDisplay =
+        latestOfferStatus === "accepted"
+          ? "offer_accepted"
+          : latestOfferStatus === "rejected"
+            ? "offer_rejected"
+            : latestOfferStatus === "sent"
+              ? "offer_sent"
+              : latestOfferStatus === "draft"
+                ? "offer_created"
+                : previewSum
+                  ? "comparison_ready"
+                  : c.status
 
     return {
       ...c,

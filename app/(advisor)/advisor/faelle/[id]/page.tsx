@@ -190,7 +190,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           </div>
 
           <div className="rounded-2xl border border-slate-200/70 bg-slate-50 px-4 py-3 text-sm">
-            <div className="text-xs text-slate-600">Case-ID</div>
+            <div className="text-xs text-slate-600">Fall-ID</div>
             <div className="font-medium text-slate-900 break-all">{c.id}</div>
           </div>
         </div>
@@ -230,7 +230,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           <div>
             <div className="text-sm font-medium text-slate-900">Startschuss (Vergleich bereit)</div>
             <p className="mt-1 text-xs text-slate-600">
-              Snapshot aus dem Vergleich - dient dem Berater als Startpunkt. Finale Angebote kommen separat hinzu.
+              Momentaufnahme aus dem Vergleich - dient als Startpunkt. Finale Angebote kommen separat hinzu.
             </p>
           </div>
           {previewLogoUrl ? (

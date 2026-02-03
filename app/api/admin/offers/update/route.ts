@@ -105,6 +105,7 @@ export async function POST(req: Request) {
     }
 
     if (patch.status === "accepted") {
+      await admin.from("cases").update({ status: "offer_accepted" }).eq("id", offer.case_id)
       const meta = await getCaseMeta(offer.case_id)
       if (meta?.customer_email) {
         const html = buildEmailHtml({
@@ -117,6 +118,8 @@ export async function POST(req: Request) {
         })
         await sendEmail({ to: meta.customer_email, subject: "Angebot eingereicht", html })
       }
+    } else if (patch.status === "rejected") {
+      await admin.from("cases").update({ status: "offer_rejected" }).eq("id", offer.case_id)
     }
 
     return NextResponse.json({ ok: true })

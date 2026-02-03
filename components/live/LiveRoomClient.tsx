@@ -357,14 +357,16 @@ export default function LiveRoomClient({
     }
   }
 
-  const summaryItems = summaryOffers.filter((offer) => offer.status === "accepted" || offer.status === "rejected")
+  const summaryItems = summaryOffers
+    .filter((offer) => offer.status === "accepted" || offer.status === "rejected")
+    .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(34,211,238,0.16),transparent_40%),radial-gradient(circle_at_85%_20%,rgba(99,102,241,0.2),transparent_42%),radial-gradient(circle_at_50%_100%,rgba(15,23,42,0.85),rgba(2,6,23,1))]" />
 
       <div className="relative border-b border-white/10 bg-slate-950/55 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-4 sm:py-4">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Live-Session</div>
             <div className="mt-1 text-base font-semibold text-white">{caseRef || "Beratung"}</div>
@@ -401,7 +403,7 @@ export default function LiveRoomClient({
           <div className="rounded-2xl border border-rose-300/30 bg-rose-500/10 p-4 text-sm text-rose-100">{err}</div>
         </div>
       ) : hasEnded && isCustomer ? (
-        <div className="relative mx-auto max-w-5xl space-y-6 px-4 py-8">
+        <div className="relative mx-auto max-w-5xl space-y-6 px-3 py-6 sm:px-4 sm:py-8">
           <div className="rounded-3xl border border-white/15 bg-white/10 p-6 shadow-xl backdrop-blur-xl">
             <div className="text-sm text-slate-300">Gespräch beendet</div>
             <div className="mt-2 text-xl font-semibold text-white">Danke für Ihre Zeit.</div>
@@ -439,7 +441,7 @@ export default function LiveRoomClient({
                       <StatusBadge status={offer.status} />
                     </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-300">
+                    <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-slate-300 sm:grid-cols-2">
                       <div>Effektivzins</div>
                       <div className="text-right font-semibold text-white">{formatPct(offer.apr_effective)}</div>
                       <div>Nominalzins</div>
@@ -467,7 +469,7 @@ export default function LiveRoomClient({
           </div>
         </div>
       ) : (
-        <div className={`relative mx-auto grid max-w-7xl gap-6 px-4 py-6 ${isCustomer ? "lg:grid-cols-1" : "lg:grid-cols-[1fr_360px]"}`}>
+        <div className={`relative mx-auto grid max-w-7xl gap-5 px-3 py-4 sm:gap-6 sm:px-4 sm:py-6 ${isCustomer ? "lg:grid-cols-1" : "lg:grid-cols-[1fr_360px]"}`}>
           <div className="space-y-4">
             <div className={`relative overflow-hidden rounded-[30px] border border-white/15 bg-black/30 shadow-2xl ${isCustomer ? "min-h-[52vh] lg:min-h-[62vh]" : "aspect-video"}`}>
               {remoteVideo ? (
@@ -485,7 +487,7 @@ export default function LiveRoomClient({
                 {connected ? "Live" : "Verbindung wird aufgebaut"}
               </div>
 
-              <div className="absolute bottom-4 right-4 h-[112px] w-[168px] overflow-hidden rounded-2xl border border-white/20 bg-black/45 shadow-lg backdrop-blur">
+              <div className="absolute bottom-3 right-3 h-[92px] w-[38vw] max-w-[168px] min-w-[112px] overflow-hidden rounded-2xl border border-white/20 bg-black/45 shadow-lg backdrop-blur sm:bottom-4 sm:right-4 sm:h-[112px] sm:w-[168px]">
                 {camOn && localVideo ? (
                   <VideoTile track={localVideo} muted cover />
                 ) : (

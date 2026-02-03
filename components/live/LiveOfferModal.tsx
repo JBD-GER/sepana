@@ -44,6 +44,8 @@ export default function LiveOfferModal({
   const [offer, setOffer] = useState<Offer | null>(null)
   const [providers, setProviders] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
+  const [decisionError, setDecisionError] = useState<string | null>(null)
+  const [decisionNotice, setDecisionNotice] = useState<string | null>(null)
 
   useEffect(() => {
     ;(async () => {
@@ -82,7 +84,11 @@ export default function LiveOfferModal({
         (payload: RealtimePostgresChangesPayload<Offer>) => {
           const next = payload.new as Offer
           if (next.status === "sent" || next.status === "draft") setOffer(next)
-          if (next.status === "accepted" || next.status === "rejected") setOffer(null)
+          if (next.status === "accepted" || next.status === "rejected") {
+            setOffer(null)
+            setDecisionError(null)
+            setDecisionNotice(next.status === "accepted" ? "Angebot erfolgreich angenommen." : "Angebot wurde abgelehnt.")
+          }
         }
       )
       .subscribe()
@@ -91,78 +97,106 @@ export default function LiveOfferModal({
     }
   }, [supabase, caseId])
 
+  useEffect(() => {
+    if (!decisionNotice) return
+    const timer = setTimeout(() => setDecisionNotice(null), 4500)
+    return () => clearTimeout(timer)
+  }, [decisionNotice])
+
   async function decide(decision: "accept" | "reject") {
     if (!offer) return
     setBusy(true)
+    setDecisionError(null)
     try {
-      await fetch("/api/live/offer/decision", {
+      const res = await fetch("/api/live/offer/decision", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ offerId: offer.id, decision, guestToken }),
       })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json?.ok) {
+        setDecisionError(json?.error || "Entscheidung konnte nicht gespeichert werden.")
+        return
+      }
       setOffer(null)
+      setDecisionNotice(decision === "accept" ? "Angebot erfolgreich angenommen." : "Angebot wurde abgelehnt.")
     } finally {
       setBusy(false)
     }
   }
 
-  if (!offer) return null
+  const noticeView = decisionNotice ? (
+    <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-2xl border border-emerald-300/30 bg-emerald-500/20 px-4 py-2 text-xs font-semibold text-emerald-100 shadow-lg backdrop-blur">
+      {decisionNotice}
+    </div>
+  ) : null
+
+  if (!offer) return noticeView
 
   const providerLabel = providers[offer.provider_id] || "Bankpartner"
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-4 sm:items-center">
-      <div className="w-full max-w-lg overflow-hidden rounded-[28px] border border-white/20 bg-slate-950/90 text-white shadow-[0_24px_80px_rgba(2,6,23,0.55)] backdrop-blur-xl">
-        <div className="border-b border-white/10 bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-slate-500/20 px-6 py-4">
-          <div className="text-xs uppercase tracking-[0.18em] text-slate-300">Neues Angebot</div>
-          <div className="mt-1 text-lg font-semibold">{providerLabel}</div>
-          <div className="mt-1 text-sm text-slate-200">{formatEUR(offer.rate_monthly)} pro Monat</div>
-        </div>
-
-        <div className="px-6 py-5">
-          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm">
-            <div className="text-slate-300">Effektivzins</div>
-            <div className="text-right font-semibold">{formatPct(offer.apr_effective)}</div>
-            <div className="text-slate-300">Nominalzins</div>
-            <div className="text-right font-semibold">{formatPct(offer.interest_nominal)}</div>
-            <div className="text-slate-300">Tilgung</div>
-            <div className="text-right font-semibold">{formatPct(offer.tilgung_pct)}</div>
-            <div className="text-slate-300">Zinsbindung</div>
-            <div className="text-right font-semibold">
-              {offer.zinsbindung_years ? `${offer.zinsbindung_years} Jahre` : "—"}
-            </div>
-            <div className="text-slate-300">Darlehen</div>
-            <div className="text-right font-semibold">{formatEUR(offer.loan_amount)}</div>
+    <>
+      {noticeView}
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-4 sm:items-center">
+        <div className="w-full max-w-lg overflow-hidden rounded-[28px] border border-white/20 bg-slate-950/90 text-white shadow-[0_24px_80px_rgba(2,6,23,0.55)] backdrop-blur-xl">
+          <div className="border-b border-white/10 bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-slate-500/20 px-6 py-4">
+            <div className="text-xs uppercase tracking-[0.18em] text-slate-300">Neues Angebot</div>
+            <div className="mt-1 text-lg font-semibold">{providerLabel}</div>
+            <div className="mt-1 text-sm text-slate-200">{formatEUR(offer.rate_monthly)} pro Monat</div>
           </div>
 
-          {offer.special_repayment ? (
-            <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200">
-              Sondertilgung: {offer.special_repayment}
+          <div className="px-6 py-5">
+            <div className="grid grid-cols-1 gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm sm:grid-cols-2">
+              <div className="text-slate-300">Effektivzins</div>
+              <div className="text-left font-semibold sm:text-right">{formatPct(offer.apr_effective)}</div>
+              <div className="text-slate-300">Nominalzins</div>
+              <div className="text-left font-semibold sm:text-right">{formatPct(offer.interest_nominal)}</div>
+              <div className="text-slate-300">Tilgung</div>
+              <div className="text-left font-semibold sm:text-right">{formatPct(offer.tilgung_pct)}</div>
+              <div className="text-slate-300">Zinsbindung</div>
+              <div className="text-left font-semibold sm:text-right">
+                {offer.zinsbindung_years ? `${offer.zinsbindung_years} Jahre` : "—"}
+              </div>
+              <div className="text-slate-300">Darlehen</div>
+              <div className="text-left font-semibold sm:text-right">{formatEUR(offer.loan_amount)}</div>
             </div>
-          ) : null}
 
-          {offer.notes_for_customer ? (
-            <div className="mt-2 text-xs leading-relaxed text-slate-300">{offer.notes_for_customer}</div>
-          ) : null}
+            {offer.special_repayment ? (
+              <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200">
+                Sondertilgung: {offer.special_repayment}
+              </div>
+            ) : null}
 
-          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <button
-              onClick={() => decide("accept")}
-              disabled={busy}
-              className="rounded-xl bg-emerald-500/80 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Angebot annehmen
-            </button>
-            <button
-              onClick={() => decide("reject")}
-              disabled={busy}
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Angebot ablehnen
-            </button>
+            {offer.notes_for_customer ? (
+              <div className="mt-2 text-xs leading-relaxed text-slate-300">{offer.notes_for_customer}</div>
+            ) : null}
+
+            {decisionError ? (
+              <div className="mt-3 rounded-xl border border-rose-300/30 bg-rose-500/15 px-3 py-2 text-xs text-rose-100">
+                {decisionError}
+              </div>
+            ) : null}
+
+            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                onClick={() => decide("accept")}
+                disabled={busy}
+                className="rounded-xl bg-emerald-500/80 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Angebot annehmen
+              </button>
+              <button
+                onClick={() => decide("reject")}
+                disabled={busy}
+                className="rounded-xl border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Angebot ablehnen
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }

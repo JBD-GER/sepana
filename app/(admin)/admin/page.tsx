@@ -77,6 +77,12 @@ export default async function AdminDashboard() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
+              href="/admin/banken"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
+            >
+              Banken verwalten
+            </Link>
+            <Link
               href="/admin/berater"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
             >
@@ -153,6 +159,12 @@ export default async function AdminDashboard() {
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
             >
               Berater einladen
+            </Link>
+            <Link
+              href="/admin/banken"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
+            >
+              Banken verwalten
             </Link>
             <Link
               href="/admin/faelle"

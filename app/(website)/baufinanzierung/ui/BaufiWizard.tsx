@@ -584,10 +584,8 @@ export default function BaufiWizard({
               )}
             >
               {busy
-                ? "Wird abgeschlossen…"
-                : emailExists
-                  ? "Abschließen & im Portal speichern"
-                  : "Abschließen & Invite senden"}
+                ? "Bankenvergleich wird gestartet…"
+                : "Bankenvergleich starten"}
             </button>
           )}
         </div>
@@ -1328,7 +1326,9 @@ function ReviewStep({
                         </div>
                         <div className="mt-1 text-xs text-slate-600">
                           {c.birth_date ? `Geb.: ${c.birth_date}` : "Geb.: —"} ·{" "}
-                          {c.employment_status ? `Status: ${c.employment_status}` : "Status: —"}
+                          {c.employment_status
+                            ? `Status: ${labelEmploymentStatus(c.employment_status)}`
+                            : "Status: —"}
                         </div>
                       </li>
                     )

@@ -7,6 +7,16 @@ import { createBrowserSupabaseClientNoAuth } from "@/lib/supabase/browser"
 
 type ProviderItem = {
   provider: { id: string; name: string }
+  term?: {
+    rate_note?: string | null
+    special_repayment_free_pct?: string | null
+    special_repayment_free_note?: string | null
+    repayment_change_note?: string | null
+    zinsbindung_min_years?: number | null
+    zinsbindung_max_years?: number | null
+    loan_min?: string | null
+    loan_max?: string | null
+  } | null
 }
 
 type OfferStatus = "draft" | "sent" | "accepted" | "rejected" | null
@@ -15,6 +25,49 @@ type OfferRealtimeUpdate = { status?: OfferStatus }
 function formatEUR(n: number | null | undefined) {
   if (n == null || Number.isNaN(Number(n))) return "-"
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n))
+}
+
+function compactPart(value: string | null | undefined) {
+  const text = String(value ?? "").trim()
+  return text ? text : null
+}
+
+function buildTermSpecialRepayment(term?: ProviderItem["term"]) {
+  if (!term) return ""
+  const pct = compactPart(term.special_repayment_free_pct)
+  if (pct) return `${pct}% p.a.`
+  return compactPart(term.special_repayment_free_note) ?? ""
+}
+
+function buildTermNotes(term?: ProviderItem["term"]) {
+  if (!term) return ""
+  const parts = [
+    compactPart(term.rate_note),
+    compactPart(term.repayment_change_note),
+    compactPart(term.special_repayment_free_note),
+  ].filter(Boolean) as string[]
+
+  const zinsMin = term.zinsbindung_min_years
+  const zinsMax = term.zinsbindung_max_years
+  if (zinsMin && zinsMax) {
+    parts.push(`Zinsbindung typisch ${zinsMin}-${zinsMax} Jahre.`)
+  } else if (zinsMin) {
+    parts.push(`Zinsbindung ab ${zinsMin} Jahre.`)
+  } else if (zinsMax) {
+    parts.push(`Zinsbindung bis ${zinsMax} Jahre.`)
+  }
+
+  const loanMin = compactPart(term.loan_min)
+  const loanMax = compactPart(term.loan_max)
+  if (loanMin && loanMax) {
+    parts.push(`Darlehensrahmen typischerweise ${loanMin} bis ${loanMax} EUR.`)
+  } else if (loanMin) {
+    parts.push(`Darlehen ab ${loanMin} EUR moeglich.`)
+  } else if (loanMax) {
+    parts.push(`Darlehen bis ${loanMax} EUR moeglich.`)
+  }
+
+  return parts.join("\n")
 }
 
 export default function LiveOfferPanel({ caseId }: { caseId: string }) {
@@ -39,6 +92,11 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
   const [overlay, setOverlay] = useState<{ message: string; tone: "success" | "danger" } | null>(null)
   const lastStatusRef = useRef<OfferStatus>(null)
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const providerById = useMemo(() => {
+    const map = new Map<string, ProviderItem>()
+    for (const item of providers) map.set(item.provider.id, item)
+    return map
+  }, [providers])
 
   function showOverlay(message: string, tone: "success" | "danger") {
     setOverlay({ message, tone })
@@ -60,6 +118,14 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
       if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current)
     }
   }, [])
+
+  function applyProviderDefaults(nextProviderId: string) {
+    const term = providerById.get(nextProviderId)?.term
+    const defaultSpecial = buildTermSpecialRepayment(term)
+    const defaultNotes = buildTermNotes(term)
+    setSpecialRepayment(defaultSpecial)
+    setNotes(defaultNotes)
+  }
 
   async function syncLatestStatus() {
     const res = await fetch(`/api/live/offer?caseId=${encodeURIComponent(caseId)}&includeHistory=1`)
@@ -97,7 +163,7 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
 
   useEffect(() => {
     syncLatestStatus()
-    const id = setInterval(syncLatestStatus, 5000)
+    const id = setInterval(syncLatestStatus, 3000)
     return () => clearInterval(id)
   }, [caseId])
 
@@ -162,6 +228,10 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
     }
     setBusy(true)
     try {
+      const term = providerById.get(providerId)?.term
+      const defaultSpecial = buildTermSpecialRepayment(term)
+      const defaultNotes = buildTermNotes(term)
+
       const res = await fetch("/api/live/offer", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -175,8 +245,8 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
           tilgungPct,
           zinsbindungYears,
           termMonths,
-          specialRepayment,
-          notes,
+          specialRepayment: specialRepayment.trim() || defaultSpecial,
+          notes: notes.trim() || defaultNotes,
         }),
       })
       const json = await res.json().catch(() => ({}))
@@ -238,7 +308,11 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
           <label className="text-xs text-slate-600">Bank</label>
           <select
             value={providerId}
-            onChange={(e) => setProviderId(e.target.value)}
+            onChange={(e) => {
+              const nextProviderId = e.target.value
+              setProviderId(nextProviderId)
+              applyProviderDefaults(nextProviderId)
+            }}
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
             disabled={locked}
           >

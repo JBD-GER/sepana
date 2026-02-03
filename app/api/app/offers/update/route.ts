@@ -115,6 +115,8 @@ export async function POST(req: Request) {
       })
       await sendEmail({ to: caseMeta.customer_email, subject: "Angebot eingereicht", html })
     }
+  } else if (status === "rejected") {
+    await supabase.from("cases").update({ status: "offer_rejected" }).eq("id", offer.case_id)
   }
 
   return NextResponse.json({ ok: true })

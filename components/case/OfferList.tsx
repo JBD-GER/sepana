@@ -58,6 +58,9 @@ export default function OfferList({
   const visible = filterStatuses?.length
     ? offers.filter((o) => filterStatuses.includes(o.status))
     : offers
+  const ordered = visible
+    .slice()
+    .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))
 
   async function removeOffer(offerId: string) {
     if (!confirm("Finales Angebot wirklich entfernen?")) return
@@ -117,7 +120,7 @@ export default function OfferList({
     }
   }
 
-  if (!visible || visible.length === 0) {
+  if (!ordered || ordered.length === 0) {
     return (
       <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-4 text-sm text-slate-600">
         Noch keine finalen Angebote vorhanden.
@@ -127,7 +130,7 @@ export default function OfferList({
 
   return (
     <div className="mt-4 space-y-3">
-      {visible.map((o) => {
+      {ordered.map((o) => {
         const offerLogo = o.provider_logo_path ? logoSrc(o.provider_logo_path) : null
         return (
           <div key={o.id} className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
