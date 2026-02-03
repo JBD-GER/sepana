@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 export const runtime = "nodejs"
 
 export async function POST(req: Request) {
-  const { supabase, user, role } = await getUserAndRole()
+  const { user, role } = await getUserAndRole()
 
   const body = await req.json().catch(() => null)
   const ticketId = String(body?.ticketId ?? "").trim()
@@ -13,11 +13,12 @@ export async function POST(req: Request) {
   const guestToken = body?.guestToken ? String(body.guestToken).trim() : null
   if (!ticketId) return NextResponse.json({ ok: false, error: "missing_ticket" }, { status: 400 })
 
+  const admin = supabaseAdmin()
+
   if (user) {
     if (role !== "customer") {
       return NextResponse.json({ ok: false, error: "not_allowed" }, { status: 403 })
     }
-    const admin = supabaseAdmin()
     const { error } = await admin
       .from("live_queue_tickets")
       .update({ status: "cancelled", ended_at: new Date().toISOString() })
@@ -29,29 +30,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true })
   }
 
-  if (!guestToken) {
-    if (!caseId) return NextResponse.json({ ok: false, error: "not_authenticated" }, { status: 401 })
-    const admin = supabaseAdmin()
-    const { error } = await admin
-      .from("live_queue_tickets")
-      .update({ status: "cancelled", ended_at: new Date().toISOString() })
-      .eq("id", ticketId)
-      .eq("case_id", caseId)
-      .is("guest_token", null)
-      .eq("status", "waiting")
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
-    return NextResponse.json({ ok: true })
+  if (!caseId) {
+    return NextResponse.json({ ok: false, error: "missing_case" }, { status: 400 })
   }
 
-  const admin = supabaseAdmin()
-  let query = admin
+  const { data: ticket, error: ticketErr } = await admin
+    .from("live_queue_tickets")
+    .select("id,case_id,status,guest_token")
+    .eq("id", ticketId)
+    .eq("case_id", caseId)
+    .maybeSingle()
+  if (ticketErr) return NextResponse.json({ ok: false, error: ticketErr.message }, { status: 500 })
+  if (!ticket || ticket.status !== "waiting") return NextResponse.json({ ok: true })
+
+  const ticketToken = ticket.guest_token ? String(ticket.guest_token).trim() : ""
+  const bodyToken = guestToken ? String(guestToken).trim() : ""
+  if (ticketToken && bodyToken && ticketToken !== bodyToken) {
+    return NextResponse.json({ ok: false, error: "not_allowed" }, { status: 403 })
+  }
+
+  const { error } = await admin
     .from("live_queue_tickets")
     .update({ status: "cancelled", ended_at: new Date().toISOString() })
     .eq("id", ticketId)
-    .eq("guest_token", guestToken)
+    .eq("case_id", caseId)
     .eq("status", "waiting")
-  if (caseId) query = query.eq("case_id", caseId)
-  const { error } = await query
+
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

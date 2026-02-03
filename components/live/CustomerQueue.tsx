@@ -62,6 +62,7 @@ export default function CustomerQueue({
   const [loading, setLoading] = useState(true)
   const [ended, setEnded] = useState(false)
   const rejoinRef = useRef(false)
+  const leftRef = useRef(false)
 
   async function joinQueue() {
     const res = await fetch("/api/live/queue/join", {
@@ -118,6 +119,10 @@ export default function CustomerQueue({
   }, [ticket?.id, guestToken])
 
   useEffect(() => {
+    leftRef.current = false
+  }, [ticket?.id])
+
+  useEffect(() => {
     if (!ticket?.id) return
     const channel = supabase
       .channel(`live_ticket_${ticket.id}`)
@@ -165,13 +170,54 @@ export default function CustomerQueue({
 
   async function leaveQueue() {
     if (!ticket?.id) return
+    leftRef.current = true
     await fetch("/api/live/queue/leave", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ticketId: ticket.id, caseId, guestToken }),
+      keepalive: true,
     })
     router.replace(backHref)
   }
+
+  useEffect(() => {
+    if (!ticket?.id || ticket.status !== "waiting") return
+
+    const payload = JSON.stringify({ ticketId: ticket.id, caseId, guestToken })
+    const url = "/api/live/queue/leave"
+
+    const sendLeave = () => {
+      if (leftRef.current) return
+      leftRef.current = true
+      try {
+        if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+          const blob = new Blob([payload], { type: "application/json" })
+          const sent = navigator.sendBeacon(url, blob)
+          if (sent) return
+        }
+      } catch {
+        // ignore
+      }
+      fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: payload,
+        keepalive: true,
+      }).catch(() => {
+        // ignore
+      })
+    }
+
+    const onPageHide = () => sendLeave()
+    const onBeforeUnload = () => sendLeave()
+
+    window.addEventListener("pagehide", onPageHide)
+    window.addEventListener("beforeunload", onBeforeUnload)
+    return () => {
+      window.removeEventListener("pagehide", onPageHide)
+      window.removeEventListener("beforeunload", onBeforeUnload)
+    }
+  }, [ticket?.id, ticket?.status, caseId, guestToken])
 
   if (!caseId) {
     return <div className="text-sm text-slate-600">Kein Fall gefunden.</div>
