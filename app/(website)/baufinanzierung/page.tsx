@@ -1,259 +1,127 @@
-// app/(website)/baufinanzierung/page.tsx
 import type { Metadata } from "next"
-import Link from "next/link"
 import BaufiStart from "./ui/BaufiStart"
 
 export const metadata: Metadata = {
-  title: "Baufinanzierung Vergleich – Konditionen prüfen & 350 € Bonus sichern",
+  title: "Baufinanzierung Vergleich | SEPANA",
   description:
-    "Baufinanzierung vergleichen: Starten Sie mit 3 Eckdaten, ergänzen Sie Haushalt & Kreditnehmer – Ergebnis im Portal. 350 € Bonus bei erfolgreichem Abschluss.",
+    "Baufinanzierung digital starten: Eckdaten eingeben, Angebote vergleichen, Upload-Link erhalten und optional live finalisieren.",
   alternates: { canonical: "/baufinanzierung" },
-  openGraph: {
-    title: "Baufinanzierung Vergleich – schnell, strukturiert, ohne Chaos",
-    description:
-      "Starten Sie mit Vorhaben, Immobilienart und Kaufpreis – danach ergänzen Sie Haushalt & Kreditnehmer. Ergebnis im Portal. 350 € Bonus bei erfolgreichem Abschluss.",
-    type: "website",
-    url: "/baufinanzierung",
+}
+
+const STEPS = [
+  {
+    title: "Eckdaten erfassen",
+    text: "Vorhaben, Objektart und Kaufpreis reichen für den Start.",
   },
-  robots: { index: true, follow: true },
-}
+  {
+    title: "Haushalt vervollständigen",
+    text: "Einnahmen, Ausgaben und optionale Mitantragsteller transparent eintragen.",
+  },
+  {
+    title: "Vorschlag auswählen",
+    text: "Konditionen vergleichen und den passenden Weg für Ihren Fall festlegen.",
+  },
+  {
+    title: "Upload und Abschluss",
+    text: "Unterlagen sicher hochladen und bei Bedarf direkt live mit Beratern finalisieren.",
+  },
+]
 
-function Section({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string
-  subtitle?: string
-  children: React.ReactNode
-}) {
+const FAQ = [
+  {
+    q: "Ist der Vergleich kostenlos?",
+    a: "Ja, der Start ist kostenlos. Sie erhalten eine strukturierte Einordnung für Ihren Finanzierungsfall.",
+  },
+  {
+    q: "Kann ich weitere Kreditnehmer hinzufügen?",
+    a: "Ja, Mitantragsteller können direkt im Wizard erfasst werden. Das Einkommen wird automatisch berücksichtigt.",
+  },
+  {
+    q: "Wie schnell erhalte ich ein Ergebnis?",
+    a: "Nach der Dateneingabe wird der Fall sofort verarbeitet und im Portal bereitgestellt.",
+  },
+  {
+    q: "Gibt es Live-Beratung?",
+    a: "Ja. Sobald der Fall vorbereitet ist, können Sie direkt in die Live-Session wechseln.",
+  },
+]
+
+export default function BaufinanzierungPage() {
   return (
-    <section className="rounded-[32px] border border-slate-200 bg-white p-5 shadow-[0_18px_60px_rgba(2,6,23,0.06)] sm:p-7">
-      <header className="mb-4">
-        <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">{title}</h2>
-        {subtitle ? <p className="mt-1 text-sm text-slate-600">{subtitle}</p> : null}
-      </header>
-      {children}
-    </section>
-  )
-}
+    <div className="space-y-8 sm:space-y-10">
+      <section className="relative overflow-hidden rounded-[32px] border border-slate-200/70 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-6 text-white shadow-[0_20px_64px_rgba(15,23,42,0.38)] sm:p-8">
+        <div className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 right-0 h-56 w-56 rounded-full bg-indigo-300/20 blur-3xl" />
 
-function FAQItem({
-  q,
-  a,
-}: {
-  q: string
-  a: React.ReactNode
-}) {
-  return (
-    <div className="rounded-3xl border border-slate-200 bg-slate-50/40 p-4">
-      <div className="text-sm font-semibold text-slate-900">{q}</div>
-      <div className="mt-2 text-sm leading-relaxed text-slate-700">{a}</div>
-    </div>
-  )
-}
+        <div className="relative">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-200/80">Baufinanzierung</div>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Der digitale Weg zur Finanzierung</h1>
+          <p className="mt-3 max-w-2xl text-sm text-slate-200/95 sm:text-base">
+            SEPANA führt Sie in klaren Schritten vom Erstvergleich bis zum finalen Abschluss - inklusive Portal,
+            Dokumentenlogik und Live-Beratung.
+          </p>
+        </div>
+      </section>
 
-export default function Page() {
-  return (
-    <div className="space-y-6">
-      {/* Page Headline (SEO + Nutzer) */}
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold text-slate-900 sm:text-3xl">
-          Vergleich für Baufinanzierung
-        </h1>
-        <p className="text-slate-600">
-          Bitte geben Sie die Eckdaten ein – anschließend können Sie weitere Kreditnehmer hinzufügen.
-        </p>
-      </div>
-
-      {/* Start (Hero + Formular + Wizard) */}
       <BaufiStart />
 
-      {/* SEO / Trust / Content Sections */}
-      <div className="space-y-6">
-        <Section
-          title="So funktioniert der Baufinanzierungs-Vergleich"
-          subtitle="Schnell starten – strukturiert ergänzen – Ergebnis im Portal sichern."
-        >
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-            <div className="rounded-3xl border border-slate-200 bg-white p-4">
-              <div className="text-xs font-medium text-slate-600">Schritt 1</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">Eckdaten eingeben</div>
-              <div className="mt-2 text-sm text-slate-700">Vorhaben · Immobilienart · Kaufpreis</div>
-            </div>
-            <div className="rounded-3xl border border-slate-200 bg-white p-4">
-              <div className="text-xs font-medium text-slate-600">Schritt 2</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">Haushalt ergänzen</div>
-              <div className="mt-2 text-sm text-slate-700">Einnahmen · Fixkosten · laufende Verpflichtungen</div>
-            </div>
-            <div className="rounded-3xl border border-slate-200 bg-white p-4">
-              <div className="text-xs font-medium text-slate-600">Schritt 3</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">Im Portal gespeichert</div>
-              <div className="mt-2 text-sm text-slate-700">Abrufbar via Invite/Login · sauber dokumentiert</div>
-            </div>
-          </div>
+      <section className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
+        <div className="mb-5">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Ablauf</div>
+          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">In vier Schritten zum Ziel</h2>
+        </div>
 
-          <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50/40 p-4 text-sm text-slate-700">
-            <span className="font-semibold text-slate-900">Bonus:</span> Bei erfolgreichem Abschluss erhalten Sie{" "}
-            <span className="font-semibold text-slate-900">350 €</span> gemäß Bedingungen gutgeschrieben.
-          </div>
-        </Section>
+        <div className="grid gap-3 lg:grid-cols-2">
+          {STEPS.map((step) => (
+            <article key={step.title} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+              <h3 className="text-sm font-semibold text-slate-900">{step.title}</h3>
+              <p className="mt-2 text-sm text-slate-600">{step.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
-        <Section
-          title="Welche Angaben werden benötigt?"
-          subtitle="Damit Banken Konditionen sauber einschätzen können – ohne unnötigen Papierkram."
-        >
-          <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <li className="rounded-3xl border border-slate-200 bg-white p-4">
-              <div className="text-sm font-semibold text-slate-900">Objekt & Vorhaben</div>
-              <div className="mt-2 text-sm text-slate-700">
-                Immobilienart, Kaufpreis, Zweck (Kauf/Bau/Modernisierung/Refinanzierung).
-              </div>
-            </li>
-            <li className="rounded-3xl border border-slate-200 bg-white p-4">
-              <div className="text-sm font-semibold text-slate-900">Haushaltsrechnung</div>
-              <div className="mt-2 text-sm text-slate-700">
-                Nettoeinkommen, weitere Einnahmen, Fixkosten, bestehende Kreditraten.
-              </div>
-            </li>
-            <li className="rounded-3xl border border-slate-200 bg-white p-4">
-              <div className="text-sm font-semibold text-slate-900">Kreditnehmer</div>
-              <div className="mt-2 text-sm text-slate-700">
-                Weitere Kreditnehmer optional – Einkommen wird automatisch addiert.
-              </div>
-            </li>
-            <li className="rounded-3xl border border-slate-200 bg-white p-4">
-              <div className="text-sm font-semibold text-slate-900">Kontakt & Portal</div>
-              <div className="mt-2 text-sm text-slate-700">
-                E-Mail für den Portalzugang und Status-Updates (Invite/Login).
-              </div>
-            </li>
+      <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <article className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Was wird benötigt</div>
+          <h3 className="mt-1 text-xl font-semibold text-slate-900">Die wichtigsten Angaben</h3>
+
+          <ul className="mt-4 space-y-2 text-sm text-slate-600">
+            <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">Objektdaten und Finanzierungszweck</li>
+            <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">Haushaltsrechnung mit Einnahmen und Ausgaben</li>
+            <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">Kontaktinformationen für Portal und Rückfragen</li>
+            <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">Optional: Mitantragsteller mit Einkommen</li>
           </ul>
-        </Section>
+        </article>
 
-        <Section
-          title="FAQ zur Baufinanzierung"
-          subtitle="Kurz & verständlich – ohne Fachchinesisch."
-        >
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <FAQItem
-              q="Ist der Vergleich kostenlos?"
-              a={
-                <>
-                  Der Start ist kostenlos. Sie geben Ihre Eckdaten ein und erhalten eine strukturierte
-                  Einordnung im Portal. (Abschluss/Bonus gemäß Bedingungen.)
-                </>
-              }
-            />
-            <FAQItem
-              q="Warum fragt ihr Haushalt & Einnahmen ab?"
-              a={
-                <>
-                  Banken bewerten die Finanzierbarkeit über die Haushaltsrechnung. Je sauberer die Angaben,
-                  desto schneller und besser können Konditionen eingeschätzt werden.
-                </>
-              }
-            />
-            <FAQItem
-              q="Kann ich weitere Kreditnehmer hinzufügen?"
-              a={
-                <>
-                  Ja. Weitere Kreditnehmer sind optional. Das Einkommen wird automatisch in der Haushaltsrechnung
-                  berücksichtigt.
-                </>
-              }
-            />
-            <FAQItem
-              q="Wie funktioniert der 350 € Bonus?"
-              a={
-                <>
-                  Der Bonus wird nach erfolgreicher Finanzierung/Abschluss gemäß Bedingungen gutgeschrieben.
-                  Details finden Sie in den Bedingungen/Informationen im Prozess.
-                </>
-              }
-            />
+        <article className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Aktuell live</div>
+          <h3 className="mt-1 text-xl font-semibold text-slate-900">Plattformmodule</h3>
+
+          <div className="mt-4 space-y-2 text-sm text-slate-600">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700">Vergleichswizard</div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700">Angebotsauswahl</div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700">Dokumentenhub</div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700">Live-Beratung</div>
           </div>
-        </Section>
+        </article>
+      </section>
 
-        <Section
-          title="Mehr Themen"
-          subtitle="Interne Verlinkung für SEO – und hilfreiche Next Steps für Nutzer."
-        >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Link
-              href="/konsumentenkredit"
-              className="rounded-3xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-900 shadow-sm transition hover:shadow-md"
-            >
-              Konsumentenkredit vergleichen →
-              <div className="mt-1 text-xs font-normal text-slate-600">Schnell & strukturiert</div>
-            </Link>
-            <Link
-              href="/ratgeber/baufinanzierung"
-              className="rounded-3xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-900 shadow-sm transition hover:shadow-md"
-            >
-              Ratgeber Baufinanzierung →
-              <div className="mt-1 text-xs font-normal text-slate-600">Begriffe, Tipps, Checklisten</div>
-            </Link>
-            <Link
-              href="/kontakt"
-              className="rounded-3xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-900 shadow-sm transition hover:shadow-md"
-            >
-              Rückfrage stellen →
-              <div className="mt-1 text-xs font-normal text-slate-600">Antwort meist innerhalb kurzer Zeit</div>
-            </Link>
-          </div>
-        </Section>
+      <section className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
+        <div className="mb-5">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">FAQ</div>
+          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Häufige Fragen</h2>
+        </div>
 
-        {/* JSON-LD (FAQ) */}
-        <script
-          type="application/ld+json"
-          // eslint-disable-next-line react/no-danger
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "FAQPage",
-              mainEntity: [
-                {
-                  "@type": "Question",
-                  name: "Ist der Vergleich kostenlos?",
-                  acceptedAnswer: {
-                    "@type": "Answer",
-                    text:
-                      "Der Start ist kostenlos. Sie geben Ihre Eckdaten ein und erhalten eine strukturierte Einordnung im Portal. Abschluss/Bonus gemäß Bedingungen.",
-                  },
-                },
-                {
-                  "@type": "Question",
-                  name: "Warum fragt ihr Haushalt & Einnahmen ab?",
-                  acceptedAnswer: {
-                    "@type": "Answer",
-                    text:
-                      "Banken bewerten die Finanzierbarkeit über die Haushaltsrechnung. Je sauberer die Angaben, desto schneller und besser können Konditionen eingeschätzt werden.",
-                  },
-                },
-                {
-                  "@type": "Question",
-                  name: "Kann ich weitere Kreditnehmer hinzufügen?",
-                  acceptedAnswer: {
-                    "@type": "Answer",
-                    text:
-                      "Ja. Weitere Kreditnehmer sind optional. Das Einkommen wird automatisch in der Haushaltsrechnung berücksichtigt.",
-                  },
-                },
-                {
-                  "@type": "Question",
-                  name: "Wie funktioniert der 350 € Bonus?",
-                  acceptedAnswer: {
-                    "@type": "Answer",
-                    text:
-                      "Der Bonus wird nach erfolgreicher Finanzierung/Abschluss gemäß Bedingungen gutgeschrieben. Details finden Sie in den Bedingungen/Informationen im Prozess.",
-                  },
-                },
-              ],
-            }),
-          }}
-        />
-      </div>
+        <div className="grid gap-3 lg:grid-cols-2">
+          {FAQ.map((item) => (
+            <article key={item.q} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+              <h3 className="text-sm font-semibold text-slate-900">{item.q}</h3>
+              <p className="mt-2 text-sm text-slate-600">{item.a}</p>
+            </article>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }

@@ -1,12 +1,21 @@
+// app/(app)/app/faelle/[id]/page.tsx
 import Link from "next/link"
 import { requireCustomer } from "@/lib/app/requireCustomer"
 import { authFetch } from "@/lib/app/authFetch"
+import CaseChat from "@/components/case/CaseChat"
+import DocumentPanel from "@/components/case/DocumentPanel"
+import SignaturePanel from "@/components/case/SignaturePanel"
+import { translateCaseStatus, translateOfferStatus } from "@/lib/caseStatus"
+import OfferList from "@/components/case/OfferList"
+import LiveCasePanel from "@/components/live/LiveCasePanel"
+import CaseAppointmentPanel from "@/components/appointments/CaseAppointmentPanel"
 
 type Resp = {
   case: {
     id: string
     case_ref: string | null
     status: string
+    status_display?: string | null
     created_at: string
     updated_at: string
     case_type: string
@@ -14,11 +23,21 @@ type Resp = {
   }
   baufi_details: any | null
   applicants: any[]
-  offer_previews: Array<{ id: string; created_at: string; provider_id: string; product_type: string; payload: any }>
+  offer_previews: Array<{
+    id: string
+    created_at: string
+    provider_id: string | null
+    provider_name?: string | null
+    provider_logo_path?: string | null
+    product_type: string
+    payload: any
+  }>
   offers: Array<{
     id: string
     status: string
     provider_id: string
+    provider_name?: string | null
+    provider_logo_path?: string | null
     loan_amount: number | null
     rate_monthly: number | null
     apr_effective: number | null
@@ -28,25 +47,89 @@ type Resp = {
     special_repayment: string | null
     created_at: string
   }>
-  documents: Array<{ id: string; file_name: string; file_path: string; mime_type: string | null; size_bytes: number | null; created_at: string }>
+  documents: Array<{
+    id: string
+    request_id?: string | null
+    file_name: string
+    file_path: string
+    mime_type: string | null
+    size_bytes: number | null
+    created_at: string
+  }>
+  document_requests: Array<{
+    id: string
+    case_id: string
+    title: string
+    required: boolean
+    created_at: string
+    created_by: string
+  }>
+  chat: Array<{
+    id: string
+    case_id: string
+    author_id: string
+    visibility: string
+    body: string
+    created_at: string
+  }>
+  advisor: {
+    id: string
+    email: string | null
+    display_name: string | null
+    bio: string | null
+    languages: string[]
+    photo_path: string | null
+    phone: string | null
+    is_active: boolean | null
+  } | null
+  viewer_role: string | null
 }
 
 function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(d))
 }
-
 function formatEUR(n: number | null | undefined) {
   if (n == null || Number.isNaN(Number(n))) return "—"
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n))
 }
-
 function formatPct(n: number | null | undefined) {
   if (n == null || Number.isNaN(Number(n))) return "—"
   return `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(Number(n))} %`
 }
 
+function normalizeLogoPath(input: unknown): string | null {
+  if (!input) return null
+  if (typeof input === "string") {
+    const s = input.trim()
+    return s ? s : null
+  }
+  if (typeof input === "object") {
+    const anyObj = input as any
+    const candidate =
+      anyObj?.path ??
+      anyObj?.logo_path ??
+      anyObj?.logoPath ??
+      anyObj?.key ??
+      anyObj?.name ??
+      null
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim()
+  }
+  return null
+}
+
+function logoSrc(pathLike?: unknown) {
+  const path = normalizeLogoPath(pathLike)
+  if (!path) return null
+  if (/^(https?:)?\/\//i.test(path) || path.startsWith("data:")) return path
+  return `/api/baufi/logo?bucket=logo_banken&path=${encodeURIComponent(path)}`
+}
+
+// ✅ Status-Übersetzung (Case)
+
+// ✅ Status-Übersetzung (Offer)
+
 export default async function CaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireCustomer()
+  const { user } = await requireCustomer()
   const { id } = await params
 
   const res = await authFetch(`/api/app/cases/get?id=${encodeURIComponent(id)}`).catch(() => null)
@@ -66,7 +149,30 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   }
 
   const c = data.case
-  const preview = data.offer_previews?.[0]?.payload ?? null
+  const previewRow = data.offer_previews?.[0] ?? null
+  let previewPayload: any = previewRow?.payload ?? null
+  if (typeof previewPayload === "string") {
+    try {
+      previewPayload = JSON.parse(previewPayload)
+    } catch {
+      previewPayload = null
+    }
+  }
+  const advisor = data.advisor
+
+  const previewProviderName =
+    previewRow?.provider_name ?? previewPayload?.provider?.name ?? "—"
+  const previewProviderLogoPath = normalizeLogoPath(
+    previewRow?.provider_logo_path ??
+      previewPayload?.provider?.logo_path ??
+      previewPayload?.provider?.logoPath ??
+      previewPayload?.provider?.logo ??
+      null
+  )
+  const previewLogoUrl = previewProviderLogoPath ? logoSrc(previewProviderLogoPath) : null
+  const advisorAvatar = advisor?.photo_path
+    ? `/api/baufi/logo?bucket=advisor_avatars&path=${encodeURIComponent(advisor.photo_path)}`
+    : null
 
   return (
     <div className="space-y-6">
@@ -78,7 +184,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             </Link>
             <h1 className="mt-3 text-2xl font-semibold text-slate-900">Fall {c.case_ref || c.id.slice(0, 8)}</h1>
             <div className="mt-1 text-sm text-slate-600">
-              Erstellt: {dt(c.created_at)} · Status: <span className="font-medium text-slate-900">{c.status}</span>
+              Erstellt: {dt(c.created_at)} · Status:{" "}
+              <span className="font-medium text-slate-900">{translateCaseStatus(c.status_display ?? c.status)}</span>
             </div>
           </div>
 
@@ -89,42 +196,83 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
-      <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
-        <div className="text-sm font-medium text-slate-900">Startschuss (Temp-Angebot)</div>
-        <p className="mt-1 text-xs text-slate-600">
-          Snapshot aus dem Vergleich – dient dem Berater als Startpunkt. Finale Angebote kommen separat hinzu.
-        </p>
+      {advisor ? (
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="h-16 w-16 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+              {advisorAvatar ? <img src={advisorAvatar} alt="" className="h-full w-full object-cover" /> : null}
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs text-slate-500">Dein Berater</div>
+              <div className="text-lg font-semibold text-slate-900">{advisor.display_name ?? "-"}</div>
+              <div className="mt-1 text-sm text-slate-700">{advisor.bio ?? "-"}</div>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600">
+                {advisor.phone ? <span>Tel: {advisor.phone}</span> : null}
+                {advisor.email ? <span>E-Mail: {advisor.email}</span> : null}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {(advisor.languages ?? []).map((l) => (
+                  <span key={l} className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-700">
+                    {l}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
-        {!preview ? (
+      <LiveCasePanel caseId={c.id} caseRef={c.case_ref ?? null} defaultCollapsed />
+      <CaseAppointmentPanel caseId={c.id} />
+
+      {/* Startschuss */}
+      <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-medium text-slate-900">Startschuss (Vergleich bereit)</div>
+            <p className="mt-1 text-xs text-slate-600">
+              Snapshot aus dem Vergleich - dient dem Berater als Startpunkt. Finale Angebote kommen separat hinzu.
+            </p>
+          </div>
+          {previewLogoUrl ? (
+            <img src={previewLogoUrl} alt="" className="h-10 w-auto max-w-[160px] object-contain" loading="lazy" />
+          ) : null}
+        </div>
+
+        {!previewPayload ? (
           <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-4 text-sm text-slate-600">
             Noch kein Startschuss vorhanden.
           </div>
         ) : (
           <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
             <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
-              <div className="text-xs text-slate-600">Ausgewählte Bank</div>
-              <div className="mt-1 text-lg font-semibold text-slate-900">{preview?.provider?.name || "—"}</div>
+              <div className="text-xs text-slate-600">Ausgewaehlte Bank</div>
+              <div className="mt-1 text-lg font-semibold text-slate-900">{previewProviderName}</div>
 
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
                   <div className="text-[11px] text-slate-600">Monatsrate</div>
                   <div className="mt-0.5 text-sm font-semibold text-slate-900">
-                    {formatEUR(preview?.computed?.rateMonthly ?? null)}
+                    {formatEUR(previewPayload?.computed?.rateMonthly ?? null)}
                   </div>
                 </div>
                 <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
                   <div className="text-[11px] text-slate-600">Effektivzins</div>
                   <div className="mt-0.5 text-sm font-semibold text-slate-900">
-                    {formatPct(preview?.computed?.aprEffective ?? null)}
+                    {formatPct(previewPayload?.computed?.aprEffective ?? null)}
                   </div>
                 </div>
                 <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
                   <div className="text-[11px] text-slate-600">Zinsbindung</div>
-                  <div className="mt-0.5 text-sm font-semibold text-slate-900">{preview?.computed?.zinsbindung || "—"}</div>
+                  <div className="mt-0.5 text-sm font-semibold text-slate-900">
+                    {previewPayload?.computed?.zinsbindung || "-"}
+                  </div>
                 </div>
                 <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
                   <div className="text-[11px] text-slate-600">Sondertilgung</div>
-                  <div className="mt-0.5 text-sm font-semibold text-slate-900">{preview?.computed?.specialRepayment || "—"}</div>
+                  <div className="mt-0.5 text-sm font-semibold text-slate-900">
+                    {previewPayload?.computed?.specialRepayment || "-"}
+                  </div>
                 </div>
               </div>
             </div>
@@ -135,19 +283,19 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
                 <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
                   <div className="text-[11px] text-slate-600">Darlehen</div>
                   <div className="mt-0.5 text-sm font-semibold text-slate-900">
-                    {formatEUR(preview?.inputs?.loanAmount ?? null)}
+                    {formatEUR(previewPayload?.inputs?.loanAmount ?? null)}
                   </div>
                 </div>
                 <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
                   <div className="text-[11px] text-slate-600">Laufzeit</div>
                   <div className="mt-0.5 text-sm font-semibold text-slate-900">
-                    {preview?.inputs?.years ? `${preview.inputs.years} Jahre` : "—"}
+                    {previewPayload?.inputs?.years ? `${previewPayload.inputs.years} Jahre` : "-"}
                   </div>
                 </div>
               </div>
 
               <div className="mt-3 rounded-xl border border-slate-200/70 bg-white px-3 py-2 text-xs text-slate-700">
-                Fall-Ref: {preview?.caseRef || c.case_ref || "—"}
+                Fall-Ref: {previewPayload?.caseRef || c.case_ref || "-"}
               </div>
             </div>
           </div>
@@ -156,83 +304,25 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="text-sm font-medium text-slate-900">Finale Angebote</div>
-        <p className="mt-1 text-xs text-slate-600">Diese Angebote werden später vom Berater erstellt und freigegeben.</p>
-
-        {data.offers.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-4 text-sm text-slate-600">
-            Noch keine finalen Angebote vorhanden.
-          </div>
-        ) : (
-          <div className="mt-4 space-y-3">
-            {data.offers.map((o) => (
-              <div key={o.id} className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">Angebot</div>
-                    <div className="text-xs text-slate-600">Status: {o.status} · Erstellt: {dt(o.created_at)}</div>
-                  </div>
-                  <div className="text-xs text-slate-500 break-all">ID: {o.id}</div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
-                    <div className="text-[11px] text-slate-600">Rate</div>
-                    <div className="mt-0.5 text-sm font-semibold text-slate-900">{formatEUR(o.rate_monthly)}</div>
-                  </div>
-                  <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
-                    <div className="text-[11px] text-slate-600">Effektivzins</div>
-                    <div className="mt-0.5 text-sm font-semibold text-slate-900">{formatPct(o.apr_effective)}</div>
-                  </div>
-                  <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
-                    <div className="text-[11px] text-slate-600">Darlehen</div>
-                    <div className="mt-0.5 text-sm font-semibold text-slate-900">{formatEUR(o.loan_amount)}</div>
-                  </div>
-                </div>
-
-                <div className="mt-2 text-xs text-slate-600">
-                  Sondertilgung: {o.special_repayment || "—"} · Zinsbindung:{" "}
-                  {o.zinsbindung_years ? `${o.zinsbindung_years} Jahre` : "—"} · Laufzeit:{" "}
-                  {o.term_months ? `${o.term_months} Monate` : "—"}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <p className="mt-1 text-xs text-slate-600">Diese Angebote werden spaeter vom Berater erstellt und freigegeben.</p>
+        <OfferList
+          offers={data.offers ?? []}
+          canManage={data.viewer_role === "advisor" || data.viewer_role === "admin"}
+          filterStatuses={["accepted"]}
+        />
       </div>
 
-      <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
-        <div className="text-sm font-medium text-slate-900">Dokumente</div>
+      <DocumentPanel
+        caseId={c.id}
+        requests={data.document_requests ?? []}
+        documents={data.documents ?? []}
+        canCreateRequest={data.viewer_role === "advisor" || data.viewer_role === "admin"}
+      />
 
-        {data.documents.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-4 text-sm text-slate-600">
-            Noch keine Dokumente hochgeladen.
-          </div>
-        ) : (
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-white/80 backdrop-blur">
-                <tr className="border-b border-slate-200/70">
-                  <th className="px-4 py-3 font-medium text-slate-700">Datei</th>
-                  <th className="px-4 py-3 font-medium text-slate-700">Datum</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.documents.map((d) => (
-                  <tr key={d.id} className="border-b border-slate-200/60 last:border-0">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-900">{d.file_name}</div>
-                      <div className="text-xs text-slate-500 break-all">{d.file_path}</div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">{dt(d.created_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <SignaturePanel caseId={c.id} canEdit={false} />
 
-        <div className="mt-4 text-xs text-slate-500">Upload/Download bauen wir als nächsten Schritt.</div>
-      </div>
+      <CaseChat caseId={c.id} currentUserId={user.id} initialMessages={data.chat ?? []} />
     </div>
   )
 }
+

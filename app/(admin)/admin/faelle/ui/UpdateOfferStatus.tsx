@@ -2,10 +2,12 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { translateBankStatus, translateOfferStatus } from "@/lib/caseStatus"
 
 type Offer = {
   id: string
   status: "draft" | "sent" | "accepted" | "rejected"
+  bank_status?: "submitted" | "approved" | "declined" | null
   loan_amount: number | null
   notes_for_customer: string | null
   created_at: string
@@ -22,7 +24,7 @@ export default function UpdateOfferStatus({
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
-  async function update(offerId: string, patch: Partial<Offer>) {
+  async function update(offerId: string, patch: Partial<Offer> & { bank_status?: string }) {
     setMsg(null)
     setLoading(true)
     try {
@@ -34,7 +36,7 @@ export default function UpdateOfferStatus({
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || "Update fehlgeschlagen")
 
-      setMsg("Offer aktualisiert ✅")
+      setMsg("Offer aktualisiert âœ…")
       router.refresh()
     } catch (e: any) {
       setMsg(e?.message ?? "Fehler")
@@ -46,13 +48,13 @@ export default function UpdateOfferStatus({
   return (
     <div className="rounded-2xl border border-slate-200/70 bg-white p-3 shadow-sm">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-medium text-slate-800">Angebote / Vorgänge</div>
+        <div className="text-xs font-medium text-slate-800">Angebote / VorgÃ¤nge</div>
         <button
           className="text-xs text-slate-600 hover:text-slate-900"
           onClick={() => setOpen((v) => !v)}
           type="button"
         >
-          {open ? "Schließen" : `Öffnen (${offers.length})`}
+          {open ? "SchlieÃŸen" : `Ã–ffnen (${offers.length})`}
         </button>
       </div>
 
@@ -65,9 +67,14 @@ export default function UpdateOfferStatus({
               <div key={o.id} className="rounded-xl border border-slate-200/70 bg-white p-2">
                 <div className="flex items-center justify-between">
                   <div className="text-xs text-slate-700">
-                    Status: <span className="font-medium text-slate-900">{o.status}</span>
+                    Status: <span className="font-medium text-slate-900">{translateOfferStatus(o.status)}</span>
+                    {o.status === "accepted" ? (
+                      <div className="mt-1 text-[11px] text-slate-500">
+                        Bank: {translateBankStatus(o.bank_status || "submitted")}
+                      </div>
+                    ) : null}
                   </div>
-                  <div className="text-xs text-slate-500">{Number(o.loan_amount ?? 0).toLocaleString("de-DE")} €</div>
+                  <div className="text-xs text-slate-500">{Number(o.loan_amount ?? 0).toLocaleString("de-DE")} â‚¬</div>
                 </div>
 
                 <div className="mt-2 grid grid-cols-2 gap-2">
@@ -77,10 +84,10 @@ export default function UpdateOfferStatus({
                     className="rounded-lg border border-slate-200/70 bg-white px-2 py-1 text-xs"
                     disabled={loading}
                   >
-                    <option value="draft">draft</option>
-                    <option value="sent">sent</option>
-                    <option value="accepted">accepted</option>
-                    <option value="rejected">rejected</option>
+                    <option value="draft">Erstellt</option>
+                    <option value="sent">Abgeschickt</option>
+                    <option value="accepted">Angenommen</option>
+                    <option value="rejected">Abgelehnt</option>
                   </select>
 
                   <input
@@ -94,6 +101,26 @@ export default function UpdateOfferStatus({
                     disabled={loading}
                   />
                 </div>
+
+                {o.status === "accepted" ? (
+                  <div className="mt-2">
+                    <select
+                      defaultValue={o.bank_status && o.bank_status !== "submitted" ? o.bank_status : ""}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        if (value) update(o.id, { bank_status: value })
+                      }}
+                      className="w-full rounded-lg border border-slate-200/70 bg-white px-2 py-1 text-xs"
+                      disabled={loading}
+                    >
+                      <option value="" disabled>
+                        Eingereicht
+                      </option>
+                      <option value="approved">Angenommen</option>
+                      <option value="declined">Abgelehnt</option>
+                    </select>
+                  </div>
+                ) : null}
               </div>
             ))
           )}
@@ -101,7 +128,7 @@ export default function UpdateOfferStatus({
           {msg ? <div className="text-xs text-slate-600">{msg}</div> : null}
 
           {offers.length > 3 ? (
-            <div className="text-xs text-slate-500">Weitere Angebote werden später als Detailseite ergänzt.</div>
+            <div className="text-xs text-slate-500">Weitere Angebote werden spÃ¤ter als Detailseite ergÃ¤nzt.</div>
           ) : null}
         </div>
       ) : null}

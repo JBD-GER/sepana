@@ -15,10 +15,27 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const path = safePath(url.searchParams.get("path") || "")
   const bucket = url.searchParams.get("bucket") || "logo_banken"
+  const raw = url.searchParams.get("raw") === "1"
 
   if (!path) return NextResponse.json({ ok: false, error: "path fehlt" }, { status: 400 })
 
   const sb = supabaseAdmin()
+
+  if (raw) {
+    const { data, error } = await sb.storage.from(bucket).download(path)
+    if (error || !data) {
+      return NextResponse.json({ ok: false, error: error?.message ?? "Datei nicht gefunden" }, { status: 404 })
+    }
+    const arrayBuffer = await data.arrayBuffer()
+    const contentType = data.type || "application/octet-stream"
+    return new NextResponse(arrayBuffer, {
+      status: 200,
+      headers: {
+        "content-type": contentType,
+        "cache-control": "public, max-age=3600",
+      },
+    })
+  }
 
   // 1 Stunde gültig
   const { data, error } = await sb.storage.from(bucket).createSignedUrl(path, 60 * 60)

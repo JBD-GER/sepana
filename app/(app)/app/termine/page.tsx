@@ -1,13 +1,13 @@
 import { requireCustomer } from "@/lib/app/requireCustomer"
+import CustomerTermine from "@/components/appointments/CustomerTermine"
 
 export default async function TerminePage() {
   await requireCustomer()
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Termine</h1>
-        <p className="mt-1 text-sm text-slate-600">Dieser Bereich kommt als nächstes.</p>
+    <div className="min-h-screen bg-white">
+      <div className="mx-auto max-w-6xl space-y-6 px-4 pb-12 pt-6">
+        <CustomerTermine />
       </div>
     </div>
   )

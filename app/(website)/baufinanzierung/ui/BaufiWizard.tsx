@@ -69,6 +69,11 @@ function isEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
 }
 
+function isPhone(v?: string) {
+  const digits = String(v ?? "").replace(/\D/g, "")
+  return digits.length >= 6
+}
+
 /**
  * ✅ Wichtig: robustes Parsing für de-DE Eingaben
  * - entfernt Währung/Spaces
@@ -250,7 +255,10 @@ export default function BaufiWizard({
   const primaryValid =
     draft.primary.first_name.trim().length > 0 &&
     draft.primary.last_name.trim().length > 0 &&
-    isEmail(draft.primary.email)
+    isEmail(draft.primary.email) &&
+    isPhone(draft.primary.phone) &&
+    Boolean(draft.primary.birth_date) &&
+    Boolean(draft.primary.marital_status)
 
   const calc = useMemo(() => {
     const net = parseMoneyToNumber(draft.primary.net_income_monthly)
@@ -358,7 +366,10 @@ export default function BaufiWizard({
       })
 
       const json = (await res.json().catch(() => ({}))) as SubmitResponse
-      if (!res.ok) throw new Error((json as any)?.error || "Abschluss fehlgeschlagen.")
+      if (!res.ok) {
+        const failure = json as SubmitResponse & { error?: string }
+        throw new Error(failure.error || "Abschluss fehlgeschlagen.")
+      }
 
       if (json?.nextUrl) {
         localStorage.removeItem(DRAFT_KEY)
@@ -390,8 +401,8 @@ export default function BaufiWizard({
 
       localStorage.removeItem(DRAFT_KEY)
       router.push(nextUrl)
-    } catch (e: any) {
-      setError(e?.message ?? "Unbekannter Fehler.")
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "Unbekannter Fehler.")
     } finally {
       setBusy(false)
     }
@@ -521,7 +532,7 @@ export default function BaufiWizard({
               type="button"
               onClick={() => {
                 if (step === "contact" && !primaryValid) {
-                  setError("Bitte füllen Sie Vorname, Nachname und eine gültige E-Mail aus.")
+                  setError("Bitte füllen Sie im Schritt Kontakt alle Pflichtfelder vollständig aus.")
                   return
                 }
                 goNext()
@@ -539,7 +550,7 @@ export default function BaufiWizard({
               type="button"
               onClick={() => {
                 if (!primaryValid) {
-                  setError("Bitte prüfen Sie Ihre Basisdaten (Vorname, Nachname, E-Mail).")
+                  setError("Bitte prüfen Sie Ihre Pflichtangaben in Kontakt & Basisdaten.")
                   return
                 }
                 submitFinal()
@@ -620,8 +631,8 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       className={cn(
-        "w-full rounded-2xl border border-white/60 bg-white/80 px-3 py-2.5 text-sm text-slate-900 shadow-sm backdrop-blur-xl outline-none ring-1 ring-inset ring-white/35 transition",
-        "focus:border-slate-300 focus:ring-2 focus:ring-slate-200",
+        "h-12 w-full rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/80 px-4 text-[15px] text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400",
+        "focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100",
         props.className
       )}
     />
@@ -629,15 +640,28 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  const { className, children, ...rest } = props
   return (
-    <select
-      {...props}
-      className={cn(
-        "w-full rounded-2xl border border-white/60 bg-white/80 px-3 py-2.5 text-sm text-slate-900 shadow-sm backdrop-blur-xl outline-none ring-1 ring-inset ring-white/35 transition",
-        "focus:border-slate-300 focus:ring-2 focus:ring-slate-200",
-        props.className
-      )}
-    />
+    <div className="relative">
+      <select
+        {...rest}
+        className={cn(
+          "h-12 w-full appearance-none rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/80 px-4 pr-10 text-[15px] text-slate-900 shadow-sm outline-none transition",
+          "focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100",
+          className
+        )}
+      >
+        {children}
+      </select>
+      <svg
+        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+        viewBox="0 0 20 20"
+        fill="none"
+        aria-hidden
+      >
+        <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
   )
 }
 
@@ -651,17 +675,48 @@ function MoneyInput({
   placeholder?: string
 }) {
   return (
-    <Input
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onBlur={() => {
-        const n = parseMoneyToNumber(value)
-        if (String(value).trim() === "") return onChange("")
-        onChange(formatMoneyFromNumber(n))
-      }}
-      inputMode="decimal"
-      placeholder={placeholder || "z. B. 3.200"}
-    />
+    <div className="relative">
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => {
+          const n = parseMoneyToNumber(value)
+          if (String(value).trim() === "") return onChange("")
+          onChange(formatMoneyFromNumber(n))
+        }}
+        inputMode="decimal"
+        className="pr-12"
+        placeholder={placeholder || "z. B. 3.200"}
+      />
+      <div className="pointer-events-none absolute inset-y-0 right-0 flex w-12 items-center justify-center text-sm font-semibold text-slate-500">
+        €
+      </div>
+    </div>
+  )
+}
+
+function DateInput(props: Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">) {
+  const { className, onClick, ...rest } = props
+
+  return (
+    <div className="relative">
+      <Input
+        {...rest}
+        type="date"
+        className={cn("date-field pr-11 [color-scheme:light]", className)}
+        onClick={(event) => {
+          onClick?.(event)
+          const input = event.currentTarget as HTMLInputElement & { showPicker?: () => void }
+          input.showPicker?.()
+        }}
+      />
+      <div className="pointer-events-none absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500">
+        <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden>
+          <rect x="3.2" y="4.6" width="13.6" height="12" rx="2.4" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M6.2 2.8v3.1M13.8 2.8v3.1M3.2 8h13.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </div>
+    </div>
   )
 }
 
@@ -682,7 +737,7 @@ function ContactStep({
 }) {
   return (
     <div className="space-y-4">
-      <Card title="Kontakt & Basisdaten" subtitle="Die E-Mail wird später für den Portalzugang verwendet.">
+      <Card title="Kontakt & Basisdaten" subtitle="Alle Felder in diesem Schritt sind Pflichtfelder.">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Vorname *" hint="wie im Ausweis">
             <Input
@@ -690,6 +745,7 @@ function ContactStep({
               onChange={(e) => onChange({ ...value, first_name: e.target.value })}
               autoComplete="given-name"
               placeholder="Max"
+              required
             />
           </Field>
 
@@ -699,6 +755,7 @@ function ContactStep({
               onChange={(e) => onChange({ ...value, last_name: e.target.value })}
               autoComplete="family-name"
               placeholder="Mustermann"
+              required
             />
           </Field>
 
@@ -710,11 +767,12 @@ function ContactStep({
                 autoComplete="email"
                 inputMode="email"
                 placeholder="max@mail.de"
+                required
               />
             </Field>
 
             {emailCheckBusy ? (
-              <div className="mt-2 text-xs text-slate-500">Prüfe Konto…</div>
+              <div className="mt-2 text-xs text-slate-500">Prüfe Konto...</div>
             ) : emailExists ? (
               <div className="mt-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                 Zu dieser E-Mail existiert bereits ein Konto. Nach dem Abschluss wird der Vergleich im Portal hinterlegt.
@@ -726,28 +784,31 @@ function ContactStep({
             )}
           </div>
 
-          <Field label="Telefon (optional)" hint="für Rückfragen">
+          <Field label="Telefon *" hint="für Rückfragen und Terminbestätigung">
             <Input
               value={value.phone ?? ""}
               onChange={(e) => onChange({ ...value, phone: e.target.value })}
               autoComplete="tel"
               inputMode="tel"
-              placeholder="+49 …"
+              placeholder="+49 ..."
+              required
             />
           </Field>
 
-          <Field label="Geburtsdatum (optional)" hint="für Konditionen relevant">
-            <Input
-              type="date"
+          <Field label="Geburtsdatum *" hint="für Konditionen relevant">
+            <DateInput
               value={value.birth_date ?? ""}
               onChange={(e) => onChange({ ...value, birth_date: e.target.value })}
+              autoComplete="bday"
+              required
             />
           </Field>
 
-          <Field label="Familienstand (optional)">
+          <Field label="Familienstand *">
             <Select
               value={value.marital_status ?? ""}
               onChange={(e) => onChange({ ...value, marital_status: e.target.value })}
+              required
             >
               <option value="">Bitte wählen</option>
               <option value="single">Ledig</option>
@@ -760,7 +821,7 @@ function ContactStep({
         </div>
 
         <div className="mt-3">
-          <Tip>Tipp: Je besser die Kontaktdaten, desto schneller können wir Rückfragen klären.</Tip>
+          <Tip>Hinweis: Vollständige Kontaktdaten beschleunigen Rückfragen und die Terminierung.</Tip>
         </div>
       </Card>
     </div>
@@ -1079,8 +1140,7 @@ function CoApplicantsStep({
                   <Input value={c.last_name} onChange={(e) => update(i, { last_name: e.target.value })} />
                 </Field>
                 <Field label="Geburtsdatum">
-                  <Input
-                    type="date"
+                  <DateInput
                     value={c.birth_date ?? ""}
                     onChange={(e) => update(i, { birth_date: e.target.value })}
                   />

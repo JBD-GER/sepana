@@ -9,11 +9,7 @@ export function cn(...c: Array<string | false | null | undefined>) {
 }
 
 export function Card({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
-      {children}
-    </div>
-  )
+  return <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8">{children}</div>
 }
 
 export function Label({ children }: { children: React.ReactNode }) {
@@ -32,20 +28,19 @@ export function Input({
   rightSlot?: React.ReactNode
 }) {
   return (
-    <div className="grid gap-1">
+    <div className="grid gap-1.5">
       <div
         className={cn(
-          "flex items-center gap-2 rounded-2xl border bg-white px-3 py-2 shadow-sm transition",
-          error ? "border-rose-300 focus-within:border-rose-400" : "border-slate-200/80 focus-within:border-slate-300"
+          "flex items-center gap-2 rounded-2xl border bg-slate-50/65 px-3 py-2.5 transition",
+          error
+            ? "border-rose-300/90 bg-rose-50/50 focus-within:border-rose-400 focus-within:ring-2 focus-within:ring-rose-100"
+            : "border-slate-200/90 focus-within:border-slate-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-slate-200/80"
         )}
       >
-        {leftIcon && <div className="text-slate-500">{leftIcon}</div>}
+        {leftIcon ? <div className="text-slate-500">{leftIcon}</div> : null}
         <input
           {...props}
-          className={cn(
-            "w-full bg-transparent text-sm outline-none placeholder:text-slate-400",
-            className
-          )}
+          className={cn("w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400", className)}
         />
         {rightSlot}
       </div>
@@ -65,18 +60,18 @@ export function Button({
   variant?: "primary" | "soft"
 }) {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium shadow-sm transition active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+    "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-sm font-semibold shadow-sm transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
 
   const styles =
     variant === "primary"
-      ? "text-white hover:opacity-95"
-      : "border border-slate-200/80 bg-white text-slate-900 hover:bg-slate-50"
+      ? "text-white hover:-translate-y-[1px] hover:shadow-[0_18px_38px_-20px_rgba(9,24,64,1)]"
+      : "border border-slate-200/90 bg-slate-50 text-slate-900 hover:bg-slate-100"
 
   return (
     <button
       {...props}
       className={cn(base, styles, className)}
-      style={variant === "primary" ? { backgroundColor: ACCENT } : undefined}
+      style={variant === "primary" ? { background: `linear-gradient(135deg, #102a66 0%, ${ACCENT} 100%)` } : undefined}
     >
       {loading ? <Spinner /> : null}
       {children}
@@ -95,14 +90,14 @@ export function Alert({
 }) {
   const map =
     type === "ok"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+      ? "border-emerald-200 bg-emerald-50/90 text-emerald-900"
       : type === "err"
-      ? "border-rose-200 bg-rose-50 text-rose-900"
+      ? "border-rose-200 bg-rose-50/90 text-rose-900"
       : "border-slate-200 bg-slate-50 text-slate-900"
 
   return (
-    <div className={cn("rounded-2xl border px-3 py-2 text-sm", map)}>
-      {title ? <div className="font-medium">{title}</div> : null}
+    <div className={cn("rounded-2xl border px-3.5 py-3 text-sm leading-relaxed", map)}>
+      {title ? <div className="font-semibold">{title}</div> : null}
       <div className={cn(title ? "mt-1" : "")}>{children}</div>
     </div>
   )
@@ -128,30 +123,30 @@ export function Checkbox({
   children: React.ReactNode
 }) {
   return (
-    <label className="flex items-start gap-2">
+    <label className="flex items-start gap-3 rounded-xl px-1 py-1.5">
       <input
         type="checkbox"
-        className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-300"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
       />
-      <span className="text-sm text-slate-700">{children}</span>
+      <span className="text-sm leading-relaxed text-slate-700">{children}</span>
     </label>
   )
 }
 
 export function PasswordStrength({ value }: { value: string }) {
   const score = useScore(value)
-  const label =
-    score >= 4 ? "Sehr stark" : score === 3 ? "Stark" : score === 2 ? "Okay" : score === 1 ? "Schwach" : "—"
+  const label = score >= 4 ? "Sehr stark" : score === 3 ? "Stark" : score === 2 ? "Okay" : score === 1 ? "Schwach" : "-"
   const pct = (score / 4) * 100
+  const color = score >= 4 ? "#059669" : score === 3 ? "#0284c7" : score === 2 ? "#d97706" : score === 1 ? "#dc2626" : "#cbd5e1"
 
   return (
     <div className="mt-2">
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200/80">
-        <div className="h-full transition-all" style={{ width: `${pct}%`, backgroundColor: ACCENT }} />
+        <div className="h-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
-      <div className="mt-1 text-xs text-slate-500">Passwort-Stärke: {label}</div>
+      <div className="mt-1 text-xs text-slate-500">Passwort-Staerke: {label}</div>
     </div>
   )
 }
@@ -167,10 +162,7 @@ function useScore(v: string) {
 
 export function Spinner() {
   return (
-    <span
-      className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white"
-      aria-hidden
-    />
+    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white" aria-hidden />
   )
 }
 

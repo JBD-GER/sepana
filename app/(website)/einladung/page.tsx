@@ -4,27 +4,33 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import AuthShell from "../components/AuthShell"
-import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
+import { createBrowserClient } from "@supabase/ssr"
 import { Alert, Button, Icon, Input, PasswordStrength } from "../components/auth/ui"
 
 function normalizeError(message: string) {
   const m = (message || "").toLowerCase()
-  if (m.includes("expired") || m.includes("invalid")) return "Der Link ist ungültig oder abgelaufen."
-  if (m.includes("password")) return "Passwort entspricht nicht den Anforderungen."
+  if (m.includes("expired") || m.includes("invalid")) return "Der Link ist ungueltig oder abgelaufen."
   return message || "Fehler"
 }
 
 export default function InvitationOrResetPage() {
-  const supabase = useMemo(() => createBrowserSupabaseClient(), [])
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+        auth: { detectSessionInUrl: false },
+      }),
+    []
+  )
+
   const router = useRouter()
   const sp = useSearchParams()
 
-  const mode = sp.get("mode") || "invite" // invite | reset
+  const mode = sp.get("mode") || "invite"
   const title = mode === "reset" ? "Neues Passwort setzen" : "Einladung annehmen"
   const subtitle =
     mode === "reset"
-      ? "Setzen Sie ein neues Passwort für Ihr Konto."
-      : "Setzen Sie ein Passwort, um den Zugang zu aktivieren."
+      ? "Setzen Sie ein neues Passwort fuer Ihr Konto."
+      : "Setzen Sie ein Passwort, um Ihren Zugang zu aktivieren."
 
   const [loading, setLoading] = useState(true)
   const [hasUser, setHasUser] = useState(false)
@@ -39,15 +45,72 @@ export default function InvitationOrResetPage() {
   const [errors, setErrors] = useState<{ p1?: string; p2?: string }>({})
 
   useEffect(() => {
-    let alive = true
-    ;(async () => {
-      const { data } = await supabase.auth.getUser()
-      if (!alive) return
-      setHasUser(!!data.user)
+    let ignore = false
+
+    const timeout = setTimeout(() => {
+      if (ignore) return
+      setMsg({ type: "err", text: "Zeitueberschreitung beim Laden. Bitte Link erneut oeffnen." })
+      setHasUser(false)
       setLoading(false)
+    }, 6000)
+
+    void (async () => {
+      try {
+        let sessionError: Error | null = null
+        let hadHash = false
+
+        if (typeof window !== "undefined" && window.location.hash) {
+          hadHash = true
+          const params = new URLSearchParams(window.location.hash.replace(/^#/, ""))
+          const access_token = params.get("access_token")
+          const refresh_token = params.get("refresh_token")
+
+          if (access_token && refresh_token) {
+            try {
+              const { error } = await supabase.auth.setSession({ access_token, refresh_token })
+              if (error) sessionError = new Error(error.message)
+            } catch (error: unknown) {
+              if (error instanceof Error) sessionError = error
+            }
+          }
+        }
+
+        let userId: string | null = null
+        try {
+          const { data: sessionData } = await supabase.auth.getSession()
+          userId = sessionData?.session?.user?.id ?? null
+        } catch (error: unknown) {
+          if (!(error instanceof Error) || error.name !== "AuthSessionMissingError") {
+            // ignore only missing-session cases
+          }
+        }
+
+        if (sessionError && !userId) {
+          if (ignore) return
+          setMsg({ type: "err", text: "Der Link ist ungueltig oder abgelaufen. Bitte neuen Link anfordern." })
+          setHasUser(false)
+          return
+        }
+
+        if (ignore) return
+        setHasUser(Boolean(userId))
+
+        if (hadHash) {
+          try {
+            window.history.replaceState(null, "", window.location.pathname + window.location.search)
+          } catch {
+            // ignore
+          }
+        }
+      } finally {
+        clearTimeout(timeout)
+        if (!ignore) setLoading(false)
+      }
     })()
+
     return () => {
-      alive = false
+      ignore = true
+      clearTimeout(timeout)
     }
   }, [supabase])
 
@@ -55,7 +118,7 @@ export default function InvitationOrResetPage() {
     const e: typeof errors = {}
     if (password.length < 8) e.p1 = "Mindestens 8 Zeichen."
     if (password2.length < 8) e.p2 = "Bitte wiederholen."
-    if (password && password2 && password !== password2) e.p2 = "Passwörter stimmen nicht überein."
+    if (password && password2 && password !== password2) e.p2 = "Passwoerter stimmen nicht ueberein."
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -65,7 +128,7 @@ export default function InvitationOrResetPage() {
     setMsg(null)
 
     if (!hasUser) {
-      setMsg({ type: "err", text: "Der Link ist ungültig oder abgelaufen. Bitte neuen Link anfordern." })
+      setMsg({ type: "err", text: "Der Link ist ungueltig oder abgelaufen. Bitte neuen Link anfordern." })
       return
     }
     if (!validate()) return
@@ -75,11 +138,32 @@ export default function InvitationOrResetPage() {
       const { error } = await supabase.auth.updateUser({ password })
       if (error) throw error
 
-      setMsg({ type: "ok", text: "Passwort gesetzt. Sie werden weitergeleitet…" })
+      const { data: sessionDataAfter } = await supabase.auth.getSession()
+      const userId = sessionDataAfter?.session?.user?.id ?? null
+
+      if (userId) {
+        await supabase.from("profiles").upsert(
+          {
+            user_id: userId,
+            password_set_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" }
+        )
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession()
+      if (!sessionData?.session) {
+        setMsg({ type: "ok", text: "Passwort gesetzt. Bitte jetzt einloggen." })
+        setTimeout(() => router.replace("/login"), 650)
+        return
+      }
+
+      setMsg({ type: "ok", text: "Passwort gesetzt. Sie werden weitergeleitet..." })
       router.refresh()
       setTimeout(() => router.replace("/app"), 650)
-    } catch (err: any) {
-      setMsg({ type: "err", text: normalizeError(err?.message ?? "") })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : ""
+      setMsg({ type: "err", text: normalizeError(message) })
     } finally {
       setBusy(false)
     }
@@ -88,80 +172,88 @@ export default function InvitationOrResetPage() {
   return (
     <AuthShell title={title} subtitle={subtitle}>
       {loading ? (
-        <div className="text-sm text-slate-600">Lade…</div>
+        <div className="rounded-2xl border border-slate-200/90 bg-slate-50/80 px-4 py-3 text-sm text-slate-600">
+          Lade Zugangsdaten...
+        </div>
       ) : !hasUser ? (
         <div className="grid gap-4">
-          <Alert type="err" title="Link ungültig oder abgelaufen">
-            Bitte fordern Sie einen neuen Link an oder gehen Sie zurück zum Login.
+          <Alert type="err" title="Link ungueltig oder abgelaufen">
+            Bitte fordern Sie einen neuen Link an oder gehen Sie zum Login zurueck.
           </Alert>
 
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Link href="/passwort-vergessen" className="flex-1">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Link href="/passwort-vergessen" className="block">
               <Button className="w-full" type="button">
                 Passwort-Link anfordern <Icon name="arrow" className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/login" className="flex-1">
+            <Link href="/login" className="block">
               <Button className="w-full" type="button" variant="soft">
                 Login
               </Button>
             </Link>
           </div>
 
-          <div className="text-xs text-slate-500">Hinweis: Aus Sicherheitsgründen laufen Links nach einiger Zeit ab.</div>
+          <p className="text-xs text-slate-500">Aus Sicherheitsgruenden laufen Links nach einer gewissen Zeit ab.</p>
         </div>
       ) : (
-        <form onSubmit={submit} className="grid gap-4" noValidate>
-          <Input
-            error={errors.p1 ?? null}
-            leftIcon={<Icon name="lock" />}
-            placeholder="Neues Passwort (mind. 8 Zeichen)"
-            type={showPw ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-            rightSlot={
-              <button
-                type="button"
-                onClick={() => setShowPw((v) => !v)}
-                className="rounded-xl px-2 py-1 text-slate-600 hover:bg-slate-50"
-                aria-label={showPw ? "Passwort verbergen" : "Passwort anzeigen"}
-              >
-                <Icon name={showPw ? "eyeOff" : "eye"} />
-              </button>
-            }
-          />
-          <div className="-mt-1">
-            <PasswordStrength value={password} />
+        <form onSubmit={submit} className="grid gap-5" noValidate>
+          <div className="grid gap-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Neues Passwort</label>
+            <Input
+              error={errors.p1 ?? null}
+              leftIcon={<Icon name="lock" />}
+              placeholder="Neues Passwort (mind. 8 Zeichen)"
+              type={showPw ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              rightSlot={
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  className="rounded-xl px-2 py-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                  aria-label={showPw ? "Passwort verbergen" : "Passwort anzeigen"}
+                >
+                  <Icon name={showPw ? "eyeOff" : "eye"} />
+                </button>
+              }
+            />
+            <div className="-mt-1">
+              <PasswordStrength value={password} />
+            </div>
           </div>
 
-          <Input
-            error={errors.p2 ?? null}
-            leftIcon={<Icon name="lock" />}
-            placeholder="Passwort wiederholen"
-            type={showPw2 ? "text" : "password"}
-            value={password2}
-            onChange={(e) => setPassword2(e.target.value)}
-            autoComplete="new-password"
-            rightSlot={
-              <button
-                type="button"
-                onClick={() => setShowPw2((v) => !v)}
-                className="rounded-xl px-2 py-1 text-slate-600 hover:bg-slate-50"
-                aria-label={showPw2 ? "Passwort verbergen" : "Passwort anzeigen"}
-              >
-                <Icon name={showPw2 ? "eyeOff" : "eye"} />
-              </button>
-            }
-          />
+          <div className="grid gap-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Passwort wiederholen</label>
+            <Input
+              error={errors.p2 ?? null}
+              leftIcon={<Icon name="lock" />}
+              placeholder="Passwort wiederholen"
+              type={showPw2 ? "text" : "password"}
+              value={password2}
+              onChange={(e) => setPassword2(e.target.value)}
+              autoComplete="new-password"
+              rightSlot={
+                <button
+                  type="button"
+                  onClick={() => setShowPw2((v) => !v)}
+                  className="rounded-xl px-2 py-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                  aria-label={showPw2 ? "Passwort verbergen" : "Passwort anzeigen"}
+                >
+                  <Icon name={showPw2 ? "eyeOff" : "eye"} />
+                </button>
+              }
+            />
+          </div>
 
-          {msg && <Alert type={msg.type}>{msg.text}</Alert>}
+          {msg ? <Alert type={msg.type}>{msg.text}</Alert> : null}
 
           <Button loading={busy} type="submit">
             Passwort setzen <Icon name="spark" className="h-4 w-4" />
           </Button>
 
-          <div className="text-xs text-slate-500">Nach dem Setzen werden Sie automatisch weitergeleitet.</div>
+          <p className="text-xs text-slate-500">Nach dem Setzen werden Sie automatisch weitergeleitet.</p>
         </form>
       )}
     </AuthShell>

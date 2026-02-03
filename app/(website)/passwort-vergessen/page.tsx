@@ -36,47 +36,51 @@ export default function ForgotPasswordPage() {
     setBusy(true)
     try {
       const origin = window.location.origin
-      // ✅ Supabase schickt Link -> /auth/confirm exchange -> redirect -> /einladung?mode=reset
       const redirectTo = `${origin}/auth/confirm?mode=reset`
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
       if (error) throw error
-      setMsg({ type: "ok", text: "E-Mail wurde versendet. Bitte Postfach prüfen." })
-    } catch (err: any) {
-      setMsg({ type: "err", text: normalizeError(err?.message ?? "") })
+
+      setMsg({ type: "ok", text: "E-Mail wurde versendet. Bitte Postfach pruefen." })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : ""
+      setMsg({ type: "err", text: normalizeError(message) })
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <AuthShell title="Passwort vergessen" subtitle="Wir senden Ihnen einen Link, um ein neues Passwort zu setzen.">
-      <form onSubmit={submit} className="grid gap-4" noValidate>
-        <Input
-          error={errorEmail}
-          leftIcon={<Icon name="mail" />}
-          placeholder="name@firma.de"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
-          inputMode="email"
-        />
+    <AuthShell title="Passwort vergessen" subtitle="Wir senden Ihnen einen sicheren Link zum Zuruecksetzen.">
+      <form onSubmit={submit} className="grid gap-5" noValidate>
+        <div className="grid gap-1.5">
+          <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">E-Mail</label>
+          <Input
+            error={errorEmail}
+            leftIcon={<Icon name="mail" />}
+            placeholder="name@firma.de"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            inputMode="email"
+          />
+        </div>
 
-        {msg && (
+        {msg ? (
           <Alert type={msg.type}>
             {msg.text}
             {msg.type === "ok" ? (
-              <div className="mt-1 text-xs opacity-80">Wenn nichts ankommt: Spam prüfen oder nach 2 Minuten erneut versuchen.</div>
+              <div className="mt-1 text-xs opacity-80">Wenn nichts ankommt: Spam pruefen oder nach 2 Minuten erneut versuchen.</div>
             ) : null}
           </Alert>
-        )}
+        ) : null}
 
         <Button loading={busy} type="submit">
           Link senden <Icon name="arrow" className="h-4 w-4" />
         </Button>
 
-        <div className="pt-1 text-sm">
-          <Link className="text-slate-600 hover:text-slate-900" href="/login">
-            Zurück zum Login
+        <div className="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3.5 text-sm text-slate-600">
+          <Link className="font-medium text-slate-700 underline underline-offset-2 transition hover:text-slate-900" href="/login">
+            Zurueck zum Login
           </Link>
         </div>
       </form>

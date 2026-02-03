@@ -10,7 +10,6 @@ function cn(...c: Array<string | false | null | undefined>) {
 const TABS = [
   { href: "/app", label: "Dashboard" },
   { href: "/app/faelle", label: "Fälle" },
-  { href: "/app/online-filiale", label: "Online Filiale" },
   { href: "/app/termine", label: "Termine" },
   { href: "/app/feedback", label: "Feedback" },
   { href: "/app/profil", label: "Profil" },

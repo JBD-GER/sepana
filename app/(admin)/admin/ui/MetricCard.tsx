@@ -8,9 +8,9 @@ export default function MetricCard({
   hint?: string
 }) {
   return (
-    <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
-      <div className="text-sm text-slate-600">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-slate-900">{value}</div>
+    <div className="rounded-3xl border border-slate-200/70 bg-gradient-to-br from-white via-white to-slate-50 p-5 shadow-sm">
+      <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{label}</div>
+      <div className="mt-2 text-2xl font-semibold text-slate-900">{value}</div>
       {hint ? <div className="mt-1 text-xs text-slate-500">{hint}</div> : null}
     </div>
   )

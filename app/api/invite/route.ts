@@ -62,9 +62,9 @@ export async function POST(req: Request) {
   const siteUrl = siteUrlFromReq(req)
 
   try {
-    // ✅ Invite Link -> /auth/confirm exchange -> redirect -> /einladung?mode=invite
+    // ✅ Invite Link -> /einladung?mode=invite (Client verarbeitet Hash)
     const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${siteUrl}/auth/confirm?mode=invite`,
+      redirectTo: `${siteUrl}/einladung?mode=invite`,
       data: {
         role,
         case_id: caseId ?? undefined,
@@ -76,9 +76,16 @@ export async function POST(req: Request) {
 
     // ✅ Rolle in profiles upserten (sehr wichtig für deine Middleware role checks / rpc get_my_role)
     if (invitedUserId) {
+      const { data: existingProfile } = await admin
+        .from("profiles")
+        .select("password_set_at")
+        .eq("user_id", invitedUserId)
+        .maybeSingle()
+      const passwordSetAt = existingProfile?.password_set_at ?? null
+
       const { error: upsertErr } = await admin
         .from("profiles")
-        .upsert({ user_id: invitedUserId, role }, { onConflict: "user_id" })
+        .upsert({ user_id: invitedUserId, role, password_set_at: passwordSetAt }, { onConflict: "user_id" })
 
       if (upsertErr) throw upsertErr
     }

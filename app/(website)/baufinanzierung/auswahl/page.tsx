@@ -95,6 +95,22 @@ async function fetchJson<T>(path: string): Promise<T | null> {
   }
 }
 
+async function postJson<T>(path: string, body: any): Promise<T | null> {
+  try {
+    const base = await getBaseUrl()
+    const res = await fetch(`${base}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    })
+    if (!res.ok) return null
+    return (await res.json().catch(() => null)) as T | null
+  } catch {
+    return null
+  }
+}
+
 type ProvidersResponse = {
   ok: boolean
   items: Array<{
@@ -124,6 +140,13 @@ type MetricsResponse = {
     surplus_ratio: number
     co_applicants: number
   }
+}
+
+type LiveStatusResponse = {
+  ok: boolean
+  onlineCount: number
+  availableCount: number
+  waitMinutes: number
 }
 
 type SortKey = "rate" | "tilgung" | "zins"
@@ -183,6 +206,7 @@ export default async function Page({
         `/api/baufi/case-metrics?caseId=${encodeURIComponent(caseId)}&caseRef=${encodeURIComponent(caseRef)}`
       )
     : null
+  const liveStatus = await fetchJson<LiveStatusResponse>(`/api/live/status`)
 
   const m = metricsRes?.ok ? metricsRes.metrics : null
   const surplusRatio = m?.surplus_ratio ?? 0.12
@@ -272,6 +296,51 @@ export default async function Page({
   const hrefRate = buildHref("/baufinanzierung/auswahl", { ...sortHrefBase, sort: "rate" })
   const hrefTilg = buildHref("/baufinanzierung/auswahl", { ...sortHrefBase, sort: "tilgung" })
   const hrefZins = buildHref("/baufinanzierung/auswahl", { ...sortHrefBase, sort: "zins" })
+  const liveHref = buildHref("/baufinanzierung/auswahl/live", {
+    caseId,
+    caseRef,
+    existing: existing ? "1" : undefined,
+  })
+
+  // ✅ Startschuss: sobald der Kunde auf /auswahl ist, Snapshot zum Top-Angebot speichern
+  const startschuss = sorted[0]
+  if (caseId && startschuss?.provider?.id) {
+    await postJson("/api/baufi/offer-preview", {
+      caseId,
+      providerId: startschuss.provider.id,
+      productType: "baufi",
+      payload: {
+        kind: "baufi_comparison_preview",
+        caseRef: metricsRes?.caseRef || caseRef || null,
+        provider: {
+          id: startschuss.provider.id,
+          slug: startschuss.provider.slug,
+          name: startschuss.provider.name,
+          logo: {
+            horizontal: startschuss.provider.logo_horizontal_path ?? null,
+            icon: startschuss.provider.logo_icon_path ?? null,
+            preferred: startschuss.provider.preferred_logo_variant ?? "horizontal",
+          },
+        },
+        inputs: {
+          loanAmount,
+          years,
+          surplusRatio,
+        },
+        computed: {
+          rateMonthly: startschuss.pay.monthly,
+          aprEffective: startschuss.shownApr,
+          tilgungPctEff: startschuss.pay.tilgungPctEff,
+          interestMonthly: startschuss.pay.interestMonthly,
+          principalMonthly: startschuss.pay.principalMonthly,
+          zinsbindung: startschuss.zbind,
+          specialRepayment: startschuss.srep,
+        },
+        term: startschuss.term ?? null,
+        createdAt: new Date().toISOString(),
+      },
+    })
+  }
 
   return (
     <div className="space-y-4">
@@ -286,6 +355,35 @@ export default async function Page({
         <Pill>Start im Portal</Pill>
         {existing ? <Pill>Bestehendes Konto erkannt</Pill> : null}
       </div>
+
+      {liveStatus?.ok && caseId ? (
+        <div className="rounded-[2rem] border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur-xl sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-sm font-medium text-slate-900">Live-Beratung</div>
+              <div className="mt-1 text-sm text-slate-600">
+                {liveStatus.onlineCount > 0
+                  ? liveStatus.availableCount > 0
+                    ? "Jetzt sofort live mit einem Berater sprechen."
+                    : "Alle Berater sind im Gespraech. Wartezeit ca. 15 Minuten."
+                  : "Aktuell kein Berater online."}
+              </div>
+            </div>
+
+            {liveStatus.onlineCount > 0 ? (
+              <Link
+                href={liveHref}
+                className="inline-flex w-full items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 active:scale-[0.99] sm:w-auto"
+                style={{ background: ACCENT }}
+              >
+                Live-Beratung starten
+              </Link>
+            ) : (
+              <div className="text-xs text-slate-500">Bitte spaeter erneut versuchen.</div>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       <h1 className="text-2xl font-semibold leading-tight text-slate-900 sm:text-3xl">
         Wählen Sie jetzt Ihre Bank –<br className="hidden sm:block" />

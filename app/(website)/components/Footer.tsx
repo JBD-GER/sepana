@@ -1,37 +1,66 @@
 import Link from "next/link"
+import OpenConsentButton from "./OpenConsentButton"
 
 export default function Footer() {
   return (
-    <footer className="border-t border-slate-200/70 bg-white">
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <div className="grid gap-8 md:grid-cols-3">
-          <div className="space-y-2">
-            <div className="text-sm font-semibold">SEPANA</div>
-            <p className="text-sm text-slate-600">
-              Online-Kreditvergleich & Live-Beratung – klar strukturiert und effizient bis zur Bankentscheidung.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <div className="text-sm font-semibold">Vergleiche</div>
-            <div className="grid gap-1 text-sm">
-              <Link className="text-slate-600 hover:text-slate-900" href="/baufinanzierung">Baufinanzierung</Link>
-              <Link className="text-slate-600 hover:text-slate-900" href="/privatkredit">Privatkredit</Link>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="text-sm font-semibold">Rechtliches</div>
-            <div className="grid gap-1 text-sm">
-              <Link className="text-slate-600 hover:text-slate-900" href="/impressum">Impressum</Link>
-              <Link className="text-slate-600 hover:text-slate-900" href="/datenschutz">Datenschutz</Link>
-            </div>
+    <footer className="mt-10 border-t border-slate-200/70 bg-white/90 backdrop-blur">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.4fr_1fr_1fr] lg:px-8">
+        <div className="space-y-3">
+          <div className="text-sm font-semibold text-slate-900">SEPANA</div>
+          <p className="max-w-md text-sm leading-relaxed text-slate-600">
+            Digitale Baufinanzierung mit klaren Schritten: Vergleich starten, Angebot wählen, Unterlagen sicher hochladen,
+            auf Wunsch live finalisieren.
+          </p>
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+            Plattformstatus: Operational
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col gap-2 border-t border-slate-200/70 pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-2">
+          <div className="text-sm font-semibold text-slate-900">Plattform</div>
+          <div className="grid gap-1 text-sm">
+            <Link className="text-slate-600 transition hover:text-slate-900" href="/baufinanzierung">
+              Baufinanzierung
+            </Link>
+            <Link className="text-slate-600 transition hover:text-slate-900" href="/roadmap">
+              Roadmap
+            </Link>
+            <Link className="text-slate-600 transition hover:text-slate-900" href="/status">
+              Systemstatus
+            </Link>
+            <Link className="text-slate-500" href="/privatkredit">
+              Privatkredit (Bald eröffnet)
+            </Link>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-sm font-semibold text-slate-900">Zugang</div>
+          <div className="grid gap-1 text-sm">
+            <Link className="text-slate-600 transition hover:text-slate-900" href="/login">
+              Login
+            </Link>
+            <Link className="text-slate-600 transition hover:text-slate-900" href="/registrieren">
+              Registrieren
+            </Link>
+            <Link className="text-slate-600 transition hover:text-slate-900" href="/impressum">
+              Impressum
+            </Link>
+            <Link className="text-slate-600 transition hover:text-slate-900" href="/datenschutz">
+              Datenschutz
+            </Link>
+            <Link className="text-slate-600 transition hover:text-slate-900" href="/agb">
+              AGB
+            </Link>
+            <OpenConsentButton className="text-left text-slate-600 transition hover:text-slate-900" />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-slate-200/70">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
           <span>© {new Date().getFullYear()} SEPANA</span>
-          <span>Hinweis: Konditionen bonitäts- & objektabhängig.</span>
+          <span>Konditionen sind bonitäts- und objektabhängig.</span>
         </div>
       </div>
     </footer>

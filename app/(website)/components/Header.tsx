@@ -1,28 +1,32 @@
 "use client"
 
-import Link from "next/link"
 import Image from "next/image"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 
-const ACCENT = "#091840"
+const PRIMARY = "#0a2342"
 const PORTAL_HREF = "/app"
 
-function cn(...c: Array<string | false | null | undefined>) {
-  return c.filter(Boolean).join(" ")
+type NavItem = {
+  href: string
+  label: string
+  soon?: boolean
 }
 
-const NAV = [
+const NAV: NavItem[] = [
   { href: "/baufinanzierung", label: "Baufinanzierung" },
-  { href: "/privatkredit", label: "Privatkredit" },
+  { href: "/privatkredit", label: "Privatkredit", soon: true },
 ]
 
-function IconX(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" {...props}>
-      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
-  )
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ")
+}
+
+function isActive(pathname: string, href: string) {
+  if (href === "/") return pathname === "/"
+  return pathname === href || pathname.startsWith(`${href}/`)
 }
 
 function IconMenu(props: React.SVGProps<SVGSVGElement>) {
@@ -33,27 +37,44 @@ function IconMenu(props: React.SVGProps<SVGSVGElement>) {
   )
 }
 
-export default function Header() {
-  const [open, setOpen] = useState(false)
-  const panelRef = useRef<HTMLDivElement | null>(null)
-  const btnRef = useRef<HTMLButtonElement | null>(null)
+function IconClose(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" {...props}>
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  )
+}
 
+function SoonBadge() {
+  return (
+    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-700">
+      Bald eröffnet
+    </span>
+  )
+}
+
+export default function Header() {
+  const pathname = usePathname()
   const supabase = useMemo(() => createBrowserSupabaseClient(), [])
 
+  const [menuOpen, setMenuOpen] = useState(false)
   const [isAuthed, setIsAuthed] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
 
-  // ESC + outside click
+  const panelRef = useRef<HTMLDivElement | null>(null)
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
+
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false)
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false)
     }
-    function onPointerDown(e: PointerEvent) {
-      if (!open) return
-      const t = e.target as Node
-      if (panelRef.current?.contains(t)) return
-      if (btnRef.current?.contains(t)) return
-      setOpen(false)
+
+    function onPointerDown(event: PointerEvent) {
+      if (!menuOpen) return
+      const target = event.target as Node
+      if (panelRef.current?.contains(target)) return
+      if (buttonRef.current?.contains(target)) return
+      setMenuOpen(false)
     }
 
     document.addEventListener("keydown", onKey)
@@ -62,20 +83,30 @@ export default function Header() {
       document.removeEventListener("keydown", onKey)
       document.removeEventListener("pointerdown", onPointerDown)
     }
-  }, [open])
+  }, [menuOpen])
 
-  // ✅ Auth check: getUser() (statt getSession) + bei Events nochmal getUser()
   useEffect(() => {
+    if (pathname.startsWith("/einladung")) {
+      setIsAuthed(false)
+      setAuthChecked(true)
+      return
+    }
+
     let alive = true
 
-    async function refreshAuth() {
+    const refreshAuth = async () => {
       try {
         const { data, error } = await supabase.auth.getUser()
         if (!alive) return
-        if (error) console.error("Header getUser error:", error)
-        setIsAuthed(!!data.user)
-      } catch (e) {
+        if (error && error.name !== "AuthSessionMissingError") {
+          console.error("Header auth check failed:", error)
+        }
+        setIsAuthed(Boolean(data.user))
+      } catch (error: unknown) {
         if (!alive) return
+        if (!(error instanceof Error) || (error.name !== "AbortError" && error.name !== "AuthSessionMissingError")) {
+          console.error("Header auth check failed:", error)
+        }
         setIsAuthed(false)
       } finally {
         if (!alive) return
@@ -83,125 +114,133 @@ export default function Header() {
       }
     }
 
-    refreshAuth()
+    void refreshAuth()
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async () => {
-      await refreshAuth()
+    const { data: subscription } = supabase.auth.onAuthStateChange(() => {
+      void refreshAuth()
     })
 
     return () => {
       alive = false
-      sub.subscription.unsubscribe()
+      subscription.subscription.unsubscribe()
     }
-  }, [supabase])
+  }, [pathname, supabase])
 
   const authLink = isAuthed ? { href: PORTAL_HREF, label: "Portal" } : { href: "/login", label: "Login" }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-        {/* LOGO */}
+    <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="group inline-flex items-center rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
           aria-label="Zur Startseite"
-          onClick={() => setOpen(false)}
+          onClick={() => setMenuOpen(false)}
+          className="inline-flex items-center rounded-2xl border border-slate-200/80 bg-white px-3 py-2 shadow-sm transition hover:border-slate-300"
         >
-          <span className="inline-flex items-center rounded-2xl border border-slate-200/70 bg-white/80 shadow-sm backdrop-blur px-3 py-2 transition group-hover:shadow-md group-hover:border-slate-300/70">
-            <Image src="/og.png" alt="SEPANA" width={210} height={64} priority className="h-11 w-auto md:h-8" />
-          </span>
+          <Image src="/og.png" alt="SEPANA" width={220} height={66} priority className="h-8 w-auto sm:h-9" />
         </Link>
 
-        {/* Desktop Nav */}
-        <nav className="hidden items-center gap-2 md:flex" aria-label="Hauptnavigation">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-white/70 hover:shadow-sm hover:ring-1 hover:ring-slate-200/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-            >
-              {item.label}
-            </Link>
-          ))}
+        <nav className="hidden items-center gap-2 lg:flex" aria-label="Hauptnavigation">
+          {NAV.map((item) => {
+            const active = isActive(pathname, item.href)
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition",
+                  active
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                )}
+              >
+                <span>{item.label}</span>
+                {item.soon ? <SoonBadge /> : null}
+              </Link>
+            )
+          })}
 
-          <div className="mx-1 h-6 w-px bg-slate-200/70" aria-hidden />
+          <div className="mx-1 h-6 w-px bg-slate-200" aria-hidden />
 
-          {/* Login / Portal */}
           <Link
             href={authLink.href}
             className={cn(
-              "rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-white/70 hover:shadow-sm hover:ring-1 hover:ring-slate-200/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300",
+              "rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900",
               !authChecked && "pointer-events-none opacity-60"
             )}
           >
-            {authChecked ? authLink.label : "…"}
+            {authChecked ? authLink.label : "..."}
           </Link>
 
           <Link
             href="/baufinanzierung"
-            className="ml-2 inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-            style={{ backgroundColor: ACCENT }}
+            className="ml-2 inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
+            style={{ backgroundColor: PRIMARY }}
           >
-            Vergleich starten
+            Jetzt starten
           </Link>
         </nav>
 
-        {/* Mobile Toggle */}
         <button
-          ref={btnRef}
-          className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/70 shadow-sm transition hover:bg-white hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-          onClick={() => setOpen((v) => !v)}
-          aria-label={open ? "Menü schließen" : "Menü öffnen"}
-          aria-expanded={open}
+          ref={buttonRef}
+          type="button"
+          aria-expanded={menuOpen}
+          aria-label={menuOpen ? "Menü schließen" : "Menü öffnen"}
+          onClick={() => setMenuOpen((current) => !current)}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm transition hover:bg-slate-50 lg:hidden"
         >
-          {open ? <IconX className="h-5 w-5 text-slate-900" /> : <IconMenu className="h-5 w-5 text-slate-900" />}
+          {menuOpen ? <IconClose className="h-5 w-5" /> : <IconMenu className="h-5 w-5" />}
         </button>
       </div>
 
-      {/* Mobile Dropdown Panel */}
       <div
         ref={panelRef}
         className={cn(
-          "md:hidden overflow-hidden border-t border-slate-200/70 bg-white/90 backdrop-blur-xl",
+          "overflow-hidden border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden",
           "transition-[max-height,opacity] duration-200",
-          open ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+          menuOpen ? "max-h-[460px] opacity-100" : "max-h-0 opacity-0"
         )}
       >
-        <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
-          <div className="grid gap-1">
-            {NAV.map((item) => (
+        <div className="mx-auto max-w-7xl space-y-2 px-4 py-3 sm:px-6 lg:px-8">
+          {NAV.map((item) => {
+            const active = isActive(pathname, item.href)
+            return (
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setOpen(false)}
-                className="rounded-2xl px-3 py-3 text-sm text-slate-900 transition hover:bg-white hover:shadow-sm hover:ring-1 hover:ring-slate-200/70"
+                onClick={() => setMenuOpen(false)}
+                className={cn(
+                  "flex items-center justify-between rounded-2xl px-3 py-3 text-sm font-medium transition",
+                  active ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-800 hover:bg-slate-100"
+                )}
               >
-                {item.label}
+                <span>{item.label}</span>
+                {item.soon ? <SoonBadge /> : null}
               </Link>
-            ))}
+            )
+          })}
 
-            <Link
-              href={authLink.href}
-              onClick={() => setOpen(false)}
-              className={cn(
-                "rounded-2xl px-3 py-3 text-sm text-slate-900 transition hover:bg-white hover:shadow-sm hover:ring-1 hover:ring-slate-200/70",
-                !authChecked && "pointer-events-none opacity-60"
-              )}
-            >
-              {authChecked ? authLink.label : "…"}
-            </Link>
+          <Link
+            href={authLink.href}
+            onClick={() => setMenuOpen(false)}
+            className={cn(
+              "flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-3 text-sm font-medium text-slate-800 transition hover:bg-slate-100",
+              !authChecked && "pointer-events-none opacity-60"
+            )}
+          >
+            {authChecked ? authLink.label : "..."}
+          </Link>
 
-            <Link
-              href="/baufinanzierung"
-              onClick={() => setOpen(false)}
-              className="mt-2 inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-medium text-white shadow-sm transition hover:opacity-95"
-              style={{ backgroundColor: ACCENT }}
-            >
-              Vergleich starten
-            </Link>
+          <Link
+            href="/baufinanzierung"
+            onClick={() => setMenuOpen(false)}
+            className="mt-1 inline-flex w-full items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold text-white shadow-sm"
+            style={{ backgroundColor: PRIMARY }}
+          >
+            Baufinanzierung starten
+          </Link>
 
-            <p className="pt-2 text-xs text-slate-500">Schnell & kostenlos – dauert nur 2 Minuten.</p>
-          </div>
+          <p className="pt-1 text-xs text-slate-500">Privatkredit folgt als nächstes Modul.</p>
         </div>
       </div>
     </header>

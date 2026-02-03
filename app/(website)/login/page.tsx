@@ -10,8 +10,8 @@ import { Alert, Button, Icon, Input } from "../components/auth/ui"
 function normalizeError(message: string) {
   const m = (message || "").toLowerCase()
   if (m.includes("invalid login credentials")) return "E-Mail oder Passwort ist falsch."
-  if (m.includes("email not confirmed")) return "Bitte bestätigen Sie zuerst Ihre E-Mail."
-  if (m.includes("too many requests")) return "Zu viele Versuche. Bitte kurz warten und erneut versuchen."
+  if (m.includes("email not confirmed")) return "Bitte bestaetigen Sie zuerst Ihre E-Mail."
+  if (m.includes("too many requests")) return "Zu viele Versuche. Bitte kurz warten und erneut probieren."
   return message || "Login fehlgeschlagen."
 }
 
@@ -55,67 +55,73 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
 
-      // ✅ wichtig: Server/Middleware/Header sehen Auth sofort
       router.refresh()
       router.replace(next)
-    } catch (err: any) {
-      setMsg({ type: "err", text: normalizeError(err?.message ?? "") })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : ""
+      setMsg({ type: "err", text: normalizeError(message) })
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <AuthShell title="Login" subtitle="Melden Sie sich an, um Ihren Vorgang sicher zu verwalten.">
-      <form onSubmit={submit} className="grid gap-4" noValidate>
-        <Input
-          error={errors.email}
-          leftIcon={<Icon name="mail" />}
-          placeholder="name@firma.de"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
-          inputMode="email"
-        />
+    <AuthShell title="Login" subtitle="Melden Sie sich an und setzen Sie Ihren Baufinanzierungsprozess nahtlos fort.">
+      <form onSubmit={submit} className="grid gap-5" noValidate>
+        <div className="grid gap-1.5">
+          <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">E-Mail</label>
+          <Input
+            error={errors.email}
+            leftIcon={<Icon name="mail" />}
+            placeholder="name@firma.de"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            inputMode="email"
+          />
+        </div>
 
-        <Input
-          error={errors.password}
-          leftIcon={<Icon name="lock" />}
-          placeholder="••••••••"
-          type={showPw ? "text" : "password"}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          rightSlot={
-            <button
-              type="button"
-              onClick={() => setShowPw((v) => !v)}
-              className="rounded-xl px-2 py-1 text-slate-600 hover:bg-slate-50"
-              aria-label={showPw ? "Passwort verbergen" : "Passwort anzeigen"}
-            >
-              <Icon name={showPw ? "eyeOff" : "eye"} />
-            </button>
-          }
-        />
+        <div className="grid gap-1.5">
+          <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Passwort</label>
+          <Input
+            error={errors.password}
+            leftIcon={<Icon name="lock" />}
+            placeholder="••••••••"
+            type={showPw ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            rightSlot={
+              <button
+                type="button"
+                onClick={() => setShowPw((v) => !v)}
+                className="rounded-xl px-2 py-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label={showPw ? "Passwort verbergen" : "Passwort anzeigen"}
+              >
+                <Icon name={showPw ? "eyeOff" : "eye"} />
+              </button>
+            }
+          />
+        </div>
 
-        {msg && <Alert type={msg.type}>{msg.text}</Alert>}
+        {msg ? <Alert type={msg.type}>{msg.text}</Alert> : null}
 
         <Button loading={busy} type="submit">
           Einloggen <Icon name="arrow" className="h-4 w-4" />
         </Button>
 
-        <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <Link className="text-slate-600 hover:text-slate-900" href="/passwort-vergessen">
-            Passwort vergessen?
-          </Link>
-          <Link className="text-slate-600 hover:text-slate-900" href="/registrieren">
-            Konto erstellen
-          </Link>
+        <div className="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3.5 text-sm text-slate-600">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <Link className="font-medium text-slate-700 underline underline-offset-2 transition hover:text-slate-900" href="/passwort-vergessen">
+              Passwort vergessen?
+            </Link>
+            <Link className="font-medium text-slate-700 underline underline-offset-2 transition hover:text-slate-900" href="/registrieren">
+              Konto erstellen
+            </Link>
+          </div>
         </div>
 
-        <div className="pt-2 text-xs text-slate-500">
-          Tipp: Nutzen Sie Ihr Portal für Uploads & Status — keine unübersichtlichen E-Mail-Verläufe.
-        </div>
+        <p className="text-xs leading-relaxed text-slate-500">Tipp: Nutzen Sie Ihr Portal fuer Uploads und Status statt langer Mailverlaeufe.</p>
       </form>
     </AuthShell>
   )

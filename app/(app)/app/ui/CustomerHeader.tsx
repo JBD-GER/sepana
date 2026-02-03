@@ -2,11 +2,8 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { useEffect, useMemo, useRef, useState } from "react"
-import { usePathname, useRouter } from "next/navigation"
-import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
-
-const ACCENT = "#091840"
+import { useEffect, useRef, useState } from "react"
+import { usePathname } from "next/navigation"
 
 function cn(...c: Array<string | false | null | undefined>) {
   return c.filter(Boolean).join(" ")
@@ -15,7 +12,6 @@ function cn(...c: Array<string | false | null | undefined>) {
 const NAV = [
   { href: "/app", label: "Dashboard" },
   { href: "/app/faelle", label: "Fälle" },
-  { href: "/app/online-filiale", label: "Online Filiale" },
   { href: "/app/termine", label: "Termine" },
   { href: "/app/feedback", label: "Feedback" },
   { href: "/app/profil", label: "Profil" },
@@ -37,24 +33,19 @@ function IconMenu(props: React.SVGProps<SVGSVGElement>) {
   )
 }
 
-export default function CustomerHeader() {
+export default function CustomerHeader({ initialEmail }: { initialEmail?: string | null }) {
   const pathname = usePathname()
-  const router = useRouter()
+  const email = initialEmail ?? null
 
   const [open, setOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const btnRef = useRef<HTMLButtonElement | null>(null)
 
-  const supabase = useMemo(() => createBrowserSupabaseClient(), [])
-
-  const [email, setEmail] = useState<string | null>(null)
-  const [authChecked, setAuthChecked] = useState(false)
-
-  // ESC + outside click
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false)
     }
+
     function onPointerDown(e: PointerEvent) {
       if (!open) return
       const t = e.target as Node
@@ -62,6 +53,7 @@ export default function CustomerHeader() {
       if (btnRef.current?.contains(t)) return
       setOpen(false)
     }
+
     document.addEventListener("keydown", onKey)
     document.addEventListener("pointerdown", onPointerDown)
     return () => {
@@ -70,57 +62,24 @@ export default function CustomerHeader() {
     }
   }, [open])
 
-  // ✅ Auth: getUser() + Events -> refresh
-  useEffect(() => {
-    let alive = true
-
-    async function refreshAuth() {
-      try {
-        const { data, error } = await supabase.auth.getUser()
-        if (!alive) return
-        if (error) console.error("CustomerHeader getUser error:", error)
-        setEmail(data.user?.email ?? null)
-      } finally {
-        if (!alive) return
-        setAuthChecked(true)
-      }
-    }
-
-    refreshAuth()
-
-    const { data: sub } = supabase.auth.onAuthStateChange(async () => {
-      await refreshAuth()
-    })
-
-    return () => {
-      alive = false
-      sub.subscription.unsubscribe()
-    }
-  }, [supabase])
-
-async function logout() {
-  // KEIN router.refresh/replace – das ist hier genau das Problem
-  window.location.assign(`/api/auth/logout?next=/login&_ts=${Date.now()}`)
-}
-
-
+  function logout() {
+    window.location.assign(`/api/auth/logout?next=/login&_ts=${Date.now()}`)
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        {/* LOGO */}
         <Link
           href="/app"
           className="group inline-flex items-center rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
           aria-label="Zum Kundenportal"
           onClick={() => setOpen(false)}
         >
-          <span className="inline-flex items-center rounded-2xl border border-slate-200/70 bg-white/80 shadow-sm backdrop-blur px-3 py-2 transition group-hover:shadow-md group-hover:border-slate-300/70">
+          <span className="inline-flex items-center rounded-2xl border border-slate-200/70 bg-white/80 px-3 py-2 shadow-sm backdrop-blur transition group-hover:border-slate-300/70 group-hover:shadow-md">
             <Image src="/og.png" alt="SEPANA" width={210} height={64} priority className="h-11 w-auto md:h-8" />
           </span>
         </Link>
 
-        {/* Desktop Nav */}
         <nav className="hidden items-center gap-2 md:flex" aria-label="Portal Navigation">
           {NAV.map((item) => {
             const active = pathname === item.href
@@ -140,41 +99,33 @@ async function logout() {
             )
           })}
 
+          <Link
+            href="/baufinanzierung"
+            className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+          >
+            Vergleich starten
+          </Link>
+
           <div className="mx-1 h-6 w-px bg-slate-200/70" aria-hidden />
 
-          {/* Email pill */}
           <div
-            className={cn(
-              "hidden lg:flex items-center rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2 text-sm text-slate-700 shadow-sm",
-              !authChecked && "opacity-60"
-            )}
+            className="hidden items-center rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2 text-sm text-slate-700 shadow-sm lg:flex"
             title={email ?? ""}
           >
-            {authChecked ? (email ?? "—") : "…"}
+            {email ?? "-"}
           </div>
 
-          {/* Logout */}
           <button
             onClick={logout}
             className="rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-white/70 hover:shadow-sm hover:ring-1 hover:ring-slate-200/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
           >
             Logout
           </button>
-
-          {/* Primary CTA */}
-          <Link
-            href="/app/online-filiale"
-            className="ml-2 inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-            style={{ backgroundColor: ACCENT }}
-          >
-            Online Filiale
-          </Link>
         </nav>
 
-        {/* Mobile Toggle */}
         <button
           ref={btnRef}
-          className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/70 shadow-sm transition hover:bg-white hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/70 shadow-sm transition hover:bg-white hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 md:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? "Menü schließen" : "Menü öffnen"}
           aria-expanded={open}
@@ -183,12 +134,10 @@ async function logout() {
         </button>
       </div>
 
-      {/* Mobile Panel */}
       <div
         ref={panelRef}
         className={cn(
-          "md:hidden overflow-hidden border-t border-slate-200/70 bg-white/90 backdrop-blur-xl",
-          "transition-[max-height,opacity] duration-200",
+          "overflow-hidden border-t border-slate-200/70 bg-white/90 backdrop-blur-xl transition-[max-height,opacity] duration-200 md:hidden",
           open ? "max-h-[520px] opacity-100" : "max-h-0 opacity-0"
         )}
       >
@@ -213,9 +162,17 @@ async function logout() {
               )
             })}
 
+            <Link
+              href="/baufinanzierung"
+              onClick={() => setOpen(false)}
+              className="mt-1 inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+            >
+              Vergleich starten
+            </Link>
+
             <div className="mt-2 rounded-2xl border border-slate-200/70 bg-white/70 p-3 shadow-sm">
               <div className="text-xs text-slate-500">Eingeloggt als</div>
-              <div className="mt-1 text-sm font-medium text-slate-900">{authChecked ? (email ?? "—") : "…"}</div>
+              <div className="mt-1 text-sm font-medium text-slate-900">{email ?? "-"}</div>
             </div>
 
             <button
@@ -225,16 +182,9 @@ async function logout() {
               Logout
             </button>
 
-            <Link
-              href="/app/online-filiale"
-              onClick={() => setOpen(false)}
-              className="mt-2 inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-medium text-white shadow-sm transition hover:opacity-95"
-              style={{ backgroundColor: ACCENT }}
-            >
-              Online Filiale
-            </Link>
-
-            <p className="pt-2 text-xs text-slate-500">Alles mobil optimiert – klar & übersichtlich.</p>
+            <p className="pt-2 text-xs text-slate-500">
+              Alles mobil optimiert – klar und übersichtlich.
+            </p>
           </div>
         </div>
       </div>

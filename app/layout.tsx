@@ -10,16 +10,16 @@ const inter = Inter({
 
 const SITE_NAME = "SEPANA"
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-const OG_IMAGE = "/og.jpg" // liegt in /public/og.jpg
+const OG_IMAGE = "/og.jpg"
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} – Online-Kreditvergleich & Live-Beratung`,
+    default: `${SITE_NAME} | Digitale Baufinanzierung`,
     template: `%s | ${SITE_NAME}`,
   },
   description:
-    "SEPANA verbindet Online-Kreditvergleich mit persönlicher Live-Beratung – für Baufinanzierung und Privatkredit. Klar, effizient und transparent bis zur finalen Bankentscheidung.",
+    "SEPANA ist die digitale Plattform für Baufinanzierung: vergleichen, Angebote auswählen, Unterlagen sicher hochladen und live finalisieren.",
   applicationName: SITE_NAME,
   alternates: {
     canonical: "/",
@@ -39,24 +39,24 @@ export const metadata: Metadata = {
     type: "website",
     url: SITE_URL,
     siteName: SITE_NAME,
-    title: `${SITE_NAME} – Online-Kreditvergleich & Live-Beratung`,
+    title: `${SITE_NAME} | Digitale Baufinanzierung`,
     description:
-      "Online vergleichen oder live beraten lassen: Baufinanzierung und Privatkredit – professionell begleitet, transparent und effizient.",
+      "Baufinanzierung in einem klaren End-to-End-Flow: Erfassung, Vergleich, Auswahl, Upload und Live-Beratung.",
     images: [
       {
         url: OG_IMAGE,
         width: 1200,
         height: 630,
-        alt: `${SITE_NAME} – Open Graph`,
+        alt: `${SITE_NAME} Open Graph`,
       },
     ],
     locale: "de_DE",
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_NAME} – Online-Kreditvergleich & Live-Beratung`,
+    title: `${SITE_NAME} | Digitale Baufinanzierung`,
     description:
-      "Online vergleichen oder live beraten lassen: Baufinanzierung und Privatkredit – professionell begleitet, transparent und effizient.",
+      "Vergleichen, auswählen und abschließen: die SEPANA-Plattform für moderne Baufinanzierung.",
     images: [OG_IMAGE],
   },
   icons: {
@@ -70,7 +70,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#091840", // neue Akzentfarbe
+  themeColor: "#0a2342",
 }
 
 export default function RootLayout({
@@ -78,9 +78,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="de">
-      <body className={`${inter.variable} font-sans antialiased`}>
-        {children}
-      </body>
+      <body className={`${inter.variable} font-sans antialiased`}>{children}</body>
     </html>
   )
 }

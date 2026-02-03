@@ -3,8 +3,14 @@ export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
+import { logCaseEvent, buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 
 type Payload = {
+  baufi?: {
+    purpose?: string
+    property_type?: string
+    purchase_price?: string
+  }
   primary: {
     first_name: string
     last_name: string
@@ -38,6 +44,11 @@ type Payload = {
 
 function isEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+}
+
+function isPhone(v?: string) {
+  const digits = String(v ?? "").replace(/\D/g, "")
+  return digits.length >= 6
 }
 
 /**
@@ -83,8 +94,8 @@ async function findUserIdByEmail(sb: ReturnType<typeof supabaseAdmin>, email: st
     const { data, error } = await sb.auth.admin.listUsers({ page, perPage })
     if (error) throw error
 
-    const users = data?.users ?? []
-    const hit = users.find((u: any) => (u?.email ?? "").toLowerCase() === target)
+    const users = (data?.users ?? []) as Array<{ id?: string | null; email?: string | null }>
+    const hit = users.find((u) => (u?.email ?? "").toLowerCase() === target)
     if (hit?.id) return hit.id as string
 
     if (users.length < perPage) break
@@ -93,17 +104,77 @@ async function findUserIdByEmail(sb: ReturnType<typeof supabaseAdmin>, email: st
   return null
 }
 
+async function pickRandomAdvisorId(sb: ReturnType<typeof supabaseAdmin>) {
+  const { data } = await sb.from("advisor_profiles").select("user_id").eq("is_active", true)
+  const rows = (data ?? []) as Array<{ user_id?: string | null }>
+  const ids = rows.map((x) => x.user_id).filter((v): v is string => Boolean(v))
+  if (!ids.length) return null
+  const idx = Math.floor(Math.random() * ids.length)
+  return ids[idx] as string
+}
+
+async function pickStickyAdvisorId(sb: ReturnType<typeof supabaseAdmin>, customerId: string) {
+  const { data: priorCases } = await sb
+    .from("cases")
+    .select("assigned_advisor_id")
+    .eq("customer_id", customerId)
+    .not("assigned_advisor_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(50)
+
+  const candidateRows = (priorCases ?? []) as Array<{ assigned_advisor_id?: string | null }>
+  const candidateIds = Array.from(
+    new Set(
+      candidateRows
+        .map((row) => row.assigned_advisor_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    )
+  )
+
+  if (!candidateIds.length) {
+    return pickRandomAdvisorId(sb)
+  }
+
+  const { data: activeRows } = await sb
+    .from("advisor_profiles")
+    .select("user_id")
+    .in("user_id", candidateIds)
+    .eq("is_active", true)
+
+  const activeRowsTyped = (activeRows ?? []) as Array<{ user_id?: string | null }>
+  const activeSet = new Set(
+    activeRowsTyped
+      .map((row) => row.user_id)
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
+  )
+
+  const sticky = candidateIds.find((id) => activeSet.has(id))
+  if (sticky) return sticky
+
+  return pickRandomAdvisorId(sb)
+}
+
 export async function POST(req: Request) {
   const sb = supabaseAdmin()
 
   try {
     const body = (await req.json()) as Payload
 
-    if (!body?.primary?.first_name?.trim() || !body?.primary?.last_name?.trim() || !body?.primary?.email?.trim()) {
+    if (
+      !body?.primary?.first_name?.trim() ||
+      !body?.primary?.last_name?.trim() ||
+      !body?.primary?.email?.trim() ||
+      !body?.primary?.phone?.trim() ||
+      !body?.primary?.birth_date?.trim() ||
+      !body?.primary?.marital_status?.trim()
+    ) {
       return NextResponse.json({ error: "Pflichtfelder fehlen." }, { status: 400 })
     }
     if (!isEmail(body.primary.email)) {
       return NextResponse.json({ error: "Ungültige E-Mail." }, { status: 400 })
+    }
+    if (!isPhone(body.primary.phone)) {
+      return NextResponse.json({ error: "Ungültige Telefonnummer." }, { status: 400 })
     }
 
     const email = body.primary.email.trim().toLowerCase()
@@ -141,15 +212,19 @@ export async function POST(req: Request) {
       }
     }
 
+    if (!userId) {
+      return NextResponse.json({ error: "User konnte nicht aufgeloest werden." }, { status: 500 })
+    }
+
     // 3) profiles upsert (auch bei existing)
     await sb.from("profiles").upsert({
-      id: userId,
-      email,
+      user_id: userId,
       role: "customer",
     })
 
     // 4) Case anlegen
     const caseRef = await nextCaseRef(sb)
+    const assignedAdvisorId = await pickStickyAdvisorId(sb, userId)
 
     const { data: createdCase, error: caseErr } = await sb
       .from("cases")
@@ -157,6 +232,7 @@ export async function POST(req: Request) {
         case_type: "baufi",
         status: "comparison_ready",
         customer_id: userId,
+        assigned_advisor_id: assignedAdvisorId,
         entry_channel: "funnel",
         language: body.language || "de",
         is_email_verified: false,
@@ -167,6 +243,20 @@ export async function POST(req: Request) {
 
     if (caseErr) throw caseErr
     const caseId = createdCase.id as string
+
+    // 4.5) Baufi Eckdaten speichern (aus BaufiStart)
+    const { error: baufiErr } = await sb
+      .from("case_baufi_details")
+      .upsert(
+        {
+          case_id: caseId,
+          purpose: body?.baufi?.purpose ?? null,
+          property_type: body?.baufi?.property_type ?? null,
+          purchase_price: numOrNull(body?.baufi?.purchase_price),
+        },
+        { onConflict: "case_id" }
+      )
+    if (baufiErr) throw baufiErr
 
     // 5) Applicants speichern (✅ korrekt normalisiert)
     const primaryRow = {
@@ -209,6 +299,49 @@ export async function POST(req: Request) {
     const { error: appErr } = await sb.from("case_applicants").insert([primaryRow, ...coRows])
     if (appErr) throw appErr
 
+    // 6) Dokumenten-Requests automatisch aus Templates (baufi)
+    const { data: templates } = await sb
+      .from("document_templates")
+      .select("title,required,sort_order")
+      .eq("case_type", "baufi")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+
+    const createdBy = assignedAdvisorId || userId
+    if (templates?.length) {
+      const rows = templates.map((t) => ({
+        case_id: caseId,
+        title: t.title,
+        required: t.required,
+        created_by: createdBy,
+      }))
+      const { error: reqErr } = await sb.from("document_requests").insert(rows)
+      if (reqErr) throw reqErr
+    }
+
+    await logCaseEvent({
+      caseId,
+      actorId: userId,
+      actorRole: "customer",
+      type: "bank_selected",
+      title: "Bankauswahl bestaetigt",
+      body: "Der Kunde hat seine Bankauswahl bestaetigt.",
+      meta: { case_ref: caseRef },
+    })
+
+    const html = buildEmailHtml({
+      title: "Auswahl bestaetigt",
+      intro: "Vielen Dank. Ihre Auswahl wurde bestaetigt.",
+      steps: [
+        "Ein Berater meldet sich in Kuerze bei Ihnen.",
+        "Sie koennen jederzeit Unterlagen im Portal hochladen.",
+        "Bei Fragen nutzen Sie bitte den Chat im Fall.",
+      ],
+    })
+    if (email) {
+      await sendEmail({ to: email, subject: "Naechste Schritte zur Baufinanzierung", html })
+    }
+
     return NextResponse.json({
       ok: true,
       caseId,
@@ -219,7 +352,8 @@ export async function POST(req: Request) {
         ? "Konto existiert bereits – Vergleich wurde im Portal hinterlegt."
         : "Konto erstellt – Invite wurde gesendet.",
     })
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Serverfehler." }, { status: 500 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Serverfehler."
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

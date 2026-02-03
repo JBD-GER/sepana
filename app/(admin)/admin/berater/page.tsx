@@ -1,6 +1,7 @@
-import { requireAdmin } from "@/lib/admin/requireAdmin"
+﻿import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import InviteAdvisorForm from "./ui/InviteAdvisorForm"
+import AdvisorRowEditor from "./ui/AdvisorRowEditor"
 
 function eur(n: number) {
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(n)
@@ -17,6 +18,16 @@ export default async function AdminAdvisorsPage() {
     .order("created_at", { ascending: false })
 
   const advisorIds = (advisors ?? []).map((a) => a.user_id)
+
+  const { data: advisorProfiles } = advisorIds.length
+    ? await admin
+        .from("advisor_profiles")
+        .select("user_id,display_name,bio,languages,photo_path,is_active,phone")
+        .in("user_id", advisorIds)
+    : { data: [] as any[] }
+
+  const profileById = new Map<string, any>()
+  for (const p of advisorProfiles ?? []) profileById.set(p.user_id, p)
 
   const { data: cases } = advisorIds.length
     ? await admin.from("cases").select("id,assigned_advisor_id").in("assigned_advisor_id", advisorIds)
@@ -55,48 +66,65 @@ export default async function AdminAdvisorsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Berater</h1>
-        <p className="mt-1 text-sm text-slate-600">Berater per Einladung hinzufügen und KPIs je Berater ansehen.</p>
+      <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100 p-6 shadow-sm">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Verwaltung</div>
+            <h1 className="mt-1 text-2xl font-semibold text-slate-900">Berater</h1>
+            <p className="mt-1 text-sm text-slate-600">Berater per Einladung hinzufügen und KPIs je Berater ansehen.</p>
+          </div>
+          <div className="rounded-full border border-slate-200/70 bg-white px-3 py-1 text-xs text-slate-600">
+            Admin Bereich
+          </div>
+        </div>
       </div>
 
       <InviteAdvisorForm />
 
-      <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
-        <div className="text-sm font-medium text-slate-900">Beraterliste</div>
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-sm font-medium text-slate-900">Beraterliste</div>
+          <div className="text-xs text-slate-500">{(advisors ?? []).length} Berater</div>
+        </div>
 
-        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-white/80 backdrop-blur">
-              <tr className="border-b border-slate-200/70">
-                <th className="px-4 py-3 font-medium text-slate-700">E-Mail</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Zugewiesene Fälle</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Angebotsvolumen</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Abgeschlossen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(advisors ?? []).map((a) => {
-                const id = a.user_id
-                return (
-                  <tr key={id} className="border-b border-slate-200/60 last:border-0 hover:bg-slate-50/60">
-                    <td className="px-4 py-3 text-slate-900">{emailById.get(id) || id}</td>
-                    <td className="px-4 py-3 text-slate-700">{casesByAdvisor.get(id) ?? 0}</td>
-                    <td className="px-4 py-3 text-slate-700">{eur(offerVolByAdvisor.get(id) ?? 0)}</td>
-                    <td className="px-4 py-3 text-slate-700">{eur(closedVolByAdvisor.get(id) ?? 0)}</td>
-                  </tr>
-                )
-              })}
+        <div className="mt-4 space-y-4">
+          {(advisors ?? []).map((a) => {
+            const id = a.user_id
+            const profile = profileById.get(id) ?? {
+              display_name: null,
+              bio: null,
+              languages: [],
+              photo_path: null,
+            }
+            return (
+              <div key={id} className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
+                <AdvisorRowEditor userId={id} email={emailById.get(id) || id} initial={profile} />
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600 sm:grid-cols-4">
+                  <div>
+                    Zugewiesene Fälle:{" "}
+                    <span className="font-medium text-slate-900">{casesByAdvisor.get(id) ?? 0}</span>
+                  </div>
+                  <div>
+                    Angebotsvolumen:{" "}
+                    <span className="font-medium text-slate-900">{eur(offerVolByAdvisor.get(id) ?? 0)}</span>
+                  </div>
+                  <div>
+                    Abgeschlossen:{" "}
+                    <span className="font-medium text-slate-900">{eur(closedVolByAdvisor.get(id) ?? 0)}</span>
+                  </div>
+                  <div>
+                    ID: <span className="font-medium text-slate-900">{id.slice(0, 8)}…</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
 
-              {(advisors ?? []).length === 0 ? (
-                <tr>
-                  <td className="px-4 py-6 text-slate-500" colSpan={4}>
-                    Noch keine Berater vorhanden.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+          {(advisors ?? []).length === 0 ? (
+            <div className="rounded-2xl border border-slate-200/70 bg-white px-4 py-6 text-sm text-slate-500">
+              Noch keine Berater vorhanden.
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

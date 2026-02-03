@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import AssignAdvisorButton from "./ui/AssignAdvisorButton"
 import UpdateOfferStatus from "./ui/UpdateOfferStatus"
+import { translateCaseStatus } from "@/lib/caseStatus"
 
 function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(d))
@@ -20,7 +21,7 @@ export default async function AdminCasesPage() {
     admin.from("profiles").select("user_id").eq("role", "advisor"),
     admin
       .from("case_offers")
-      .select("id,case_id,provider_id,product_type,status,loan_amount,notes_for_customer,created_at")
+      .select("id,case_id,provider_id,product_type,status,bank_status,loan_amount,notes_for_customer,created_at")
       .order("created_at", { ascending: false })
       .limit(400),
     admin
@@ -90,7 +91,7 @@ export default async function AdminCasesPage() {
                     </td>
 
                     <td className="px-4 py-3 text-slate-700">{custEmail}</td>
-                    <td className="px-4 py-3 text-slate-700">{c.status}</td>
+                    <td className="px-4 py-3 text-slate-700">{translateCaseStatus(c.status)}</td>
                     <td className="px-4 py-3 text-slate-700">{advEmail}</td>
 
                     <td className="px-4 py-3 text-slate-700">

@@ -9,8 +9,8 @@ import { Alert, Button, Checkbox, Icon, Input, PasswordStrength } from "../compo
 function normalizeError(message: string) {
   const m = (message || "").toLowerCase()
   if (m.includes("user already registered")) return "Diese E-Mail ist bereits registriert. Bitte einloggen."
-  if (m.includes("password")) return "Passwort ist zu schwach oder entspricht nicht den Anforderungen."
-  return message || "Fehler"
+  if (m.includes("password")) return "Passwort ist zu schwach oder erfuellt die Anforderungen nicht."
+  return message || "Registrierung fehlgeschlagen."
 }
 
 function getSiteUrl() {
@@ -20,6 +20,7 @@ function getSiteUrl() {
 
 export default function RegisterPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), [])
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPw, setShowPw] = useState(false)
@@ -29,7 +30,6 @@ export default function RegisterPage() {
 
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
-
   const [errors, setErrors] = useState<{ email?: string; password?: string; consents?: string }>({})
 
   function validate() {
@@ -49,12 +49,10 @@ export default function RegisterPage() {
     setBusy(true)
     try {
       const siteUrl = getSiteUrl()
-
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          // ✅ falls Email-Confirm aktiv ist -> Link geht hierhin
           emailRedirectTo: `${siteUrl}/auth/confirm?mode=signup`,
           data: {
             accept_privacy: true,
@@ -65,28 +63,33 @@ export default function RegisterPage() {
       })
       if (error) throw error
 
-      setMsg({ type: "ok", text: "Konto erstellt. Bitte ggf. E-Mail bestätigen und dann einloggen." })
-    } catch (err: any) {
-      setMsg({ type: "err", text: normalizeError(err?.message ?? "") })
+      setMsg({ type: "ok", text: "Konto erstellt. Bitte ggf. E-Mail bestaetigen und danach einloggen." })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : ""
+      setMsg({ type: "err", text: normalizeError(message) })
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <AuthShell title="Konto erstellen" subtitle="Für Vergleich, Status & Uploads – bitte Zustimmung bestätigen.">
-      <form onSubmit={submit} className="grid gap-4" noValidate>
-        <Input
-          error={errors.email}
-          leftIcon={<Icon name="mail" />}
-          placeholder="name@firma.de"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
-          inputMode="email"
-        />
+    <AuthShell title="Konto erstellen" subtitle="Einmal registrieren und den gesamten Fall digital steuern.">
+      <form onSubmit={submit} className="grid gap-5" noValidate>
+        <div className="grid gap-1.5">
+          <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">E-Mail</label>
+          <Input
+            error={errors.email}
+            leftIcon={<Icon name="mail" />}
+            placeholder="name@firma.de"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            inputMode="email"
+          />
+        </div>
 
-        <div>
+        <div className="grid gap-1.5">
+          <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Passwort</label>
           <Input
             error={errors.password}
             leftIcon={<Icon name="lock" />}
@@ -99,7 +102,7 @@ export default function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setShowPw((v) => !v)}
-                className="rounded-xl px-2 py-1 text-slate-600 hover:bg-slate-50"
+                className="rounded-xl px-2 py-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
                 aria-label={showPw ? "Passwort verbergen" : "Passwort anzeigen"}
               >
                 <Icon name={showPw ? "eyeOff" : "eye"} />
@@ -109,17 +112,17 @@ export default function RegisterPage() {
           <PasswordStrength value={password} />
         </div>
 
-        <div className="grid gap-2 rounded-2xl border border-slate-200/70 bg-white/70 p-4 shadow-sm backdrop-blur">
+        <div className="grid gap-2 rounded-2xl border border-slate-200/90 bg-slate-50/80 p-4">
           <Checkbox checked={acceptPrivacy} onChange={setAcceptPrivacy}>
             Ich akzeptiere die{" "}
-            <Link className="underline hover:text-slate-900" href="/datenschutz">
-              Datenschutzerklärung
+            <Link className="underline underline-offset-2 hover:text-slate-900" href="/datenschutz">
+              Datenschutzerklaerung
             </Link>
             .
           </Checkbox>
           <Checkbox checked={acceptAgb} onChange={setAcceptAgb}>
             Ich akzeptiere die{" "}
-            <Link className="underline hover:text-slate-900" href="/agb">
+            <Link className="underline underline-offset-2 hover:text-slate-900" href="/agb">
               AGB
             </Link>
             .
@@ -128,15 +131,15 @@ export default function RegisterPage() {
           <p className="text-xs text-slate-500">Ihre Zustimmung wird bei der Registrierung gespeichert.</p>
         </div>
 
-        {msg && <Alert type={msg.type}>{msg.text}</Alert>}
+        {msg ? <Alert type={msg.type}>{msg.text}</Alert> : null}
 
         <Button loading={busy} type="submit">
           Registrieren <Icon name="spark" className="h-4 w-4" />
         </Button>
 
-        <div className="pt-1 text-sm text-slate-600">
+        <div className="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3.5 text-sm text-slate-600">
           Bereits ein Konto?{" "}
-          <Link className="underline hover:text-slate-900" href="/login">
+          <Link className="font-medium text-slate-700 underline underline-offset-2 hover:text-slate-900" href="/login">
             Zum Login
           </Link>
         </div>
