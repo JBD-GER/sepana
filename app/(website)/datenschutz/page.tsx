@@ -29,7 +29,7 @@ export default function DatenschutzPage() {
 
       <Section title="1. Verantwortlicher">
         <p>Flaaq Holding GmbH, Dammstr. 6G, 30890 Barsinghausen</p>
-        <p>E-Mail: info@serpana.de</p>
+        <p>E-Mail: info@sepana.de</p>
         <p>Telefon: 05035 3169996</p>
       </Section>
 
