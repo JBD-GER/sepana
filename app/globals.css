@@ -31,9 +31,14 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   min-height: 100vh;
+  overflow-x: clip;
   background-image:
     radial-gradient(circle at 0% 0%, rgba(15, 23, 42, 0.045) 0, rgba(15, 23, 42, 0) 36%),
     radial-gradient(circle at 100% 0%, rgba(9, 24, 64, 0.04) 0, rgba(9, 24, 64, 0) 34%);
+}
+
+html {
+  overflow-x: clip;
 }
 
 h1,
@@ -82,4 +87,27 @@ h6 {
 
 .date-field::-webkit-datetime-edit {
   color: #0f172a;
+}
+
+.date-field {
+  font-variant-numeric: tabular-nums;
+}
+
+.date-field::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+@media (max-width: 768px) {
+  :where(
+      input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+      select,
+      textarea
+    ) {
+    font-size: 16px !important;
+    line-height: 1.35;
+  }
+
+  :where(input, select, textarea) {
+    max-width: 100%;
+  }
 }

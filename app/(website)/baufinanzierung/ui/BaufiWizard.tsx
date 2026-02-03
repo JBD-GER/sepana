@@ -110,6 +110,28 @@ function formatMoneyFromNumber(n: number) {
   return nfCurrency.format(n)
 }
 
+function formatIsoDateForDisplay(value?: string) {
+  if (!value) return ""
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return value
+  return `${match[3]}.${match[2]}.${match[1]}`
+}
+
+function parseDisplayDateToIso(value: string): string | null {
+  const raw = value.trim()
+  if (!raw) return ""
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
+  const match = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/)
+  if (!match) return null
+  const day = Number(match[1])
+  const month = Number(match[2])
+  const year = Number(match[3])
+  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) return null
+  const check = new Date(Date.UTC(year, month - 1, day))
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return null
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+}
+
 type SubmitResponse = {
   ok?: boolean
   caseId?: string
@@ -409,9 +431,9 @@ export default function BaufiWizard({
   }
 
   return (
-    <div className="rounded-3xl border border-white/60 bg-white/70 shadow-sm backdrop-blur-xl">
+    <div className="overflow-hidden rounded-3xl border border-white/60 bg-white/70 shadow-sm backdrop-blur-xl">
       {/* Header / Progress */}
-      <div className="sticky top-[72px] z-10 rounded-3xl border-b border-white/60 bg-white/70 px-4 py-4 backdrop-blur-xl sm:px-6">
+      <div className="sticky top-[64px] z-10 rounded-3xl border-b border-white/60 bg-white/70 px-4 py-4 backdrop-blur-xl sm:top-[72px] sm:px-6">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm text-slate-600">
@@ -431,7 +453,7 @@ export default function BaufiWizard({
           />
         </div>
 
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {steps.map((s, idx) => {
             const active = s.id === step
             const done = idx < stepIndex
@@ -441,7 +463,7 @@ export default function BaufiWizard({
                 type="button"
                 onClick={() => setStep(s.id)}
                 className={cn(
-                  "whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition",
+                  "whitespace-nowrap rounded-full border px-3 py-1.5 text-xs transition sm:text-sm",
                   active
                     ? "border-slate-300 bg-white text-slate-900"
                     : done
@@ -609,9 +631,9 @@ function Field({
 }) {
   return (
     <label className="block">
-      <div className="mb-1 flex items-baseline justify-between gap-3">
+      <div className="mb-1 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
         <span className="text-sm font-medium text-slate-900">{label}</span>
-        {hint ? <span className="text-xs text-slate-500">{hint}</span> : null}
+        {hint ? <span className="text-xs text-slate-500 sm:text-right">{hint}</span> : null}
       </div>
       {children}
     </label>
@@ -628,10 +650,10 @@ function Tip({ children }: { children: React.ReactNode }) {
 
 function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <input
-      {...props}
-      className={cn(
-        "h-12 w-full rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/80 px-4 text-[15px] text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400",
+        <input
+          {...props}
+          className={cn(
+        "h-12 w-full rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/80 px-4 text-base text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 sm:text-[15px]",
         "focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100",
         props.className
       )}
@@ -643,10 +665,10 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   const { className, children, ...rest } = props
   return (
     <div className="relative">
-      <select
-        {...rest}
-        className={cn(
-          "h-12 w-full appearance-none rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/80 px-4 pr-10 text-[15px] text-slate-900 shadow-sm outline-none transition",
+        <select
+          {...rest}
+          className={cn(
+          "h-12 w-full appearance-none rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/80 px-4 pr-10 text-base text-slate-900 shadow-sm outline-none transition sm:text-[15px]",
           "focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100",
           className
         )}
@@ -695,20 +717,56 @@ function MoneyInput({
   )
 }
 
-function DateInput(props: Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">) {
-  const { className, onClick, ...rest } = props
+function DateInput(
+  props: Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange"> & {
+    value: string
+    onChange: (next: string) => void
+  }
+) {
+  const { className, onBlur, value, onChange, ...rest } = props
+  const [displayValue, setDisplayValue] = useState(formatIsoDateForDisplay(value))
+
+  useEffect(() => {
+    setDisplayValue(formatIsoDateForDisplay(value))
+  }, [value])
 
   return (
     <div className="relative">
       <Input
         {...rest}
-        type="date"
+        type="text"
+        inputMode="numeric"
+        placeholder="TT.MM.JJJJ"
+        value={displayValue}
         className={cn("date-field pr-11 [color-scheme:light]", className)}
-        onClick={(event) => {
-          onClick?.(event)
-          const input = event.currentTarget as HTMLInputElement & { showPicker?: () => void }
-          input.showPicker?.()
+        onChange={(event) => {
+          const raw = event.target.value
+          setDisplayValue(raw)
+          const parsed = parseDisplayDateToIso(raw)
+          if (parsed !== null) onChange(parsed)
         }}
+        onBlur={(event) => {
+          const parsed = parseDisplayDateToIso(event.target.value)
+          if (parsed === null) {
+            setDisplayValue(formatIsoDateForDisplay(value))
+          } else {
+            setDisplayValue(formatIsoDateForDisplay(parsed))
+          }
+          onBlur?.(event)
+        }}
+      />
+      <input
+        type="date"
+        value={value || ""}
+        lang="de-DE"
+        tabIndex={-1}
+        aria-hidden
+        onChange={(event) => {
+          const next = event.target.value
+          onChange(next)
+          setDisplayValue(formatIsoDateForDisplay(next))
+        }}
+        className="absolute inset-y-0 right-0 w-11 cursor-pointer opacity-0"
       />
       <div className="pointer-events-none absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500">
         <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden>
@@ -798,7 +856,7 @@ function ContactStep({
           <Field label="Geburtsdatum *" hint="für Konditionen relevant">
             <DateInput
               value={value.birth_date ?? ""}
-              onChange={(e) => onChange({ ...value, birth_date: e.target.value })}
+              onChange={(next) => onChange({ ...value, birth_date: next })}
               autoComplete="bday"
               required
             />
@@ -1142,7 +1200,7 @@ function CoApplicantsStep({
                 <Field label="Geburtsdatum">
                   <DateInput
                     value={c.birth_date ?? ""}
-                    onChange={(e) => update(i, { birth_date: e.target.value })}
+                    onChange={(next) => update(i, { birth_date: next })}
                   />
                 </Field>
 

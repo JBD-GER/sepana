@@ -175,7 +175,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     : null
 
   return (
-    <div className="space-y-6">
+    <div className="w-full overflow-x-clip space-y-6">
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>

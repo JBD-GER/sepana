@@ -57,9 +57,9 @@ function IconGift(props: React.SVGProps<SVGSVGElement>) {
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <div className="mb-1 flex items-baseline justify-between gap-3">
+      <div className="mb-1 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
         <span className="text-sm font-medium text-slate-900">{label}</span>
-        {hint ? <span className="text-xs text-slate-500">{hint}</span> : null}
+        {hint ? <span className="text-xs text-slate-500 sm:text-right">{hint}</span> : null}
       </div>
       {children}
     </label>
@@ -81,7 +81,7 @@ function Select({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={cn(
-          "h-12 w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 pr-10 text-[15px] text-slate-900 shadow-sm outline-none transition",
+          "h-12 w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 pr-10 text-base text-slate-900 shadow-sm outline-none transition sm:text-[15px]",
           "focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
         )}
       >
@@ -115,7 +115,7 @@ function MoneyInput({
       inputMode="decimal"
       placeholder={placeholder || "z. B. 300.000"}
       className={cn(
-        "h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[15px] text-slate-900 shadow-sm outline-none transition",
+        "h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 shadow-sm outline-none transition sm:text-[15px]",
         "placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
       )}
     />
@@ -147,7 +147,7 @@ export default function BaufiStart() {
     <div className="space-y-6">
       {/* ✅ volle Breite in deinem Content-Container */}
       <div className="w-full">
-        <div className="w-full rounded-[32px] border border-slate-200 bg-white shadow-[0_18px_60px_rgba(2,6,23,0.08)]">
+        <div className="w-full overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-[0_18px_60px_rgba(2,6,23,0.08)]">
           {/* Header */}
           <div className="p-5 sm:p-7">
             {/* ✅ 2/3 + 1/3 Layout */}

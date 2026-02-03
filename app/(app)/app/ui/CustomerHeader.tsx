@@ -76,7 +76,7 @@ export default function CustomerHeader({ initialEmail }: { initialEmail?: string
           onClick={() => setOpen(false)}
         >
           <span className="inline-flex items-center rounded-2xl border border-slate-200/70 bg-white/80 px-3 py-2 shadow-sm backdrop-blur transition group-hover:border-slate-300/70 group-hover:shadow-md">
-            <Image src="/og.png" alt="SEPANA" width={210} height={64} priority className="h-11 w-auto md:h-8" />
+            <Image src="/og.png" alt="SEPANA" width={210} height={64} priority className="h-8 w-auto sm:h-9" />
           </span>
         </Link>
 

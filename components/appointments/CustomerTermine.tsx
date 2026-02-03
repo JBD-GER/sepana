@@ -166,7 +166,7 @@ export default function CustomerTermine() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full overflow-x-clip space-y-6">
       <section className="relative overflow-hidden rounded-[30px] border border-slate-200/70 bg-gradient-to-br from-white via-slate-50 to-cyan-50 p-6 shadow-sm">
         <div className="pointer-events-none absolute -top-12 right-0 h-32 w-32 rounded-full bg-cyan-200/45 blur-3xl" />
         <h1 className="relative text-2xl font-semibold tracking-tight text-slate-900">Termine</h1>

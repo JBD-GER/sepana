@@ -29,7 +29,7 @@ export default async function Page({
   )}${existing ? "&existing=1" : ""}`
 
   return (
-    <div className="space-y-4">
+    <div className="w-full overflow-x-clip space-y-4">
       <div className="rounded-[2rem] border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur-xl sm:p-6">
         <div className="flex flex-wrap gap-2">
           <Pill>DSGVO-konform</Pill>

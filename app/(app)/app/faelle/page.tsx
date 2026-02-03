@@ -108,7 +108,7 @@ export default async function CasesPage({
   const total = Number(data.total ?? data.cases.length) || 0
 
   return (
-    <div className="space-y-6">
+    <div className="w-full overflow-x-clip space-y-6">
       <section className="relative overflow-hidden rounded-[30px] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
         <div className="pointer-events-none absolute -top-14 right-0 h-36 w-36 rounded-full bg-cyan-100/60 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-16 -left-8 h-40 w-40 rounded-full bg-indigo-100/60 blur-3xl" />

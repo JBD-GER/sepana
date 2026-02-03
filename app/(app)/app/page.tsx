@@ -57,16 +57,16 @@ export default async function CustomerDashboard() {
               Alles Wichtige auf einen Blick: Fälle, Termine, Rückmeldungen und der direkte Weg in Ihre Unterlagen.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
             <Link
               href="/app/faelle"
-              className="inline-flex items-center rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
+              className="inline-flex w-full items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20 sm:w-auto"
             >
               Zu den Fällen
             </Link>
             <Link
               href="/app/termine"
-              className="inline-flex items-center rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
+              className="inline-flex w-full items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20 sm:w-auto"
             >
               Termine öffnen
             </Link>

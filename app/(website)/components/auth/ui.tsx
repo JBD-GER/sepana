@@ -40,7 +40,7 @@ export function Input({
         {leftIcon ? <div className="text-slate-500">{leftIcon}</div> : null}
         <input
           {...props}
-          className={cn("w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400", className)}
+          className={cn("w-full bg-transparent text-base text-slate-900 outline-none placeholder:text-slate-400 sm:text-sm", className)}
         />
         {rightSlot}
       </div>

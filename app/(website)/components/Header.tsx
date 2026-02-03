@@ -135,9 +135,9 @@ export default function Header() {
           href="/"
           aria-label="Zur Startseite"
           onClick={() => setMenuOpen(false)}
-          className="inline-flex items-center rounded-2xl border border-slate-200/80 bg-white px-3 py-2 shadow-sm transition hover:border-slate-300"
+          className="inline-flex max-w-[200px] items-center rounded-2xl border border-slate-200/80 bg-white px-3 py-2 shadow-sm transition hover:border-slate-300 sm:max-w-none"
         >
-          <Image src="/og.png" alt="SEPANA" width={220} height={66} priority className="h-8 w-auto sm:h-9" />
+          <Image src="/og.png" alt="SEPANA" width={220} height={66} priority className="h-7 w-auto sm:h-9" />
         </Link>
 
         <nav className="hidden items-center gap-2 lg:flex" aria-label="Hauptnavigation">
