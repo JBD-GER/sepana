@@ -154,6 +154,75 @@ async function pickStickyAdvisorId(sb: ReturnType<typeof supabaseAdmin>, custome
   return pickRandomAdvisorId(sb)
 }
 
+function resolveInviteRedirect(req: Request, preferred?: string) {
+  const configured = String(process.env.NEXT_PUBLIC_SITE_URL ?? "").trim().replace(/\/$/, "")
+  const fallbackOrigin = new URL(req.url).origin
+  const base = configured || fallbackOrigin
+  const baseOrigin = new URL(base).origin
+  const input = String(preferred ?? "").trim()
+
+  if (!input) return `${baseOrigin}/einladung?mode=invite`
+
+  try {
+    const parsed = new URL(input, baseOrigin)
+    if (parsed.pathname === "/set-password") {
+      return `${baseOrigin}/einladung?mode=invite`
+    }
+    if (parsed.origin !== baseOrigin) {
+      return `${baseOrigin}/einladung?mode=invite`
+    }
+    return `${parsed.origin}${parsed.pathname}${parsed.search}`
+  } catch {
+    return `${baseOrigin}/einladung?mode=invite`
+  }
+}
+
+async function getPasswordSetAt(sb: ReturnType<typeof supabaseAdmin>, userId: string) {
+  const { data } = await sb
+    .from("profiles")
+    .select("password_set_at")
+    .eq("user_id", userId)
+    .maybeSingle()
+  return (data as { password_set_at?: string | null } | null)?.password_set_at ?? null
+}
+
+async function generatePasswordActionLink(
+  sb: ReturnType<typeof supabaseAdmin>,
+  email: string,
+  redirectTo: string
+) {
+  const tries: Array<"invite" | "recovery"> = ["invite", "recovery"]
+  for (const type of tries) {
+    const { data, error } = await sb.auth.admin.generateLink({
+      type,
+      email,
+      options: { redirectTo },
+    })
+    if (error) continue
+    const link = data?.properties?.action_link ?? null
+    if (link) return link
+  }
+  return null
+}
+
+function buildPasswordInviteEmailHtml(actionLink: string, firstName?: string) {
+  const safeName = String(firstName ?? "").trim()
+  return buildEmailHtml({
+    title: "Passwort fuer Ihr SEPANA-Konto festlegen",
+    intro: safeName
+      ? `Hallo ${safeName}, bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschliessen.`
+      : "Bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschliessen.",
+    steps: [
+      "Klicken Sie auf den Button und vergeben Sie ein sicheres Passwort.",
+      "Danach koennen Sie sich direkt im Kundenportal anmelden.",
+    ],
+    ctaLabel: "Passwort festlegen",
+    ctaUrl: actionLink,
+    eyebrow: "SEPANA - Einladung",
+    preheader: "Bitte Passwort festlegen und Zugang aktivieren.",
+  })
+}
+
 export async function POST(req: Request) {
   const sb = supabaseAdmin()
 
@@ -178,16 +247,18 @@ export async function POST(req: Request) {
     }
 
     const email = body.primary.email.trim().toLowerCase()
+    const inviteRedirectTo = resolveInviteRedirect(req, body.redirectTo)
 
     // 1) Existiert Konto bereits?
     let userId = await findUserIdByEmail(sb, email)
     let existingAccount = !!userId
     let invited = false
+    let passwordInviteSent = false
 
     // 2) Wenn nicht: Invite senden / Konto erstellen
     if (!userId) {
       const invite = await sb.auth.admin.inviteUserByEmail(email, {
-        redirectTo: body.redirectTo || undefined,
+        redirectTo: inviteRedirectTo,
         data: {
           first_name: body.primary.first_name,
           last_name: body.primary.last_name,
@@ -221,6 +292,21 @@ export async function POST(req: Request) {
       user_id: userId,
       role: "customer",
     })
+    const passwordSetAt = await getPasswordSetAt(sb, userId)
+    const needsPasswordSetup = !passwordSetAt
+
+    if (needsPasswordSetup) {
+      const actionLink = await generatePasswordActionLink(sb, email, inviteRedirectTo)
+      if (actionLink) {
+        const inviteEmailHtml = buildPasswordInviteEmailHtml(actionLink, body.primary.first_name)
+        const inviteEmail = await sendEmail({
+          to: email,
+          subject: "Passwort fuer Ihren SEPANA-Zugang festlegen",
+          html: inviteEmailHtml,
+        })
+        passwordInviteSent = !!inviteEmail.ok
+      }
+    }
 
     // 4) Case anlegen
     const caseRef = await nextCaseRef(sb)
@@ -348,8 +434,11 @@ export async function POST(req: Request) {
       caseRef,
       existingAccount,
       invited,
+      passwordInviteSent,
       message: existingAccount
-        ? "Konto existiert bereits – Vergleich wurde im Portal hinterlegt."
+        ? needsPasswordSetup
+          ? "Konto existiert bereits – Passwort-Link wurde erneut gesendet."
+          : "Konto existiert bereits – Vergleich wurde im Portal hinterlegt."
         : "Konto erstellt – Invite wurde gesendet.",
     })
   } catch (error: unknown) {
@@ -357,3 +446,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
+

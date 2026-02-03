@@ -23,6 +23,26 @@ type CaseMeta = {
   advisor_email: string | null
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+function normalizeSiteUrl(raw: string | undefined) {
+  const fallback = "https://www.sepana.de"
+  const input = String(raw ?? "").trim()
+  if (!input) return fallback
+  try {
+    return new URL(input).origin
+  } catch {
+    return fallback
+  }
+}
+
 function buildName(row: any) {
   const first = String(row?.first_name || "").trim()
   const last = String(row?.last_name || "").trim()
@@ -121,27 +141,231 @@ export async function logCaseEvent(opts: {
 export function buildEmailHtml(opts: {
   title: string
   intro: string
-  steps: string[]
+  steps?: string[]
+  ctaLabel?: string
+  ctaUrl?: string
+  preheader?: string
+  eyebrow?: string
+  supportNote?: string
+  sideNote?: string
 }) {
-  const steps = opts.steps
-    .map((s) => `<li style="margin:0 0 6px 0;">${s}</li>`)
+  const siteUrl = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL)
+  const title = escapeHtml(opts.title)
+  const intro = escapeHtml(opts.intro)
+  const eyebrow = escapeHtml(opts.eyebrow ?? "SEPANA - Service-Update")
+  const preheader = escapeHtml(opts.preheader ?? opts.title)
+  const supportNote = escapeHtml(opts.supportNote ?? "Falls Sie diese Nachricht nicht erwarten, koennen Sie diese E-Mail ignorieren.")
+  const sideNote = escapeHtml(opts.sideNote ?? "Sicherheitshinweis: Link ist nur fuer Sie bestimmt.")
+  const ctaUrl = String(opts.ctaUrl ?? "").trim()
+  const ctaLabel = ctaUrl ? escapeHtml(opts.ctaLabel ?? "Zum Portal") : ""
+
+  const steps = (opts.steps ?? [])
+    .filter((step) => String(step ?? "").trim().length > 0)
+    .map((s) => `<li style="margin:0 0 8px 0;">${escapeHtml(String(s))}</li>`)
     .join("")
 
+  const stepsBlock = steps
+    ? `
+                    <tr>
+                      <td style="padding:0 26px 8px 26px;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+                          style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px;">
+                          <tr>
+                            <td style="padding:14px 16px 12px 16px; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
+                              <div style="font-size:13px; font-weight:700; color:#0f172a; margin-bottom:8px;">
+                                Naechste Schritte
+                              </div>
+                              <ul style="padding-left:18px; margin:0; font-size:13px; line-height:20px; color:#334155;">
+                                ${steps}
+                              </ul>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+      `
+    : ""
+
+  const ctaBlock = ctaUrl
+    ? `
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0 10px 0;">
+                          <tr>
+                            <td align="left">
+                              <a
+                                href="${escapeHtml(ctaUrl)}"
+                                style="display:inline-block; background:#0f172a; color:#ffffff; text-decoration:none; font-weight:700; font-size:15px; line-height:1; padding:14px 18px; border-radius:14px; border:1px solid #0f172a; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;"
+                              >
+                                ${ctaLabel}
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                        <p style="margin:12px 0 0 0; font-size:13px; line-height:20px; color:#475569;">
+                          Falls der Button nicht funktioniert, kopieren Sie bitte diesen Link in Ihren Browser:
+                        </p>
+                        <p style="margin:8px 0 0 0; font-size:12px; line-height:18px; word-break:break-all;">
+                          <a href="${escapeHtml(ctaUrl)}" style="color:#0f172a; text-decoration:underline;">
+                            ${escapeHtml(ctaUrl)}
+                          </a>
+                        </p>
+      `
+    : ""
+
   return `
-  <div style="font-family:Arial,Helvetica,sans-serif;line-height:1.5;color:#0f172a;">
-    <div style="max-width:640px;margin:0 auto;padding:24px;">
-      <div style="font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:#94a3b8;">SEPANA</div>
-      <h1 style="font-size:22px;margin:8px 0 12px 0;">${opts.title}</h1>
-      <p style="font-size:14px;margin:0 0 16px 0;color:#334155;">${opts.intro}</p>
-      <div style="border:1px solid #e2e8f0;border-radius:14px;padding:16px;background:#f8fafc;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:#0f172a;">Naechste Schritte</div>
-        <ul style="padding-left:18px;margin:0;font-size:13px;color:#334155;">
-          ${steps}
-        </ul>
-      </div>
-      <p style="font-size:12px;color:#94a3b8;margin-top:16px;">Diese E-Mail wurde automatisch erstellt.</p>
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <meta name="color-scheme" content="light only" />
+    <title>${title}</title>
+    <style>
+      @media (max-width: 600px) {
+        .container { width: 100% !important; }
+        .px { padding-left: 18px !important; padding-right: 18px !important; }
+        .card { border-radius: 18px !important; }
+        .h1 { font-size: 22px !important; line-height: 30px !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0; padding:0; background:#f6f8fc;">
+    <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent; mso-hide:all;">
+      ${preheader}
     </div>
-  </div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f6f8fc;">
+      <tr>
+        <td align="center" style="padding:28px 16px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="640" class="container" style="width:640px; max-width:640px;">
+            <tr>
+              <td style="padding:0 0 14px 0;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                  <tr>
+                    <td align="left" style="padding:0 8px;">
+                      <img
+                        alt="SEPANA"
+                        width="160"
+                        height="48"
+                        style="display:block; height:32px; width:auto;"
+                        src="${siteUrl}/_next/image?url=%2Fog.png&w=640&q=75"
+                      />
+                    </td>
+                    <td align="right" style="padding:0 8px; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; font-size:12px; color:#475569;">
+                      ${sideNote}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td class="px" style="padding:0 8px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="card"
+                  style="background:#ffffff; border-radius:22px; overflow:hidden; border:1px solid #e6eaf2;">
+                  <tr>
+                    <td style="background:#0f172a; padding:26px 26px 22px 26px;">
+                      <div style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#ffffff;">
+                        <div style="font-size:12px; letter-spacing:.12em; text-transform:uppercase; opacity:.85;">
+                          ${eyebrow}
+                        </div>
+                        <div class="h1" style="margin-top:10px; font-size:26px; line-height:34px; font-weight:700;">
+                          ${title}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:24px 26px 8px 26px;">
+                      <div style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#0f172a;">
+                        <p style="margin:0 0 14px 0; font-size:15px; line-height:24px; color:#0f172a;">
+                          ${intro}
+                        </p>
+                        ${ctaBlock}
+                      </div>
+                    </td>
+                  </tr>
+                  ${stepsBlock}
+                  <tr>
+                    <td style="padding:18px 26px 0 26px;">
+                      <div style="height:1px; background:#e6eaf2; line-height:1px; font-size:1px;">&nbsp;</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:18px 26px 22px 26px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                        <tr>
+                          <td style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; font-size:13px; line-height:20px; color:#475569;">
+                            ${supportNote}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding-top:12px;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                              <tr>
+                                <td
+                                  valign="top"
+                                  style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; font-size:14px; line-height:22px; color:#0f172a; font-weight:600;"
+                                >
+                                  Ihr Team
+                                </td>
+                                <td
+                                  align="right"
+                                  valign="top"
+                                  style="font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; font-size:12px; line-height:18px; color:#475569; min-width:220px;"
+                                >
+                                  <span style="white-space:nowrap;">
+                                    Telefon:
+                                    <span style="color:#0f172a; font-weight:700; white-space:nowrap;">05035&nbsp;3169996</span>
+                                  </span>
+                                  <br />
+                                  <span style="white-space:nowrap;">
+                                    E-Mail:
+                                    <a
+                                      href="mailto:info@sepana.de"
+                                      style="color:#0f172a; text-decoration:underline; font-weight:700; white-space:nowrap;"
+                                    >info@sepana.de</a>
+                                  </span>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td class="px" style="padding:14px 8px 0 8px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+                  style="background:#ffffff; border:1px solid #e6eaf2; border-radius:18px;">
+                  <tr>
+                    <td style="padding:18px 20px; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
+                      <div style="font-size:12px; line-height:18px; color:#475569;">
+                        <strong style="color:#0f172a;">Register- und Erlaubnisangaben</strong><br />
+                        Umsatzsteuer-Identifikationsnummer gemaess Paragraf 27 a UStG: <span style="color:#0f172a; font-weight:700;">DE352217621</span><br />
+                        Registrierungsnummer: <span style="color:#0f172a; font-weight:700;">D-W-133-TNSL-07</span><br />
+                        Registrierung gemaess Paragraf 34i Abs. 1 Satz 1 GewO<br />
+                        Erlaubnis gemaess Paragraf 34c Abs. 1 GewO<br />
+                        Erlaubnis gemaess Paragraf 34i Abs. 1 GewO
+                      </div>
+                      <div style="margin-top:10px; font-size:11px; line-height:16px; color:#94a3b8;">
+                        (c) SEPANA - Diese E-Mail wurde automatisch versendet. Bitte antworten Sie nicht direkt auf diese Nachricht.
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="height:18px; font-size:1px; line-height:1px;">&nbsp;</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
   `
 }
 

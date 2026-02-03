@@ -4,10 +4,22 @@ export const runtime = "nodejs"
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
-import { logCaseEvent } from "@/lib/notifications/notify"
+import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
 
 function safeFileName(name: string) {
   return name.replace(/[^\w.-]+/g, "_").slice(0, 160)
+}
+
+function resolveSiteOrigin(req: Request) {
+  const configured = String(process.env.NEXT_PUBLIC_SITE_URL ?? "").trim()
+  if (configured) {
+    try {
+      return new URL(configured).origin
+    } catch {
+      // fallback below
+    }
+  }
+  return new URL(req.url).origin
 }
 
 async function canAccessCase(supabase: any, caseId: string, userId: string, role: string | null) {
@@ -60,7 +72,7 @@ export async function POST(req: Request) {
     })
     if (docErr) throw docErr
 
-    await logCaseEvent({
+    const eventMeta = await logCaseEvent({
       caseId,
       actorId: user.id,
       actorRole: role ?? "customer",
@@ -69,6 +81,28 @@ export async function POST(req: Request) {
       body: `Datei: ${file.name}`,
       meta: { file_name: file.name, request_id: requestId },
     })
+
+    if (role === "customer") {
+      const caseMeta = eventMeta ?? (await getCaseMeta(caseId))
+      if (caseMeta?.advisor_email) {
+        const caseLabel = caseMeta.case_ref ? ` (${caseMeta.case_ref})` : ""
+        const origin = resolveSiteOrigin(req)
+        const html = buildEmailHtml({
+          title: "Neues Dokument vom Kunden",
+          intro: `Im Fall${caseLabel} wurde ein neues Dokument hochgeladen.`,
+          steps: [`Datei: ${file.name}`, "Bitte pruefen Sie das Dokument im Advisor-Dashboard."],
+          ctaLabel: "Zum Advisor-Dashboard",
+          ctaUrl: `${origin}/advisor`,
+          eyebrow: "SEPANA - Dokumenten-Update",
+          preheader: "Ein Kunde hat ein neues Dokument hochgeladen.",
+        })
+        await sendEmail({
+          to: caseMeta.advisor_email,
+          subject: "Neues Dokument im Kundenfall",
+          html,
+        })
+      }
+    }
 
     return NextResponse.json({ ok: true, path })
   } catch (e: any) {

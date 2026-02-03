@@ -377,7 +377,7 @@ export default function BaufiWizard({
           ...c,
           net_income_monthly: normalizeMoneyString(c.net_income_monthly ?? ""),
         })),
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/set-password`,
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/einladung?mode=invite`,
         language: "de",
       }
 
