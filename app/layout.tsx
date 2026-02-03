@@ -10,7 +10,7 @@ const inter = Inter({
 
 const SITE_NAME = "SEPANA"
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-const OG_IMAGE = "/og.jpg"
+const OG_IMAGE = "/og.png"
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     "SEPANA ist die digitale Plattform für Baufinanzierung: vergleichen, Angebote auswählen, Unterlagen sicher hochladen und live finalisieren.",
   applicationName: SITE_NAME,
   alternates: {
-    canonical: "/",
+    canonical: "./",
   },
   robots: {
     index: true,

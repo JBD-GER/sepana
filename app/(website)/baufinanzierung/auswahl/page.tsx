@@ -13,6 +13,7 @@ import {
   toNumber,
   clamp,
 } from "@/lib/baufi/calc"
+import SelectionSummaryEditor from "./ui/SelectionSummaryEditor"
 
 export const metadata: Metadata = {
   title: "Baufinanzierung Auswahl",
@@ -25,15 +26,6 @@ function Pill({ children }: { children: React.ReactNode }) {
   return (
     <div className="inline-flex items-center rounded-full border border-white/60 bg-white/70 px-3 py-1 text-xs text-slate-700 shadow-sm backdrop-blur-xl">
       {children}
-    </div>
-  )
-}
-
-function metric(label: string, value: string) {
-  return (
-    <div className="rounded-2xl border border-white/60 bg-white/55 px-4 py-3 shadow-sm backdrop-blur-xl">
-      <div className="text-xs text-slate-600">{label}</div>
-      <div className="mt-0.5 text-base font-semibold text-slate-900">{value}</div>
     </div>
   )
 }
@@ -139,6 +131,13 @@ type MetricsResponse = {
     surplus_monthly: number
     surplus_ratio: number
     co_applicants: number
+  }
+  primary?: {
+    net_income_monthly: number
+    other_income_monthly: number
+    expenses_monthly: number
+    existing_loans_monthly: number
+    co_income_monthly: number
   }
 }
 
@@ -301,6 +300,7 @@ export default async function Page({
     caseRef,
     existing: existing ? "1" : undefined,
   })
+  const showLiveEntry = Boolean(caseId && liveStatus?.ok && liveStatus.onlineCount > 0)
 
   // ✅ Startschuss: sobald der Kunde auf /auswahl ist, Snapshot zum Top-Angebot speichern
   const startschuss = sorted[0]
@@ -356,35 +356,6 @@ export default async function Page({
         {existing ? <Pill>Bestehendes Konto erkannt</Pill> : null}
       </div>
 
-      {liveStatus?.ok && caseId ? (
-        <div className="rounded-[2rem] border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur-xl sm:p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="text-sm font-medium text-slate-900">Live-Beratung</div>
-              <div className="mt-1 text-sm text-slate-600">
-                {liveStatus.onlineCount > 0
-                  ? liveStatus.availableCount > 0
-                    ? "Jetzt sofort live mit einem Berater sprechen."
-                    : "Alle Berater sind im Gespraech. Wartezeit ca. 15 Minuten."
-                  : "Aktuell kein Berater online."}
-              </div>
-            </div>
-
-            {liveStatus.onlineCount > 0 ? (
-              <Link
-                href={liveHref}
-                className="inline-flex w-full items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 active:scale-[0.99] sm:w-auto"
-                style={{ background: ACCENT }}
-              >
-                Live-Beratung starten
-              </Link>
-            ) : (
-              <div className="text-xs text-slate-500">Bitte spaeter erneut versuchen.</div>
-            )}
-          </div>
-        </div>
-      ) : null}
-
       <h1 className="text-2xl font-semibold leading-tight text-slate-900 sm:text-3xl">
         Wählen Sie jetzt Ihre Bank –<br className="hidden sm:block" />
         dann starten Sie den Abschluss.
@@ -402,21 +373,33 @@ export default async function Page({
 
     {/* ✅ BOTTOM: volle Breite über beide Spalten */}
     <div className="space-y-3 lg:col-span-2">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {metric("Fall-Referenz", metricsRes?.caseRef || caseRef || "—")}
-        {metric("Darlehen (Beispiel)", formatEUR(loanAmount))}
-        {metric("Laufzeit (Beispiel)", `${years} Jahre`)}
-      </div>
-
-      {m ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {metric("Einnahmen/Monat", formatEUR(m.income_monthly))}
-          {metric("Ausgaben/Monat", formatEUR(m.out_monthly))}
-          {metric("Puffer/Monat", formatEUR(m.surplus_monthly))}
-        </div>
-      ) : null}
-
-      <div className="text-xs text-slate-500">{disclaimer}</div>
+      <SelectionSummaryEditor
+        caseId={caseId}
+        caseRef={metricsRes?.caseRef || caseRef || ""}
+        caseRefDisplay={metricsRes?.caseRef || caseRef || "-"}
+        loanAmount={loanAmount}
+        years={years}
+        metrics={
+          m
+            ? {
+                income_monthly: m.income_monthly,
+                out_monthly: m.out_monthly,
+                surplus_monthly: m.surplus_monthly,
+              }
+            : null
+        }
+        primary={
+          metricsRes?.primary
+            ? {
+                net_income_monthly: metricsRes.primary.net_income_monthly,
+                other_income_monthly: metricsRes.primary.other_income_monthly,
+                expenses_monthly: metricsRes.primary.expenses_monthly,
+                existing_loans_monthly: metricsRes.primary.existing_loans_monthly,
+              }
+            : null
+        }
+        disclaimer={disclaimer}
+      />
     </div>
   </div>
 </div>
@@ -474,6 +457,33 @@ export default async function Page({
 
       {/* BANK LIST */}
       <div className="space-y-4">
+        {showLiveEntry ? (
+          <div className="relative overflow-hidden rounded-[2rem] border-2 border-emerald-300/90 bg-gradient-to-br from-emerald-50 via-cyan-50 to-blue-50 p-5 shadow-lg sm:p-6">
+            <div className="pointer-events-none absolute -right-20 -top-16 h-52 w-52 rounded-full bg-emerald-300/25 blur-3xl" />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="inline-flex items-center rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+                  Prioritaet
+                </div>
+                <div className="mt-2 text-xl font-semibold text-slate-900">Live-Beratung als 1. Empfehlung</div>
+                <div className="mt-1 text-sm text-slate-700">
+                  {liveStatus?.availableCount && liveStatus.availableCount > 0
+                    ? "Jetzt sofort live mit einem Berater sprechen."
+                    : `Alle Berater sind aktuell im Gespraech. Wartezeit ca. ${liveStatus?.waitMinutes ?? 15} Minuten.`}
+                </div>
+              </div>
+
+              <Link
+                href={liveHref}
+                className="inline-flex w-full items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 active:scale-[0.99] sm:w-auto"
+                style={{ background: ACCENT }}
+              >
+                Live-Beratung starten
+              </Link>
+            </div>
+          </div>
+        ) : null}
+
         {sorted.map((o, i) => {
           const top = i === 0
           const logo = logoUrl(o.provider)
