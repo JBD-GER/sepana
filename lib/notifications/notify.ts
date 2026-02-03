@@ -23,6 +23,15 @@ type CaseMeta = {
   advisor_email: string | null
 }
 
+type AdvisorCardMeta = {
+  display_name: string | null
+  email: string | null
+  phone: string | null
+  bio: string | null
+  languages: string[]
+  photo_path: string | null
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -40,6 +49,51 @@ function normalizeSiteUrl(raw: string | undefined) {
     return new URL(input).origin
   } catch {
     return fallback
+  }
+}
+
+function cleanText(value: unknown) {
+  return String(value ?? "").trim()
+}
+
+function fallbackAdvisorName(email: string | null) {
+  const mail = cleanText(email)
+  if (!mail.includes("@")) return "Ihr Ansprechpartner"
+  return mail.split("@")[0] || "Ihr Ansprechpartner"
+}
+
+async function getAdvisorCardMeta(advisorId: string): Promise<AdvisorCardMeta> {
+  const admin = supabaseAdmin()
+  const [{ data: profile }, { data: authUser }] = await Promise.all([
+    admin
+      .from("advisor_profiles")
+      .select("display_name,bio,languages,photo_path,phone")
+      .eq("user_id", advisorId)
+      .maybeSingle(),
+    admin.auth.admin.getUserById(advisorId),
+  ])
+
+  const meta = authUser?.user?.user_metadata ?? {}
+  const displayName =
+    cleanText(profile?.display_name) ||
+    cleanText([meta?.first_name, meta?.last_name].filter(Boolean).join(" ")) ||
+    cleanText(meta?.full_name) ||
+    fallbackAdvisorName(authUser?.user?.email ?? null)
+
+  const langsRaw = Array.isArray(profile?.languages)
+    ? profile.languages
+    : Array.isArray(meta?.languages)
+      ? meta.languages
+      : []
+  const languages = langsRaw.map((x: any) => cleanText(x)).filter(Boolean).slice(0, 8)
+
+  return {
+    display_name: displayName || null,
+    email: authUser?.user?.email ?? null,
+    phone: cleanText(profile?.phone) || cleanText(meta?.phone) || null,
+    bio: cleanText(profile?.bio) || cleanText(meta?.bio) || null,
+    languages,
+    photo_path: cleanText(profile?.photo_path) || cleanText(meta?.photo_path) || null,
   }
 }
 
@@ -148,6 +202,7 @@ export function buildEmailHtml(opts: {
   eyebrow?: string
   supportNote?: string
   sideNote?: string
+  bodyHtml?: string
 }) {
   const siteUrl = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL)
   const title = escapeHtml(opts.title)
@@ -210,6 +265,8 @@ export function buildEmailHtml(opts: {
                         </p>
       `
     : ""
+
+  const bodyHtmlBlock = String(opts.bodyHtml ?? "").trim()
 
   return `
 <!doctype html>
@@ -279,6 +336,7 @@ export function buildEmailHtml(opts: {
                         <p style="margin:0 0 14px 0; font-size:15px; line-height:24px; color:#0f172a;">
                           ${intro}
                         </p>
+                        ${bodyHtmlBlock}
                         ${ctaBlock}
                       </div>
                     </td>
@@ -367,6 +425,94 @@ export function buildEmailHtml(opts: {
   </body>
 </html>
   `
+}
+
+export async function sendAdvisorAssignedEmail(opts: { caseId: string }) {
+  const caseMeta = await getCaseMeta(opts.caseId)
+  if (!caseMeta?.customer_email || !caseMeta.advisor_id) {
+    return { ok: false, error: "missing_customer_or_advisor" as const }
+  }
+
+  const advisor = await getAdvisorCardMeta(caseMeta.advisor_id)
+  const advisorName = advisor.display_name ?? caseMeta.advisor_name ?? "Ihr Ansprechpartner"
+  const siteUrl = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL)
+  const portalUrl = `${siteUrl}/app/faelle/${caseMeta.case_id}`
+  const photoUrl = advisor.photo_path
+    ? `${siteUrl}/api/baufi/logo?bucket=advisor_avatars&width=320&height=320&quality=100&resize=cover&path=${encodeURIComponent(advisor.photo_path)}`
+    : null
+  const languageText = advisor.languages.length ? advisor.languages.join(", ") : null
+
+  const contactRows = [
+    advisor.email
+      ? `<div style="margin-top:6px; font-size:13px; color:#334155;"><strong style="color:#0f172a;">E-Mail:</strong> <a href="mailto:${escapeHtml(advisor.email)}" style="color:#0f172a; text-decoration:underline;">${escapeHtml(advisor.email)}</a></div>`
+      : "",
+    advisor.phone
+      ? `<div style="margin-top:6px; font-size:13px; color:#334155;"><strong style="color:#0f172a;">Telefon:</strong> ${escapeHtml(advisor.phone)}</div>`
+      : "",
+    languageText
+      ? `<div style="margin-top:6px; font-size:13px; color:#334155;"><strong style="color:#0f172a;">Sprachen:</strong> ${escapeHtml(languageText)}</div>`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("")
+
+  const cardHtml = `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 2px 0;">
+      <tr>
+        <td style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; padding:14px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+            <tr>
+              ${
+                photoUrl
+                  ? `<td valign="top" width="76" style="padding-right:12px;">
+                      <img
+                        src="${escapeHtml(photoUrl)}"
+                        alt="${escapeHtml(advisorName)}"
+                        width="64"
+                        height="64"
+                        style="display:block; width:64px; height:64px; border-radius:14px; object-fit:cover; border:1px solid #e2e8f0;"
+                      />
+                    </td>`
+                  : ""
+              }
+              <td valign="top">
+                <div style="font-size:12px; color:#64748b; letter-spacing:.08em; text-transform:uppercase;">Ihr Berater</div>
+                <div style="margin-top:3px; font-size:18px; line-height:24px; font-weight:700; color:#0f172a;">${escapeHtml(advisorName)}</div>
+                ${
+                  advisor.bio
+                    ? `<div style="margin-top:7px; font-size:13px; line-height:20px; color:#334155;">${escapeHtml(advisor.bio)}</div>`
+                    : ""
+                }
+                ${contactRows}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  `
+
+  const html = buildEmailHtml({
+    title: "Ihr Ansprechpartner wurde zugewiesen",
+    intro: caseMeta.case_ref
+      ? `Fuer Ihren Fall ${caseMeta.case_ref} steht jetzt ein fester Ansprechpartner bereit.`
+      : "Fuer Ihren Fall steht jetzt ein fester Ansprechpartner bereit.",
+    bodyHtml: cardHtml,
+    steps: [
+      "Sie koennen Unterlagen direkt im Portal hochladen.",
+      "Bei Rueckfragen erreichen Sie Ihren Ansprechpartner ueber die angegebenen Kontaktdaten.",
+    ],
+    ctaLabel: "Zum Kundenportal",
+    ctaUrl: portalUrl,
+    preheader: "Ihr persoenlicher Ansprechpartner bei SEPANA ist jetzt verfuegbar.",
+    eyebrow: "SEPANA - Ansprechpartner",
+  })
+
+  return sendEmail({
+    to: caseMeta.customer_email,
+    subject: "Ihr Ansprechpartner bei SEPANA",
+    html,
+  })
 }
 
 export async function sendEmail(opts: { to: string; subject: string; html: string }) {

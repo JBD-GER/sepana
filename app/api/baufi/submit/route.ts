@@ -3,7 +3,7 @@ export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
-import { logCaseEvent, buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
+import { logCaseEvent, buildEmailHtml, sendEmail, sendAdvisorAssignedEmail } from "@/lib/notifications/notify"
 
 type Payload = {
   baufi?: {
@@ -426,6 +426,9 @@ export async function POST(req: Request) {
     })
     if (email) {
       await sendEmail({ to: email, subject: "Naechste Schritte zur Baufinanzierung", html })
+    }
+    if (assignedAdvisorId && email) {
+      await sendAdvisorAssignedEmail({ caseId })
     }
 
     return NextResponse.json({
