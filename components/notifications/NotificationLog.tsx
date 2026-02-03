@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useId, useMemo, useState } from "react"
 
 type Item = {
   id: string
@@ -16,6 +16,7 @@ type NotificationResponse = {
   items?: Item[]
   total?: number
   totalPages?: number
+  customerOptions?: Array<{ id: string; label: string }>
 }
 
 function dt(d: string) {
@@ -28,12 +29,14 @@ export default function NotificationLog({
   scope = "inbox",
   types = [],
   excludeTypes = [],
+  enableCustomerFilter = false,
 }: {
   limit?: number
   title?: string
   scope?: "inbox" | "all"
   types?: string[]
   excludeTypes?: string[]
+  enableCustomerFilter?: boolean
 }) {
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
@@ -41,13 +44,16 @@ export default function NotificationLog({
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; label: string }>>([])
+  const [customerId, setCustomerId] = useState("all")
+  const customerFilterId = useId()
 
   const typesKey = useMemo(() => types.join(","), [types])
   const excludeTypesKey = useMemo(() => excludeTypes.join(","), [excludeTypes])
 
   useEffect(() => {
     setPage(1)
-  }, [limit, scope, typesKey, excludeTypesKey])
+  }, [limit, scope, typesKey, excludeTypesKey, customerId])
 
   useEffect(() => {
     let cancelled = false
@@ -61,6 +67,7 @@ export default function NotificationLog({
           page: String(page),
           scope,
         })
+        if (enableCustomerFilter && customerId !== "all") params.set("customerId", customerId)
         if (typesKey) params.set("types", typesKey)
         if (excludeTypesKey) params.set("excludeTypes", excludeTypesKey)
 
@@ -76,6 +83,7 @@ export default function NotificationLog({
           setItems([])
           setTotal(0)
           setTotalPages(1)
+          setCustomerOptions([])
           return
         }
 
@@ -91,6 +99,15 @@ export default function NotificationLog({
         setItems(nextItems)
         setTotal(nextTotal)
         setTotalPages(nextTotalPages)
+        const nextCustomerOptions = Array.isArray(json.customerOptions) ? json.customerOptions : []
+        setCustomerOptions(nextCustomerOptions)
+        if (
+          enableCustomerFilter &&
+          customerId !== "all" &&
+          !nextCustomerOptions.some((option) => option.id === customerId)
+        ) {
+          setCustomerId("all")
+        }
 
         if (page > nextTotalPages) {
           setPage(nextTotalPages)
@@ -103,7 +120,7 @@ export default function NotificationLog({
     return () => {
       cancelled = true
     }
-  }, [limit, scope, typesKey, excludeTypesKey, page])
+  }, [limit, scope, typesKey, excludeTypesKey, page, enableCustomerFilter, customerId])
 
   return (
     <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
@@ -111,6 +128,26 @@ export default function NotificationLog({
         <div className="text-sm text-slate-600">{title}</div>
         {!loading ? <div className="text-xs text-slate-500">{total} Eintraege</div> : null}
       </div>
+      {enableCustomerFilter ? (
+        <div className="mt-3 flex items-center gap-2">
+          <label htmlFor={customerFilterId} className="text-xs text-slate-600">
+            Kunde
+          </label>
+          <select
+            id={customerFilterId}
+            value={customerId}
+            onChange={(e) => setCustomerId(e.target.value)}
+            className="min-w-[180px] rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 shadow-sm outline-none focus:border-slate-400"
+          >
+            <option value="all">Alle</option>
+            {customerOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="mt-3 text-sm text-slate-500">Lade...</div>

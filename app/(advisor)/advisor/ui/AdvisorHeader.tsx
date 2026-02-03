@@ -13,6 +13,7 @@ function cn(...classes: Array<string | false | null | undefined>) {
 const NAV = [
   { href: "/advisor", label: "Dashboard" },
   { href: "/advisor/faelle", label: "Faelle" },
+  { href: "/advisor/faelle/bestaetigt", label: "Bestaetigt" },
   { href: "/advisor/termine", label: "Termine" },
 ]
 

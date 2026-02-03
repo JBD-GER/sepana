@@ -56,7 +56,10 @@ export async function POST(req: Request) {
   const nextStatus = decision === "accept" ? "accepted" : "rejected"
   const client = user ? supabase : admin
   const patch: any = { status: nextStatus }
-  if (nextStatus === "accepted") patch.bank_status = "submitted"
+  if (nextStatus === "accepted") {
+    patch.bank_status = "submitted"
+    patch.bank_confirmed_at = null
+  }
   const { error } = await client.from("case_offers").update(patch).eq("id", offerId)
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
 

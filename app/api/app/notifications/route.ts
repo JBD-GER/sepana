@@ -37,6 +37,16 @@ type ApplicantRow = {
   last_name: string | null
 }
 
+type CaseOwnerRow = {
+  id: string
+  customer_id: string | null
+}
+
+type CustomerOption = {
+  id: string
+  label: string
+}
+
 function readPositiveInt(raw: string | null, fallback: number) {
   const value = Number(raw)
   if (!Number.isFinite(value) || value < 1) return fallback
@@ -60,6 +70,7 @@ export async function GET(req: Request) {
   const from = (page - 1) * limit
   const to = from + limit - 1
   const caseId = String(url.searchParams.get("caseId") || "").trim()
+  const customerId = String(url.searchParams.get("customerId") || "").trim()
   const scope = String(url.searchParams.get("scope") || "all").trim().toLowerCase()
   const typesRaw = String(url.searchParams.get("types") || "").trim()
   const types = typesRaw
@@ -77,6 +88,72 @@ export async function GET(req: Request) {
     : []
 
   const admin = supabaseAdmin()
+  let customerOptions: CustomerOption[] = []
+  let caseIdsForCustomerFilter: string[] | null = null
+
+  if (role === "advisor") {
+    const { data: ownerCases } = await admin
+      .from("cases")
+      .select("id,customer_id")
+      .eq("assigned_advisor_id", user.id)
+      .not("customer_id", "is", null)
+
+    const ownerRows = (ownerCases ?? []) as CaseOwnerRow[]
+    const ownerCaseIds = ownerRows.map((row) => row.id).filter(Boolean)
+    const ownerCustomerIds = Array.from(
+      new Set(
+        ownerRows
+          .map((row) => row.customer_id)
+          .filter((value): value is string => typeof value === "string" && value.length > 0)
+      )
+    )
+
+    const { data: ownerApplicants } = await (ownerCaseIds.length
+      ? admin
+          .from("case_applicants")
+          .select("case_id,first_name,last_name")
+          .in("case_id", ownerCaseIds)
+          .eq("role", "primary")
+      : Promise.resolve({ data: [] as ApplicantRow[] }))
+
+    const applicantByCase = new Map<string, string>()
+    for (const row of (ownerApplicants ?? []) as ApplicantRow[]) {
+      if (!applicantByCase.has(row.case_id)) {
+        const full = buildName(row)
+        if (full) applicantByCase.set(row.case_id, full)
+      }
+    }
+
+    const labelByCustomer = new Map<string, string>()
+    for (const row of ownerRows) {
+      const cid = row.customer_id
+      if (!cid || labelByCustomer.has(cid)) continue
+      const fallback = `Kunde ${cid.slice(0, 8)}`
+      labelByCustomer.set(cid, applicantByCase.get(row.id) ?? fallback)
+    }
+
+    customerOptions = ownerCustomerIds
+      .map((id) => ({ id, label: labelByCustomer.get(id) ?? `Kunde ${id.slice(0, 8)}` }))
+      .sort((a, b) => a.label.localeCompare(b.label, "de"))
+
+    if (customerId) {
+      caseIdsForCustomerFilter = ownerRows
+        .filter((row) => row.customer_id === customerId)
+        .map((row) => row.id)
+        .filter(Boolean)
+      if (caseIdsForCustomerFilter.length === 0) {
+        return NextResponse.json({
+          items: [],
+          page,
+          pageSize: limit,
+          total: 0,
+          totalPages: 1,
+          customerOptions,
+        })
+      }
+    }
+  }
+
   let query = admin
     .from("notification_log")
     .select("id,case_id,type,title,body,meta,created_at,read_at", { count: "exact" })
@@ -91,6 +168,9 @@ export async function GET(req: Request) {
 
   if (caseId) {
     query = query.eq("case_id", caseId)
+  }
+  if (caseIdsForCustomerFilter?.length) {
+    query = query.in("case_id", caseIdsForCustomerFilter)
   }
   if (types.length) {
     query = query.in("type", types)
@@ -191,5 +271,6 @@ export async function GET(req: Request) {
     pageSize: limit,
     total,
     totalPages,
+    customerOptions,
   })
 }

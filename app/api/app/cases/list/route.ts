@@ -10,6 +10,15 @@ function readPositiveInt(raw: string | null, fallback: number) {
   return Math.floor(value)
 }
 
+type BaseCaseRow = {
+  id: string
+  case_ref: string | null
+  status: string
+  created_at: string
+  assigned_advisor_id: string | null
+  case_type: string
+}
+
 type ProviderMini = {
   id: string
   name?: string | null
@@ -30,6 +39,7 @@ type OfferRow = {
   provider_id: string | null
   status: string | null
   bank_status: string | null
+  bank_confirmed_at: string | null
   loan_amount: number | null
   rate_monthly: number | null
   apr_effective: number | null
@@ -99,7 +109,6 @@ function pickPreviewSummary(payload: unknown): PreviewSummary | null {
       null,
     provider_name: (provider.name as string | null | undefined) ?? null,
     provider_logo_path: logoRef,
-
     loan_amount: (inputs.loanAmount as number | null | undefined) ?? null,
     rate_monthly: (computed.rateMonthly as number | null | undefined) ?? null,
     apr_effective: (computed.aprEffective as number | null | undefined) ?? null,
@@ -107,6 +116,22 @@ function pickPreviewSummary(payload: unknown): PreviewSummary | null {
     zinsbindung_years: zinsbindungYears,
     special_repayment: (computed.specialRepayment as string | null | undefined) ?? null,
   }
+}
+
+function sortByCreatedDesc<T extends { created_at: string }>(rows: T[]) {
+  return rows.slice().sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))
+}
+
+function firstByLatestCreated<T extends { created_at: string }>(rows: T[]) {
+  return sortByCreatedDesc(rows)[0] ?? null
+}
+
+function firstApprovedOffer(rows: OfferRow[]) {
+  const approved = rows.filter((row) => String(row.bank_status ?? "").toLowerCase() === "approved")
+  if (!approved.length) return null
+  return approved
+    .slice()
+    .sort((a, b) => +new Date(b.bank_confirmed_at ?? b.created_at) - +new Date(a.bank_confirmed_at ?? a.created_at))[0]
 }
 
 export async function GET(req: Request) {
@@ -118,27 +143,41 @@ export async function GET(req: Request) {
   const page = readPositiveInt(url.searchParams.get("page"), 1)
   const from = (page - 1) * limit
   const to = from + limit - 1
+  const advisorBucketRaw = String(url.searchParams.get("advisorBucket") || "all").trim().toLowerCase()
+  const advisorBucket = advisorBucketRaw === "active" || advisorBucketRaw === "confirmed" ? advisorBucketRaw : "all"
 
-  let query = supabase
-    .from("cases")
-    .select("id,case_ref,status,created_at,assigned_advisor_id,case_type", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(from, to)
+  let baseCases: BaseCaseRow[] = []
+  let baseTotal = 0
 
-  if (role === "customer") {
-    query = query.eq("customer_id", user.id).eq("case_type", "baufi")
-  } else if (role === "advisor") {
-    query = query.eq("assigned_advisor_id", user.id)
-  } else if (role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  if (role === "advisor") {
+    const { data: advisorCases, error: advisorErr } = await supabase
+      .from("cases")
+      .select("id,case_ref,status,created_at,assigned_advisor_id,case_type")
+      .eq("assigned_advisor_id", user.id)
+      .order("created_at", { ascending: false })
+    if (advisorErr) return NextResponse.json({ error: advisorErr.message }, { status: 400 })
+    baseCases = (advisorCases ?? []) as BaseCaseRow[]
+    baseTotal = baseCases.length
+  } else {
+    let query = supabase
+      .from("cases")
+      .select("id,case_ref,status,created_at,assigned_advisor_id,case_type", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(from, to)
+
+    if (role === "customer") {
+      query = query.eq("customer_id", user.id).eq("case_type", "baufi")
+    } else if (role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const { data: nonAdvisorCases, error: nonAdvisorErr, count } = await query
+    if (nonAdvisorErr) return NextResponse.json({ error: nonAdvisorErr.message }, { status: 400 })
+    baseCases = (nonAdvisorCases ?? []) as BaseCaseRow[]
+    baseTotal = count ?? baseCases.length
   }
 
-  const { data: cases, error, count } = await query
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-
-  const caseIds = (cases ?? []).map((c) => c.id)
-
+  const caseIds = baseCases.map((row) => row.id)
   const [{ data: docs }, { data: offers }, { data: previews }, providersRes] = await Promise.all([
     caseIds.length
       ? supabase.from("documents").select("id,case_id").in("case_id", caseIds)
@@ -146,82 +185,70 @@ export async function GET(req: Request) {
     caseIds.length
       ? supabase
           .from("case_offers")
-          .select("id,case_id,provider_id,status,bank_status,loan_amount,rate_monthly,apr_effective,interest_nominal,zinsbindung_years,special_repayment,created_at")
+          .select("id,case_id,provider_id,status,bank_status,bank_confirmed_at,loan_amount,rate_monthly,apr_effective,interest_nominal,zinsbindung_years,special_repayment,created_at")
           .in("case_id", caseIds)
       : Promise.resolve({ data: [] as OfferRow[] }),
     caseIds.length
       ? supabase.from("case_offer_previews").select("id,case_id,provider_id,payload,created_at").in("case_id", caseIds)
       : Promise.resolve({ data: [] as PreviewRow[] }),
-    // optional provider table (wenn nicht vorhanden => error != null, wir ignorieren)
-    supabase
-      .from("providers")
-      .select("id,name,logo_horizontal_path,logo_icon_path,preferred_logo_variant,logo_path"),
+    supabase.from("providers").select("id,name,logo_horizontal_path,logo_icon_path,preferred_logo_variant,logo_path"),
   ])
 
-  // counts
   const docRows = (docs ?? []) as DocRow[]
   const offerRows = (offers ?? []) as OfferRow[]
   const previewRows = (previews ?? []) as PreviewRow[]
 
   const docsCountByCase = new Map<string, number>()
-  for (const d of docRows) docsCountByCase.set(d.case_id, (docsCountByCase.get(d.case_id) ?? 0) + 1)
+  for (const row of docRows) docsCountByCase.set(row.case_id, (docsCountByCase.get(row.case_id) ?? 0) + 1)
 
-  // group offers
   const offersByCase = new Map<string, OfferRow[]>()
-  for (const o of offerRows) {
-    const arr = offersByCase.get(o.case_id) ?? []
-    arr.push(o)
-    offersByCase.set(o.case_id, arr)
+  for (const row of offerRows) {
+    const list = offersByCase.get(row.case_id) ?? []
+    list.push(row)
+    offersByCase.set(row.case_id, list)
   }
 
-  // group previews
   const previewsByCase = new Map<string, PreviewRow[]>()
-  for (const p of previewRows) {
-    const arr = previewsByCase.get(p.case_id) ?? []
-    arr.push(p)
-    previewsByCase.set(p.case_id, arr)
+  for (const row of previewRows) {
+    const list = previewsByCase.get(row.case_id) ?? []
+    list.push(row)
+    previewsByCase.set(row.case_id, list)
   }
 
-  // provider map (optional)
   const providerMap = new Map<string, { id: string; name: string | null; logo_path: string | null }>()
   const providerRows = ((providersRes as { data?: ProviderMini[] } | null)?.data ?? []) as ProviderMini[]
-  for (const p of providerRows) {
-    providerMap.set(p.id, {
-      id: p.id,
-      name: p.name ?? null,
-      logo_path: pickProviderLogo(p),
+  for (const provider of providerRows) {
+    providerMap.set(provider.id, {
+      id: provider.id,
+      name: provider.name ?? null,
+      logo_path: pickProviderLogo(provider),
     })
   }
 
   function bestOfferSummary(list: OfferRow[]): PreviewSummary | null {
-    if (!list?.length) return null
-
-    // Fuer die Uebersicht immer den zeitlich neuesten Offer-Stand zeigen.
-    const picked = list
-      .slice()
-      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))[0]
-
-    const prov = picked?.provider_id ? providerMap.get(picked.provider_id) : null
-
+    if (!list.length) return null
+    const picked = firstByLatestCreated(list)
+    if (!picked) return null
+    const provider = picked.provider_id ? providerMap.get(picked.provider_id) : null
     return {
-      provider_id: picked?.provider_id ?? null,
-      provider_name: prov?.name ?? null,
-      provider_logo_path: prov?.logo_path ?? null,
-
-      loan_amount: picked?.loan_amount ?? null,
-      rate_monthly: picked?.rate_monthly ?? null,
-      apr_effective: picked?.apr_effective ?? null,
-      interest_nominal: picked?.interest_nominal ?? null,
-      zinsbindung_years: picked?.zinsbindung_years ?? null,
-      special_repayment: picked?.special_repayment ?? null,
+      provider_id: picked.provider_id ?? null,
+      provider_name: provider?.name ?? null,
+      provider_logo_path: provider?.logo_path ?? null,
+      loan_amount: picked.loan_amount ?? null,
+      rate_monthly: picked.rate_monthly ?? null,
+      apr_effective: picked.apr_effective ?? null,
+      interest_nominal: picked.interest_nominal ?? null,
+      zinsbindung_years: picked.zinsbindung_years ?? null,
+      special_repayment: picked.special_repayment ?? null,
     }
   }
 
   function latestPreviewSummary(list: PreviewRow[]): PreviewSummary | null {
-    if (!list?.length) return null
-    const picked = list.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))[0]
-    const s = pickPreviewSummary(picked?.payload)
-    const base: PreviewSummary = s ?? {
+    if (!list.length) return null
+    const picked = firstByLatestCreated(list)
+    if (!picked) return null
+    const summary = pickPreviewSummary(picked.payload)
+    const base: PreviewSummary = summary ?? {
       provider_id: null,
       provider_name: null,
       provider_logo_path: null,
@@ -232,57 +259,81 @@ export async function GET(req: Request) {
       zinsbindung_years: null,
       special_repayment: null,
     }
-
-    // Wenn Provider Masterdata existiert, überschreibt es Payload
-    const provId = picked?.provider_id ?? base.provider_id
-    const prov = provId ? providerMap.get(provId) : null
-
+    const providerId = picked.provider_id ?? base.provider_id
+    const provider = providerId ? providerMap.get(providerId) : null
     return {
       ...base,
-      provider_id: provId ?? null,
-      provider_name: prov?.name ?? base.provider_name ?? null,
-      provider_logo_path: prov?.logo_path ?? base.provider_logo_path ?? null,
+      provider_id: providerId ?? null,
+      provider_name: provider?.name ?? base.provider_name ?? null,
+      provider_logo_path: provider?.logo_path ?? base.provider_logo_path ?? null,
     }
   }
 
-  const items = (cases ?? []).map((c) => {
-      const previewSum = latestPreviewSummary(previewsByCase.get(c.id) ?? [])
-      const allOffers = offersByCase.get(c.id) ?? []
-      const offerSum = bestOfferSummary(allOffers)
-      const latestOffer = allOffers
-        .slice()
-        .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))[0] ?? null
-      const latestOfferStatus = latestOffer?.status ?? null
-      const statusDisplay =
-        latestOfferStatus === "accepted"
-          ? "offer_accepted"
-          : latestOfferStatus === "rejected"
-            ? "offer_rejected"
-            : latestOfferStatus === "sent"
-              ? "offer_sent"
-              : latestOfferStatus === "draft"
-                ? "offer_created"
-                : previewSum
-                  ? "comparison_ready"
-                  : c.status
+  const mapped = baseCases.map((baseCase) => {
+    const caseOffers = offersByCase.get(baseCase.id) ?? []
+    const latestOffer = firstByLatestCreated(caseOffers)
+    const approvedOffer = firstApprovedOffer(caseOffers)
+    const preview = latestPreviewSummary(previewsByCase.get(baseCase.id) ?? [])
+    const bestOffer = bestOfferSummary(caseOffers)
+
+    const latestOfferStatus = latestOffer?.status ?? null
+    const statusDisplay = approvedOffer
+      ? "approved"
+      : latestOfferStatus === "accepted"
+        ? "offer_accepted"
+        : latestOfferStatus === "rejected"
+          ? "offer_rejected"
+          : latestOfferStatus === "sent"
+            ? "offer_sent"
+            : latestOfferStatus === "draft"
+              ? "offer_created"
+              : preview
+                ? "comparison_ready"
+                : baseCase.status
 
     return {
-      ...c,
+      ...baseCase,
       status_display: statusDisplay,
-      docsCount: docsCountByCase.get(c.id) ?? 0,
-      offersCount: allOffers.length,
-      previewsCount: (previewsByCase.get(c.id) ?? []).length,
-
-      comparison: previewSum, // Startschuss
-      bestOffer: offerSum,    // optional
+      docsCount: docsCountByCase.get(baseCase.id) ?? 0,
+      offersCount: caseOffers.length,
+      previewsCount: (previewsByCase.get(baseCase.id) ?? []).length,
+      comparison: preview,
+      bestOffer,
+      is_bank_confirmed: !!approvedOffer,
+      confirmed_at: approvedOffer ? approvedOffer.bank_confirmed_at ?? approvedOffer.created_at : null,
+      confirmed_loan_amount: approvedOffer?.loan_amount ?? null,
     }
   })
 
-  const total = count ?? items.length
-  const totalPages = Math.max(1, Math.ceil(total / limit))
+  const scoped =
+    role === "advisor" && advisorBucket === "active"
+      ? mapped.filter((row) => {
+          const status = String(row.status ?? "").toLowerCase()
+          const closed = status === "closed" || status === "completed"
+          return !row.is_bank_confirmed && !closed
+        })
+      : role === "advisor" && advisorBucket === "confirmed"
+        ? mapped.filter((row) => row.is_bank_confirmed)
+        : mapped
 
+  if (role === "advisor") {
+    const total = scoped.length
+    const totalPages = Math.max(1, Math.ceil(total / limit))
+    const pageItems = scoped.slice(from, to + 1)
+    return NextResponse.json({
+      cases: pageItems,
+      page,
+      pageSize: limit,
+      total,
+      totalPages,
+      advisorBucket,
+    })
+  }
+
+  const total = baseTotal
+  const totalPages = Math.max(1, Math.ceil(total / limit))
   return NextResponse.json({
-    cases: items,
+    cases: scoped,
     page,
     pageSize: limit,
     total,

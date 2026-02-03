@@ -50,7 +50,11 @@ export async function POST(req: Request) {
     if (offer.status !== "accepted") {
       return NextResponse.json({ ok: false, error: "bank_status_not_allowed" }, { status: 409 })
     }
-    const { error } = await supabase.from("case_offers").update({ bank_status: bankStatus }).eq("id", offerId)
+    const bankConfirmedAt = bankStatus === "approved" ? new Date().toISOString() : null
+    const { error } = await supabase
+      .from("case_offers")
+      .update({ bank_status: bankStatus, bank_confirmed_at: bankConfirmedAt })
+      .eq("id", offerId)
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
 
     const meta = await logCaseEvent({
@@ -88,6 +92,7 @@ export async function POST(req: Request) {
   const patch: any = { status }
   if (status === "accepted" && !offer.bank_status) {
     patch.bank_status = "submitted"
+    patch.bank_confirmed_at = null
   }
   const { error } = await supabase.from("case_offers").update(patch).eq("id", offerId)
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })

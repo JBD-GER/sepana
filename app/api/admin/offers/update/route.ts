@@ -35,6 +35,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, error: "Ungueltiger Bank-Status" }, { status: 400 })
       }
       patch.bank_status = bankStatus
+      patch.bank_confirmed_at = bankStatus === "approved" ? new Date().toISOString() : null
     }
 
     if (body?.loan_amount === null || typeof body?.loan_amount === "number") patch.loan_amount = body.loan_amount
@@ -57,6 +58,7 @@ export async function POST(req: Request) {
 
     if (patch.status === "accepted" && !offer.bank_status && !patch.bank_status) {
       patch.bank_status = "submitted"
+      patch.bank_confirmed_at = null
     }
 
     const { error } = await admin.from("case_offers").update(patch).eq("id", offerId)
