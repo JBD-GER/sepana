@@ -77,6 +77,12 @@ export default async function AdminDashboard() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
+              href="/admin/leads"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
+            >
+              Leads Inbox
+            </Link>
+            <Link
               href="/admin/banken"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
             >
@@ -154,6 +160,12 @@ export default async function AdminDashboard() {
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="text-sm font-medium text-slate-900">Quick Actions</div>
           <div className="mt-3 grid gap-2">
+            <Link
+              href="/admin/leads"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
+            >
+              Leads ansehen
+            </Link>
             <Link
               href="/admin/berater"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
