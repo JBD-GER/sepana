@@ -391,12 +391,14 @@ export default function LiveCasePanel({
   ticketId,
   guestToken,
   defaultCollapsed = false,
+  showMissingDataReminderButton = false,
 }: {
   caseId: string
   caseRef: string | null
   ticketId?: string
   guestToken?: string
   defaultCollapsed?: boolean
+  showMissingDataReminderButton?: boolean
 }) {
   const supabase = useMemo(() => createBrowserSupabaseClientNoAuth(), [])
   const [primary, setPrimary] = useState<PrimaryApplicant>({})
@@ -408,6 +410,8 @@ export default function LiveCasePanel({
   const [activeTab, setActiveTab] = useState<LiveCaseTabId>("contact")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [reminderBusy, setReminderBusy] = useState(false)
+  const [reminderMsg, setReminderMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [dirty, setDirty] = useState(false)
   const [viewerRole, setViewerRole] = useState<string | null>(null)
   const [customerCanEdit, setCustomerCanEdit] = useState(true)
@@ -418,6 +422,7 @@ export default function LiveCasePanel({
   useEffect(() => {
     setExpanded(!defaultCollapsed)
     setActiveTab("contact")
+    setReminderMsg(null)
   }, [caseId, defaultCollapsed])
 
   async function load() {
@@ -551,6 +556,35 @@ export default function LiveCasePanel({
       }
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function sendMissingDataReminder() {
+    if (!caseId || missingRequired.length < 1 || reminderBusy) return
+    setReminderBusy(true)
+    setReminderMsg(null)
+    try {
+      const res = await fetch("/api/app/cases/remind-missing-data", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ caseId, missingCount: missingRequired.length }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json?.ok) {
+        const code = String(json?.error ?? "")
+        const reason =
+          code === "mail_not_configured"
+            ? "Mailversand ist derzeit nicht konfiguriert."
+            : code === "customer_email_missing"
+              ? "Beim Kunden ist keine E-Mail-Adresse hinterlegt."
+              : "E-Mail konnte nicht gesendet werden."
+        throw new Error(reason)
+      }
+      setReminderMsg({ type: "success", text: "Kunde wurde per E-Mail informiert." })
+    } catch (e: any) {
+      setReminderMsg({ type: "error", text: e?.message ?? "E-Mail konnte nicht gesendet werden." })
+    } finally {
+      setReminderBusy(false)
     }
   }
 
@@ -757,6 +791,11 @@ export default function LiveCasePanel({
     [missingRequired]
   )
   const completedForFinalOffer = !loading && missingRequired.length === 0
+  const canSendMissingDataReminder =
+    showMissingDataReminderButton &&
+    !loading &&
+    missingRequired.length > 0 &&
+    (viewerRole === "advisor" || viewerRole === "admin")
   const isFieldMissing = (id: string) => missingRequiredIds.has(id)
   const missingFieldStyle = (id: string) =>
     isFieldMissing(id) ? "border-amber-300 bg-amber-50/40 focus:border-amber-400 focus:ring-amber-100" : ""
@@ -860,6 +899,28 @@ export default function LiveCasePanel({
                         </button>
                       ))}
                   </div>
+                  {canSendMissingDataReminder ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={sendMissingDataReminder}
+                        disabled={reminderBusy}
+                        className="rounded-full border border-amber-300 bg-white px-3 py-1 text-[11px] font-semibold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {reminderBusy ? "Sende E-Mail..." : `Kunden erinnern (${missingRequired.length} offen)`}
+                      </button>
+                      {reminderMsg ? (
+                        <span
+                          className={cn(
+                            "text-[11px] font-medium",
+                            reminderMsg.type === "success" ? "text-emerald-700" : "text-red-700"
+                          )}
+                        >
+                          {reminderMsg.text}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               )
             ) : null}

@@ -222,7 +222,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
         </div>
       ) : null}
 
-      <LiveCasePanel caseId={c.id} caseRef={c.case_ref ?? null} defaultCollapsed />
+      <LiveCasePanel caseId={c.id} caseRef={c.case_ref ?? null} defaultCollapsed showMissingDataReminderButton />
 
       {/* Startschuss */}
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">

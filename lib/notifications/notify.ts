@@ -209,8 +209,8 @@ export function buildEmailHtml(opts: {
   const intro = escapeHtml(opts.intro)
   const eyebrow = escapeHtml(opts.eyebrow ?? "SEPANA - Service-Update")
   const preheader = escapeHtml(opts.preheader ?? opts.title)
-  const supportNote = escapeHtml(opts.supportNote ?? "Falls Sie diese Nachricht nicht erwarten, koennen Sie diese E-Mail ignorieren.")
-  const sideNote = escapeHtml(opts.sideNote ?? "Sicherheitshinweis: Link ist nur fuer Sie bestimmt.")
+  const supportNote = escapeHtml(opts.supportNote ?? "Falls Sie diese Nachricht nicht erwarten, können Sie diese E-Mail ignorieren.")
+  const sideNote = escapeHtml(opts.sideNote ?? "Sicherheitshinweis: Link ist nur für Sie bestimmt.")
   const ctaUrl = String(opts.ctaUrl ?? "").trim()
   const ctaLabel = ctaUrl ? escapeHtml(opts.ctaLabel ?? "Zum Portal") : ""
 
@@ -228,7 +228,7 @@ export function buildEmailHtml(opts: {
                           <tr>
                             <td style="padding:14px 16px 12px 16px; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
                               <div style="font-size:13px; font-weight:700; color:#0f172a; margin-bottom:8px;">
-                                Naechste Schritte
+                                Nächste Schritte
                               </div>
                               <ul style="padding-left:18px; margin:0; font-size:13px; line-height:20px; color:#334155;">
                                 ${steps}
@@ -401,11 +401,11 @@ export function buildEmailHtml(opts: {
                     <td style="padding:18px 20px; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
                       <div style="font-size:12px; line-height:18px; color:#475569;">
                         <strong style="color:#0f172a;">Register- und Erlaubnisangaben</strong><br />
-                        Umsatzsteuer-Identifikationsnummer gemaess Paragraf 27 a UStG: <span style="color:#0f172a; font-weight:700;">DE352217621</span><br />
+                        Umsatzsteuer-Identifikationsnummer gemäß Paragraf 27 a UStG: <span style="color:#0f172a; font-weight:700;">DE352217621</span><br />
                         Registrierungsnummer: <span style="color:#0f172a; font-weight:700;">D-W-133-TNSL-07</span><br />
-                        Registrierung gemaess Paragraf 34i Abs. 1 Satz 1 GewO<br />
-                        Erlaubnis gemaess Paragraf 34c Abs. 1 GewO<br />
-                        Erlaubnis gemaess Paragraf 34i Abs. 1 GewO
+                        Registrierung gemäß Paragraf 34i Abs. 1 Satz 1 GewO<br />
+                        Erlaubnis gemäß Paragraf 34c Abs. 1 GewO<br />
+                        Erlaubnis gemäß Paragraf 34i Abs. 1 GewO
                       </div>
                       <div style="margin-top:10px; font-size:11px; line-height:16px; color:#94a3b8;">
                         (c) SEPANA - Diese E-Mail wurde automatisch versendet. Bitte antworten Sie nicht direkt auf diese Nachricht.
