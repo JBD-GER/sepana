@@ -184,7 +184,7 @@ export default function BaufiStart() {
                         <div className="text-3xl font-semibold tracking-tight" style={{ color: PRIMARY }}>
                           350 €
                         </div>
-                        <div className="text-sm font-medium text-slate-800">extra für Sie</div>
+                        <div className="text-sm font-medium text-slate-800">extra für Sie (inkl. MwSt.)</div>
                       </div>
                       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white" style={{ background: PRIMARY }}>
                         <IconGift className="h-5 w-5" />
