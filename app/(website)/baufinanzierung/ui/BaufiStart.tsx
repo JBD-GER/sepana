@@ -145,60 +145,63 @@ export default function BaufiStart() {
 
   return (
     <div className="space-y-6">
-      {/* ✅ volle Breite in deinem Content-Container */}
       <div className="w-full">
         <div className="w-full overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-[0_18px_60px_rgba(2,6,23,0.08)]">
-          {/* Header */}
           <div className="p-5 sm:p-7">
-            {/* ✅ 2/3 + 1/3 Layout */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
-              {/* 2/3 Headline */}
               <div className="lg:col-span-2">
-                <h2 className="text-balance text-[26px] font-semibold leading-tight text-slate-900 sm:text-[36px]">
+                <h2 className="text-balance text-[22px] font-semibold leading-tight text-slate-900 sm:text-[30px]">
                   Finden Sie die passende Baufinanzierung –{" "}
-                  <span style={{ color: PRIMARY }}>strukturiert</span> & ohne Chaos.
+                  <span style={{ color: PRIMARY }}>mit Best-Zins-Check</span>
                 </h2>
                 <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-slate-600 sm:text-[15px]">
-                  Starten Sie mit 3 Eckdaten. Danach ergänzen Sie Haushaltswerte & ggf. weitere Kreditnehmer.
+                  Starten Sie mit 3 Eckdaten. Danach ergänzen Sie Haushaltswerte und ggf. weitere Kreditnehmer –
+                  auf Wunsch mit Expertenberatung.
                 </p>
 
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 shadow-sm">DSGVO-konform</span>
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 shadow-sm">1 Minute Start</span>
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 shadow-sm">Ergebnis im Portal</span>
-                </div>
+                <ul className="mt-4 space-y-2 text-sm text-slate-700">
+                  <li className="flex gap-2">
+                    <span className="mt-[7px] h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                    <span>Abgleich nach Vorhaben, Objekt und Budget statt starrer Einheitsvorgaben.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="mt-[7px] h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                    <span>Sie sehen direkt, welche Angebote online möglich sind und wo Live-Beratung sinnvoll ist.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="mt-[7px] h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                    <span>Konditionshinweise mit Stand-Datum schaffen eine klare Erwartung vor dem eigentlichen Antrag.</span>
+                  </li>
+                </ul>
               </div>
 
-              {/* 1/3 Bonus */}
               <div className="lg:col-span-1">
                 <div className="h-full rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <div className="grid h-10 w-10 place-items-center rounded-2xl text-white" style={{ background: PRIMARY }}>
-                      <IconGift className="h-5 w-5" />
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="text-xs font-medium text-slate-600">Bonus bei erfolgreichem Abschluss</div>
-                      <div className="mt-0.5 flex items-baseline gap-2">
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium text-slate-600">Bonus bei erfolgreichem Abschluss</div>
+                    <div className="mt-1 flex items-center justify-between gap-3">
+                      <div className="flex items-baseline gap-2">
                         <div className="text-3xl font-semibold tracking-tight" style={{ color: PRIMARY }}>
                           350 €
                         </div>
                         <div className="text-sm font-medium text-slate-800">extra für Sie</div>
                       </div>
-                      <div className="mt-1 text-[12px] leading-relaxed text-slate-500">
-                        Gutschrift nach erfolgreicher Finanzierung/Abschluss gemäß Bedingungen.
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white" style={{ background: PRIMARY }}>
+                        <IconGift className="h-5 w-5" />
                       </div>
+                    </div>
+                    <div className="mt-1 text-[12px] leading-relaxed text-slate-500">
+                      Gutschrift nach erfolgreicher Finanzierung/Abschluss gemäß Bedingungen.
+                    </div>
 
-                      <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900">
-                        Hinweis: Die Auszahlung erfolgt erst, wenn der Antrag von der Bank bewilligt wurde und eine Auszahlungsgenehmigung vorliegt.
-                      </div>
-                      <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                        Tipp: Starten Sie jetzt – dauert wirklich nur kurz.
-                      </div>
+                    <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900">
+                      Hinweis: Die Auszahlung erfolgt erst, wenn der Antrag von der Bank bewilligt wurde und eine Auszahlungsgenehmigung vorliegt.
+                    </div>
+                    <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                      Tipp: Starten Sie jetzt – dauert wirklich nur kurz.
                     </div>
                   </div>
 
-                  {/* Bonus-Line unten nochmal klar */}
                   <div className="mt-4 h-px bg-slate-200" />
                   <div className="mt-3 text-xs text-slate-600">
                     <span className="font-semibold" style={{ color: PRIMARY }}>
@@ -211,7 +214,6 @@ export default function BaufiStart() {
             </div>
           </div>
 
-          {/* Form area */}
           <div className="border-t border-slate-200 bg-slate-50/40 p-5 sm:p-7">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <Field label="Vorhaben">
@@ -244,7 +246,6 @@ export default function BaufiStart() {
               </Field>
             </div>
 
-            {/* CTA row */}
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-xs text-slate-600">
                 Sie haben bereits ein Konto?{" "}
@@ -279,7 +280,6 @@ export default function BaufiStart() {
               </div>
             </div>
 
-            {/* Mobile-only Bonus strip mega präsent */}
             <div className="mt-4 sm:hidden">
               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
                 <span className="font-semibold" style={{ color: PRIMARY }}>350 € Bonus</span>{" "}
@@ -293,7 +293,6 @@ export default function BaufiStart() {
         </div>
       </div>
 
-      {/* Wizard */}
       {started ? (
         <div ref={wizardRef} className="scroll-mt-24">
           <BaufiWizard baufi={baufi} startNonce={startNonce} />
@@ -302,4 +301,3 @@ export default function BaufiStart() {
     </div>
   )
 }
-
