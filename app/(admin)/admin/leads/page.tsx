@@ -1,6 +1,8 @@
+import Link from "next/link"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import AssignLeadAdvisorButton from "./ui/AssignLeadAdvisorButton"
+import CreateLeadStartOfferButton from "./ui/CreateLeadStartOfferButton"
 
 function dt(value: string | null | undefined) {
   if (!value) return "-"
@@ -26,7 +28,7 @@ export default async function AdminLeadsPage() {
   const { data: leads, error: leadsError } = await admin
     .from("webhook_leads")
     .select(
-      "id,external_lead_id,event_type,status,complaint_reason,first_name,last_name,email,phone,phone_mobile,phone_work,birth_date,marital_status,employment_status,address_street,address_zip,address_city,product_name,product_price,notes,assigned_advisor_id,assigned_at,created_at,last_event_at,source_created_at"
+      "id,external_lead_id,event_type,status,complaint_reason,first_name,last_name,email,phone,phone_mobile,phone_work,birth_date,marital_status,employment_status,address_street,address_zip,address_city,product_name,product_price,notes,assigned_advisor_id,assigned_at,linked_case_id,created_at,last_event_at,source_created_at"
     )
     .order("created_at", { ascending: false })
     .limit(300)
@@ -62,6 +64,28 @@ export default async function AdminLeadsPage() {
       return { id, label }
     })
     .sort((a, b) => a.label.localeCompare(b.label, "de"))
+
+  const linkedCaseIds = Array.from(new Set((leads ?? []).map((l) => l.linked_case_id).filter(Boolean)))
+  const { data: linkedCases } = linkedCaseIds.length
+    ? await admin
+        .from("cases")
+        .select("id,case_ref,case_type,status")
+        .in("id", linkedCaseIds as string[])
+    : { data: [] as any[] }
+  const caseById = new Map<string, { id: string; case_ref: string | null; case_type: string; status: string }>()
+  for (const row of linkedCases ?? []) {
+    caseById.set(row.id, row)
+  }
+
+  const { data: providers } = await admin
+    .from("providers")
+    .select("id,name")
+    .eq("is_active", true)
+    .order("name", { ascending: true })
+  const startOfferProviders = (providers ?? []).map((p) => ({
+    id: p.id,
+    label: p.name ?? p.id,
+  }))
 
   return (
     <div className="space-y-6">
@@ -111,6 +135,9 @@ export default async function AdminLeadsPage() {
                     ? `${advisorDisplay} (${advisorEmail || lead.assigned_advisor_id})`
                     : advisorEmail || lead.assigned_advisor_id
                   : "Nicht zugewiesen"
+                const linkedCase = lead.linked_case_id ? caseById.get(lead.linked_case_id) : null
+                const linkedCaseRef =
+                  linkedCase?.case_ref ?? (lead.linked_case_id ? lead.linked_case_id.slice(0, 8) : null)
 
                 return (
                   <tr key={lead.id} className="border-b border-slate-200/60 last:border-0 align-top hover:bg-slate-50/60">
@@ -119,6 +146,20 @@ export default async function AdminLeadsPage() {
                       <div className="text-xs text-slate-500">{lead.event_type}</div>
                       <div className="mt-1 text-xs text-slate-500">Webhook: {dt(lead.source_created_at)}</div>
                       <div className="text-xs text-slate-500">Empfangen: {dt(lead.created_at)}</div>
+                      {linkedCaseRef ? (
+                        <div className="mt-2 text-xs text-slate-700">
+                          Fall:{" "}
+                          <Link
+                            href={`/admin/faelle/${lead.linked_case_id}`}
+                            className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900"
+                          >
+                            {linkedCaseRef}
+                          </Link>
+                          {linkedCase?.status ? <span className="ml-1 text-slate-500">({linkedCase.status})</span> : null}
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-xs text-amber-700">Noch kein Fall verknuepft</div>
+                      )}
                     </td>
 
                     <td className="px-4 py-3 text-slate-700">
@@ -165,6 +206,17 @@ export default async function AdminLeadsPage() {
                         currentAdvisorId={lead.assigned_advisor_id}
                         advisorOptions={advisorOptions}
                       />
+                      {linkedCase ? (
+                        <div className="mt-2">
+                          <Link
+                            href={`/admin/faelle/${linkedCase.id}`}
+                            className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm"
+                          >
+                            Fall oeffnen
+                          </Link>
+                          <CreateLeadStartOfferButton leadId={lead.id} providerOptions={startOfferProviders} />
+                        </div>
+                      ) : null}
                     </td>
                   </tr>
                 )

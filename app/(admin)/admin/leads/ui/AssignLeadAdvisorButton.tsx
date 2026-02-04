@@ -36,7 +36,7 @@ export default function AssignLeadAdvisorButton({
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || "Speichern fehlgeschlagen")
-      setMsg("Gespeichert")
+      setMsg(String(json?.message ?? "Gespeichert"))
       router.refresh()
     } catch (error: any) {
       setMsg(error?.message ?? "Fehler")
