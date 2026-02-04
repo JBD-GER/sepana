@@ -195,7 +195,7 @@ export default function BaufiStart() {
                     </div>
 
                     <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900">
-                      Hinweis: Die Auszahlung erfolgt erst, wenn der Antrag von der Bank bewilligt wurde und eine Auszahlungsgenehmigung vorliegt.
+                      Hinweis: Die Auszahlung erfolgt erst, wenn der Antrag von der Bank bewilligt wurde und eine Auszahlungsgenehmigung vorliegt. Mindestdarlehenssumme: 250.000 €.
                     </div>
                     <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
                       Tipp: Starten Sie jetzt – dauert wirklich nur kurz.
