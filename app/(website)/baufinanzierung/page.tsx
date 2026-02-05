@@ -157,7 +157,7 @@ export default async function BaufinanzierungPage() {
         <div className="pointer-events-none absolute -bottom-16 right-0 h-56 w-56 rounded-full bg-indigo-300/20 blur-3xl" />
 
         <div className="relative">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-200/80">Baufinanzierung</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-200/80">Hypothekenzins</div>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Baufinanzierung Vergleich</h1>
           <p className="mt-3 max-w-3xl text-sm text-slate-200/95 sm:text-base">
             SEPANA führt Sie vom Erstvergleich bis zum Abschluss: transparent, digital und mit optionaler Expertenberatung.

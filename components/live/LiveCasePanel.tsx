@@ -258,6 +258,46 @@ function Field({
   )
 }
 
+function CheckboxField({
+  label,
+  optionLabel,
+  checked,
+  onChange,
+  hint,
+  invalid,
+}: {
+  label: string
+  optionLabel: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+  hint?: string
+  invalid?: boolean
+}) {
+  return (
+    <div className={cn("block rounded-2xl p-1.5 transition", invalid && "bg-amber-50/70 ring-1 ring-amber-200/80")}>
+      <div className="mb-1 flex items-baseline justify-between gap-3">
+        <span className={cn("text-sm font-medium", invalid ? "text-amber-900" : "text-slate-900")}>{label}</span>
+        {hint ? <span className="text-xs text-slate-500">{hint}</span> : null}
+      </div>
+      <label
+        className={cn(
+          "flex h-11 items-center gap-2 rounded-2xl border px-3 shadow-sm",
+          invalid ? "border-amber-300 bg-amber-50/40" : "border-slate-200/70 bg-white"
+        )}
+      >
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+          className="h-4 w-4 rounded border-slate-300 text-slate-900"
+        />
+        <span className={cn("text-sm", invalid ? "text-amber-900" : "text-slate-700")}>{optionLabel}</span>
+      </label>
+      {invalid ? <div className="mt-1 text-[11px] text-amber-700">Fehlt noch fuer das finale Angebot.</div> : null}
+    </div>
+  )
+}
+
 function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
@@ -410,6 +450,7 @@ export default function LiveCasePanel({
   const [activeTab, setActiveTab] = useState<LiveCaseTabId>("contact")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saveMsg, setSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [reminderBusy, setReminderBusy] = useState(false)
   const [reminderMsg, setReminderMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [dirty, setDirty] = useState(false)
@@ -423,10 +464,11 @@ export default function LiveCasePanel({
     setExpanded(!defaultCollapsed)
     setActiveTab("contact")
     setReminderMsg(null)
+    setSaveMsg(null)
   }, [caseId, defaultCollapsed])
 
-  async function load() {
-    if (!caseId || dirty) return
+  async function load(force = false) {
+    if (!caseId || (!force && dirty)) return
     const qs = new URLSearchParams({ caseId })
     if (ticketId) qs.set("ticketId", ticketId)
     if (guestToken) qs.set("guestToken", guestToken)
@@ -543,6 +585,7 @@ export default function LiveCasePanel({
   async function save() {
     if (!caseId) return
     setSaving(true)
+    setSaveMsg(null)
     try {
       const res = await fetch("/api/live/case", {
         method: "POST",
@@ -550,10 +593,23 @@ export default function LiveCasePanel({
         body: JSON.stringify({ caseId, ticketId: ticketId ?? null, guestToken, primary, co, baufi, additional, children }),
       })
       const json = await res.json().catch(() => ({}))
-      if (res.ok && json?.ok) {
-        setDirty(false)
-        await load()
+      if (!res.ok || !json?.ok) {
+        const code = String(json?.error ?? "")
+        const fallback = "Speichern fehlgeschlagen. Bitte pruefen und erneut versuchen."
+        const reason =
+          code === "customer_edit_locked"
+            ? "Die Falldaten sind bereits gesperrt und koennen nicht mehr bearbeitet werden."
+            : typeof json?.message === "string" && json.message.trim()
+              ? json.message
+              : fallback
+        setSaveMsg({ type: "error", text: reason })
+        return
       }
+      setDirty(false)
+      setSaveMsg({ type: "success", text: "Aenderungen gespeichert." })
+      await load(true)
+    } catch {
+      setSaveMsg({ type: "error", text: "Netzwerkfehler beim Speichern. Bitte erneut versuchen." })
     } finally {
       setSaving(false)
     }
@@ -802,13 +858,13 @@ export default function LiveCasePanel({
 
   return (
     <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
           aria-controls={contentId}
-          className="text-left"
+          className="w-full rounded-xl px-2 py-1 text-left transition hover:bg-slate-100/70 sm:w-auto"
         >
           <div className="flex items-center gap-2">
             <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Falldaten</div>
@@ -823,12 +879,26 @@ export default function LiveCasePanel({
           </div>
           <div className="mt-1 text-sm font-semibold text-slate-900">{caseRef || caseId}</div>
         </button>
-        <div className="flex items-center gap-2">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            aria-controls={contentId}
+            className={cn(
+              "w-full rounded-xl border px-3 py-2 text-center text-xs font-semibold transition sm:w-auto sm:text-left",
+              expanded
+                ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                : "border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100"
+            )}
+          >
+            {expanded ? "Falldaten einklappen" : "Falldaten anzeigen"}
+          </button>
           {!loading ? (
             canEdit ? (
               <span
                 className={cn(
-                  "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold",
+                  "inline-flex w-full items-center justify-center rounded-full border px-3 py-1 text-center text-[11px] font-semibold leading-tight sm:w-auto",
                   completedForFinalOffer
                     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                     : "border-amber-200 bg-amber-50 text-amber-700"
@@ -837,7 +907,7 @@ export default function LiveCasePanel({
                 {completedForFinalOffer ? "Geschafft 🎉 bereit fuer finales Angebot" : `${missingRequired.length} Pflichtfelder offen`}
               </span>
             ) : (
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-600">
+              <span className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-center text-[11px] font-semibold text-slate-600 sm:w-auto">
                 Read-only
               </span>
             )
@@ -845,12 +915,36 @@ export default function LiveCasePanel({
           <button
             onClick={save}
             disabled={saving || !canEdit}
-            className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-60"
+            className="col-span-2 w-full rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-60 sm:col-auto sm:w-auto"
           >
             {saving ? "Speichern..." : "Aenderungen speichern"}
           </button>
         </div>
       </div>
+      {saveMsg ? (
+        <div
+          className={cn(
+            "mt-3 rounded-2xl border px-4 py-3 text-xs",
+            saveMsg.type === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-rose-200 bg-rose-50 text-rose-800"
+          )}
+        >
+          {saveMsg.text}
+        </div>
+      ) : null}
+      {!expanded ? (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          aria-expanded={expanded}
+          aria-controls={contentId}
+          className="mt-3 w-full rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-left transition hover:bg-sky-100"
+        >
+          <div className="text-sm font-semibold text-sky-900">Hier klicken, um alle Falldaten zu sehen</div>
+          <div className="mt-1 text-xs text-sky-800">Kontakt, Haushalt, Finanzierung und Details oeffnen</div>
+        </button>
+      ) : null}
 
       {expanded && (
         loading ? (
@@ -1430,116 +1524,116 @@ export default function LiveCasePanel({
           </Card>
 
           <Card title="Wohnkosten & Haushalt">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              <Field
-                label="Aktuelle Warmmiete"
-                required={!additional.current_warm_rent_none}
-                invalid={isFieldMissing("additional.current_warm_rent")}
-              >
-                <MoneyInput
-                  value={toMoneyInput(additional.current_warm_rent)}
-                  onChange={(v) => updateAdditional("current_warm_rent", v)}
-                  placeholder="z. B. 1.050"
-                  disabled={!!additional.current_warm_rent_none}
-                  className={missingFieldStyle("additional.current_warm_rent")}
-                />
-              </Field>
-              <div className="self-start rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-2">
-                <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={!!additional.current_warm_rent_none}
-                    onChange={(e) => updateAdditional("current_warm_rent_none", e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-slate-900"
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+              <div className="xl:col-span-2">
+                <Field
+                  label="Aktuelle Warmmiete"
+                  required={!additional.current_warm_rent_none}
+                  invalid={isFieldMissing("additional.current_warm_rent")}
+                >
+                  <MoneyInput
+                    value={toMoneyInput(additional.current_warm_rent)}
+                    onChange={(v) => updateAdditional("current_warm_rent", v)}
+                    placeholder="z. B. 1.050"
+                    disabled={!!additional.current_warm_rent_none}
+                    className={missingFieldStyle("additional.current_warm_rent")}
                   />
-                  Entfaellt (keine Warmmiete)
-                </label>
+                </Field>
               </div>
-              <Field label="Haushaltsgroesse (Personen)" required invalid={isFieldMissing("additional.household_persons")}>
-                <Input
-                  value={toInput(additional.household_persons)}
-                  onChange={(e) => updateAdditional("household_persons", e.target.value)}
-                  className={missingFieldStyle("additional.household_persons")}
+              <div className="xl:col-span-2">
+                <CheckboxField
+                  label="Warmmiete"
+                  optionLabel="Entfaellt (keine Warmmiete)"
+                  checked={!!additional.current_warm_rent_none}
+                  onChange={(checked) => updateAdditional("current_warm_rent_none", checked)}
+                  hint="optional"
                 />
-              </Field>
-              <Field label="Anzahl KFZ" hint="optional">
-                <Input value={toInput(additional.vehicle_count)} onChange={(e) => updateAdditional("vehicle_count", e.target.value)} />
-              </Field>
-              <Field label="KFZ Kosten gesamt / Monat" hint="optional">
-                <MoneyInput
-                  value={toMoneyInput(additional.vehicle_cost_total)}
-                  onChange={(v) => updateAdditional("vehicle_cost_total", v)}
-                  placeholder="z. B. 250"
-                />
-              </Field>
+              </div>
+              <div className="xl:col-span-2">
+                <Field label="Haushaltsgroesse (Personen)" required invalid={isFieldMissing("additional.household_persons")}>
+                  <Input
+                    value={toInput(additional.household_persons)}
+                    onChange={(e) => updateAdditional("household_persons", e.target.value)}
+                    className={missingFieldStyle("additional.household_persons")}
+                  />
+                </Field>
+              </div>
+              <div className="xl:col-span-3">
+                <Field label="Anzahl KFZ" hint="optional">
+                  <Input value={toInput(additional.vehicle_count)} onChange={(e) => updateAdditional("vehicle_count", e.target.value)} />
+                </Field>
+              </div>
+              <div className="xl:col-span-3">
+                <Field label="KFZ Kosten gesamt / Monat" hint="optional">
+                  <MoneyInput
+                    value={toMoneyInput(additional.vehicle_cost_total)}
+                    onChange={(v) => updateAdditional("vehicle_cost_total", v)}
+                    placeholder="z. B. 250"
+                  />
+                </Field>
+              </div>
             </div>
           </Card>
 
           <Card title="Arbeitsdetails">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              <div className="self-start rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-2">
-                <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={!!additional.probation}
-                    onChange={(e) => updateAdditional("probation", e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-slate-900"
-                  />
-                  Probezeit
-                </label>
-              </div>
-              <Field label="Probezeit (Monate)" required={!!additional.probation} invalid={isFieldMissing("additional.probation_months")}>
-                <Input
-                  value={toInput(additional.probation_months)}
-                  onChange={(e) => updateAdditional("probation_months", e.target.value)}
-                  disabled={!additional.probation}
-                  className={missingFieldStyle("additional.probation_months")}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+              <div className="xl:col-span-2">
+                <CheckboxField
+                  label="Anstellungsverhaeltnis"
+                  optionLabel="Probezeit aktiv"
+                  checked={!!additional.probation}
+                  onChange={(checked) => updateAdditional("probation", checked)}
                 />
-              </Field>
-              <Field label="Anzahl Gehaelter / Jahr" required invalid={isFieldMissing("additional.salary_payments_per_year")}>
-                <Select
-                  value={toInput(additional.salary_payments_per_year)}
-                  onChange={(v) => updateAdditional("salary_payments_per_year", v)}
-                  className={missingFieldStyle("additional.salary_payments_per_year")}
-                >
-                  <option value="">Bitte waehlen</option>
-                  {SALARY_PAYMENTS_OPTIONS.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+              </div>
+              <div className="xl:col-span-2">
+                <Field label="Probezeit (Monate)" required={!!additional.probation} invalid={isFieldMissing("additional.probation_months")}>
+                  <Input
+                    value={toInput(additional.probation_months)}
+                    onChange={(e) => updateAdditional("probation_months", e.target.value)}
+                    disabled={!additional.probation}
+                    className={missingFieldStyle("additional.probation_months")}
+                  />
+                </Field>
+              </div>
+              <div className="xl:col-span-2">
+                <Field label="Anzahl Gehaelter / Jahr" required invalid={isFieldMissing("additional.salary_payments_per_year")}>
+                  <Select
+                    value={toInput(additional.salary_payments_per_year)}
+                    onChange={(v) => updateAdditional("salary_payments_per_year", v)}
+                    className={missingFieldStyle("additional.salary_payments_per_year")}
+                  >
+                    <option value="">Bitte waehlen</option>
+                    {SALARY_PAYMENTS_OPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
             </div>
           </Card>
 
           <Card title="Kinder & Unterhalt">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div
-                className={cn(
-                  "self-start flex items-center gap-2 rounded-2xl border px-3 py-2",
-                  additional.has_children && isFieldMissing("children.required")
-                    ? "border-amber-200 bg-amber-50/70"
-                    : "border-slate-200/70 bg-white/70"
-                )}
-              >
-                <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={!!additional.has_children}
-                    onChange={(e) => updateAdditional("has_children", e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-slate-900"
-                  />
-                  Kinder vorhanden
-                </label>
-              </div>
-              <Field label="Unterhaltseinnahmen / Monat" hint="optional">
-                <MoneyInput
-                  value={toMoneyInput(additional.maintenance_income_monthly)}
-                  onChange={(v) => updateAdditional("maintenance_income_monthly", v)}
-                  placeholder="z. B. 250"
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+              <div className="xl:col-span-3">
+                <CheckboxField
+                  label="Familiensituation"
+                  optionLabel="Kinder vorhanden"
+                  checked={!!additional.has_children}
+                  onChange={(checked) => updateAdditional("has_children", checked)}
+                  invalid={!!additional.has_children && isFieldMissing("children.required")}
                 />
-              </Field>
+              </div>
+              <div className="xl:col-span-3">
+                <Field label="Unterhaltseinnahmen / Monat" hint="optional">
+                  <MoneyInput
+                    value={toMoneyInput(additional.maintenance_income_monthly)}
+                    onChange={(v) => updateAdditional("maintenance_income_monthly", v)}
+                    placeholder="z. B. 250"
+                  />
+                </Field>
+              </div>
             </div>
 
             <div className="mt-4 space-y-3">

@@ -33,38 +33,41 @@ const CO_FIELDS = [
   "net_income_monthly",
 ] as const
 
-const BAUFI_FIELDS = ["purpose", "property_type", "purchase_price"] as const
-const ADDITIONAL_FIELDS = [
-  "equity_total",
-  "equity_used",
-  "property_address_type",
+const BAUFI_DB_FIELDS = [
+  "purpose",
+  "property_type",
+  "purchase_price",
+  "property_address_kind",
   "property_street",
-  "property_no",
+  "property_house_no",
   "property_zip",
   "property_city",
   "property_plot_size",
-  "current_warm_rent",
-  "current_warm_rent_none",
+] as const
+
+const ADDITIONAL_DB_FIELDS = [
+  "equity_total",
+  "equity_used",
+  "warm_rent_monthly",
+  "warm_rent_not_applicable",
   "birth_place",
+  "residence_since",
+  "probation",
+  "probation_months",
+  "salary_count",
+  "household_size",
+  "vehicles_count",
+  "vehicles_cost_total",
+  "bank_account_holder",
+  "bank_iban",
+  "bank_bic",
   "id_document_number",
   "id_issued_place",
   "id_issued_at",
   "id_expires_at",
-  "address_since",
-  "probation",
-  "probation_months",
-  "salary_payments_per_year",
-  "household_persons",
-  "vehicle_count",
-  "vehicle_cost_total",
-  "bank_account_holder",
-  "bank_iban",
-  "bank_bic",
-  "has_children",
-  "maintenance_income_monthly",
 ] as const
 
-const CHILD_FIELDS = ["name", "birth_date", "maintenance_income_monthly"] as const
+const CHILD_DB_FIELDS = ["child_name", "birth_date", "support_income_monthly"] as const
 
 function numOrNull(v: unknown) {
   if (v === null || v === undefined) return null
@@ -77,6 +80,12 @@ function numOrNull(v: unknown) {
   let normalized = cleaned
   if (normalized.includes(",")) {
     normalized = normalized.replace(/\./g, "").replace(",", ".")
+  } else if ((normalized.match(/\./g) ?? []).length > 1) {
+    normalized = normalized.replace(/\./g, "")
+  } else if (normalized.includes(".")) {
+    // Keep decimal values like 12.5, but treat 1.050/300.000 as thousands format.
+    const [, decimalPart = ""] = normalized.split(".")
+    if (decimalPart.length > 2) normalized = normalized.replace(/\./g, "")
   } else {
     normalized = normalized.replace(/\./g, "")
   }
@@ -85,12 +94,40 @@ function numOrNull(v: unknown) {
   return Number.isFinite(n) ? n : null
 }
 
+function dateOrNull(v: unknown) {
+  if (v === undefined) return undefined
+  if (v === null) return null
+  const raw = String(v).trim()
+  return raw ? raw : null
+}
+
 function pick(obj: any, fields: readonly string[]) {
   const out: Record<string, any> = {}
   fields.forEach((k) => {
     if (obj && obj[k] !== undefined) out[k] = obj[k]
   })
   return out
+}
+
+function defined(obj: Record<string, any>) {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined))
+}
+
+function toUiAddressKind(v: unknown): string | null {
+  const value = String(v ?? "").trim().toLowerCase()
+  if (!value) return null
+  if (value === "grundstueck") return "plot"
+  if (value === "immobilie") return "property"
+  if (value === "plot" || value === "property") return value
+  return null
+}
+
+function toDbAddressKind(v: unknown): string | undefined {
+  const value = String(v ?? "").trim().toLowerCase()
+  if (!value) return undefined
+  if (value === "plot" || value === "grundstueck") return "grundstueck"
+  if (value === "property" || value === "immobilie") return "immobilie"
+  return undefined
 }
 
 function customerCanEdit(offerStatus: string | null) {
@@ -187,21 +224,67 @@ export async function GET(req: Request) {
 
   const { data: baufi } = await readClient
     .from("case_baufi_details")
-    .select(BAUFI_FIELDS.join(","))
+    .select("*")
     .eq("case_id", caseId)
     .maybeSingle()
 
   const { data: additional } = await readClient
     .from("case_additional_details")
-    .select(ADDITIONAL_FIELDS.join(","))
+    .select("*")
     .eq("case_id", caseId)
     .maybeSingle()
 
   const { data: children } = await readClient
     .from("case_children")
-    .select(`id,${CHILD_FIELDS.join(",")}`)
+    .select("id,*")
     .eq("case_id", caseId)
     .order("created_at", { ascending: true })
+
+  const childrenUi = (children ?? []).map((c: any) => ({
+    id: c.id,
+    name: c.child_name ?? c.name ?? null,
+    birth_date: c.birth_date ?? null,
+    maintenance_income_monthly: c.support_income_monthly ?? c.maintenance_income_monthly ?? null,
+  }))
+
+  const baufiUi = {
+    purpose: baufi?.purpose ?? null,
+    property_type: baufi?.property_type ?? null,
+    purchase_price: baufi?.purchase_price ?? null,
+  }
+
+  const additionalUi = {
+    equity_total: additional?.equity_total ?? null,
+    equity_used: additional?.equity_used ?? null,
+    property_address_type: toUiAddressKind(baufi?.property_address_kind),
+    property_street: baufi?.property_street ?? null,
+    property_no: baufi?.property_house_no ?? null,
+    property_zip: baufi?.property_zip ?? null,
+    property_city: baufi?.property_city ?? null,
+    property_plot_size: baufi?.property_plot_size ?? null,
+    current_warm_rent: additional?.warm_rent_monthly ?? additional?.current_warm_rent ?? null,
+    current_warm_rent_none: additional?.warm_rent_not_applicable ?? additional?.current_warm_rent_none ?? false,
+    birth_place: additional?.birth_place ?? null,
+    id_document_number: additional?.id_document_number ?? null,
+    id_issued_place: additional?.id_issued_place ?? null,
+    id_issued_at: additional?.id_issued_at ?? null,
+    id_expires_at: additional?.id_expires_at ?? null,
+    address_since: additional?.residence_since ?? additional?.address_since ?? null,
+    probation: additional?.probation ?? false,
+    probation_months: additional?.probation_months ?? null,
+    salary_payments_per_year: additional?.salary_count ?? additional?.salary_payments_per_year ?? null,
+    household_persons: additional?.household_size ?? additional?.household_persons ?? null,
+    vehicle_count: additional?.vehicles_count ?? additional?.vehicle_count ?? null,
+    vehicle_cost_total: additional?.vehicles_cost_total ?? additional?.vehicle_cost_total ?? null,
+    bank_account_holder: additional?.bank_account_holder ?? null,
+    bank_iban: additional?.bank_iban ?? null,
+    bank_bic: additional?.bank_bic ?? null,
+    has_children:
+      additional?.has_children !== undefined && additional?.has_children !== null
+        ? !!additional.has_children
+        : childrenUi.length > 0,
+    maintenance_income_monthly: additional?.maintenance_income_monthly ?? null,
+  }
 
   return NextResponse.json({
     ok: true,
@@ -212,9 +295,9 @@ export async function GET(req: Request) {
     },
     primary: primary ?? {},
     co: coApplicants ?? [],
-    baufi: baufi ?? {},
-    additional: additional ?? {},
-    children: children ?? [],
+    baufi: baufiUi,
+    additional: additionalUi,
+    children: childrenUi,
     latest_offer_status: latestOffer?.status ?? null,
     customer_can_edit: customerCanEdit(latestOffer?.status ?? null),
     viewer_role: viewerRole ?? null,
@@ -236,20 +319,64 @@ export async function POST(req: Request) {
 
   const { readClient } = access as any
   const effectiveRole = user ? role : "customer"
-  const { data: latestOffer } = await readClient
+  const { data: latestOffer, error: latestOfferError } = await readClient
     .from("case_offers")
     .select("status,created_at")
     .eq("case_id", caseId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle()
+  if (latestOfferError) {
+    return NextResponse.json(
+      { ok: false, error: "save_failed", stage: "latest_offer", message: latestOfferError.message },
+      { status: 500 }
+    )
+  }
 
   if (effectiveRole === "customer" && !customerCanEdit(latestOffer?.status ?? null)) {
     return NextResponse.json({ ok: false, error: "customer_edit_locked" }, { status: 409 })
   }
+  const incomingBaufi = body?.baufi ?? {}
+  const incomingAdditional = body?.additional ?? {}
   const primaryPatch = pick(body?.primary ?? {}, PRIMARY_FIELDS)
-  const baufiPatch = pick(body?.baufi ?? {}, BAUFI_FIELDS)
-  const additionalPatch = pick(body?.additional ?? {}, ADDITIONAL_FIELDS)
+  const baufiPatch = pick(
+    defined({
+      purpose: incomingBaufi.purpose,
+      property_type: incomingBaufi.property_type,
+      purchase_price: incomingBaufi.purchase_price,
+      property_address_kind: toDbAddressKind(incomingAdditional.property_address_type ?? incomingBaufi.property_address_type),
+      property_street: incomingAdditional.property_street ?? incomingBaufi.property_street,
+      property_house_no: incomingAdditional.property_no ?? incomingBaufi.property_no ?? incomingBaufi.property_house_no,
+      property_zip: incomingAdditional.property_zip ?? incomingBaufi.property_zip,
+      property_city: incomingAdditional.property_city ?? incomingBaufi.property_city,
+      property_plot_size: incomingAdditional.property_plot_size ?? incomingBaufi.property_plot_size,
+    }),
+    BAUFI_DB_FIELDS
+  )
+  const additionalPatch = pick(
+    defined({
+      equity_total: incomingAdditional.equity_total,
+      equity_used: incomingAdditional.equity_used,
+      warm_rent_monthly: incomingAdditional.current_warm_rent,
+      warm_rent_not_applicable: incomingAdditional.current_warm_rent_none,
+      birth_place: incomingAdditional.birth_place,
+      id_document_number: incomingAdditional.id_document_number,
+      id_issued_place: incomingAdditional.id_issued_place,
+      id_issued_at: incomingAdditional.id_issued_at,
+      id_expires_at: incomingAdditional.id_expires_at,
+      residence_since: incomingAdditional.address_since,
+      probation: incomingAdditional.probation,
+      probation_months: incomingAdditional.probation_months,
+      salary_count: incomingAdditional.salary_payments_per_year,
+      household_size: incomingAdditional.household_persons,
+      vehicles_count: incomingAdditional.vehicle_count,
+      vehicles_cost_total: incomingAdditional.vehicle_cost_total,
+      bank_account_holder: incomingAdditional.bank_account_holder,
+      bank_iban: incomingAdditional.bank_iban,
+      bank_bic: incomingAdditional.bank_bic,
+    }),
+    ADDITIONAL_DB_FIELDS
+  )
 
   if (Object.keys(primaryPatch).length) {
     ;(["net_income_monthly", "other_income_monthly", "expenses_monthly", "existing_loans_monthly"] as const).forEach(
@@ -257,57 +384,89 @@ export async function POST(req: Request) {
         if (primaryPatch[k] !== undefined) primaryPatch[k] = numOrNull(primaryPatch[k])
       }
     )
-    const { data: existing } = await readClient
+    if (primaryPatch.birth_date !== undefined) primaryPatch.birth_date = dateOrNull(primaryPatch.birth_date)
+    const { data: existing, error: existingPrimaryError } = await readClient
       .from("case_applicants")
       .select("id")
       .eq("case_id", caseId)
       .eq("role", "primary")
       .maybeSingle()
+    if (existingPrimaryError) {
+      return NextResponse.json(
+        { ok: false, error: "save_failed", stage: "primary_lookup", message: existingPrimaryError.message },
+        { status: 500 }
+      )
+    }
     if (existing?.id) {
-      await readClient.from("case_applicants").update(primaryPatch).eq("id", existing.id)
+      const { error: primaryUpdateError } = await readClient.from("case_applicants").update(primaryPatch).eq("id", existing.id)
+      if (primaryUpdateError) {
+        return NextResponse.json(
+          { ok: false, error: "save_failed", stage: "primary_update", message: primaryUpdateError.message },
+          { status: 400 }
+        )
+      }
     } else {
-      await readClient
+      const { error: primaryInsertError } = await readClient
         .from("case_applicants")
         .insert({ case_id: caseId, role: "primary", ...primaryPatch })
+      if (primaryInsertError) {
+        return NextResponse.json(
+          { ok: false, error: "save_failed", stage: "primary_insert", message: primaryInsertError.message },
+          { status: 400 }
+        )
+      }
     }
   }
 
   if (Object.keys(baufiPatch).length) {
     if (baufiPatch.purchase_price !== undefined) baufiPatch.purchase_price = numOrNull(baufiPatch.purchase_price)
-    await readClient.from("case_baufi_details").upsert({ case_id: caseId, ...baufiPatch }, { onConflict: "case_id" })
+    if (baufiPatch.property_plot_size !== undefined) baufiPatch.property_plot_size = numOrNull(baufiPatch.property_plot_size)
+    const { error: baufiUpsertError } = await readClient
+      .from("case_baufi_details")
+      .upsert({ case_id: caseId, ...baufiPatch }, { onConflict: "case_id" })
+    if (baufiUpsertError) {
+      return NextResponse.json(
+        { ok: false, error: "save_failed", stage: "baufi_upsert", message: baufiUpsertError.message },
+        { status: 400 }
+      )
+    }
   }
 
   if (Object.keys(additionalPatch).length) {
     ;([
       "equity_total",
       "equity_used",
-      "property_plot_size",
-      "current_warm_rent",
+      "warm_rent_monthly",
       "probation_months",
-      "salary_payments_per_year",
-      "household_persons",
-      "vehicle_count",
-      "vehicle_cost_total",
-      "maintenance_income_monthly",
+      "salary_count",
+      "household_size",
+      "vehicles_count",
+      "vehicles_cost_total",
     ] as const).forEach((k) => {
       if (additionalPatch[k] !== undefined) additionalPatch[k] = numOrNull(additionalPatch[k])
     })
+    ;(["id_issued_at", "id_expires_at", "residence_since"] as const).forEach((k) => {
+      if (additionalPatch[k] !== undefined) additionalPatch[k] = dateOrNull(additionalPatch[k])
+    })
 
-    if (additionalPatch.current_warm_rent_none !== undefined) {
-      additionalPatch.current_warm_rent_none = !!additionalPatch.current_warm_rent_none
-      if (additionalPatch.current_warm_rent_none) additionalPatch.current_warm_rent = null
+    if (additionalPatch.warm_rent_not_applicable !== undefined) {
+      additionalPatch.warm_rent_not_applicable = !!additionalPatch.warm_rent_not_applicable
+      if (additionalPatch.warm_rent_not_applicable) additionalPatch.warm_rent_monthly = null
     }
     if (additionalPatch.probation !== undefined) {
       additionalPatch.probation = !!additionalPatch.probation
       if (!additionalPatch.probation) additionalPatch.probation_months = null
     }
-    if (additionalPatch.has_children !== undefined) {
-      additionalPatch.has_children = !!additionalPatch.has_children
-    }
 
-    await readClient
+    const { error: additionalUpsertError } = await readClient
       .from("case_additional_details")
       .upsert({ case_id: caseId, ...additionalPatch }, { onConflict: "case_id" })
+    if (additionalUpsertError) {
+      return NextResponse.json(
+        { ok: false, error: "save_failed", stage: "additional_upsert", message: additionalUpsertError.message },
+        { status: 400 }
+      )
+    }
   }
 
   if (Array.isArray(body?.co)) {
@@ -318,28 +477,64 @@ export async function POST(req: Request) {
         case_id: caseId,
         role: "co",
         ...c,
+        birth_date: dateOrNull(c.birth_date),
         net_income_monthly: numOrNull(c.net_income_monthly),
       }))
 
-    await readClient.from("case_applicants").delete().eq("case_id", caseId).eq("role", "co")
+    const { error: coDeleteError } = await readClient.from("case_applicants").delete().eq("case_id", caseId).eq("role", "co")
+    if (coDeleteError) {
+      return NextResponse.json(
+        { ok: false, error: "save_failed", stage: "co_delete", message: coDeleteError.message },
+        { status: 400 }
+      )
+    }
     if (coRows.length) {
-      await readClient.from("case_applicants").insert(coRows)
+      const { error: coInsertError } = await readClient.from("case_applicants").insert(coRows)
+      if (coInsertError) {
+        return NextResponse.json(
+          { ok: false, error: "save_failed", stage: "co_insert", message: coInsertError.message },
+          { status: 400 }
+        )
+      }
     }
   }
 
   if (Array.isArray(body?.children)) {
-    const rows = (body.children as any[])
-      .map((c) => pick(c ?? {}, CHILD_FIELDS))
-      .filter((c) => Object.values(c).some((v) => v !== null && v !== undefined && String(v).trim() !== ""))
-      .map((c) => ({
-        case_id: caseId,
-        ...c,
-        maintenance_income_monthly: numOrNull(c.maintenance_income_monthly),
-      }))
+    const hasChildren =
+      incomingAdditional?.has_children !== undefined ? !!incomingAdditional.has_children : true
+    const rows = hasChildren
+      ? (body.children as any[])
+          .map((c) =>
+            defined({
+              child_name: c?.name,
+              birth_date: c?.birth_date,
+              support_income_monthly: c?.maintenance_income_monthly,
+            })
+          )
+          .filter((c) => Object.values(c).some((v) => v !== null && v !== undefined && String(v).trim() !== ""))
+          .map((c) => ({
+            case_id: caseId,
+            ...(pick(c, CHILD_DB_FIELDS) as Record<string, any>),
+            birth_date: dateOrNull(c.birth_date),
+            support_income_monthly: numOrNull(c.support_income_monthly),
+          }))
+      : []
 
-    await readClient.from("case_children").delete().eq("case_id", caseId)
+    const { error: childrenDeleteError } = await readClient.from("case_children").delete().eq("case_id", caseId)
+    if (childrenDeleteError) {
+      return NextResponse.json(
+        { ok: false, error: "save_failed", stage: "children_delete", message: childrenDeleteError.message },
+        { status: 400 }
+      )
+    }
     if (rows.length) {
-      await readClient.from("case_children").insert(rows)
+      const { error: childrenInsertError } = await readClient.from("case_children").insert(rows)
+      if (childrenInsertError) {
+        return NextResponse.json(
+          { ok: false, error: "save_failed", stage: "children_insert", message: childrenInsertError.message },
+          { status: 400 }
+        )
+      }
     }
   }
 
