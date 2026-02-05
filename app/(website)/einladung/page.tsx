@@ -140,8 +140,19 @@ function InvitationOrResetPageContent() {
 
       const { data: sessionDataAfter } = await supabase.auth.getSession()
       const userId = sessionDataAfter?.session?.user?.id ?? null
+      const accessToken = sessionDataAfter?.session?.access_token ?? null
+      let shouldNotifyInviteAccepted = false
 
       if (userId) {
+        if (mode === "invite") {
+          const { data: profileBefore } = await supabase
+            .from("profiles")
+            .select("password_set_at")
+            .eq("user_id", userId)
+            .maybeSingle()
+          shouldNotifyInviteAccepted = !profileBefore?.password_set_at
+        }
+
         await supabase.from("profiles").upsert(
           {
             user_id: userId,
@@ -149,6 +160,18 @@ function InvitationOrResetPageContent() {
           },
           { onConflict: "user_id" }
         )
+
+        if (shouldNotifyInviteAccepted) {
+          void fetch("/api/auth/invite-accepted", {
+            method: "POST",
+            keepalive: true,
+            headers: {
+              "content-type": "application/json",
+              ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+            },
+            body: JSON.stringify({ mode, firstPasswordSet: true }),
+          }).catch(() => null)
+        }
       }
 
       const { data: sessionData } = await supabase.auth.getSession()
