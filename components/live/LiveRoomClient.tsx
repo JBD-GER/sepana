@@ -366,17 +366,17 @@ export default function LiveRoomClient({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(34,211,238,0.16),transparent_40%),radial-gradient(circle_at_85%_20%,rgba(99,102,241,0.2),transparent_42%),radial-gradient(circle_at_50%_100%,rgba(15,23,42,0.85),rgba(2,6,23,1))]" />
 
       <div className="relative border-b border-white/10 bg-slate-950/55 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-4 sm:py-4">
-          <div>
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4 sm:py-4">
+          <div className="min-w-0">
             <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Live-Session</div>
-            <div className="mt-1 text-base font-semibold text-white">{caseRef || "Beratung"}</div>
-            <div className="mt-1 text-xs text-slate-300">
+            <div className="mt-1 text-sm font-semibold text-white sm:text-base">{caseRef || "Beratung"}</div>
+            <div className="mt-1 text-[11px] text-slate-300 sm:text-xs">
               {isCustomer ? "Kunde" : "Berater"} · Start {dt(acceptedAt || initialCreatedAt)}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             <span
-              className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
                 hasEnded
                   ? "border-slate-500/60 bg-slate-700/40 text-slate-200"
                   : connected
@@ -389,7 +389,7 @@ export default function LiveRoomClient({
             {!hasEnded ? (
               <button
                 onClick={endCall}
-                className="rounded-full border border-rose-300/40 bg-rose-500/20 px-4 py-2 text-xs font-semibold text-rose-100 transition hover:bg-rose-500/30"
+                className="rounded-full border border-rose-300/40 bg-rose-500/20 px-3 py-1.5 text-[11px] font-semibold text-rose-100 transition hover:bg-rose-500/30 sm:px-4 sm:py-2 sm:text-xs"
               >
                 Gespräch beenden
               </button>
@@ -469,9 +469,9 @@ export default function LiveRoomClient({
           </div>
         </div>
       ) : (
-        <div className={`relative mx-auto grid max-w-7xl gap-5 px-3 py-4 sm:gap-6 sm:px-4 sm:py-6 ${isCustomer ? "lg:grid-cols-1" : "lg:grid-cols-[1fr_360px]"}`}>
+        <div className={`relative mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:gap-6 sm:px-4 sm:py-6 ${isCustomer ? "lg:grid-cols-1" : "lg:grid-cols-[1fr_360px]"}`}>
           <div className="space-y-4">
-            <div className={`relative overflow-hidden rounded-[30px] border border-white/15 bg-black/30 shadow-2xl ${isCustomer ? "min-h-[52vh] lg:min-h-[62vh]" : "aspect-video"}`}>
+            <div className={`relative overflow-hidden rounded-[30px] border border-white/15 bg-black/30 shadow-2xl ${isCustomer ? "min-h-[46vh] sm:min-h-[52vh] lg:min-h-[62vh]" : "aspect-video"}`}>
               {remoteVideo ? (
                 <VideoTile track={remoteVideo} cover />
               ) : (
@@ -487,7 +487,7 @@ export default function LiveRoomClient({
                 {connected ? "Live" : "Verbindung wird aufgebaut"}
               </div>
 
-              <div className="absolute bottom-3 right-3 h-[92px] w-[38vw] max-w-[168px] min-w-[112px] overflow-hidden rounded-2xl border border-white/20 bg-black/45 shadow-lg backdrop-blur sm:bottom-4 sm:right-4 sm:h-[112px] sm:w-[168px]">
+              <div className="absolute bottom-3 right-3 h-[84px] w-[34vw] max-w-[148px] min-w-[96px] overflow-hidden rounded-2xl border border-white/20 bg-black/45 shadow-lg backdrop-blur sm:bottom-4 sm:right-4 sm:h-[112px] sm:w-[168px]">
                 {camOn && localVideo ? (
                   <VideoTile track={localVideo} muted cover />
                 ) : (
@@ -497,7 +497,7 @@ export default function LiveRoomClient({
             </div>
 
             {!hasEnded ? (
-              <div className="grid gap-2 rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur sm:grid-cols-3">
                 <button
                   onClick={toggleMic}
                   className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
@@ -516,7 +516,7 @@ export default function LiveRoomClient({
                 </button>
                 <button
                   onClick={endCall}
-                  className="rounded-xl bg-rose-500/30 px-3 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/40"
+                  className="col-span-2 rounded-xl bg-rose-500/30 px-3 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/40 sm:col-span-1"
                 >
                   Sitzung beenden
                 </button>

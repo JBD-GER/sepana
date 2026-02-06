@@ -13,6 +13,20 @@ function normalizeError(message: string) {
   return message || "Fehler"
 }
 
+function normalizeResendError(message: string) {
+  const m = (message || "").toLowerCase()
+  if (m.includes("invalid_email")) return "Bitte eine gueltige E-Mail-Adresse eingeben."
+  if (m.includes("mail_not_configured")) return "E-Mail-Versand ist noch nicht konfiguriert."
+  if (m.includes("mail_send_failed")) return "E-Mail konnte nicht gesendet werden."
+  if (m.includes("link_failed")) return "Einladungslink konnte nicht erstellt werden."
+  if (m.includes("too many") || m.includes("rate")) return "Zu viele Versuche. Bitte spaeter erneut probieren."
+  return normalizeError(message)
+}
+
+function isEmail(v: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+}
+
 function InvitationOrResetPageContent() {
   const supabase = useMemo(
     () =>
@@ -43,6 +57,11 @@ function InvitationOrResetPageContent() {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
   const [errors, setErrors] = useState<{ p1?: string; p2?: string }>({})
+
+  const [resendEmail, setResendEmail] = useState(() => sp.get("email") || "")
+  const [resendBusy, setResendBusy] = useState(false)
+  const [resendMsg, setResendMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
+  const [resendError, setResendError] = useState<string | null>(null)
 
   useEffect(() => {
     let ignore = false
@@ -192,6 +211,40 @@ function InvitationOrResetPageContent() {
     }
   }
 
+  async function resendInvite() {
+    setResendMsg(null)
+    const normalized = resendEmail.trim().toLowerCase()
+    if (!isEmail(normalized)) {
+      setResendError("Bitte eine gueltige E-Mail-Adresse eingeben.")
+      return
+    }
+    setResendError(null)
+    setResendBusy(true)
+    try {
+      const res = await fetch("/api/auth/resend-invite", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: normalized }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || "resend_failed")
+
+      if (json?.reason === "already_active") {
+        setResendMsg({ type: "ok", text: "Konto ist bereits aktiv. Bitte direkt einloggen." })
+      } else {
+        setResendMsg({
+          type: "ok",
+          text: "Wenn ein passendes Konto existiert, wurde ein neuer Einladungslink gesendet.",
+        })
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Fehler"
+      setResendMsg({ type: "err", text: normalizeResendError(message) })
+    } finally {
+      setResendBusy(false)
+    }
+  }
+
   return (
     <AuthShell title={title} subtitle={subtitle}>
       {loading ? (
@@ -203,6 +256,31 @@ function InvitationOrResetPageContent() {
           <Alert type="err" title="Link ungueltig oder abgelaufen">
             Bitte fordern Sie einen neuen Link an oder gehen Sie zum Login zurueck.
           </Alert>
+
+          {mode === "invite" ? (
+            <div className="grid gap-3 rounded-2xl border border-slate-200/90 bg-white/80 px-4 py-4">
+              <div className="text-xs text-slate-500">
+                Einladungslink erneut zusenden. Bitte geben Sie Ihre E-Mail-Adresse ein.
+              </div>
+              <Input
+                error={resendError}
+                leftIcon={<Icon name="mail" />}
+                placeholder="E-Mail fuer den Einladungslink"
+                type="email"
+                value={resendEmail}
+                onChange={(e) => {
+                  setResendEmail(e.target.value)
+                  if (resendError) setResendError(null)
+                  if (resendMsg) setResendMsg(null)
+                }}
+                autoComplete="email"
+              />
+              {resendMsg ? <Alert type={resendMsg.type}>{resendMsg.text}</Alert> : null}
+              <Button className="w-full" type="button" loading={resendBusy} onClick={resendInvite}>
+                Einladungslink erneut senden <Icon name="arrow" className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : null}
 
           <div className="grid gap-2 sm:grid-cols-2">
             <Link href="/passwort-vergessen" className="block">
