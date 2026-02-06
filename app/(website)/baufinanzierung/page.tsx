@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { headers } from "next/headers"
 import { toNumber } from "@/lib/baufi/calc"
 import BaufiStart from "./ui/BaufiStart"
+import BaufiLiveStart from "./ui/BaufiLiveStart"
 
 export const metadata: Metadata = {
   title: "Baufinanzierung Bankenvergleich | SEPANA",
@@ -162,6 +163,10 @@ export default async function BaufinanzierungPage() {
           <p className="mt-3 max-w-3xl text-sm text-slate-200/95 sm:text-base">
             SEPANA führt Sie vom Erstvergleich bis zum Abschluss: transparent, digital und mit optionaler Expertenberatung.
           </p>
+
+          <div className="mt-4 w-full">
+            <BaufiLiveStart />
+          </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             <article className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">

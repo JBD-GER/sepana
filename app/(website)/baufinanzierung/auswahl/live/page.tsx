@@ -17,16 +17,21 @@ function Pill({ children }: { children: React.ReactNode }) {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ caseId?: string; caseRef?: string; existing?: string }>
+  searchParams: Promise<{ caseId?: string; caseRef?: string; existing?: string; source?: string }>
 }) {
   const sp = await searchParams
   const caseId = sp.caseId || ""
   const caseRef = sp.caseRef || ""
   const existing = sp.existing === "1"
+  const source = sp.source || ""
 
+  const isLanding = source === "landing"
   const backToAuswahl = `/baufinanzierung/auswahl?caseId=${encodeURIComponent(caseId)}&caseRef=${encodeURIComponent(
     caseRef
   )}${existing ? "&existing=1" : ""}`
+  const backHref = isLanding ? "/baufinanzierung" : backToAuswahl
+  const backLabel = isLanding ? "Zurueck zur Startseite" : undefined
+  const backActionLabel = isLanding ? "Warteschlange verlassen und zur Startseite" : undefined
 
   return (
     <div className="w-full overflow-x-clip space-y-4">
@@ -43,7 +48,13 @@ export default async function Page({
         </p>
 
         <div className="mt-4 rounded-3xl border border-white/60 bg-white/55 p-4 shadow-sm backdrop-blur-xl">
-          <CustomerQueue caseId={caseId} caseRef={caseRef} backHref={backToAuswahl} />
+          <CustomerQueue
+            caseId={caseId}
+            caseRef={caseRef}
+            backHref={backHref}
+            backLabel={backLabel}
+            backActionLabel={backActionLabel}
+          />
         </div>
       </div>
     </div>

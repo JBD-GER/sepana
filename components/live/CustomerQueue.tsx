@@ -49,10 +49,14 @@ export default function CustomerQueue({
   caseId,
   caseRef,
   backHref,
+  backLabel,
+  backActionLabel,
 }: {
   caseId: string
   caseRef: string
   backHref: string
+  backLabel?: string
+  backActionLabel?: string
 }) {
   const router = useRouter()
   const supabase = useMemo(() => createBrowserSupabaseClient(), [])
@@ -232,7 +236,7 @@ export default function CustomerQueue({
       <div className="space-y-3 text-sm text-slate-700">
         <div>Die Live-Beratung wurde beendet.</div>
         <a href={backHref} className="text-sm font-medium text-slate-900 underline underline-offset-4">
-          Zurueck zur Auswahl
+          {backLabel || "Zurueck zur Auswahl"}
         </a>
       </div>
     )
@@ -275,7 +279,7 @@ export default function CustomerQueue({
         onClick={leaveQueue}
         className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm"
       >
-        Warteschlange verlassen und zur Bankauswahl
+        {backActionLabel || "Warteschlange verlassen und zur Bankauswahl"}
       </button>
     </div>
   )

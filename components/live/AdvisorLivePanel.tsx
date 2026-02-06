@@ -9,6 +9,7 @@ type QueueItem = {
   created_at: string
   case_ref: string | null
   case_type: string | null
+  entry_channel?: string | null
   applicant_name: string | null
   applicant?: {
     email?: string | null
@@ -228,6 +229,11 @@ export default function AdvisorLivePanel() {
           <div className="space-y-3">
             {queue.map((ticket) => (
               <div key={ticket.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                {ticket.entry_channel === "live_landing" ? (
+                  <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-800">
+                    Vor Wizard â€“ nur Infoanfrage, Daten fehlen
+                  </div>
+                ) : null}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="text-base font-semibold text-slate-900">
