@@ -152,14 +152,23 @@ export async function renderSignedPdf(opts: {
     } else {
       const text = typeof val === "string" ? val : ""
       if (text) {
-        const size = Math.min(14, Math.max(12, fieldH * 0.45))
+        const baseSize = Math.min(14, Math.max(12, fieldH * 0.45))
+        const maxWidth = Math.max(1, fieldW - 4)
+        let size = baseSize
+        try {
+          const textWidth = font.widthOfTextAtSize(text, size)
+          if (textWidth > maxWidth) {
+            size = Math.max(7, (maxWidth / textWidth) * size)
+          }
+        } catch {
+          size = baseSize
+        }
         page.drawText(text, {
           x: upsideDown ? x + fieldW - 2 : x + 2,
           y: upsideDown ? y + fieldH - Math.max(2, fieldH * 0.2) : y + Math.max(2, fieldH * 0.2),
           size,
           font,
           color: rgb(0.1, 0.1, 0.1),
-          maxWidth: fieldW - 4,
           ...(upsideDown ? { rotate: degrees(180) } : {}),
         })
       }

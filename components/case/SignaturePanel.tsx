@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
@@ -127,6 +128,74 @@ function useElementSize(ref: React.RefObject<HTMLElement | null>) {
     return () => ro.disconnect()
   }, [ref])
   return size
+}
+
+function AutoFitText({
+  text,
+  baseSize = 11,
+  minSize = 7,
+  className = "",
+}: {
+  text: string
+  baseSize?: number
+  minSize?: number
+  className?: string
+}) {
+  const wrapperRef = useRef<HTMLSpanElement | null>(null)
+  const measureRef = useRef<HTMLSpanElement | null>(null)
+  const [fontSize, setFontSize] = useState(baseSize)
+
+  useLayoutEffect(() => {
+    const wrapper = wrapperRef.current
+    const measure = measureRef.current
+    if (!wrapper || !measure) return
+    let frame = 0
+    const compute = () => {
+      frame = 0
+      const style = window.getComputedStyle(wrapper)
+      const paddingX =
+        (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0)
+      const available = wrapper.clientWidth - paddingX
+      if (!available || available <= 0) return
+      const fullWidth = measure.scrollWidth || 0
+      if (!fullWidth) {
+        setFontSize(baseSize)
+        return
+      }
+      const ratio = Math.min(1, available / fullWidth)
+      const next = Math.max(minSize, Math.floor(baseSize * ratio))
+      setFontSize((prev) => (Math.abs(prev - next) > 0.5 ? next : prev))
+    }
+
+    compute()
+    const ro = new ResizeObserver(() => {
+      if (frame) cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(compute)
+    })
+    ro.observe(wrapper)
+    return () => {
+      ro.disconnect()
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [text, baseSize, minSize])
+
+  return (
+    <span
+      ref={wrapperRef}
+      className={`relative block w-full whitespace-nowrap ${className}`}
+      style={{ fontSize: `${fontSize}px`, lineHeight: 1.15 }}
+    >
+      <span
+        ref={measureRef}
+        className="absolute left-0 top-0 invisible whitespace-nowrap"
+        style={{ fontSize: `${baseSize}px` }}
+        aria-hidden="true"
+      >
+        {text}
+      </span>
+      {text}
+    </span>
+  )
 }
 
 function normalizeField(input: SignatureField): SignatureField {
@@ -824,9 +893,15 @@ function SignatureEditorModal({
                         background: "transparent",
                       }}
                     >
-                      <div className="px-2 py-1">
-                        {f.label || (f.type === "signature" ? "Unterschrift" : f.type === "checkbox" ? "Checkbox" : "Eingabe")}
-                      </div>
+                      <AutoFitText
+                        text={
+                          f.label ||
+                          (f.type === "signature" ? "Unterschrift" : f.type === "checkbox" ? "Checkbox" : "Eingabe")
+                        }
+                        baseSize={10}
+                        minSize={7}
+                        className="px-2 py-1"
+                      />
                       {editing && canEditFields ? (
                         <div
                           onMouseDown={(e) => startResize(e, f.id)}
@@ -1171,9 +1246,19 @@ function SignatureSignModal({
                         ) : f.type === "checkbox" ? (
                           <span className="text-lg">{val ? "✓" : ""}</span>
                         ) : f.type === "text" ? (
-                          <span className="px-1 text-[11px] text-slate-700">{val || ""}</span>
+                          <AutoFitText
+                            text={typeof val === "string" ? val : val ? String(val) : ""}
+                            baseSize={11}
+                            minSize={7}
+                            className="px-1 text-center text-slate-700"
+                          />
                         ) : (
-                          <span className="px-1 text-[10px] text-slate-500">{f.label || "Feld"}</span>
+                          <AutoFitText
+                            text={f.label || "Feld"}
+                            baseSize={10}
+                            minSize={7}
+                            className="px-1 text-center text-slate-500"
+                          />
                         )}
                       </div>
                     )
@@ -1324,7 +1409,8 @@ function SignaturePad({
     if (!canvas) return
     const ctx = canvas.getContext("2d")
     if (!ctx) return
-    const ratio = window.devicePixelRatio || 1
+    // Use a higher internal resolution to keep the signature crisp when scaled into PDFs.
+    const ratio = Math.min(3, (window.devicePixelRatio || 1) * 2)
     const width = canvas.clientWidth || 320
     const height = canvas.clientHeight || 120
     canvas.width = width * ratio
@@ -1332,6 +1418,7 @@ function SignaturePad({
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
     ctx.lineWidth = 2
     ctx.lineCap = "round"
+    ctx.lineJoin = "round"
     ctx.strokeStyle = "#0f172a"
     ctx.clearRect(0, 0, width, height)
     if (value) {
