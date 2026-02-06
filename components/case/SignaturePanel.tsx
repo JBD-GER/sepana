@@ -55,9 +55,15 @@ type SignatureRequest = {
   documents: SignatureDoc[]
 }
 
-function fileUrl(path: string, raw = false) {
-  const rawParam = raw ? "&raw=1" : ""
-  return `/api/baufi/logo?bucket=case_documents&path=${encodeURIComponent(path)}${rawParam}`
+function fileUrl(
+  path: string,
+  rawOrOpts: boolean | { raw?: boolean; download?: boolean; filename?: string } = false
+) {
+  const opts = typeof rawOrOpts === "boolean" ? { raw: rawOrOpts } : rawOrOpts
+  const rawParam = opts.raw ? "&raw=1" : ""
+  const downloadParam = opts.download ? "&download=1" : ""
+  const filenameParam = opts.filename ? `&filename=${encodeURIComponent(opts.filename)}` : ""
+  return `/api/baufi/logo?bucket=case_documents&path=${encodeURIComponent(path)}${rawParam}${downloadParam}${filenameParam}`
 }
 
 function formatBytes(n: number | null | undefined) {
@@ -218,6 +224,14 @@ function hasAdvisorFields(fields: SignatureField[] | null | undefined) {
   })
 }
 
+function hasCustomerFields(fields: SignatureField[] | null | undefined) {
+  if (!Array.isArray(fields) || fields.length === 0) return false
+  return fields.some((f) => {
+    const owner = String((f as any)?.owner || "").toLowerCase()
+    return owner === "customer"
+  })
+}
+
 export default function SignaturePanel({
   caseId,
   canEdit,
@@ -353,6 +367,14 @@ export default function SignaturePanel({
     }
   }
 
+  const visibleItems = canEdit
+    ? items
+    : items.filter((req) => {
+        const fields = req.fields ?? []
+        const advisorOnly = hasAdvisorFields(fields) && !hasCustomerFields(fields)
+        return !advisorOnly
+      })
+
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between">
@@ -415,7 +437,7 @@ export default function SignaturePanel({
       {msg ? <div className="mt-2 text-xs text-slate-600">{msg}</div> : null}
 
       <div className="mt-4 space-y-3">
-        {items.map((req) => (
+        {visibleItems.map((req) => (
           <SignatureRequestCard
             key={req.id}
             req={req}
@@ -427,7 +449,7 @@ export default function SignaturePanel({
           />
         ))}
 
-        {items.length === 0 ? (
+        {visibleItems.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
             Noch keine Unterschriften angefordert.
           </div>
@@ -456,21 +478,37 @@ function SignatureRequestCard({
   const [signOpen, setSignOpen] = useState(false)
   const docsOriginal = (req.documents ?? []).filter((d) => d.document_kind === "signature_original")
   const docsSigned = (req.documents ?? []).filter((d) => d.document_kind === "signature_signed")
+  const primarySigned = docsSigned.length ? docsSigned[docsSigned.length - 1] : null
+  const signedDownloadUrl = primarySigned
+    ? fileUrl(primarySigned.file_path, {
+        raw: true,
+        download: true,
+        filename: primarySigned.file_name,
+      })
+    : null
   const advisorRequired = hasAdvisorFields(req.fields)
-  const statusLabel = req.customer_signed_at
-    ? "Abgeschlossen"
-    : req.advisor_signed_at
-      ? "Gestartet"
-      : "Entwurf"
+  const customerRequired = hasCustomerFields(req.fields)
+  const advisorOnly = advisorRequired && !customerRequired
+  const isComplete =
+    (!advisorRequired || !!req.advisor_signed_at) && (!customerRequired || !!req.customer_signed_at)
+  const hasAnySignature = !!req.advisor_signed_at || !!req.customer_signed_at
+  const statusLabel = isComplete ? "Abgeschlossen" : hasAnySignature ? "Gestartet" : "Entwurf"
   const alreadySigned = canEdit ? !!req.advisor_signed_at : !!req.customer_signed_at
   const advisorLabel = advisorRequired ? (req.advisor_signed_at ? shortIso(req.advisor_signed_at) : "--") : "nicht erforderlich"
-  const canOpenSign = canEdit ? advisorRequired : true
+  const canOpenSign = canEdit ? advisorRequired : customerRequired
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-sm font-semibold text-slate-900">{req.title}</div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-sm font-semibold text-slate-900">{req.title}</div>
+            {advisorOnly ? (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                Beraterdokument
+              </span>
+            ) : null}
+          </div>
           <div className="text-xs text-slate-500">
             Bank: {req.provider_name || "--"} - Status: {statusLabel} - Erstellt: {shortIso(req.created_at)}
           </div>
@@ -485,49 +523,76 @@ function SignatureRequestCard({
               Original erforderlich (jede Seite scannen/fotografieren und hochladen).
             </div>
           ) : null}
-          {docsSigned.length > 0 ? (
-            <div className="mt-2 text-xs text-slate-700">
-              <div className="font-medium text-slate-900">Finales Dokument</div>
-              <div className="mt-1 space-y-1">
-                {docsSigned.map((d) => (
+          {primarySigned ? (
+            <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-xs font-semibold text-emerald-900">Finales Dokument</div>
+                  <div className="mt-0.5 text-[11px] text-emerald-700">
+                    {primarySigned.file_name} · {shortIso(primarySigned.created_at)} · {formatBytes(primarySigned.size_bytes)}
+                  </div>
+                </div>
+                {signedDownloadUrl ? (
                   <a
-                    key={d.id}
-                    href={fileUrl(d.file_path, true)}
-                    className="block text-slate-700 hover:underline"
-                    target="_blank"
-                    rel="noreferrer"
+                    href={signedDownloadUrl}
+                    download
+                    className="inline-flex w-full items-center justify-center rounded-full border border-emerald-600 bg-emerald-600 px-3 py-2 text-[11px] font-semibold text-white shadow-sm sm:w-auto"
                   >
-                    {d.file_name} · {shortIso(d.created_at)} · {formatBytes(d.size_bytes)}
+                    PDF herunterladen
                   </a>
-                ))}
+                ) : null}
               </div>
-              <div className="mt-1 text-[11px] text-slate-500">
+              {docsSigned.length > 1 ? (
+                <div className="mt-2 space-y-1 text-[11px] text-emerald-700">
+                  <div className="font-medium text-emerald-900">Weitere Versionen</div>
+                  {docsSigned.slice(0, -1).map((d) => (
+                    <a
+                      key={d.id}
+                      href={fileUrl(d.file_path, { raw: true, download: true, filename: d.file_name })}
+                      download
+                      className="block hover:underline"
+                    >
+                      {d.file_name} · {shortIso(d.created_at)} · {formatBytes(d.size_bytes)}
+                    </a>
+                  ))}
+                </div>
+              ) : null}
+              <div className="mt-2 text-[11px] text-emerald-700">
                 Enthält Protokoll (Audit-Log) der Unterschriften.
               </div>
             </div>
           ) : null}
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
           {canEdit ? (
             <button
               onClick={() => setEditorOpen(true)}
-              className="rounded-full border border-slate-300 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700"
+              className="w-full rounded-full border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 sm:w-auto sm:py-1"
             >
               Editor oeffnen
             </button>
           ) : null}
+          {signedDownloadUrl ? (
+            <a
+              href={signedDownloadUrl}
+              download
+              className="w-full rounded-full border border-emerald-600 bg-emerald-600 px-3 py-2 text-center text-[11px] font-semibold text-white shadow-sm sm:w-auto sm:py-1"
+            >
+              Signed PDF
+            </a>
+          ) : null}
           {canOpenSign ? (
             <button
               onClick={() => setSignOpen(true)}
-              className="rounded-full border border-slate-900 bg-slate-900 px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
+              className="w-full rounded-full border border-slate-900 bg-slate-900 px-3 py-2 text-[11px] font-semibold text-white disabled:opacity-60 sm:w-auto sm:py-1"
               disabled={alreadySigned}
             >
               {alreadySigned ? "Bereits unterschrieben" : "Unterschreiben"}
             </button>
           ) : (
-            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600">
-              Nur Kundensignatur erforderlich
+            <span className="w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 sm:w-auto sm:py-1">
+              {canEdit ? "Nur Kundensignatur erforderlich" : "Nur Beratersignatur erforderlich"}
             </span>
           )}
         </div>
@@ -1087,6 +1152,7 @@ function SignatureSignModal({
   const originalDoc = docsOriginal[0] ?? null
   const fields = (req.fields ?? []).map(normalizeField)
   const advisorRequired = hasAdvisorFields(fields)
+  const customerRequired = hasCustomerFields(fields)
   const pdfUrl = originalDoc?.mime_type?.includes("pdf") ? fileUrl(originalDoc.file_path, true) : null
   const { doc: pdfDoc, pageCount: pdfPageCount } = usePdfDocument(
     pdfUrl,
@@ -1106,9 +1172,15 @@ function SignatureSignModal({
   const advisorValues = valuesByRole.advisor ?? {}
   const customerValues = valuesByRole.customer ?? {}
   const alreadySigned = canEdit ? !!req.advisor_signed_at : !!req.customer_signed_at
-  const canSign = canEdit ? advisorRequired : advisorRequired ? !!req.advisor_signed_at : true
-  const signTotal = advisorRequired ? 2 : 1
-  const signCount = (req.customer_signed_at ? 1 : 0) + (advisorRequired && req.advisor_signed_at ? 1 : 0)
+  const canSign = canEdit
+    ? advisorRequired
+    : customerRequired
+      ? !advisorRequired || !!req.advisor_signed_at
+      : false
+  const requiredCount = (advisorRequired ? 1 : 0) + (customerRequired ? 1 : 0)
+  const signTotal = requiredCount || 1
+  const signCount =
+    (advisorRequired && req.advisor_signed_at ? 1 : 0) + (customerRequired && req.customer_signed_at ? 1 : 0)
   const advisorLabel = advisorRequired ? (req.advisor_signed_at ? shortIso(req.advisor_signed_at) : "--") : "nicht erforderlich"
 
   useEffect(() => {
@@ -1377,7 +1449,7 @@ function SignatureSignModal({
             >
               {canEdit ? "Speichern & senden" : "Unterschreiben"}
             </button>
-            {!canEdit && advisorRequired && !req.advisor_signed_at ? (
+            {!canEdit && customerRequired && advisorRequired && !req.advisor_signed_at ? (
               <div className="mt-2 text-xs text-slate-500">Der Berater muss zuerst unterschreiben.</div>
             ) : null}
             {alreadySigned ? (
@@ -1599,21 +1671,23 @@ function PdfPageCanvas({
         const scaleByWidth = Math.max(0.1, width / viewport.width)
         const scaleByHeight = maxHeight ? Math.max(0.1, maxHeight / viewport.height) : scaleByWidth
         const scale = maxHeight ? Math.min(scaleByWidth, scaleByHeight) : scaleByWidth
-        const scaled = pageObj.getViewport({ scale })
+        const cssViewport = pageObj.getViewport({ scale })
+        const dpr = window.devicePixelRatio || 1
+        const qualityBoost = dpr > 1 ? 1 : 1.6
+        const renderViewport = pageObj.getViewport({ scale: scale * qualityBoost })
         const canvas = canvasRef.current
         if (!canvas) return
-        const ratio = window.devicePixelRatio || 1
-        canvas.width = scaled.width * ratio
-        canvas.height = scaled.height * ratio
-        canvas.style.width = `${scaled.width}px`
-        canvas.style.height = `${scaled.height}px`
+        canvas.width = renderViewport.width * dpr
+        canvas.height = renderViewport.height * dpr
+        canvas.style.width = `${cssViewport.width}px`
+        canvas.style.height = `${cssViewport.height}px`
         const ctx = canvas.getContext("2d")
         if (!ctx) return
-        ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
-        ctx.clearRect(0, 0, scaled.width, scaled.height)
-        await pageObj.render({ canvasContext: ctx, viewport: scaled }).promise
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+        ctx.clearRect(0, 0, renderViewport.width, renderViewport.height)
+        await pageObj.render({ canvasContext: ctx, viewport: renderViewport }).promise
         if (!active) return
-        onSizeRef.current?.({ width: scaled.width, height: scaled.height })
+        onSizeRef.current?.({ width: cssViewport.width, height: cssViewport.height })
       } catch {
         // ignore
       }

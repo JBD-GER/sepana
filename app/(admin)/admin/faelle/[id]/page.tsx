@@ -204,7 +204,9 @@ export default async function AdminCaseDetailPage({ params }: { params: Promise<
         canCreateRequest
       />
 
-      <SignaturePanel caseId={c.id} canEdit />
+      <div id="unterschriften" className="scroll-mt-24">
+        <SignaturePanel caseId={c.id} canEdit />
+      </div>
 
       <CaseChat caseId={c.id} currentUserId={user.id} initialMessages={data.chat ?? []} />
     </div>

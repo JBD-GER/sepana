@@ -21,6 +21,17 @@ function safeFileName(name: string) {
   return name.replace(/[^\w.-]+/g, "_").slice(0, 160)
 }
 
+function resolveSiteUrl() {
+  const fallback = "https://www.sepana.de"
+  const raw = String(process.env.NEXT_PUBLIC_SITE_URL ?? "").trim()
+  if (!raw) return fallback
+  try {
+    return new URL(raw).origin
+  } catch {
+    return fallback
+  }
+}
+
 async function canAccessCase(admin: any, caseId: string, userId: string, role: string | null) {
   const { data: c } = await admin
     .from("cases")
@@ -224,6 +235,8 @@ export async function POST(req: Request) {
 
     const caseMeta = await getCaseMeta(caseId)
     if (caseMeta?.customer_email) {
+      const siteUrl = resolveSiteUrl()
+      const ctaUrl = `${siteUrl}/signatur?caseId=${encodeURIComponent(caseId)}`
       const html = buildEmailHtml({
         title: "Unterschrift angefordert",
         intro: "Ein Dokument wartet auf Ihre digitale Unterschrift.",
@@ -232,6 +245,9 @@ export async function POST(req: Request) {
           "Unterzeichnen Sie das Dokument direkt online.",
           "Wir informieren Sie nach Abschluss ueber die naechsten Schritte.",
         ],
+        ctaLabel: "Dokument unterzeichnen",
+        ctaUrl,
+        preheader: "Ein Dokument wartet auf Ihre Unterschrift. Jetzt direkt online unterschreiben.",
       })
       await sendEmail({ to: caseMeta.customer_email, subject: "Dokument zur Unterschrift", html })
     }

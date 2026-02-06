@@ -27,15 +27,23 @@ function parseResize(raw: string | null) {
   return null
 }
 
+function safeFileName(input: string | null) {
+  const name = String(input ?? "").trim()
+  if (!name) return "download"
+  return name.replace(/[^\w.-]+/g, "_").slice(0, 160) || "download"
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url)
   const path = safePath(url.searchParams.get("path") || "")
   const bucket = url.searchParams.get("bucket") || "logo_banken"
-  const raw = url.searchParams.get("raw") === "1"
+  const download = url.searchParams.get("download") === "1"
+  const raw = url.searchParams.get("raw") === "1" || download
   const width = parseBoundedInt(url.searchParams.get("width"), 16, 4096)
   const height = parseBoundedInt(url.searchParams.get("height"), 16, 4096)
   const quality = parseBoundedInt(url.searchParams.get("quality"), 20, 100)
   const resize = parseResize(url.searchParams.get("resize"))
+  const filename = safeFileName(url.searchParams.get("filename"))
 
   if (!path) return NextResponse.json({ ok: false, error: "path fehlt" }, { status: 400 })
 
@@ -48,12 +56,16 @@ export async function GET(req: Request) {
     }
     const arrayBuffer = await data.arrayBuffer()
     const contentType = data.type || "application/octet-stream"
+    const headers: Record<string, string> = {
+      "content-type": contentType,
+      "cache-control": "public, max-age=3600",
+    }
+    if (download) {
+      headers["content-disposition"] = `attachment; filename="${filename}"`
+    }
     return new NextResponse(arrayBuffer, {
       status: 200,
-      headers: {
-        "content-type": contentType,
-        "cache-control": "public, max-age=3600",
-      },
+      headers,
     })
   }
 

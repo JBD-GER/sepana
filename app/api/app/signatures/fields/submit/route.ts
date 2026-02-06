@@ -1,4 +1,4 @@
-export const runtime = "nodejs"
+﻿export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
@@ -35,6 +35,15 @@ function hasAdvisorFields(raw: any) {
   })
 }
 
+function hasCustomerFields(raw: any) {
+  const fields = normalizeFields(raw)
+  if (!fields.length) return false
+  return fields.some((f: any) => {
+    const owner = String(f?.owner || "").toLowerCase()
+    return owner === "customer"
+  })
+}
+
 async function canAccessCase(admin: any, caseId: string, userId: string, role: string | null) {
   const { data: c } = await admin
     .from("cases")
@@ -48,7 +57,13 @@ async function canAccessCase(admin: any, caseId: string, userId: string, role: s
   return false
 }
 
-async function updateSignedState(admin: any, requestId: string, actorRole: string | null, advisorRequired: boolean) {
+async function updateSignedState(
+  admin: any,
+  requestId: string,
+  actorRole: string | null,
+  advisorRequired: boolean,
+  customerRequired: boolean
+) {
   const patch: any = {}
   if (actorRole === "customer") patch.customer_signed_at = new Date().toISOString()
   if (actorRole === "advisor" || actorRole === "admin") patch.advisor_signed_at = new Date().toISOString()
@@ -63,7 +78,8 @@ async function updateSignedState(admin: any, requestId: string, actorRole: strin
     .eq("id", requestId)
     .maybeSingle()
 
-  const isComplete = !!reqRow?.customer_signed_at && (!!reqRow?.advisor_signed_at || !advisorRequired)
+  const isComplete =
+    (!advisorRequired || !!reqRow?.advisor_signed_at) && (!customerRequired || !!reqRow?.customer_signed_at)
   if (isComplete) {
     await admin.from("case_signature_requests").update({ status: "completed" }).eq("id", requestId)
   }
@@ -89,12 +105,13 @@ export async function POST(req: Request) {
       .maybeSingle()
     if (!reqRow) return NextResponse.json({ error: "Not found" }, { status: 404 })
     const advisorRequired = hasAdvisorFields(reqRow.fields)
+    const customerRequired = hasCustomerFields(reqRow.fields)
 
     if (reqRow.requires_wet_signature) {
       return NextResponse.json({ error: "wet_signature_required" }, { status: 409 })
     }
 
-    if (role === "customer" && advisorRequired && !reqRow.advisor_signed_at) {
+    if (role === "customer" && customerRequired && advisorRequired && !reqRow.advisor_signed_at) {
       return NextResponse.json({ error: "advisor_not_signed" }, { status: 409 })
     }
 
@@ -113,7 +130,7 @@ export async function POST(req: Request) {
       )
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    await updateSignedState(admin, requestId, role, advisorRequired)
+    await updateSignedState(admin, requestId, role, advisorRequired, customerRequired)
 
     await logCaseEvent({
       caseId: reqRow.case_id,
@@ -138,19 +155,27 @@ export async function POST(req: Request) {
       // ignore if events table not present yet
     }
 
-    if (role === "customer") {
-      const { data: reqFull } = await admin
-        .from("case_signature_requests")
-        .select("id,case_id,title,fields,advisor_signed_at,customer_signed_at,requires_wet_signature")
-        .eq("id", requestId)
-        .maybeSingle()
+    const { data: reqFull } = await admin
+      .from("case_signature_requests")
+      .select("id,case_id,title,fields,advisor_signed_at,customer_signed_at,requires_wet_signature")
+      .eq("id", requestId)
+      .maybeSingle()
 
-      const advisorRequiredFinal = hasAdvisorFields(reqFull?.fields)
-      if (
-        reqFull?.customer_signed_at &&
-        (!advisorRequiredFinal || reqFull?.advisor_signed_at) &&
-        !reqFull?.requires_wet_signature
-      ) {
+    const advisorRequiredFinal = hasAdvisorFields(reqFull?.fields)
+    const customerRequiredFinal = hasCustomerFields(reqFull?.fields)
+    const isComplete =
+      (!advisorRequiredFinal || !!reqFull?.advisor_signed_at) &&
+      (!customerRequiredFinal || !!reqFull?.customer_signed_at)
+
+    if (reqFull && isComplete && !reqFull.requires_wet_signature) {
+      const { data: signedDocs } = await admin
+        .from("documents")
+        .select("id")
+        .eq("signature_request_id", requestId)
+        .eq("document_kind", "signature_signed")
+        .limit(1)
+
+      if (!signedDocs?.length) {
         const { data: originalDocs } = await admin
           .from("documents")
           .select("file_path,file_name,mime_type")
@@ -199,7 +224,7 @@ export async function POST(req: Request) {
                 fields: Array.isArray(reqFull.fields) ? reqFull.fields : [],
                 values: valuesByRole,
                 events: (events ?? []) as any,
-                auditTitle: `${reqFull.title} · ${reqFull.case_id}`,
+                auditTitle: `${reqFull.title} Â· ${reqFull.case_id}`,
               })
             } catch {
               finalBytes = null
