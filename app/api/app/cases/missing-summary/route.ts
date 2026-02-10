@@ -92,9 +92,18 @@ export async function GET() {
     admin.from("case_children").select("child_name,birth_date").eq("case_id", caseId).order("created_at", { ascending: true }),
   ])
 
-  const primaryRow = primary ?? {}
-  const baufiRow = baufi ?? {}
-  const additionalRow = additional ?? {}
+  const primaryRow = (primary ?? {}) as Record<string, any>
+  const baufiRow = (baufi ?? {}) as {
+    purpose?: string | null
+    property_type?: string | null
+    purchase_price?: number | null
+    property_address_kind?: string | null
+    property_street?: string | null
+    property_house_no?: string | null
+    property_zip?: string | null
+    property_city?: string | null
+  }
+  const additionalRow = (additional ?? {}) as Record<string, any>
   const childrenRows = Array.isArray(children) ? children : []
 
   const childrenUi = childrenRows.map((c: any) => ({
