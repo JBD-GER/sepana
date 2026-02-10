@@ -34,6 +34,15 @@ function hasAdvisorFields(raw: any) {
   })
 }
 
+function hasCustomerFields(raw: any) {
+  const fields = normalizeFields(raw)
+  if (!fields.length) return false
+  return fields.some((f: any) => {
+    const owner = String(f?.owner || "").toLowerCase()
+    return owner === "customer"
+  })
+}
+
 function safeFileName(name: string) {
   return name.replace(/[^\w.-]+/g, "_").slice(0, 160)
 }
@@ -96,6 +105,7 @@ export async function POST(req: Request) {
       .maybeSingle()
     if (!reqRow || reqRow.case_id !== caseId) return NextResponse.json({ error: "Not found" }, { status: 404 })
     const advisorRequired = hasAdvisorFields(reqRow.fields)
+    const advisorOnly = advisorRequired && !hasCustomerFields(reqRow.fields)
 
     for (const file of files) {
       const safeName = safeFileName(file.name || "signed.pdf")
@@ -128,6 +138,7 @@ export async function POST(req: Request) {
       title: "Unterschrift hochgeladen",
       body: "Es wurden unterschriebene Dokumente hochgeladen.",
       meta: { request_id: requestId, files: files.map((f) => f.name) },
+      notifyCustomer: advisorOnly ? false : undefined,
     })
 
     try {

@@ -155,12 +155,20 @@ export default function CreateManualLeadForm({ advisorOptions }: { advisorOption
 
           <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Beschaeftigung</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input
+            <select
               value={form.employmentType}
               onChange={(e) => updateField("employmentType", e.target.value)}
-              placeholder="Anstellungsart"
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
-            />
+            >
+              <option value="">Anstellungsart waehlen</option>
+              <option value="employed">Angestellt</option>
+              <option value="self_employed">Selbststaendig</option>
+              <option value="civil_servant">Beamter</option>
+              <option value="student">Student</option>
+              <option value="retired">Rentner</option>
+              <option value="unemployed">Arbeitslos</option>
+              <option value="other">Sonstiges</option>
+            </select>
             <input
               value={form.netIncomeMonthly}
               onChange={(e) => updateField("netIncomeMonthly", e.target.value)}
@@ -173,12 +181,18 @@ export default function CreateManualLeadForm({ advisorOptions }: { advisorOption
         <div className="space-y-4">
           <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Darlehen</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input
+            <select
               value={form.loanPurpose}
               onChange={(e) => updateField("loanPurpose", e.target.value)}
-              placeholder="Art des Darlehens"
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm sm:col-span-2"
-            />
+            >
+              <option value="">Art des Darlehens waehlen</option>
+              <option value="buy">Kauf Immobilie / Grundstueck</option>
+              <option value="build">Eigenes Bauvorhaben</option>
+              <option value="refi">Anschlussfinanzierung / Umschuldung</option>
+              <option value="modernize">Umbau / Modernisierung</option>
+              <option value="equity_release">Kapitalbeschaffung</option>
+            </select>
             <input
               value={form.loanAmountTotal}
               onChange={(e) => updateField("loanAmountTotal", e.target.value)}

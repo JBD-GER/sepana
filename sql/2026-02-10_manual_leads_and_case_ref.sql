@@ -60,4 +60,7 @@ alter table public.webhook_leads
   add column if not exists property_type text,
   add column if not exists property_purchase_price numeric;
 
+alter table public.case_signature_requests
+  add column if not exists customer_notified_at timestamptz;
+
 commit;

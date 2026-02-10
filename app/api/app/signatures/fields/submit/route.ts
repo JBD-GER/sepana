@@ -106,6 +106,7 @@ export async function POST(req: Request) {
     if (!reqRow) return NextResponse.json({ error: "Not found" }, { status: 404 })
     const advisorRequired = hasAdvisorFields(reqRow.fields)
     const customerRequired = hasCustomerFields(reqRow.fields)
+    const advisorOnly = advisorRequired && !customerRequired
 
     if (reqRow.requires_wet_signature) {
       return NextResponse.json({ error: "wet_signature_required" }, { status: 409 })
@@ -140,6 +141,7 @@ export async function POST(req: Request) {
       title: "Dokument unterschrieben",
       body: "Eine digitale Unterschrift wurde abgegeben.",
       meta: { request_id: requestId },
+      notifyCustomer: advisorOnly ? false : undefined,
     })
 
     try {

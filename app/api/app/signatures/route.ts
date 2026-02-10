@@ -59,6 +59,28 @@ function normalizeFields(raw: any): SignatureField[] {
   return []
 }
 
+function hasAdvisorFields(raw: any) {
+  const fields = normalizeFields(raw)
+  if (!fields.length) return false
+  return fields.some((f: any) => {
+    const owner = String(f?.owner || "").toLowerCase()
+    return owner !== "customer"
+  })
+}
+
+function hasCustomerFields(raw: any) {
+  const fields = normalizeFields(raw)
+  if (!fields.length) return false
+  return fields.some((f: any) => {
+    const owner = String(f?.owner || "").toLowerCase()
+    return owner === "customer"
+  })
+}
+
+function isAdvisorOnly(raw: any) {
+  return hasAdvisorFields(raw) && !hasCustomerFields(raw)
+}
+
 export async function GET(req: Request) {
   try {
     const { user, role } = await getUserAndRole()
@@ -145,7 +167,9 @@ export async function GET(req: Request) {
       values_by_role: valuesByRoleMap.get(r.id) ?? null,
     }))
 
-    return NextResponse.json({ items })
+    const filtered = role === "customer" ? items.filter((r: any) => !isAdvisorOnly(r.fields)) : items
+
+    return NextResponse.json({ items: filtered })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
@@ -231,26 +255,8 @@ export async function POST(req: Request) {
       title: "Unterschrift angefordert",
       body: `Dokument: ${file.name}`,
       meta: { document: file.name, request_id: created.id },
+      notifyCustomer: false,
     })
-
-    const caseMeta = await getCaseMeta(caseId)
-    if (caseMeta?.customer_email) {
-      const siteUrl = resolveSiteUrl()
-      const ctaUrl = `${siteUrl}/signatur?caseId=${encodeURIComponent(caseId)}`
-      const html = buildEmailHtml({
-        title: "Unterschrift angefordert",
-        intro: "Ein Dokument wartet auf Ihre digitale Unterschrift.",
-        steps: [
-          "Loggen Sie sich ins Portal ein und oeffnen Sie den Fall.",
-          "Unterzeichnen Sie das Dokument direkt online.",
-          "Wir informieren Sie nach Abschluss ueber die naechsten Schritte.",
-        ],
-        ctaLabel: "Dokument unterzeichnen",
-        ctaUrl,
-        preheader: "Ein Dokument wartet auf Ihre Unterschrift. Jetzt direkt online unterschreiben.",
-      })
-      await sendEmail({ to: caseMeta.customer_email, subject: "Dokument zur Unterschrift", html })
-    }
 
     return NextResponse.json({ ok: true, id: created.id })
   } catch (e: any) {
@@ -274,7 +280,7 @@ export async function PATCH(req: Request) {
     const admin = supabaseAdmin()
     const { data: reqRow } = await admin
       .from("case_signature_requests")
-      .select("id,case_id")
+      .select("id,case_id,title,requires_wet_signature,customer_notified_at")
       .eq("id", id)
       .maybeSingle()
     if (!reqRow) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -287,6 +293,46 @@ export async function PATCH(req: Request) {
       .update({ fields })
       .eq("id", id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    const advisorOnly = isAdvisorOnly(fields)
+    const customerRelevant = !advisorOnly && (hasCustomerFields(fields) || !!reqRow.requires_wet_signature)
+
+    if (customerRelevant && !reqRow.customer_notified_at) {
+      const caseMeta = await getCaseMeta(reqRow.case_id)
+      if (caseMeta?.customer_email) {
+        const siteUrl = resolveSiteUrl()
+        const ctaUrl = `${siteUrl}/signatur?caseId=${encodeURIComponent(reqRow.case_id)}`
+        const html = buildEmailHtml({
+          title: "Unterschrift angefordert",
+          intro: "Ein Dokument wartet auf Ihre digitale Unterschrift.",
+          steps: [
+            "Loggen Sie sich ins Portal ein und oeffnen Sie den Fall.",
+            "Unterzeichnen Sie das Dokument direkt online.",
+            "Wir informieren Sie nach Abschluss ueber die naechsten Schritte.",
+          ],
+          ctaLabel: "Dokument unterzeichnen",
+          ctaUrl,
+          preheader: "Ein Dokument wartet auf Ihre Unterschrift. Jetzt direkt online unterschreiben.",
+        })
+        await sendEmail({ to: caseMeta.customer_email, subject: "Dokument zur Unterschrift", html })
+      }
+
+      await admin
+        .from("case_signature_requests")
+        .update({ customer_notified_at: new Date().toISOString() })
+        .eq("id", id)
+
+      await logCaseEvent({
+        caseId: reqRow.case_id,
+        actorId: user.id,
+        actorRole: role ?? "advisor",
+        type: "signature_requested",
+        title: "Unterschrift angefordert",
+        body: `Dokument: ${reqRow.title || "Dokument"}`,
+        meta: { request_id: id },
+        notifyAdvisor: false,
+      })
+    }
 
     return NextResponse.json({ ok: true })
   } catch (e: any) {
