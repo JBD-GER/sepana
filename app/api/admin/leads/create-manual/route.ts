@@ -12,9 +12,21 @@ import {
 
 export const runtime = "nodejs"
 
+function normalizeMoneyString(v?: string) {
+  if (!v) return ""
+  const raw = String(v).trim()
+  if (!raw) return ""
+  const cleaned = raw.replace(/[^\d,.-]/g, "")
+  if (!cleaned) return ""
+  if (cleaned.includes(",")) {
+    return cleaned.replace(/\./g, "").replace(",", ".")
+  }
+  return cleaned.replace(/\./g, "")
+}
+
 function parseNumber(value: any) {
   if (value === null || value === undefined) return null
-  const raw = String(value).trim().replace(",", ".")
+  const raw = normalizeMoneyString(String(value))
   if (!raw) return null
   const num = Number(raw)
   return Number.isFinite(num) ? num : null
