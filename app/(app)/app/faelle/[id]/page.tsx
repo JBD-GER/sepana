@@ -86,6 +86,9 @@ type Resp = {
   viewer_role: string | null
 }
 
+const LIVE_CASE_TAB_IDS = ["contact", "household", "finance", "details"] as const
+type LiveCaseTabId = (typeof LIVE_CASE_TAB_IDS)[number]
+
 function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(d))
 }

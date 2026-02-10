@@ -3,24 +3,12 @@ import { requireAdvisor } from "@/lib/advisor/requireAdvisor"
 import { authFetch } from "@/lib/app/authFetch"
 import AdvisorCaseStatusSelect from "./ui/AdvisorCaseStatusSelect"
 
-type Money = number | null
-
-type ComparisonMini = {
-  provider_id: string | null
-  provider_name: string | null
-  provider_logo_path: string | null
-  loan_amount: Money
-  rate_monthly: Money
-  apr_effective: Money
-  interest_nominal: Money
-  zinsbindung_years: number | null
-  special_repayment: string | null
-}
-
 type CaseRow = {
   id: string
   case_ref: string | null
+  advisor_case_ref: string | null
   advisor_status: string | null
+  customer_name?: string | null
   status: string
   status_display?: string | null
   created_at: string
@@ -29,46 +17,12 @@ type CaseRow = {
   docsCount: number
   offersCount: number
   previewsCount: number
-
-  comparison: ComparisonMini | null
-  bestOffer: ComparisonMini | null
 }
 
 type CaseListResp = { cases: CaseRow[] }
 
 function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(d))
-}
-
-function formatEUR(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return "-"
-  return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n))
-}
-
-function formatPct(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return "-"
-  return `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(Number(n))} %`
-}
-
-/** robust: nimmt string oder object und macht daraus einen sauberen Pfad-string */
-function normalizeLogoPath(input: unknown): string | null {
-  if (!input) return null
-  if (typeof input === "string") {
-    const s = input.trim()
-    return s || null
-  }
-  if (typeof input === "object") {
-    const anyObj = input as any
-    const candidate = anyObj?.path ?? anyObj?.logo_path ?? anyObj?.logoPath ?? anyObj?.key ?? anyObj?.name ?? null
-    if (typeof candidate === "string" && candidate.trim()) return candidate.trim()
-  }
-  return null
-}
-
-function logoSrc(pathLike?: unknown) {
-  const path = normalizeLogoPath(pathLike)
-  if (!path) return null
-  return `/api/baufi/logo?bucket=logo_banken&path=${encodeURIComponent(path)}`
 }
 
 const STATUS_TABS = [
@@ -191,74 +145,27 @@ export default async function CasesPage({ searchParams }: { searchParams?: { tab
       {/* Mobile-first: Cards */}
       <div className="grid grid-cols-1 gap-3 lg:hidden">
         {scopedCases.map((c) => {
-          const s = c.bestOffer ?? c.comparison
-          const hasComparison = !!c.comparison
-          const bankLogo = s?.provider_logo_path ? logoSrc(s.provider_logo_path) : null
+          const customerLabel = c.customer_name || "Kunde -"
 
           return (
             <div key={c.id} className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <Link href={`/advisor/faelle/${c.id}`} className="text-sm font-semibold text-slate-900 truncate">
                     Fall {c.case_ref || c.id.slice(0, 8)}
                   </Link>
-                  <div className="mt-0.5 text-xs text-slate-500">
-                    {dt(c.created_at)} | Status: {statusLabel(c.advisor_status ?? "neu")}
-                  </div>
+                  <div className="mt-0.5 text-xs text-slate-500">{customerLabel}</div>
                 </div>
-
-                <div className="shrink-0 rounded-full border border-slate-200/70 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-700">
-                  {hasComparison ? "Vergleich bereit" : "Noch kein Vergleich"}
-                </div>
+                <div className="text-xs text-slate-600">{dt(c.created_at)}</div>
               </div>
 
-              {s ? (
-                <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-[11px] text-slate-600">Bank</div>
-                      <div className="text-sm font-semibold text-slate-900 truncate">
-                        {s.provider_name || (s.provider_id ? `Bank ${s.provider_id}` : "-")}
-                      </div>
-                    </div>
-
-                    {/* kein src="" mehr */}
-                    {bankLogo ? (
-                      <img src={bankLogo} alt="" className="h-8 w-auto max-w-[110px] object-contain" loading="lazy" />
-                    ) : null}
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
-                      <div className="text-[11px] text-slate-600">Darlehen</div>
-                      <div className="text-sm font-semibold text-slate-900">{formatEUR(s.loan_amount)}</div>
-                    </div>
-                    <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
-                      <div className="text-[11px] text-slate-600">Monatsrate</div>
-                      <div className="text-sm font-semibold text-slate-900">{formatEUR(s.rate_monthly)}</div>
-                    </div>
-                    <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
-                      <div className="text-[11px] text-slate-600">Effektivzins</div>
-                      <div className="text-sm font-semibold text-slate-900">{formatPct(s.apr_effective)}</div>
-                    </div>
-                    <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
-                      <div className="text-[11px] text-slate-600">Zinsbindung</div>
-                      <div className="text-sm font-semibold text-slate-900">
-                        {s.zinsbindung_years ? `${s.zinsbindung_years} Jahre` : "-"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="mt-4 text-xs text-slate-500">Noch keine Vergleichswerte hinterlegt.</div>
-              )}
-
-              <div className="mt-4 flex items-center justify-between text-xs text-slate-600">
+              <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-slate-600">
                 <div>
-                  Unterlagen: <span className="font-medium text-slate-900">{c.docsCount}</span>
+                  Vorgangsnummer:{" "}
+                  <span className="font-medium text-slate-900">{c.advisor_case_ref || "-"}</span>
                 </div>
                 <div>
-                  Angebote: <span className="font-medium text-slate-900">{c.offersCount}</span>
+                  Status: <span className="font-medium text-slate-900">{statusLabel(c.advisor_status ?? "neu")}</span>
                 </div>
               </div>
             </div>
@@ -274,29 +181,22 @@ export default async function CasesPage({ searchParams }: { searchParams?: { tab
 
       {/* Desktop: Table */}
       <div className="hidden lg:block rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
-        <div className="text-sm font-medium text-slate-900">Ihre aktiven Faelle</div>
+        <div className="text-sm font-medium text-slate-900">Uebersicht</div>
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70">
           <table className="w-full text-left text-sm">
             <thead className="bg-white/80 backdrop-blur">
               <tr className="border-b border-slate-200/70">
-                <th className="px-4 py-3 font-medium text-slate-700">Fall</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Fall-ID</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Kunde</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Vorgangsnummer</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Status</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Vergleich</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Darlehen</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Rate</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Effektiv</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Zinsbindung</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Unterlagen</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Angebote</th>
               </tr>
             </thead>
 
             <tbody>
               {scopedCases.map((c) => {
-                const s = c.bestOffer ?? c.comparison
-                const hasComparison = !!c.comparison
-                const bankLogo = s?.provider_logo_path ? logoSrc(s.provider_logo_path) : null
+                const customerLabel = c.customer_name || "Kunde -"
 
                 return (
                   <tr key={c.id} className="border-b border-slate-200/60 last:border-0 hover:bg-slate-50/60">
@@ -308,62 +208,15 @@ export default async function CasesPage({ searchParams }: { searchParams?: { tab
                     </td>
 
                     <td className="px-4 py-3 text-slate-700">
-                      <AdvisorCaseStatusSelect caseId={c.id} value={c.advisor_status ?? "neu"} compact />
+                      {customerLabel}
                     </td>
 
                     <td className="px-4 py-3">
-                      <Link href={`/advisor/faelle/${c.id}`} className="flex items-center gap-2">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs border ${
-                            hasComparison
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-slate-200 bg-slate-50 text-slate-700"
-                          }`}
-                        >
-                          {hasComparison ? "Vergleich bereit" : "-"}
-                        </span>
-
-                        {/* kein src="" mehr */}
-                        {bankLogo ? (
-                          <img src={bankLogo} alt="" className="h-6 w-auto max-w-[110px] object-contain" loading="lazy" />
-                        ) : null}
-                      </Link>
+                      {c.advisor_case_ref || "-"}
                     </td>
 
                     <td className="px-4 py-3 text-slate-700">
-                      <Link href={`/advisor/faelle/${c.id}`} className="block">
-                        {formatEUR(s?.loan_amount ?? null)}
-                      </Link>
-                    </td>
-
-                    <td className="px-4 py-3 text-slate-700">
-                      <Link href={`/advisor/faelle/${c.id}`} className="block">
-                        {formatEUR(s?.rate_monthly ?? null)}
-                      </Link>
-                    </td>
-
-                    <td className="px-4 py-3 text-slate-700">
-                      <Link href={`/advisor/faelle/${c.id}`} className="block">
-                        {formatPct(s?.apr_effective ?? null)}
-                      </Link>
-                    </td>
-
-                    <td className="px-4 py-3 text-slate-700">
-                      <Link href={`/advisor/faelle/${c.id}`} className="block">
-                        {s?.zinsbindung_years ? `${s.zinsbindung_years} J.` : "-"}
-                      </Link>
-                    </td>
-
-                    <td className="px-4 py-3 text-slate-700">
-                      <Link href={`/advisor/faelle/${c.id}`} className="block">
-                        {c.docsCount}
-                      </Link>
-                    </td>
-
-                    <td className="px-4 py-3 text-slate-700">
-                      <Link href={`/advisor/faelle/${c.id}`} className="block">
-                        {c.offersCount}
-                      </Link>
+                      <AdvisorCaseStatusSelect caseId={c.id} value={c.advisor_status ?? "neu"} compact />
                     </td>
                   </tr>
                 )
@@ -371,7 +224,7 @@ export default async function CasesPage({ searchParams }: { searchParams?: { tab
 
               {scopedCases.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-slate-500" colSpan={9}>
+                  <td className="px-4 py-6 text-slate-500" colSpan={4}>
                     Noch keine Faelle in diesem Status vorhanden.
                   </td>
                 </tr>

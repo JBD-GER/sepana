@@ -137,6 +137,12 @@ const LIVE_CASE_TABS = [
 ] as const
 
 type LiveCaseTabId = (typeof LIVE_CASE_TABS)[number]["id"]
+const LIVE_CASE_TAB_IDS: LiveCaseTabId[] = LIVE_CASE_TABS.map((tab) => tab.id)
+
+function normalizeTabId(value: unknown): LiveCaseTabId {
+  const raw = String(value ?? "").trim().toLowerCase()
+  return LIVE_CASE_TAB_IDS.includes(raw as LiveCaseTabId) ? (raw as LiveCaseTabId) : "contact"
+}
 
 type RequiredFieldCheck = {
   id: string
@@ -431,6 +437,8 @@ export default function LiveCasePanel({
   ticketId,
   guestToken,
   defaultCollapsed = false,
+  initialTab,
+  forceExpanded,
   showMissingDataReminderButton = false,
 }: {
   caseId: string
@@ -438,6 +446,8 @@ export default function LiveCasePanel({
   ticketId?: string
   guestToken?: string
   defaultCollapsed?: boolean
+  initialTab?: LiveCaseTabId | null
+  forceExpanded?: boolean
   showMissingDataReminderButton?: boolean
 }) {
   const supabase = useMemo(() => createBrowserSupabaseClientNoAuth(), [])
@@ -459,13 +469,14 @@ export default function LiveCasePanel({
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const contentId = `live-case-panel-${caseId}`
   const countryOptions = useMemo(() => getCountryOptions("de-DE"), [])
+  const normalizedInitialTab = useMemo(() => normalizeTabId(initialTab), [initialTab])
 
   useEffect(() => {
-    setExpanded(!defaultCollapsed)
-    setActiveTab("contact")
+    setExpanded(forceExpanded ? true : !defaultCollapsed)
+    setActiveTab(normalizedInitialTab)
     setReminderMsg(null)
     setSaveMsg(null)
-  }, [caseId, defaultCollapsed])
+  }, [caseId, defaultCollapsed, forceExpanded, normalizedInitialTab])
 
   async function load(force = false) {
     if (!caseId || (!force && dirty)) return

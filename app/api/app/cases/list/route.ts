@@ -13,6 +13,7 @@ function readPositiveInt(raw: string | null, fallback: number) {
 type BaseCaseRow = {
   id: string
   case_ref: string | null
+  advisor_case_ref: string | null
   advisor_status: string | null
   status: string
   created_at: string
@@ -32,6 +33,12 @@ type ProviderMini = {
 type DocRow = {
   id: string
   case_id: string
+}
+
+type ApplicantRow = {
+  case_id: string
+  first_name: string | null
+  last_name: string | null
 }
 
 type OfferRow = {
@@ -86,6 +93,13 @@ function pickProviderLogo(p: ProviderMini) {
   const prefer = p?.preferred_logo_variant === "icon" ? "icon" : "horizontal"
   const picked = prefer === "icon" ? p?.logo_icon_path : p?.logo_horizontal_path
   return extractLogoRef(picked ?? p?.logo_path ?? null)
+}
+
+function buildName(row?: ApplicantRow | null) {
+  const first = String(row?.first_name ?? "").trim()
+  const last = String(row?.last_name ?? "").trim()
+  const full = `${first} ${last}`.trim()
+  return full || null
 }
 
 function pickPreviewSummary(payload: unknown): PreviewSummary | null {
@@ -154,7 +168,7 @@ export async function GET(req: Request) {
   if (role === "advisor") {
     const { data: advisorCases, error: advisorErr } = await supabase
       .from("cases")
-      .select("id,case_ref,advisor_status,status,created_at,assigned_advisor_id,case_type")
+      .select("id,case_ref,advisor_case_ref,advisor_status,status,created_at,assigned_advisor_id,case_type")
       .eq("assigned_advisor_id", user.id)
       .order("created_at", { ascending: false })
     if (advisorErr) return NextResponse.json({ error: advisorErr.message }, { status: 400 })
@@ -163,7 +177,7 @@ export async function GET(req: Request) {
   } else {
     let query = supabase
       .from("cases")
-      .select("id,case_ref,advisor_status,status,created_at,assigned_advisor_id,case_type", { count: "exact" })
+      .select("id,case_ref,advisor_case_ref,advisor_status,status,created_at,assigned_advisor_id,case_type", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(from, to)
 
@@ -180,7 +194,7 @@ export async function GET(req: Request) {
   }
 
   const caseIds = baseCases.map((row) => row.id)
-  const [{ data: docs }, { data: offers }, { data: previews }, providersRes] = await Promise.all([
+  const [{ data: docs }, { data: offers }, { data: previews }, { data: applicants }, providersRes] = await Promise.all([
     caseIds.length
       ? supabase.from("documents").select("id,case_id").in("case_id", caseIds)
       : Promise.resolve({ data: [] as DocRow[] }),
@@ -193,11 +207,19 @@ export async function GET(req: Request) {
     caseIds.length
       ? supabase.from("case_offer_previews").select("id,case_id,provider_id,payload,created_at").in("case_id", caseIds)
       : Promise.resolve({ data: [] as PreviewRow[] }),
+    caseIds.length
+      ? supabase
+          .from("case_applicants")
+          .select("case_id,first_name,last_name")
+          .in("case_id", caseIds)
+          .eq("role", "primary")
+      : Promise.resolve({ data: [] as ApplicantRow[] }),
     supabase.from("providers").select("id,name,logo_horizontal_path,logo_icon_path,preferred_logo_variant,logo_path"),
   ])
 
   const docRows = (docs ?? []) as DocRow[]
   const offerRows = (offers ?? []) as OfferRow[]
+  const applicantRows = (applicants ?? []) as ApplicantRow[]
   const visibleOfferRows =
     role === "customer"
       ? offerRows.filter((row) => {
@@ -222,6 +244,13 @@ export async function GET(req: Request) {
     const list = previewsByCase.get(row.case_id) ?? []
     list.push(row)
     previewsByCase.set(row.case_id, list)
+  }
+
+  const applicantByCase = new Map<string, ApplicantRow>()
+  for (const row of applicantRows) {
+    if (!applicantByCase.has(row.case_id)) {
+      applicantByCase.set(row.case_id, row)
+    }
   }
 
   const providerMap = new Map<string, { id: string; name: string | null; logo_path: string | null }>()
@@ -284,6 +313,7 @@ export async function GET(req: Request) {
     const approvedOffer = firstApprovedOffer(caseOffers)
     const preview = latestPreviewSummary(previewsByCase.get(baseCase.id) ?? [])
     const bestOffer = bestOfferSummary(caseOffers)
+    const applicant = applicantByCase.get(baseCase.id) ?? null
 
     const latestOfferStatus = latestOffer?.status ?? null
     const statusDisplay = approvedOffer
@@ -308,6 +338,7 @@ export async function GET(req: Request) {
       previewsCount: (previewsByCase.get(baseCase.id) ?? []).length,
       comparison: preview,
       bestOffer,
+      customer_name: buildName(applicant),
       is_bank_confirmed: !!approvedOffer,
       confirmed_at: approvedOffer ? approvedOffer.bank_confirmed_at ?? approvedOffer.created_at : null,
       confirmed_loan_amount: approvedOffer?.loan_amount ?? null,
