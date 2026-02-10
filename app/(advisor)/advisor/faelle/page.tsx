@@ -49,9 +49,14 @@ function statusLabel(value: string) {
   return STATUS_TABS.find((s) => s.value === value)?.label ?? "Neu"
 }
 
-export default async function CasesPage({ searchParams }: { searchParams?: { tab?: string } }) {
+export default async function CasesPage({
+  searchParams,
+}: {
+  searchParams?: { tab?: string | string[] } | Promise<{ tab?: string | string[] }>
+}) {
   await requireAdvisor()
 
+  const resolvedSearchParams = await searchParams
   const [activeRes, confirmedRes] = await Promise.all([
     authFetch("/api/app/cases/list?advisorBucket=all&limit=1000").catch(() => null),
     authFetch("/api/app/cases/list?advisorBucket=confirmed&limit=1").catch(() => null),
@@ -68,7 +73,8 @@ export default async function CasesPage({ searchParams }: { searchParams?: { tab
   const withComparison = enrichedCases.filter((c) => c.previewsCount > 0).length
   const withOffers = enrichedCases.filter((c) => c.offersCount > 0).length
   const activeTab = (() => {
-    const raw = String(searchParams?.tab ?? "").trim().toLowerCase()
+    const rawParam = Array.isArray(resolvedSearchParams?.tab) ? resolvedSearchParams?.tab[0] : resolvedSearchParams?.tab
+    const raw = String(rawParam ?? "").trim().toLowerCase()
     return STATUS_SET.has(raw) ? raw : "neu"
   })()
 

@@ -38,6 +38,7 @@ type BaufiDetails = {
   purpose?: string | null
   property_type?: string | null
   purchase_price?: string | number | null
+  loan_amount_requested?: string | number | null
 }
 
 type AdditionalDetails = {
@@ -505,6 +506,7 @@ export default function LiveCasePanel({
     const nextBaufi: BaufiDetails = {
       ...(json.baufi ?? {}),
       purchase_price: toMoneyInput(json?.baufi?.purchase_price),
+      loan_amount_requested: toMoneyInput(json?.baufi?.loan_amount_requested),
     }
     const nextAdditional: AdditionalDetails = {
       ...(json.additional ?? {}),
@@ -1335,7 +1337,7 @@ export default function LiveCasePanel({
             {activeTab === "finance" ? (
               <>
           <Card title="Eckdaten zur Finanzierung">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <Field label="Vorhaben" required invalid={isFieldMissing("baufi.purpose")}>
                 <Select
                   value={toInput(baufi.purpose)}
@@ -1372,6 +1374,14 @@ export default function LiveCasePanel({
                   onChange={(v) => updateBaufi("purchase_price", v)}
                   placeholder="z. B. 300.000"
                   className={missingFieldStyle("baufi.purchase_price")}
+                />
+              </Field>
+
+              <Field label="Darlehenssumme" hint="optional">
+                <MoneyInput
+                  value={toMoneyInput(baufi.loan_amount_requested)}
+                  onChange={(v) => updateBaufi("loan_amount_requested", v)}
+                  placeholder="z. B. 250.000"
                 />
               </Field>
             </div>

@@ -205,9 +205,10 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             <div className="font-medium text-slate-900 break-all">{c.id}</div>
           </div>
         </div>
+        <div className="mt-4">
+          <AdvisorCaseRefEditor caseId={c.id} initialValue={c.advisor_case_ref ?? null} variant="inline" />
+        </div>
       </div>
-
-      <AdvisorCaseRefEditor caseId={c.id} initialValue={c.advisor_case_ref ?? null} />
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

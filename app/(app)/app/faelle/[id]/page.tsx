@@ -128,11 +128,29 @@ function logoSrc(pathLike?: unknown) {
   return `/api/baufi/logo?bucket=logo_banken&path=${encodeURIComponent(path)}`
 }
 
+function parseTabParam(value: string | string[] | undefined): LiveCaseTabId | null {
+  const raw = Array.isArray(value) ? value[0] : value
+  const normalized = String(raw ?? "").trim().toLowerCase()
+  return LIVE_CASE_TAB_IDS.includes(normalized as LiveCaseTabId) ? (normalized as LiveCaseTabId) : null
+}
+
+function parseBoolParam(value: string | string[] | undefined) {
+  const raw = Array.isArray(value) ? value[0] : value
+  const normalized = String(raw ?? "").trim().toLowerCase()
+  return ["1", "true", "yes", "y", "on"].includes(normalized)
+}
+
 // ✅ Status-Übersetzung (Case)
 
 // ✅ Status-Übersetzung (Offer)
 
-export default async function CaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CaseDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams?: { open?: string | string[]; tab?: string | string[] }
+}) {
   const { user } = await requireCustomer()
   const { id } = await params
 
@@ -177,6 +195,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   const advisorAvatar = advisor?.photo_path
     ? `/api/baufi/logo?bucket=advisor_avatars&width=256&height=256&quality=100&resize=cover&path=${encodeURIComponent(advisor.photo_path)}`
     : null
+  const initialTab = parseTabParam(searchParams?.tab)
+  const forceExpanded = parseBoolParam(searchParams?.open)
 
   return (
     <div className="w-full overflow-x-clip space-y-6">
@@ -211,7 +231,13 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
         />
       ) : null}
 
-      <LiveCasePanel caseId={c.id} caseRef={c.case_ref ?? null} defaultCollapsed />
+      <LiveCasePanel
+        caseId={c.id}
+        caseRef={c.case_ref ?? null}
+        defaultCollapsed
+        initialTab={initialTab}
+        forceExpanded={forceExpanded}
+      />
       <CaseAppointmentPanel caseId={c.id} />
 
       {/* Startschuss */}

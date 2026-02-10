@@ -5,9 +5,11 @@ import { useState } from "react"
 export default function AdvisorCaseRefEditor({
   caseId,
   initialValue,
+  variant = "card",
 }: {
   caseId: string
   initialValue: string | null
+  variant?: "card" | "inline"
 }) {
   const [value, setValue] = useState(initialValue ?? "")
   const [saving, setSaving] = useState(false)
@@ -32,8 +34,8 @@ export default function AdvisorCaseRefEditor({
     }
   }
 
-  return (
-    <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+  const content = (
+    <>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Vorgangsnummer</div>
@@ -59,6 +61,20 @@ export default function AdvisorCaseRefEditor({
         </div>
       </div>
       {msg ? <div className="mt-2 text-sm text-slate-600">{msg}</div> : null}
+    </>
+  )
+
+  if (variant === "inline") {
+    return (
+      <div className="rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4">
+        {content}
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+      {content}
     </div>
   )
 }

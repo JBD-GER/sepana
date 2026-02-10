@@ -19,6 +19,14 @@ type AppointmentMini = {
   case_ref?: string | null
 }
 
+type MissingSummaryResp = {
+  ok: true
+  caseId: string | null
+  caseRef: string | null
+  missingCount: number
+  firstTab: "contact" | "household" | "finance" | "details" | null
+}
+
 function formatDateTime(value?: string | null) {
   if (!value) return "—"
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
@@ -27,9 +35,10 @@ function formatDateTime(value?: string | null) {
 export default async function CustomerDashboard() {
   await requireCustomer()
 
-  const [res, apptRes] = await Promise.all([
+  const [res, apptRes, missingRes] = await Promise.all([
     authFetch("/api/app/dashboard").catch(() => null),
     authFetch("/api/app/appointments?upcoming=1&limit=1").catch(() => null),
+    authFetch("/api/app/cases/missing-summary").catch(() => null),
   ])
 
   const data: DashboardResp =
@@ -43,6 +52,13 @@ export default async function CustomerDashboard() {
 
   const nextAppointment: AppointmentMini | null =
     apptRes && apptRes.ok ? (await apptRes.json())?.items?.[0] ?? null : null
+  const missingSummary: MissingSummaryResp | null = missingRes && missingRes.ok ? await missingRes.json() : null
+  const missingCount = missingSummary?.missingCount ?? 0
+  const missingCaseId = missingSummary?.caseId ?? null
+  const missingTab = missingSummary?.firstTab ?? "contact"
+  const missingHref = missingCaseId
+    ? `/app/faelle/${missingCaseId}?open=1&tab=${encodeURIComponent(missingTab)}#live-case-panel-${missingCaseId}`
+    : null
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -58,6 +74,14 @@ export default async function CustomerDashboard() {
             </p>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+            {missingCount > 0 && missingHref ? (
+              <Link
+                href={missingHref}
+                className="inline-flex w-full items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100 sm:w-auto"
+              >
+                {missingCount === 1 ? "1 offene Angabe ausfuellen" : `${missingCount} offene Angaben ausfuellen`}
+              </Link>
+            ) : null}
             <Link
               href="/app/faelle"
               className="inline-flex w-full items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20 sm:w-auto"

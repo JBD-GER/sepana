@@ -37,6 +37,7 @@ const BAUFI_DB_FIELDS = [
   "purpose",
   "property_type",
   "purchase_price",
+  "loan_amount_requested",
   "property_address_kind",
   "property_street",
   "property_house_no",
@@ -251,6 +252,7 @@ export async function GET(req: Request) {
     purpose: baufi?.purpose ?? null,
     property_type: baufi?.property_type ?? null,
     purchase_price: baufi?.purchase_price ?? null,
+    loan_amount_requested: baufi?.loan_amount_requested ?? null,
   }
 
   const additionalUi = {
@@ -344,6 +346,7 @@ export async function POST(req: Request) {
       purpose: incomingBaufi.purpose,
       property_type: incomingBaufi.property_type,
       purchase_price: incomingBaufi.purchase_price,
+      loan_amount_requested: incomingBaufi.loan_amount_requested,
       property_address_kind: toDbAddressKind(incomingAdditional.property_address_type ?? incomingBaufi.property_address_type),
       property_street: incomingAdditional.property_street ?? incomingBaufi.property_street,
       property_house_no: incomingAdditional.property_no ?? incomingBaufi.property_no ?? incomingBaufi.property_house_no,
@@ -420,6 +423,9 @@ export async function POST(req: Request) {
 
   if (Object.keys(baufiPatch).length) {
     if (baufiPatch.purchase_price !== undefined) baufiPatch.purchase_price = numOrNull(baufiPatch.purchase_price)
+    if (baufiPatch.loan_amount_requested !== undefined) {
+      baufiPatch.loan_amount_requested = numOrNull(baufiPatch.loan_amount_requested)
+    }
     if (baufiPatch.property_plot_size !== undefined) baufiPatch.property_plot_size = numOrNull(baufiPatch.property_plot_size)
     const { error: baufiUpsertError } = await readClient
       .from("case_baufi_details")
