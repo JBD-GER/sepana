@@ -1,7 +1,7 @@
 ﻿import Link from "next/link"
 import { requireAdvisor } from "@/lib/advisor/requireAdvisor"
 import { authFetch } from "@/lib/app/authFetch"
-import { translateCaseStatus } from "@/lib/caseStatus"
+import AdvisorCaseStatusSelect from "./ui/AdvisorCaseStatusSelect"
 
 type Money = number | null
 
@@ -20,6 +20,7 @@ type ComparisonMini = {
 type CaseRow = {
   id: string
   case_ref: string | null
+  advisor_status: string | null
   status: string
   status_display?: string | null
   created_at: string
@@ -70,28 +71,66 @@ function logoSrc(pathLike?: unknown) {
   return `/api/baufi/logo?bucket=logo_banken&path=${encodeURIComponent(path)}`
 }
 
-// Status-Uebersetzung (Case)
+const STATUS_TABS = [
+  { value: "neu", label: "Neu" },
+  { value: "kontaktaufnahme", label: "Kontaktaufnahme" },
+  { value: "terminiert", label: "Terminiert" },
+  { value: "angebot", label: "Angebot" },
+  { value: "nachfrage", label: "Nachfrage" },
+  { value: "abgelehnt", label: "Abgelehnt" },
+  { value: "abgeschlossen", label: "Abgeschlossen" },
+] as const
 
-export default async function CasesPage() {
+const STATUS_SET = new Set(STATUS_TABS.map((s) => s.value))
+
+function normalizeAdvisorStatus(row: CaseRow) {
+  const raw = String(row.advisor_status ?? "").trim().toLowerCase()
+  if (raw && STATUS_SET.has(raw)) return raw
+  const caseStatus = String(row.status ?? "").trim().toLowerCase()
+  if (caseStatus === "closed" || caseStatus === "completed") return "abgeschlossen"
+  return "neu"
+}
+
+function statusLabel(value: string) {
+  return STATUS_TABS.find((s) => s.value === value)?.label ?? "Neu"
+}
+
+export default async function CasesPage({ searchParams }: { searchParams?: { tab?: string } }) {
   await requireAdvisor()
 
   const [activeRes, confirmedRes] = await Promise.all([
-    authFetch("/api/app/cases/list?advisorBucket=active&limit=1000").catch(() => null),
+    authFetch("/api/app/cases/list?advisorBucket=all&limit=1000").catch(() => null),
     authFetch("/api/app/cases/list?advisorBucket=confirmed&limit=1").catch(() => null),
   ])
 
   const data: CaseListResp = activeRes && activeRes.ok ? await activeRes.json() : { cases: [] }
   const confirmedMeta: { total?: number } = confirmedRes && confirmedRes.ok ? await confirmedRes.json() : {}
   const confirmedCount = Number(confirmedMeta?.total ?? 0)
-  const totalCases = data.cases.length
-  const withComparison = data.cases.filter((c) => c.previewsCount > 0).length
-  const withOffers = data.cases.filter((c) => c.offersCount > 0).length
+  const enrichedCases = data.cases.map((c) => ({
+    ...c,
+    advisor_status: normalizeAdvisorStatus(c),
+  }))
+  const totalCases = enrichedCases.length
+  const withComparison = enrichedCases.filter((c) => c.previewsCount > 0).length
+  const withOffers = enrichedCases.filter((c) => c.offersCount > 0).length
+  const activeTab = (() => {
+    const raw = String(searchParams?.tab ?? "").trim().toLowerCase()
+    return STATUS_SET.has(raw) ? raw : "neu"
+  })()
+
+  const countsByStatus = new Map<string, number>()
+  for (const row of enrichedCases) {
+    const key = row.advisor_status ?? "neu"
+    countsByStatus.set(key, (countsByStatus.get(key) ?? 0) + 1)
+  }
+
+  const scopedCases = enrichedCases.filter((c) => c.advisor_status === activeTab)
 
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-slate-900">Aktive Faelle</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">Faelle</h1>
           <Link
             href="/advisor/faelle/bestaetigt"
             className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
@@ -100,7 +139,7 @@ export default async function CasesPage() {
           </Link>
         </div>
         <p className="mt-1 text-sm text-slate-600">
-          Hier sehen Sie nur aktive Vorgaenge. Bankseitig bestaetigte Faelle finden Sie auf der separaten Seite
+          Status wird pro Fall gepflegt. Bankseitig bestaetigte Faelle finden Sie auf der separaten Seite
           <span className="font-medium text-slate-900"> Bestaetigte Faelle</span>.
         </p>
       </div>
@@ -120,24 +159,51 @@ export default async function CasesPage() {
         </div>
       </div>
 
+      <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap gap-2">
+          {STATUS_TABS.map((tab) => {
+            const isActive = activeTab === tab.value
+            const count = countsByStatus.get(tab.value) ?? 0
+            return (
+              <Link
+                key={tab.value}
+                href={`/advisor/faelle?tab=${tab.value}`}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                  isActive
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[11px] ${
+                    isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {count}
+                </span>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Mobile-first: Cards */}
       <div className="grid grid-cols-1 gap-3 lg:hidden">
-        {data.cases.map((c) => {
+        {scopedCases.map((c) => {
           const s = c.bestOffer ?? c.comparison
           const hasComparison = !!c.comparison
           const bankLogo = s?.provider_logo_path ? logoSrc(s.provider_logo_path) : null
 
           return (
-            <Link
-              key={c.id}
-              href={`/advisor/faelle/${c.id}`}
-              className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm hover:bg-slate-50/40"
-            >
+            <div key={c.id} className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-slate-900 truncate">Fall {c.case_ref || c.id.slice(0, 8)}</div>
+                  <Link href={`/advisor/faelle/${c.id}`} className="text-sm font-semibold text-slate-900 truncate">
+                    Fall {c.case_ref || c.id.slice(0, 8)}
+                  </Link>
                   <div className="mt-0.5 text-xs text-slate-500">
-                    {dt(c.created_at)} | Status: {translateCaseStatus(c.status_display ?? c.status)}
+                    {dt(c.created_at)} | Status: {statusLabel(c.advisor_status ?? "neu")}
                   </div>
                 </div>
 
@@ -195,13 +261,13 @@ export default async function CasesPage() {
                   Angebote: <span className="font-medium text-slate-900">{c.offersCount}</span>
                 </div>
               </div>
-            </Link>
+            </div>
           )
         })}
 
-        {data.cases.length === 0 ? (
+        {scopedCases.length === 0 ? (
           <div className="rounded-3xl border border-slate-200/70 bg-white p-6 text-sm text-slate-600 shadow-sm">
-            Noch keine aktiven Faelle vorhanden.
+            Noch keine Faelle in diesem Status vorhanden.
           </div>
         ) : null}
       </div>
@@ -227,7 +293,7 @@ export default async function CasesPage() {
             </thead>
 
             <tbody>
-              {data.cases.map((c) => {
+              {scopedCases.map((c) => {
                 const s = c.bestOffer ?? c.comparison
                 const hasComparison = !!c.comparison
                 const bankLogo = s?.provider_logo_path ? logoSrc(s.provider_logo_path) : null
@@ -242,9 +308,7 @@ export default async function CasesPage() {
                     </td>
 
                     <td className="px-4 py-3 text-slate-700">
-                      <Link href={`/advisor/faelle/${c.id}`} className="block">
-                        {translateCaseStatus(c.status_display ?? c.status)}
-                      </Link>
+                      <AdvisorCaseStatusSelect caseId={c.id} value={c.advisor_status ?? "neu"} compact />
                     </td>
 
                     <td className="px-4 py-3">
@@ -305,10 +369,10 @@ export default async function CasesPage() {
                 )
               })}
 
-              {data.cases.length === 0 ? (
+              {scopedCases.length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-slate-500" colSpan={9}>
-                    Noch keine aktiven Faelle vorhanden.
+                    Noch keine Faelle in diesem Status vorhanden.
                   </td>
                 </tr>
               ) : null}

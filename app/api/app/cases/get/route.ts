@@ -37,7 +37,9 @@ export async function GET(req: Request) {
 
   const { data: c, error: caseErr } = await supabase
     .from("cases")
-    .select("id,case_ref,status,created_at,updated_at,case_type,customer_id,assigned_advisor_id")
+    .select(
+      "id,case_ref,advisor_case_ref,advisor_status,status,created_at,updated_at,case_type,customer_id,assigned_advisor_id"
+    )
     .eq("id", id)
     .single()
 

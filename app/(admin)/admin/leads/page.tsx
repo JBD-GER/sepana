@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import AssignLeadAdvisorButton from "./ui/AssignLeadAdvisorButton"
 import CreateLeadStartOfferButton from "./ui/CreateLeadStartOfferButton"
+import CreateManualLeadForm from "./ui/CreateManualLeadForm"
 
 function dt(value: string | null | undefined) {
   if (!value) return "-"
@@ -109,6 +110,8 @@ export default async function AdminLeadsPage() {
           Leads konnten nicht geladen werden: {leadsError.message}
         </div>
       ) : null}
+
+      <CreateManualLeadForm advisorOptions={advisorOptions} />
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="overflow-hidden rounded-2xl border border-slate-200/70">

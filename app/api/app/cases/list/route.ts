@@ -13,6 +13,7 @@ function readPositiveInt(raw: string | null, fallback: number) {
 type BaseCaseRow = {
   id: string
   case_ref: string | null
+  advisor_status: string | null
   status: string
   created_at: string
   assigned_advisor_id: string | null
@@ -153,7 +154,7 @@ export async function GET(req: Request) {
   if (role === "advisor") {
     const { data: advisorCases, error: advisorErr } = await supabase
       .from("cases")
-      .select("id,case_ref,status,created_at,assigned_advisor_id,case_type")
+      .select("id,case_ref,advisor_status,status,created_at,assigned_advisor_id,case_type")
       .eq("assigned_advisor_id", user.id)
       .order("created_at", { ascending: false })
     if (advisorErr) return NextResponse.json({ error: advisorErr.message }, { status: 400 })
@@ -162,7 +163,7 @@ export async function GET(req: Request) {
   } else {
     let query = supabase
       .from("cases")
-      .select("id,case_ref,status,created_at,assigned_advisor_id,case_type", { count: "exact" })
+      .select("id,case_ref,advisor_status,status,created_at,assigned_advisor_id,case_type", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(from, to)
 

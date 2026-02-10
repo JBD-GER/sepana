@@ -9,11 +9,15 @@ import CaseChat from "@/components/case/CaseChat"
 import DocumentPanel from "@/components/case/DocumentPanel"
 import SignaturePanel from "@/components/case/SignaturePanel"
 import LiveCasePanel from "@/components/live/LiveCasePanel"
+import AdvisorCaseRefEditor from "./ui/AdvisorCaseRefEditor"
+import AdvisorCaseStatusSelect from "../ui/AdvisorCaseStatusSelect"
 
 type Resp = {
   case: {
     id: string
     case_ref: string | null
+    advisor_case_ref: string | null
+    advisor_status: string | null
     status: string
     status_display?: string | null
     created_at: string
@@ -159,6 +163,13 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     }
   }
   const advisor = data.advisor
+  const advisorStatus = (() => {
+    const raw = String(c.advisor_status ?? "").trim().toLowerCase()
+    if (raw) return raw
+    const caseStatus = String(c.status ?? "").trim().toLowerCase()
+    if (caseStatus === "closed" || caseStatus === "completed") return "abgeschlossen"
+    return "neu"
+  })()
 
   const previewProviderName =
     previewRow?.provider_name ?? previewPayload?.provider?.name ?? "—"
@@ -192,6 +203,22 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           <div className="rounded-2xl border border-slate-200/70 bg-slate-50 px-4 py-3 text-sm">
             <div className="text-xs text-slate-600">Fall-ID</div>
             <div className="font-medium text-slate-900 break-all">{c.id}</div>
+          </div>
+        </div>
+      </div>
+
+      <AdvisorCaseRefEditor caseId={c.id} initialValue={c.advisor_case_ref ?? null} />
+
+      <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Status</div>
+            <div className="mt-1 text-sm text-slate-600">
+              Setzen Sie den internen Beratungsstatus fuer diesen Fall.
+            </div>
+          </div>
+          <div className="w-full max-w-xs">
+            <AdvisorCaseStatusSelect caseId={c.id} value={advisorStatus} />
           </div>
         </div>
       </div>
