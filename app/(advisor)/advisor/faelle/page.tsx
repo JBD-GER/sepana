@@ -81,7 +81,7 @@ const STATUS_TABS = [
   { value: "abgeschlossen", label: "Abgeschlossen" },
 ] as const
 
-const STATUS_SET = new Set(STATUS_TABS.map((s) => s.value))
+const STATUS_SET = new Set<string>(STATUS_TABS.map((s) => s.value))
 
 function normalizeAdvisorStatus(row: CaseRow) {
   const raw = String(row.advisor_status ?? "").trim().toLowerCase()
