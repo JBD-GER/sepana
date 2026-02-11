@@ -58,16 +58,62 @@ export default function DocumentPanel({
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
-  const docsByRequest = useMemo(() => {
+  const { docsByRequest, orphanDocs } = useMemo(() => {
     const map = new Map<string, DocumentRow[]>()
+    const requestIds = new Set((requests ?? []).map((r) => r.id))
+    const orphans: DocumentRow[] = []
     for (const d of documents ?? []) {
-      const key = d.request_id || "free"
+      const reqId = d.request_id || null
+      if (reqId && !requestIds.has(reqId)) {
+        orphans.push(d)
+        continue
+      }
+      const key = reqId || "free"
       const arr = map.get(key) ?? []
       arr.push(d)
       map.set(key, arr)
     }
-    return map
-  }, [documents])
+    return { docsByRequest: map, orphanDocs: orphans }
+  }, [documents, requests])
+
+  function renderDocGrid(list: DocumentRow[]) {
+    if (!list.length) {
+      return <div className="mt-2 text-xs text-slate-500">Noch keine Dateien hochgeladen.</div>
+    }
+    return (
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {list.map((d) => (
+          <div key={d.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2">
+            <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+              {d.mime_type?.startsWith("image/") ? (
+                <img src={fileUrl(d.file_path)} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">DOC</div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium text-slate-900">{d.file_name}</div>
+              <div className="text-xs text-slate-500">
+                {formatBytes(d.size_bytes)} - {dt(d.created_at)}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <a className="text-xs font-medium text-slate-700 hover:underline" href={fileUrl(d.file_path)} target="_blank">
+                Download
+              </a>
+              <button
+                onClick={() => removeDoc(d.id)}
+                disabled={busy}
+                className="text-xs font-medium text-rose-600 hover:underline disabled:opacity-60"
+              >
+                Loeschen
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   async function uploadFiles(files: FileList, requestId?: string | null) {
     if (!files.length) return
@@ -200,41 +246,7 @@ export default function DocumentPanel({
                 </label>
               </div>
 
-              {list.length ? (
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {list.map((d) => (
-                    <div key={d.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2">
-                      <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                        {d.mime_type?.startsWith("image/") ? (
-                          <img src={fileUrl(d.file_path)} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">DOC</div>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium text-slate-900">{d.file_name}</div>
-                        <div className="text-xs text-slate-500">
-                          {formatBytes(d.size_bytes)} - {dt(d.created_at)}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <a className="text-xs font-medium text-slate-700 hover:underline" href={fileUrl(d.file_path)} target="_blank">
-                          Download
-                        </a>
-                        <button
-                          onClick={() => removeDoc(d.id)}
-                          disabled={busy}
-                          className="text-xs font-medium text-rose-600 hover:underline disabled:opacity-60"
-                        >
-                          Loeschen
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-2 text-xs text-slate-500">Noch nichts hochgeladen.</div>
-              )}
+              {list.length ? renderDocGrid(list) : <div className="mt-2 text-xs text-slate-500">Noch nichts hochgeladen.</div>}
             </div>
           )
         })}
@@ -242,6 +254,16 @@ export default function DocumentPanel({
         {(requests ?? []).length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
             Noch keine Dokumente angefordert.
+          </div>
+        ) : null}
+
+        {orphanDocs.length ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+            <div className="text-xs font-semibold uppercase tracking-widest text-amber-700">Nicht zugeordnet</div>
+            <div className="mt-1 text-xs text-amber-800">
+              Diese Dateien sind einer geloeschten oder nicht vorhandenen Anforderung zugeordnet.
+            </div>
+            {renderDocGrid(orphanDocs)}
           </div>
         ) : null}
 
@@ -260,41 +282,7 @@ export default function DocumentPanel({
               }}
             />
           </label>
-          {(docsByRequest.get("free") ?? []).length ? (
-            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {(docsByRequest.get("free") ?? []).map((d) => (
-                <div key={d.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2">
-                  <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                    {d.mime_type?.startsWith("image/") ? (
-                      <img src={fileUrl(d.file_path)} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">DOC</div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-slate-900">{d.file_name}</div>
-                    <div className="text-xs text-slate-500">
-                      {formatBytes(d.size_bytes)} - {dt(d.created_at)}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <a className="text-xs font-medium text-slate-700 hover:underline" href={fileUrl(d.file_path)} target="_blank">
-                      Download
-                    </a>
-                    <button
-                      onClick={() => removeDoc(d.id)}
-                      disabled={busy}
-                      className="text-xs font-medium text-rose-600 hover:underline disabled:opacity-60"
-                    >
-                      Loeschen
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-2 text-xs text-slate-500">Noch keine Dateien hochgeladen.</div>
-          )}
+          {renderDocGrid(docsByRequest.get("free") ?? [])}
         </div>
       </div>
     </div>
