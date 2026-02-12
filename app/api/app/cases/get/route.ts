@@ -86,7 +86,7 @@ export async function GET(req: Request) {
       })(),
       readClient
         .from("documents")
-        .select("id,case_id,request_id,file_name,file_path,mime_type,size_bytes,created_at")
+        .select("id,case_id,request_id,file_name,file_path,mime_type,size_bytes,created_at,uploaded_by")
         .eq("case_id", id)
         .order("created_at", { ascending: false })
         .limit(200),

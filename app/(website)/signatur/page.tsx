@@ -18,7 +18,8 @@ export default async function SignatureRedirectPage({
     redirect("/einladung?mode=invite")
   }
 
-  if (role === "advisor") redirect(`/advisor/faelle/${caseId}#unterschriften`)
-  if (role === "admin") redirect(`/admin/faelle/${caseId}#unterschriften`)
-  redirect(`/app/faelle/${caseId}#unterschriften`)
+  const focusParam = "focus=signatures"
+  if (role === "advisor") redirect(`/advisor/faelle/${caseId}?${focusParam}#unterschriften`)
+  if (role === "admin") redirect(`/admin/faelle/${caseId}?${focusParam}#unterschriften`)
+  redirect(`/app/faelle/${caseId}?${focusParam}#unterschriften`)
 }

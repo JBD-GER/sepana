@@ -56,6 +56,26 @@ export async function POST(req: Request) {
     const path = `${caseId}/${Date.now()}_${safeName}`
 
     const admin = supabaseAdmin()
+    let requestIdFinal = requestId
+    if (!requestIdFinal) {
+      const { data: reqs } = await admin
+        .from("document_requests")
+        .select("id,required,created_at")
+        .eq("case_id", caseId)
+        .order("created_at", { ascending: false })
+
+      if (reqs?.length) {
+        const reqIds = reqs.map((r: any) => r.id).filter(Boolean)
+        const { data: existingDocs } = reqIds.length
+          ? await admin.from("documents").select("request_id").in("request_id", reqIds)
+          : { data: [] as any[] }
+
+        const haveDocs = new Set((existingDocs ?? []).map((d: any) => d.request_id).filter(Boolean))
+        const open = (reqs ?? []).filter((r: any) => !haveDocs.has(r.id))
+        const requiredOpen = open.filter((r: any) => r.required)
+        requestIdFinal = (requiredOpen[0] ?? open[0])?.id ?? null
+      }
+    }
     const { error: upErr } = await admin.storage
       .from("case_documents")
       .upload(path, file, { upsert: true, contentType: file.type || "application/octet-stream" })
@@ -63,7 +83,7 @@ export async function POST(req: Request) {
 
     const { error: docErr } = await admin.from("documents").insert({
       case_id: caseId,
-      request_id: requestId,
+      request_id: requestIdFinal,
       uploaded_by: user.id,
       file_path: path,
       file_name: file.name,
@@ -79,7 +99,7 @@ export async function POST(req: Request) {
       type: "document_uploaded",
       title: "Dokument hochgeladen",
       body: `Datei: ${file.name}`,
-      meta: { file_name: file.name, request_id: requestId },
+      meta: { file_name: file.name, request_id: requestIdFinal },
     })
 
     if (role === "customer") {
@@ -104,7 +124,7 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ ok: true, path })
+    return NextResponse.json({ ok: true, path, request_id: requestIdFinal })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Serverfehler" }, { status: 500 })
   }

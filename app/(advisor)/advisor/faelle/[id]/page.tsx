@@ -9,6 +9,7 @@ import CaseChat from "@/components/case/CaseChat"
 import DocumentPanel from "@/components/case/DocumentPanel"
 import SignaturePanel from "@/components/case/SignaturePanel"
 import LiveCasePanel from "@/components/live/LiveCasePanel"
+import ClearSignatureHash from "@/components/case/ClearSignatureHash"
 import AdvisorCaseRefEditor from "./ui/AdvisorCaseRefEditor"
 import AdvisorCaseStatusSelect from "../ui/AdvisorCaseStatusSelect"
 
@@ -23,6 +24,7 @@ type Resp = {
     created_at: string
     updated_at: string
     case_type: string
+    customer_id: string | null
     assigned_advisor_id: string | null
   }
   baufi_details: any | null
@@ -59,6 +61,7 @@ type Resp = {
     mime_type: string | null
     size_bytes: number | null
     created_at: string
+    uploaded_by?: string | null
   }>
   document_requests: Array<{
     id: string
@@ -187,6 +190,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-6">
+      <ClearSignatureHash />
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -341,6 +345,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
         requests={data.document_requests ?? []}
         documents={data.documents ?? []}
         canCreateRequest={data.viewer_role === "advisor" || data.viewer_role === "admin"}
+        caseCustomerId={c.customer_id ?? null}
+        caseAdvisorId={c.assigned_advisor_id ?? null}
       />
 
       <div id="unterschriften" className="scroll-mt-24">

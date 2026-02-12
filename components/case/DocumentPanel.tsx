@@ -18,6 +18,7 @@ type DocumentRow = {
   mime_type: string | null
   size_bytes: number | null
   created_at: string
+  uploaded_by?: string | null
   request_id?: string | null
   case_id?: string | null
 }
@@ -47,16 +48,21 @@ export default function DocumentPanel({
   requests,
   documents,
   canCreateRequest,
+  caseCustomerId,
+  caseAdvisorId,
 }: {
   caseId: string
   requests: DocRequest[]
   documents: DocumentRow[]
   canCreateRequest: boolean
+  caseCustomerId?: string | null
+  caseAdvisorId?: string | null
 }) {
   const [title, setTitle] = useState("")
   const [required, setRequired] = useState(true)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  const [freeOpen, setFreeOpen] = useState(false)
 
   const { docsByRequest, orphanDocs } = useMemo(() => {
     const map = new Map<string, DocumentRow[]>()
@@ -75,6 +81,13 @@ export default function DocumentPanel({
     }
     return { docsByRequest: map, orphanDocs: orphans }
   }, [documents, requests])
+
+  function uploaderLabel(d: DocumentRow) {
+    if (!d.uploaded_by) return null
+    if (caseCustomerId && d.uploaded_by === caseCustomerId) return "Kunde"
+    if (caseAdvisorId && d.uploaded_by === caseAdvisorId) return "Berater"
+    return "Team"
+  }
 
   function renderDocGrid(list: DocumentRow[]) {
     if (!list.length) {
@@ -96,6 +109,9 @@ export default function DocumentPanel({
               <div className="text-xs text-slate-500">
                 {formatBytes(d.size_bytes)} - {dt(d.created_at)}
               </div>
+              {uploaderLabel(d) ? (
+                <div className="mt-1 text-[11px] text-slate-500">Von: {uploaderLabel(d)}</div>
+              ) : null}
             </div>
             <div className="flex items-center gap-2">
               <a className="text-xs font-medium text-slate-700 hover:underline" href={fileUrl(d.file_path)} target="_blank">
@@ -268,21 +284,34 @@ export default function DocumentPanel({
         ) : null}
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="text-xs text-slate-600">Allgemeines Upload</div>
-          <label className="mt-2 inline-flex rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm">
-            Dateien hochladen
-            <input
-              type="file"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                const files = e.target.files
-                if (files?.length) uploadFiles(files, null)
-                e.currentTarget.value = ""
-              }}
-            />
-          </label>
-          {renderDocGrid(docsByRequest.get("free") ?? [])}
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs text-slate-600">Allgemeines Upload</div>
+            <button
+              type="button"
+              onClick={() => setFreeOpen((v) => !v)}
+              className="rounded-full border border-slate-300 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700"
+            >
+              {freeOpen ? "Einklappen" : "Aufklappen"} ({(docsByRequest.get("free") ?? []).length} Dokumente)
+            </button>
+          </div>
+          {freeOpen ? (
+            <>
+              <label className="mt-2 inline-flex rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm">
+                Dateien hochladen
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = e.target.files
+                    if (files?.length) uploadFiles(files, null)
+                    e.currentTarget.value = ""
+                  }}
+                />
+              </label>
+              {renderDocGrid(docsByRequest.get("free") ?? [])}
+            </>
+          ) : null}
         </div>
       </div>
     </div>
