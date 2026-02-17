@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
+import { useRouter } from "next/navigation"
+import { trackPrivatkreditLeadConversion } from "@/lib/ads/googleAds"
 
 type CallbackState = {
   phone: string
@@ -13,10 +15,10 @@ const INITIAL_STATE: CallbackState = {
 }
 
 export default function PrivatkreditCallbackBox() {
+  const router = useRouter()
   const [form, setForm] = useState<CallbackState>(INITIAL_STATE)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   function patch<K extends keyof CallbackState>(key: K, value: CallbackState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -25,7 +27,6 @@ export default function PrivatkreditCallbackBox() {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    setSuccessMessage(null)
 
     if (!form.phone.trim()) {
       setError("Bitte Telefonnummer angeben.")
@@ -50,7 +51,9 @@ export default function PrivatkreditCallbackBox() {
       }
 
       setForm(INITIAL_STATE)
-      setSuccessMessage("Danke. Ihre Rückruf-Anfrage ist eingegangen. Wir melden uns kurzfristig.")
+      trackPrivatkreditLeadConversion()
+      router.push("/erfolgreich")
+      return
     } finally {
       setBusy(false)
     }
@@ -74,31 +77,25 @@ export default function PrivatkreditCallbackBox() {
           <label className="block">
             <div className="mb-1 text-xs font-medium text-slate-700">Telefonnummer *</div>
             <input
-              value={form.phone}
-              onChange={(e) => patch("phone", e.target.value)}
-              placeholder="z. B. 0151 12345678"
-              className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
-              required
-            />
-          </label>
+            value={form.phone}
+            onChange={(e) => patch("phone", e.target.value)}
+            placeholder="z. B. 0151 12345678"
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:text-sm"
+            required
+          />
+        </label>
 
           <label className="block">
             <div className="mb-1 text-xs font-medium text-slate-700">Beste Erreichbarkeit</div>
             <input
-              value={form.callbackTime}
-              onChange={(e) => patch("callbackTime", e.target.value)}
-              placeholder="z. B. heute 17:00-19:00 Uhr"
-              className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
-            />
-          </label>
+            value={form.callbackTime}
+            onChange={(e) => patch("callbackTime", e.target.value)}
+            placeholder="z. B. heute 17:00-19:00 Uhr"
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:text-sm"
+          />
+        </label>
 
           {error ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div> : null}
-
-          {successMessage ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              {successMessage}
-            </div>
-          ) : null}
 
           <div>
             <button

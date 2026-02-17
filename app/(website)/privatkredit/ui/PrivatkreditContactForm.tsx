@@ -1,6 +1,8 @@
 "use client"
 
 import { useMemo, useState, type FormEvent } from "react"
+import { useRouter } from "next/navigation"
+import { trackPrivatkreditLeadConversion } from "@/lib/ads/googleAds"
 
 type FormState = {
   firstName: string
@@ -31,10 +33,10 @@ function isEmail(v: string) {
 }
 
 export default function PrivatkreditContactForm() {
+  const router = useRouter()
   const [form, setForm] = useState<FormState>(INITIAL_STATE)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const amountHint = useMemo(() => {
     const cleaned = form.loanAmount.replace(/[^\d,.-]/g, "")
@@ -54,7 +56,6 @@ export default function PrivatkreditContactForm() {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    setSuccessMessage(null)
 
     if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim() || !form.phone.trim()) {
       setError("Bitte alle Pflichtfelder ausfüllen.")
@@ -92,7 +93,9 @@ export default function PrivatkreditContactForm() {
         return
       }
       setForm(INITIAL_STATE)
-      setSuccessMessage("Danke. Ihre Anfrage ist eingegangen. Wir melden uns schnellstmöglich bei Ihnen.")
+      trackPrivatkreditLeadConversion()
+      router.push("/erfolgreich")
+      return
     } finally {
       setBusy(false)
     }
@@ -119,7 +122,7 @@ export default function PrivatkreditContactForm() {
           <input
             value={form.firstName}
             onChange={(e) => patch("firstName", e.target.value)}
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:text-sm"
             required
           />
         </label>
@@ -129,7 +132,7 @@ export default function PrivatkreditContactForm() {
           <input
             value={form.lastName}
             onChange={(e) => patch("lastName", e.target.value)}
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:text-sm"
             required
           />
         </label>
@@ -140,7 +143,7 @@ export default function PrivatkreditContactForm() {
             type="email"
             value={form.email}
             onChange={(e) => patch("email", e.target.value)}
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:text-sm"
             required
           />
         </label>
@@ -150,7 +153,7 @@ export default function PrivatkreditContactForm() {
           <input
             value={form.phone}
             onChange={(e) => patch("phone", e.target.value)}
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:text-sm"
             required
           />
         </label>
@@ -161,7 +164,7 @@ export default function PrivatkreditContactForm() {
             value={form.loanAmount}
             onChange={(e) => patch("loanAmount", e.target.value)}
             placeholder="z. B. 25.000"
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:text-sm"
           />
           {amountHint !== null ? (
             <div className="mt-1 text-xs text-slate-500">
@@ -178,7 +181,7 @@ export default function PrivatkreditContactForm() {
           <select
             value={form.purpose}
             onChange={(e) => patch("purpose", e.target.value)}
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:text-sm"
           >
             <option value="freie_verwendung">Freie Verwendung</option>
             <option value="umschuldung">Umschuldung</option>
@@ -194,7 +197,7 @@ export default function PrivatkreditContactForm() {
             value={form.callbackTime}
             onChange={(e) => patch("callbackTime", e.target.value)}
             placeholder="z. B. werktags 17:00-19:00 Uhr"
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:text-sm"
           />
         </label>
 
@@ -205,7 +208,7 @@ export default function PrivatkreditContactForm() {
             onChange={(e) => patch("message", e.target.value)}
             rows={4}
             placeholder="Optional: kurze Infos zur Anfrage"
-            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:text-sm"
           />
         </label>
 
@@ -224,12 +227,6 @@ export default function PrivatkreditContactForm() {
 
         {error ? (
           <div className="sm:col-span-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
-        ) : null}
-
-        {successMessage ? (
-          <div className="sm:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            {successMessage}
-          </div>
         ) : null}
 
         <div className="sm:col-span-2">

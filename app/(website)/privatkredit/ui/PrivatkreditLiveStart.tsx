@@ -129,14 +129,14 @@ export default function PrivatkreditLiveStart() {
           Vorteil: Wir prüfen Ihre Anfrage live und können bei Eignung direkt gemeinsam beantragen, ohne Umwege.
         </div>
 
-        <form onSubmit={submit} className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+        <form onSubmit={submit} className="mt-5 grid gap-3">
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="E-Mail für die Live-Beratung"
             required
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:text-sm"
           />
           <button
             type="submit"
@@ -146,6 +146,7 @@ export default function PrivatkreditLiveStart() {
             {busy ? "Starte..." : "Live-Beratung starten"}
           </button>
         </form>
+        <div className="mt-2 text-xs text-slate-500">Live-Beratung starten und direkte Ersteinschätzung in wenigen Minuten erhalten.</div>
 
         {error ? <div className="mt-2 text-sm text-rose-700">{error}</div> : null}
 

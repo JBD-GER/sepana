@@ -54,13 +54,6 @@ const FLOW = [
   },
 ]
 
-const QUICK_PANEL = [
-  {
-    title: "Verbindliche Rueckmeldung",
-    text: "Sie erhalten den naechsten Schritt transparent und nachvollziehbar.",
-  },
-]
-
 type Provider = {
   id: string
   name: string
@@ -217,30 +210,13 @@ export default async function PrivatkreditPage() {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="space-y-6">
-          <PrivatkreditReviews />
-          <div id="live-start" className="scroll-mt-24">
+        <div className="space-y-6 xl:flex xl:h-full xl:flex-col xl:gap-6 xl:space-y-0">
+          <div className="xl:[&>section]:h-full xl:[&>section]:min-h-[220px]">
+            <PrivatkreditReviews />
+          </div>
+          <div id="live-start" className="scroll-mt-24 xl:flex-1 xl:[&>section]:h-full xl:[&>section]:min-h-[520px]">
             <PrivatkreditLiveStart />
           </div>
-
-          <section className="relative overflow-hidden rounded-[30px] border border-slate-200/70 bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] sm:p-8">
-            <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-cyan-200/35 blur-3xl" />
-            <div className="pointer-events-none absolute -left-10 -bottom-12 h-36 w-36 rounded-full bg-emerald-200/25 blur-3xl" />
-
-            <div className="relative">
-              <h3 className="mt-3 text-xl font-semibold tracking-tight text-slate-900">Was Sie direkt nach der Anfrage erhalten</h3>
-
-              <div className="mt-4 grid gap-3">
-                {QUICK_PANEL.map((item) => (
-                  <article key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
-                    <div className="text-sm font-semibold text-slate-900">{item.title}</div>
-                    <p className="mt-1 text-sm text-slate-600">{item.text}</p>
-                  </article>
-                ))}
-              </div>
-
-            </div>
-          </section>
         </div>
 
         <div id="kontakt" className="scroll-mt-24">
