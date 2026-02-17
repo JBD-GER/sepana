@@ -30,7 +30,8 @@ export default function CaseChat({
   const [messages, setMessages] = useState<Message[]>(initialMessages ?? [])
   const [text, setText] = useState("")
   const [busy, setBusy] = useState(false)
-  const endRef = useRef<HTMLDivElement | null>(null)
+  const listRef = useRef<HTMLDivElement | null>(null)
+  const didInitScrollRef = useRef(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -77,7 +78,14 @@ export default function CaseChat({
   }, [caseId])
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" })
+    const list = listRef.current
+    if (!list) return
+    if (didInitScrollRef.current) {
+      list.scrollTo({ top: list.scrollHeight, behavior: "smooth" })
+      return
+    }
+    list.scrollTop = list.scrollHeight
+    didInitScrollRef.current = true
   }, [messages.length])
 
   async function send() {
@@ -110,7 +118,7 @@ export default function CaseChat({
         <div className="text-xs text-slate-500">Realtime</div>
       </div>
 
-      <div className="mt-4 max-h-[420px] space-y-2 overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
+      <div ref={listRef} className="mt-4 max-h-[420px] space-y-2 overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
         {messages.length === 0 ? (
           <div className="text-sm text-slate-500">Noch keine Nachrichten.</div>
         ) : (
@@ -132,7 +140,6 @@ export default function CaseChat({
             )
           })
         )}
-        <div ref={endRef} />
       </div>
 
       <div className="mt-3 flex items-end gap-2">

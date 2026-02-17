@@ -9,6 +9,7 @@ type CaseRow = {
   advisor_case_ref: string | null
   advisor_status: string | null
   customer_name?: string | null
+  customer_phone?: string | null
   status: string
   status_display?: string | null
   created_at: string
@@ -195,6 +196,7 @@ export default async function CasesPage({
               <tr className="border-b border-slate-200/70">
                 <th className="px-4 py-3 font-medium text-slate-700">Fall-ID</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Kunde</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Telefon</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Vorgangsnummer</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Status</th>
               </tr>
@@ -203,6 +205,7 @@ export default async function CasesPage({
             <tbody>
               {scopedCases.map((c) => {
                 const customerLabel = c.customer_name || "Kunde -"
+                const customerPhone = String(c.customer_phone ?? "").trim() || "-"
 
                 return (
                   <tr key={c.id} className="border-b border-slate-200/60 last:border-0 hover:bg-slate-50/60">
@@ -215,6 +218,10 @@ export default async function CasesPage({
 
                     <td className="px-4 py-3 text-slate-700">
                       {customerLabel}
+                    </td>
+
+                    <td className="px-4 py-3 text-slate-700">
+                      {customerPhone}
                     </td>
 
                     <td className="px-4 py-3">
@@ -230,7 +237,7 @@ export default async function CasesPage({
 
               {scopedCases.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-slate-500" colSpan={4}>
+                  <td className="px-4 py-6 text-slate-500" colSpan={5}>
                     Noch keine Faelle in diesem Status vorhanden.
                   </td>
                 </tr>

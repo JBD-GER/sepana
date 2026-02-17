@@ -39,6 +39,7 @@ type ApplicantRow = {
   case_id: string
   first_name: string | null
   last_name: string | null
+  phone: string | null
 }
 
 type OfferRow = {
@@ -210,7 +211,7 @@ export async function GET(req: Request) {
     caseIds.length
       ? supabase
           .from("case_applicants")
-          .select("case_id,first_name,last_name")
+          .select("case_id,first_name,last_name,phone")
           .in("case_id", caseIds)
           .eq("role", "primary")
       : Promise.resolve({ data: [] as ApplicantRow[] }),
@@ -339,6 +340,7 @@ export async function GET(req: Request) {
       comparison: preview,
       bestOffer,
       customer_name: buildName(applicant),
+      customer_phone: String(applicant?.phone ?? "").trim() || null,
       is_bank_confirmed: !!approvedOffer,
       confirmed_at: approvedOffer ? approvedOffer.bank_confirmed_at ?? approvedOffer.created_at : null,
       confirmed_loan_amount: approvedOffer?.loan_amount ?? null,
