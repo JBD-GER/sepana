@@ -4,6 +4,7 @@ export const metadata: Metadata = {
   title: "Datenschutzerklärung",
   description: "Datenschutzhinweise zur Nutzung der SEPANA Plattform.",
   alternates: { canonical: "/datenschutz" },
+  robots: { index: false, follow: false },
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

@@ -16,8 +16,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/baufinanzierung",
     "/privatkredit",
     "/agb",
-    "/datenschutz",
-    "/impressum",
     "/roadmap",
     "/status",
   ]
@@ -29,4 +27,3 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: path === "/" ? 1 : 0.7,
   }))
 }
-

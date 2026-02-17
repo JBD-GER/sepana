@@ -4,6 +4,7 @@ export const metadata: Metadata = {
   title: "Impressum",
   description: "Impressum der SEPANA Plattform (Flaaq Holding GmbH).",
   alternates: { canonical: "/impressum" },
+  robots: { index: false, follow: false },
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
