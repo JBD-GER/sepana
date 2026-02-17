@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import Image from "next/image"
 import Link from "next/link"
@@ -12,12 +12,12 @@ const PORTAL_HREF = "/app"
 type NavItem = {
   href: string
   label: string
-  soon?: boolean
+  isNew?: boolean
 }
 
 const NAV: NavItem[] = [
   { href: "/baufinanzierung", label: "Baufinanzierung" },
-  { href: "/privatkredit", label: "Privatkredit", soon: true },
+  { href: "/privatkredit", label: "Privatkredit", isNew: true },
 ]
 
 function cn(...classes: Array<string | false | null | undefined>) {
@@ -45,10 +45,10 @@ function IconClose(props: React.SVGProps<SVGSVGElement>) {
   )
 }
 
-function SoonBadge() {
+function NewBadge() {
   return (
-    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-700">
-      Bald eröffnet
+    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700">
+      Neu
     </span>
   )
 }
@@ -155,7 +155,7 @@ export default function Header() {
                 )}
               >
                 <span>{item.label}</span>
-                {item.soon ? <SoonBadge /> : null}
+                {item.isNew ? <NewBadge /> : null}
               </Link>
             )
           })}
@@ -185,7 +185,7 @@ export default function Header() {
           ref={buttonRef}
           type="button"
           aria-expanded={menuOpen}
-          aria-label={menuOpen ? "Menü schließen" : "Menü öffnen"}
+          aria-label={menuOpen ? "MenÃ¼ schlieÃŸen" : "MenÃ¼ Ã¶ffnen"}
           onClick={() => setMenuOpen((current) => !current)}
           className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm transition hover:bg-slate-50 lg:hidden"
         >
@@ -215,7 +215,7 @@ export default function Header() {
                 )}
               >
                 <span>{item.label}</span>
-                {item.soon ? <SoonBadge /> : null}
+                {item.isNew ? <NewBadge /> : null}
               </Link>
             )
           })}
@@ -240,9 +240,10 @@ export default function Header() {
             Baufinanzierung starten
           </Link>
 
-          <p className="pt-1 text-xs text-slate-500">Privatkredit folgt als nächstes Modul.</p>
+          <p className="pt-1 text-xs text-emerald-700">Privatkredit ist jetzt neu verfuegbar.</p>
         </div>
       </div>
     </header>
   )
 }
+

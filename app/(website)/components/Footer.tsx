@@ -1,4 +1,4 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import OpenConsentButton from "./OpenConsentButton"
 
 export default function Footer() {
@@ -8,7 +8,7 @@ export default function Footer() {
         <div className="space-y-3">
           <div className="text-sm font-semibold text-slate-900">SEPANA</div>
           <p className="max-w-md text-sm leading-relaxed text-slate-600">
-            Digitale Baufinanzierung mit klaren Schritten: Vergleich starten, Angebot wählen, Unterlagen sicher hochladen,
+            Digitale Baufinanzierung mit klaren Schritten: Vergleich starten, Angebot wÃ¤hlen, Unterlagen sicher hochladen,
             auf Wunsch live finalisieren.
           </p>
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
@@ -28,8 +28,14 @@ export default function Footer() {
             <Link className="text-slate-600 transition hover:text-slate-900" href="/status">
               Systemstatus
             </Link>
-            <Link className="text-slate-500" href="/privatkredit">
-              Privatkredit (Bald eröffnet)
+            <Link
+              className="inline-flex items-center gap-2 text-emerald-700 transition hover:text-emerald-800"
+              href="/privatkredit"
+            >
+              <span>Privatkredit</span>
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700">
+                Neu
+              </span>
             </Link>
           </div>
         </div>
@@ -59,10 +65,11 @@ export default function Footer() {
 
       <div className="border-t border-slate-200/70">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <span>© {new Date().getFullYear()} SEPANA</span>
-          <span>Konditionen sind bonitäts- und objektabhängig.</span>
+          <span>Â© {new Date().getFullYear()} SEPANA</span>
+          <span>Konditionen sind bonitÃ¤ts- und objektabhÃ¤ngig.</span>
         </div>
       </div>
     </footer>
   )
 }
+

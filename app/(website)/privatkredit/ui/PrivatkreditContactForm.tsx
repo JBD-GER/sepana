@@ -57,11 +57,11 @@ export default function PrivatkreditContactForm() {
     setSuccessMessage(null)
 
     if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim() || !form.phone.trim()) {
-      setError("Bitte alle Pflichtfelder ausfuellen.")
+      setError("Bitte alle Pflichtfelder ausfüllen.")
       return
     }
     if (!isEmail(form.email)) {
-      setError("Bitte eine gueltige E-Mail eingeben.")
+      setError("Bitte eine gültige E-Mail eingeben.")
       return
     }
     if (!form.privacyAccepted) {
@@ -75,6 +75,7 @@ export default function PrivatkreditContactForm() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          requestType: "contact",
           firstName: form.firstName,
           lastName: form.lastName,
           email: form.email,
@@ -91,21 +92,28 @@ export default function PrivatkreditContactForm() {
         return
       }
       setForm(INITIAL_STATE)
-      setSuccessMessage("Danke. Ihre Anfrage ist eingegangen. Wir melden uns schnellstmoeglich bei Ihnen.")
+      setSuccessMessage("Danke. Ihre Anfrage ist eingegangen. Wir melden uns schnellstmöglich bei Ihnen.")
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <section className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
-      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Kontaktformular</div>
-      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Normale Anfrage ohne Vergleich</h2>
-      <p className="mt-2 max-w-3xl text-sm text-slate-600 sm:text-base">
-        Sie senden nur Ihre Eckdaten. Wir pruefen Ihren Zinssatz-Kontext und melden uns direkt mit den naechsten Schritten.
-      </p>
+    <section className="relative overflow-hidden rounded-[30px] border border-slate-200/70 bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] sm:p-8">
+      <div className="pointer-events-none absolute -right-16 -top-14 h-48 w-48 rounded-full bg-emerald-200/30 blur-3xl" />
+      <div className="pointer-events-none absolute -left-14 -bottom-16 h-44 w-44 rounded-full bg-cyan-200/30 blur-3xl" />
 
-      <form onSubmit={submit} className="mt-5 grid gap-3 sm:grid-cols-2">
+      <div className="relative">
+        <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+          Sichere Anfrage
+        </div>
+        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">Persönliche Kreditanfrage starten</h2>
+        <p className="mt-2 max-w-3xl text-sm text-slate-600 sm:text-base">
+          Senden Sie Ihre Eckdaten in weniger als zwei Minuten. Wir melden uns mit einer klaren Einschätzung und den
+          passenden nächsten Schritten.
+        </p>
+
+        <form onSubmit={submit} className="mt-6 grid gap-3 sm:grid-cols-2">
         <label className="block">
           <div className="mb-1 text-xs font-medium text-slate-700">Vorname *</div>
           <input
@@ -148,7 +156,7 @@ export default function PrivatkreditContactForm() {
         </label>
 
         <label className="block">
-          <div className="mb-1 text-xs font-medium text-slate-700">Gewuenschte Kreditsumme</div>
+          <div className="mb-1 text-xs font-medium text-slate-700">Gewünschte Kreditsumme</div>
           <input
             value={form.loanAmount}
             onChange={(e) => patch("loanAmount", e.target.value)}
@@ -210,7 +218,7 @@ export default function PrivatkreditContactForm() {
             required
           />
           <span>
-            Ich stimme der Verarbeitung meiner Angaben zur Bearbeitung meiner Anfrage gemaess Datenschutz zu.
+            Ich stimme der Verarbeitung meiner Angaben zur Bearbeitung meiner Anfrage gemäß Datenschutz zu.
           </span>
         </label>
 
@@ -228,12 +236,13 @@ export default function PrivatkreditContactForm() {
           <button
             type="submit"
             disabled={busy}
-            className="h-12 rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-12 rounded-2xl bg-gradient-to-r from-slate-900 to-cyan-900 px-5 text-sm font-semibold text-white transition hover:from-slate-800 hover:to-cyan-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {busy ? "Sende Anfrage..." : "Anfrage senden"}
           </button>
         </div>
-      </form>
+        </form>
+      </div>
     </section>
   )
 }

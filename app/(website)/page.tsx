@@ -1,4 +1,4 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 
 type Step = {
   id: string
@@ -14,8 +14,8 @@ const STEPS: Step[] = [
   },
   {
     id: "02",
-    title: "Angebot auswählen",
-    text: "Sie vergleichen Konditionen transparent und wählen den passenden Finanzierungsweg.",
+    title: "Angebot auswÃ¤hlen",
+    text: "Sie vergleichen Konditionen transparent und wÃ¤hlen den passenden Finanzierungsweg.",
   },
   {
     id: "03",
@@ -25,7 +25,7 @@ const STEPS: Step[] = [
   {
     id: "04",
     title: "Live finalisieren",
-    text: "Wenn nötig, klären wir Details direkt in der Live-Session und bringen den Fall ins Ziel.",
+    text: "Wenn nÃ¶tig, klÃ¤ren wir Details direkt in der Live-Session und bringen den Fall ins Ziel.",
   },
 ]
 
@@ -33,7 +33,7 @@ const MODULES = [
   {
     name: "Baufinanzierungsvergleich",
     status: "Live",
-    text: "Von der Ersterfassung bis zum finalen Angebot in einem durchgängigen Flow.",
+    text: "Von der Ersterfassung bis zum finalen Angebot in einem durchgÃ¤ngigen Flow.",
   },
   {
     name: "Dokumentenhub",
@@ -43,24 +43,28 @@ const MODULES = [
   {
     name: "Live-Beratung",
     status: "Live",
-    text: "Direkte Übergabe aus dem Vergleich in den digitalen Beratungsraum.",
+    text: "Direkte Ãœbergabe aus dem Vergleich in den digitalen Beratungsraum.",
   },
   {
     name: "Privatkredit",
-    status: "Bald",
-    text: "Als nächstes Modul mit identischem SEPANA-Workflow und klarer Statuskommunikation.",
+    status: "Neu",
+    text: "Neu verfuegbar als direkter Anfrage-Flow mit Live-Beratung und schneller Rueckmeldung.",
   },
 ]
 
 function StatusPill({ value }: { value: string }) {
-  const isLive = value.toLowerCase() === "live"
+  const normalized = value.toLowerCase()
+  const isLive = normalized === "live"
+  const isNew = normalized === "neu" || normalized === "new"
 
   return (
     <span
       className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${
         isLive
           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-          : "border-amber-200 bg-amber-50 text-amber-700"
+          : isNew
+            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+            : "border-amber-200 bg-amber-50 text-amber-700"
       }`}
     >
       {value}
@@ -117,7 +121,10 @@ export default function HomePage() {
                 href="/privatkredit"
                 className="inline-flex items-center gap-2 rounded-2xl border border-white/25 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
               >
-                Privatkredit (bald eröffnet)
+                <span>Privatkredit</span>
+                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700">
+                  Neu
+                </span>
               </Link>
             </div>
           </div>
@@ -126,7 +133,7 @@ export default function HomePage() {
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-200">Ihre Vorteile</div>
             <div className="mt-2 text-xl font-semibold">Warum Kunden SEPANA lieben</div>
             <p className="mt-2 text-sm text-slate-200/90">
-              Wir kombinieren digitale Geschwindigkeit mit persönlicher Beratung - klar strukturiert,
+              Wir kombinieren digitale Geschwindigkeit mit persÃ¶nlicher Beratung - klar strukturiert,
               transparent und ohne Medienbruch.
             </p>
 
@@ -134,7 +141,7 @@ export default function HomePage() {
               <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2">Klarer 4-Schritte-Prozess vom Start bis Abschluss</div>
               <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2">Sicherer Upload statt unstrukturierter E-Mails</div>
               <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2">Live-Beratung direkt im richtigen Moment</div>
-              <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2">Transparente Konditionen und klare nächste Schritte</div>
+              <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2">Transparente Konditionen und klare nÃ¤chste Schritte</div>
             </div>
           </div>
         </div>
@@ -156,7 +163,7 @@ export default function HomePage() {
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Ablauf</div>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">So läuft ein SEPANA-Fall</h2>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">So lÃ¤uft ein SEPANA-Fall</h2>
           </div>
           <Link href="/baufinanzierung" className="text-sm font-semibold text-slate-900 underline underline-offset-4">
             Direkt zum Vergleich
@@ -177,21 +184,21 @@ export default function HomePage() {
       <section className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Nächstes Modul</div>
-            <h3 className="mt-1 text-xl font-semibold text-slate-900">Privatkredit - Bald eröffnet</h3>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Neu im Produktbereich</div>
+            <h3 className="mt-1 text-xl font-semibold text-slate-900">Privatkredit - Neu</h3>
             <p className="mt-2 max-w-2xl text-sm text-slate-600">
-              Der Privatkredit bleibt sichtbar, startet aber erst nach Abschluss der aktuellen Baufinanzierungs-Roadmap.
-              Bis dahin konzentrieren wir alle Ressourcen auf maximalen Baufinanzierungs-Output.
+              Der Privatkredit ist jetzt live als Anfrage-Flow mit direkter Live-Beratung verfuegbar.
             </p>
           </div>
           <Link
             href="/privatkredit"
-            className="inline-flex items-center rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700"
+            className="inline-flex items-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700"
           >
-            Vorschau ansehen
+            Jetzt entdecken
           </Link>
         </div>
       </section>
     </div>
   )
 }
+

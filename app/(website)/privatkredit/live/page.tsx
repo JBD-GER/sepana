@@ -15,18 +15,18 @@ function Pill({ children }: { children: React.ReactNode }) {
 }
 
 const PRIVATE_CREDIT_FACTS = [
-  "Kurze Laufzeit bedeutet meist hoehere Monatsrate, aber geringere Gesamtkosten.",
+  "Kurze Laufzeit bedeutet meist höhere Monatsrate, aber geringere Gesamtkosten.",
   "Eine stabile Haushaltsrechnung verbessert oft den angebotenen Zinssatz.",
   "Bereits laufende Kredite beeinflussen die neue Finanzierung direkt.",
-  "Eine klare Kreditsumme beschleunigt die Vorpruefung erheblich.",
-  "Saubere Unterlagen sind oft wichtiger als ein langes Erklaerungsschreiben.",
-  "Kleine Zinsunterschiede wirken sich ueber die Laufzeit deutlich aus.",
-  "Sondertilgungen koennen die Restschuld schneller reduzieren.",
-  "Eine realistische Monatsrate senkt das Risiko spaeterer Engpaesse.",
-  "Bei Umschuldungen lohnt der Blick auf Vorfaelligkeitskosten.",
+  "Eine klare Kreditsumme beschleunigt die Vorprüfung erheblich.",
+  "Saubere Unterlagen sind oft wichtiger als ein langes Erklärungsschreiben.",
+  "Kleine Zinsunterschiede wirken sich über die Laufzeit deutlich aus.",
+  "Sondertilgungen können die Restschuld schneller reduzieren.",
+  "Eine realistische Monatsrate senkt das Risiko späterer Engpässe.",
+  "Bei Umschuldungen lohnt der Blick auf Vorfälligkeitskosten.",
   "Ein zweiter Antragsteller kann je nach Einkommen helfen.",
-  "Digitale Pruefung spart Zeit, ersetzt aber nicht die finale Bonitaetspruefung.",
-  "Vollstaendige Angaben bringen schneller eine belastbare Rueckmeldung.",
+  "Digitale Prüfung spart Zeit, ersetzt aber nicht die finale Bonitätsprüfung.",
+  "Vollständige Angaben bringen schneller eine belastbare Rückmeldung.",
 ] as const
 
 export default async function PrivatkreditLivePage({
@@ -50,7 +50,7 @@ export default async function PrivatkreditLivePage({
 
         <h1 className="mt-3 text-2xl font-semibold leading-tight text-slate-900 sm:text-3xl">Live-Beratung Privatkredit</h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 sm:text-base">
-          Sie werden in die Warteschlange aufgenommen. Bitte lassen Sie das Fenster geoeffnet. Sobald ein Berater annimmt,
+          Sie werden in die Warteschlange aufgenommen. Bitte lassen Sie das Fenster geöffnet. Sobald ein Berater annimmt,
           startet die Session automatisch.
         </p>
 
@@ -59,7 +59,7 @@ export default async function PrivatkreditLivePage({
             caseId={caseId}
             caseRef={caseRef}
             backHref="/privatkredit"
-            backLabel="Zurueck zu Privatkredit"
+            backLabel="Zurück zu Privatkredit"
             backActionLabel="Warteschlange verlassen und zur Privatkredit-Seite"
             caseLabel="Anfrage-Referenz"
             factsTitle="12 kurze Hinweise zum Privatkredit"
