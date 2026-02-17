@@ -27,6 +27,14 @@ function pickProviderLogo(p: ProviderMini) {
   return extractLogoRef(picked ?? p?.logo_path ?? null)
 }
 
+function isMissingAdvisorPrivateNoteColumnError(error: unknown) {
+  const anyError = error as { code?: string; message?: string } | null
+  if (!anyError) return false
+  if (anyError.code === "42703") return true
+  const msg = String(anyError.message ?? "").toLowerCase()
+  return msg.includes("advisor_private_note") && (msg.includes("column") || msg.includes("exist"))
+}
+
 export async function GET(req: Request) {
   const { supabase, user, role } = await getUserAndRole()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -35,13 +43,23 @@ export async function GET(req: Request) {
   const id = url.searchParams.get("id")
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
 
-  const { data: c, error: caseErr } = await supabase
+  let { data: c, error: caseErr } = await supabase
     .from("cases")
     .select(
-      "id,case_ref,advisor_case_ref,advisor_status,status,created_at,updated_at,case_type,customer_id,assigned_advisor_id"
+      "id,case_ref,advisor_case_ref,advisor_status,advisor_private_note,status,created_at,updated_at,case_type,customer_id,assigned_advisor_id"
     )
     .eq("id", id)
     .single()
+
+  if (caseErr && isMissingAdvisorPrivateNoteColumnError(caseErr)) {
+    const fallback = await supabase
+      .from("cases")
+      .select("id,case_ref,advisor_case_ref,advisor_status,status,created_at,updated_at,case_type,customer_id,assigned_advisor_id")
+      .eq("id", id)
+      .single()
+    caseErr = fallback.error
+    c = fallback.data ? ({ ...fallback.data, advisor_private_note: null } as any) : null
+  }
 
   if (caseErr) return NextResponse.json({ error: caseErr.message }, { status: 400 })
   if (!c) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -176,6 +194,9 @@ export async function GET(req: Request) {
               ? "comparison_ready"
               : c.status
 
+  const canViewAdvisorPrivateFields = role === "advisor" || role === "admin"
+  const casePayload = canViewAdvisorPrivateFields ? c : { ...c, advisor_private_note: null }
+
   let advisor: any = null
   if (c.assigned_advisor_id) {
     const [{ data: prof }, { data: authUser }] = await Promise.all([
@@ -205,7 +226,7 @@ export async function GET(req: Request) {
   }
 
   return NextResponse.json({
-    case: { ...c, status_display: statusDisplay },
+    case: { ...casePayload, status_display: statusDisplay },
     baufi_details: details ?? null,
     applicants: applicants ?? [],
     additional: additional ?? null,

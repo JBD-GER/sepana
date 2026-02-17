@@ -51,12 +51,18 @@ export default function CustomerQueue({
   backHref,
   backLabel,
   backActionLabel,
+  caseLabel,
+  factsTitle,
+  facts,
 }: {
   caseId: string
   caseRef: string
   backHref: string
   backLabel?: string
   backActionLabel?: string
+  caseLabel?: string
+  factsTitle?: string
+  facts?: readonly string[]
 }) {
   const router = useRouter()
   const supabase = useMemo(() => createBrowserSupabaseClient(), [])
@@ -67,6 +73,9 @@ export default function CustomerQueue({
   const [ended, setEnded] = useState(false)
   const rejoinRef = useRef(false)
   const leftRef = useRef(false)
+  const finalCaseLabel = caseLabel || "Fall-Referenz"
+  const finalFactsTitle = factsTitle || "25 wissenswerte Infos zur Baufinanzierung"
+  const finalFacts = Array.isArray(facts) && facts.length > 0 ? facts : BAUFI_FACTS
 
   async function joinQueue() {
     const res = await fetch("/api/live/queue/join", {
@@ -245,7 +254,7 @@ export default function CustomerQueue({
   return (
     <div className="space-y-4">
       <div className="text-sm text-slate-700">
-        Fall-Referenz: <span className="font-semibold text-slate-900">{caseRef || "-"}</span>
+        {finalCaseLabel}: <span className="font-semibold text-slate-900">{caseRef || "-"}</span>
       </div>
 
       {waitMinutes ? (
@@ -264,16 +273,16 @@ export default function CustomerQueue({
         </div>
       </div>
 
-      <details className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
-        <summary className="cursor-pointer font-semibold text-slate-900">
-          25 wissenswerte Infos zur Baufinanzierung
-        </summary>
-        <ol className="mt-3 grid list-decimal gap-2 pl-5 text-xs text-slate-600 sm:grid-cols-2 sm:gap-x-6">
-          {BAUFI_FACTS.map((fact, index) => (
-            <li key={index}>{fact}</li>
-          ))}
-        </ol>
-      </details>
+      {finalFacts.length > 0 ? (
+        <details className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+          <summary className="cursor-pointer font-semibold text-slate-900">{finalFactsTitle}</summary>
+          <ol className="mt-3 grid list-decimal gap-2 pl-5 text-xs text-slate-600 sm:grid-cols-2 sm:gap-x-6">
+            {finalFacts.map((fact, index) => (
+              <li key={index}>{fact}</li>
+            ))}
+          </ol>
+        </details>
+      ) : null}
 
       <button
         onClick={leaveQueue}

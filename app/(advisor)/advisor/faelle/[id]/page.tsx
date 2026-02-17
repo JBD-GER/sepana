@@ -11,6 +11,7 @@ import SignaturePanel from "@/components/case/SignaturePanel"
 import LiveCasePanel from "@/components/live/LiveCasePanel"
 import ClearSignatureHash from "@/components/case/ClearSignatureHash"
 import AdvisorCaseRefEditor from "./ui/AdvisorCaseRefEditor"
+import AdvisorPrivateNoteEditor from "./ui/AdvisorPrivateNoteEditor"
 import AdvisorCaseStatusSelect from "../ui/AdvisorCaseStatusSelect"
 
 type Resp = {
@@ -18,6 +19,7 @@ type Resp = {
     id: string
     case_ref: string | null
     advisor_case_ref: string | null
+    advisor_private_note: string | null
     advisor_status: string | null
     status: string
     status_display?: string | null
@@ -227,6 +229,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
       </div>
+
+      <AdvisorPrivateNoteEditor caseId={c.id} initialValue={c.advisor_private_note ?? null} />
 
       {advisor ? (
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
