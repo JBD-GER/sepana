@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
+import { trackPrivatkreditLeadConversion } from "@/lib/ads/googleAds"
 
 type Ticket = {
   id: string
@@ -54,6 +55,7 @@ export default function CustomerQueue({
   caseLabel,
   factsTitle,
   facts,
+  trackWaitingRoomConversion,
 }: {
   caseId: string
   caseRef: string
@@ -63,6 +65,7 @@ export default function CustomerQueue({
   caseLabel?: string
   factsTitle?: string
   facts?: readonly string[]
+  trackWaitingRoomConversion?: boolean
 }) {
   const router = useRouter()
   const supabase = useMemo(() => createBrowserSupabaseClient(), [])
@@ -73,9 +76,30 @@ export default function CustomerQueue({
   const [ended, setEnded] = useState(false)
   const rejoinRef = useRef(false)
   const leftRef = useRef(false)
+  const conversionSentRef = useRef(false)
   const finalCaseLabel = caseLabel || "Fall-Referenz"
   const finalFactsTitle = factsTitle || "25 wissenswerte Infos zur Baufinanzierung"
   const finalFacts = Array.isArray(facts) && facts.length > 0 ? facts : BAUFI_FACTS
+
+  function fireWaitingRoomConversion() {
+    if (!trackWaitingRoomConversion) return
+    if (conversionSentRef.current) return
+    if (typeof window === "undefined") return
+
+    const onceKey = `sepana:ads-conversion:privatkredit-warteraum:${caseId || "no-case"}`
+    try {
+      if (window.sessionStorage.getItem(onceKey) === "1") {
+        conversionSentRef.current = true
+        return
+      }
+      trackPrivatkreditLeadConversion()
+      window.sessionStorage.setItem(onceKey, "1")
+      conversionSentRef.current = true
+    } catch {
+      trackPrivatkreditLeadConversion()
+      conversionSentRef.current = true
+    }
+  }
 
   async function joinQueue() {
     const res = await fetch("/api/live/queue/join", {
@@ -97,6 +121,10 @@ export default function CustomerQueue({
     setTicket(nextTicket)
     setGuestToken(token)
     setWaitMinutes(typeof json.waitMinutes === "number" ? json.waitMinutes : null)
+
+    if (nextTicket?.status === "waiting") {
+      fireWaitingRoomConversion()
+    }
 
     if (nextTicket?.status === "active") {
       const guestParam = token ? `?guest=${encodeURIComponent(token)}` : ""

@@ -64,6 +64,7 @@ export default async function PrivatkreditLivePage({
             caseLabel="Anfrage-Referenz"
             factsTitle="12 kurze Hinweise zum Privatkredit"
             facts={PRIVATE_CREDIT_FACTS}
+            trackWaitingRoomConversion
           />
         </div>
       </div>
