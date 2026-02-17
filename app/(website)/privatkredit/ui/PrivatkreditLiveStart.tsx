@@ -61,7 +61,6 @@ export default function PrivatkreditLiveStart() {
 
   const onlineCount = liveStatus?.onlineCount ?? 0
   const availableCount = liveStatus?.availableCount ?? 0
-  const waitMinutes = liveStatus?.waitMinutes ?? 0
   const availableAdvisorName = String(liveStatus?.availableAdvisorName ?? "").trim() || "Ein Berater"
   const canStartLive = onlineCount > 0
 
@@ -176,7 +175,7 @@ export default function PrivatkreditLiveStart() {
               </div>
             ) : (
               <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                {`Alle Berater sind aktuell im Gespräch. Wartezeit ca. ${waitMinutes || 15} Minuten.`}
+                Aktuell sind alle Berater im Gespräch. Nutzen Sie das Kontaktformular, wir melden uns kurzfristig.
               </div>
             )}
           </>
