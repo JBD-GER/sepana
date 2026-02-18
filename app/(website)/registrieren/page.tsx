@@ -63,7 +63,7 @@ export default function RegisterPage() {
       })
       if (error) throw error
 
-      setMsg({ type: "ok", text: "Konto erstellt. Bitte ggf. E-Mail bestaetigen und danach einloggen." })
+      setMsg({ type: "ok", text: "Konto erstellt. Bitte ggf. E-Mail bestätigen und danach einloggen." })
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : ""
       setMsg({ type: "err", text: normalizeError(message) })
@@ -116,7 +116,7 @@ export default function RegisterPage() {
           <Checkbox checked={acceptPrivacy} onChange={setAcceptPrivacy}>
             Ich akzeptiere die{" "}
             <Link className="underline underline-offset-2 hover:text-slate-900" href="/datenschutz">
-              Datenschutzerklaerung
+              Datenschutzerklärung
             </Link>
             .
           </Checkbox>

@@ -185,7 +185,7 @@ export default function Header() {
           ref={buttonRef}
           type="button"
           aria-expanded={menuOpen}
-          aria-label={menuOpen ? "MenÃ¼ schlieÃŸen" : "MenÃ¼ Ã¶ffnen"}
+          aria-label={menuOpen ? "Menü schließen" : "Menü öffnen"}
           onClick={() => setMenuOpen((current) => !current)}
           className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm transition hover:bg-slate-50 lg:hidden"
         >
@@ -240,7 +240,7 @@ export default function Header() {
             Baufinanzierung starten
           </Link>
 
-          <p className="pt-1 text-xs text-emerald-700">Privatkredit ist jetzt neu verfuegbar.</p>
+          <p className="pt-1 text-xs text-emerald-700">Privatkredit ist jetzt neu verfügbar.</p>
         </div>
       </div>
     </header>

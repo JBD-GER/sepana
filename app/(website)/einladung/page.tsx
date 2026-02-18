@@ -9,17 +9,17 @@ import { Alert, Button, Icon, Input, PasswordStrength } from "../components/auth
 
 function normalizeError(message: string) {
   const m = (message || "").toLowerCase()
-  if (m.includes("expired") || m.includes("invalid")) return "Der Link ist ungueltig oder abgelaufen."
+  if (m.includes("expired") || m.includes("invalid")) return "Der Link ist ungültig oder abgelaufen."
   return message || "Fehler"
 }
 
 function normalizeResendError(message: string) {
   const m = (message || "").toLowerCase()
-  if (m.includes("invalid_email")) return "Bitte eine gueltige E-Mail-Adresse eingeben."
+  if (m.includes("invalid_email")) return "Bitte eine gültige E-Mail-Adresse eingeben."
   if (m.includes("mail_not_configured")) return "E-Mail-Versand ist noch nicht konfiguriert."
   if (m.includes("mail_send_failed")) return "E-Mail konnte nicht gesendet werden."
   if (m.includes("link_failed")) return "Einladungslink konnte nicht erstellt werden."
-  if (m.includes("too many") || m.includes("rate")) return "Zu viele Versuche. Bitte spaeter erneut probieren."
+  if (m.includes("too many") || m.includes("rate")) return "Zu viele Versuche. Bitte später erneut probieren."
   return normalizeError(message)
 }
 
@@ -43,7 +43,7 @@ function InvitationOrResetPageContent() {
   const title = mode === "reset" ? "Neues Passwort setzen" : "Einladung annehmen"
   const subtitle =
     mode === "reset"
-      ? "Setzen Sie ein neues Passwort fuer Ihr Konto."
+      ? "Setzen Sie ein neues Passwort für Ihr Konto."
       : "Setzen Sie ein Passwort, um Ihren Zugang zu aktivieren."
 
   const [loading, setLoading] = useState(true)
@@ -68,7 +68,7 @@ function InvitationOrResetPageContent() {
 
     const timeout = setTimeout(() => {
       if (ignore) return
-      setMsg({ type: "err", text: "Zeitueberschreitung beim Laden. Bitte Link erneut oeffnen." })
+      setMsg({ type: "err", text: "Zeitüberschreitung beim Laden. Bitte Link erneut öffnen." })
       setHasUser(false)
       setLoading(false)
     }, 6000)
@@ -106,7 +106,7 @@ function InvitationOrResetPageContent() {
 
         if (sessionError && !userId) {
           if (ignore) return
-          setMsg({ type: "err", text: "Der Link ist ungueltig oder abgelaufen. Bitte neuen Link anfordern." })
+          setMsg({ type: "err", text: "Der Link ist ungültig oder abgelaufen. Bitte neuen Link anfordern." })
           setHasUser(false)
           return
         }
@@ -137,7 +137,7 @@ function InvitationOrResetPageContent() {
     const e: typeof errors = {}
     if (password.length < 8) e.p1 = "Mindestens 8 Zeichen."
     if (password2.length < 8) e.p2 = "Bitte wiederholen."
-    if (password && password2 && password !== password2) e.p2 = "Passwoerter stimmen nicht ueberein."
+    if (password && password2 && password !== password2) e.p2 = "Passwörter stimmen nicht überein."
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -147,7 +147,7 @@ function InvitationOrResetPageContent() {
     setMsg(null)
 
     if (!hasUser) {
-      setMsg({ type: "err", text: "Der Link ist ungueltig oder abgelaufen. Bitte neuen Link anfordern." })
+      setMsg({ type: "err", text: "Der Link ist ungültig oder abgelaufen. Bitte neuen Link anfordern." })
       return
     }
     if (!validate()) return
@@ -215,7 +215,7 @@ function InvitationOrResetPageContent() {
     setResendMsg(null)
     const normalized = resendEmail.trim().toLowerCase()
     if (!isEmail(normalized)) {
-      setResendError("Bitte eine gueltige E-Mail-Adresse eingeben.")
+      setResendError("Bitte eine gültige E-Mail-Adresse eingeben.")
       return
     }
     setResendError(null)
@@ -253,8 +253,8 @@ function InvitationOrResetPageContent() {
         </div>
       ) : !hasUser ? (
         <div className="grid gap-4">
-          <Alert type="err" title="Link ungueltig oder abgelaufen">
-            Bitte fordern Sie einen neuen Link an oder gehen Sie zum Login zurueck.
+          <Alert type="err" title="Link ungültig oder abgelaufen">
+            Bitte fordern Sie einen neuen Link an oder gehen Sie zum Login zurück.
           </Alert>
 
           {mode === "invite" ? (
@@ -265,7 +265,7 @@ function InvitationOrResetPageContent() {
               <Input
                 error={resendError}
                 leftIcon={<Icon name="mail" />}
-                placeholder="E-Mail fuer den Einladungslink"
+                placeholder="E-Mail für den Einladungslink"
                 type="email"
                 value={resendEmail}
                 onChange={(e) => {
@@ -295,7 +295,7 @@ function InvitationOrResetPageContent() {
             </Link>
           </div>
 
-          <p className="text-xs text-slate-500">Aus Sicherheitsgruenden laufen Links nach einer gewissen Zeit ab.</p>
+          <p className="text-xs text-slate-500">Aus Sicherheitsgründen laufen Links nach einer gewissen Zeit ab.</p>
         </div>
       ) : (
         <form onSubmit={submit} className="grid gap-5" noValidate>

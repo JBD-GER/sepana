@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
       if (error) throw error
 
-      setMsg({ type: "ok", text: "E-Mail wurde versendet. Bitte Postfach pruefen." })
+      setMsg({ type: "ok", text: "E-Mail wurde versendet. Bitte Postfach prüfen." })
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : ""
       setMsg({ type: "err", text: normalizeError(message) })
@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <AuthShell title="Passwort vergessen" subtitle="Wir senden Ihnen einen sicheren Link zum Zuruecksetzen.">
+    <AuthShell title="Passwort vergessen" subtitle="Wir senden Ihnen einen sicheren Link zum Zurücksetzen.">
       <form onSubmit={submit} className="grid gap-5" noValidate>
         <div className="grid gap-1.5">
           <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">E-Mail</label>
@@ -69,7 +69,7 @@ export default function ForgotPasswordPage() {
           <Alert type={msg.type}>
             {msg.text}
             {msg.type === "ok" ? (
-              <div className="mt-1 text-xs opacity-80">Wenn nichts ankommt: Spam pruefen oder nach 2 Minuten erneut versuchen.</div>
+              <div className="mt-1 text-xs opacity-80">Wenn nichts ankommt: Spam prüfen oder nach 2 Minuten erneut versuchen.</div>
             ) : null}
           </Alert>
         ) : null}
@@ -80,7 +80,7 @@ export default function ForgotPasswordPage() {
 
         <div className="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3.5 text-sm text-slate-600">
           <Link className="font-medium text-slate-700 underline underline-offset-2 transition hover:text-slate-900" href="/login">
-            Zurueck zum Login
+            Zurück zum Login
           </Link>
         </div>
       </form>

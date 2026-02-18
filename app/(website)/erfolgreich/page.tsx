@@ -3,7 +3,7 @@ import Link from "next/link"
 
 export const metadata: Metadata = {
   title: "Anfrage erfolgreich | SEPANA",
-  description: "Ihre Anfrage wurde erfolgreich uebermittelt. Wir melden uns zeitnah bei Ihnen.",
+  description: "Ihre Anfrage wurde erfolgreich übermittelt. Wir melden uns zeitnah bei Ihnen.",
   alternates: { canonical: "/erfolgreich" },
 }
 
@@ -19,24 +19,24 @@ export default function ErfolgreichPage() {
             Erfolgreich
           </div>
 
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Vielen Dank fuer Ihre Anfrage</h1>
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Vielen Dank für Ihre Anfrage</h1>
 
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-            Wir haben Ihre Angaben erhalten und melden uns zeitnah mit einer klaren Rueckmeldung zu den naechsten Schritten.
+            Wir haben Ihre Angaben erhalten und melden uns zeitnah mit einer klaren Rückmeldung zu den nächsten Schritten.
           </p>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
             <article className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Schritt 1</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">Datenpruefung</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">Datenprüfung</div>
             </article>
             <article className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Schritt 2</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">Persoenliche Rueckmeldung</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">Persönliche Rückmeldung</div>
             </article>
             <article className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Schritt 3</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">Naechster Schritt</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">Nächster Schritt</div>
             </article>
           </div>
 
@@ -45,7 +45,7 @@ export default function ErfolgreichPage() {
               href="/privatkredit"
               className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Zurueck zur Privatkredit-Seite
+              Zurück zur Privatkredit-Seite
             </Link>
             <Link
               href="/"
@@ -59,4 +59,3 @@ export default function ErfolgreichPage() {
     </div>
   )
 }
-

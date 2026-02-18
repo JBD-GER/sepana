@@ -85,11 +85,11 @@ export default function SelectionSummaryEditor({
 
   async function saveChanges() {
     if (!caseId || !caseRef) {
-      setError("Bearbeiten ist nur mit gueltiger Fall-Referenz moeglich.")
+      setError("Bearbeiten ist nur mit gültiger Fall-Referenz möglich.")
       return
     }
     if (!gateUnlocked) {
-      setError("Bitte zuerst die Fall-Referenz bestaetigen.")
+      setError("Bitte zuerst die Fall-Referenz bestätigen.")
       return
     }
 

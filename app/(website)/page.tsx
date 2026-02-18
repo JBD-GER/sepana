@@ -14,8 +14,8 @@ const STEPS: Step[] = [
   },
   {
     id: "02",
-    title: "Angebot auswÃ¤hlen",
-    text: "Sie vergleichen Konditionen transparent und wÃ¤hlen den passenden Finanzierungsweg.",
+    title: "Angebot auswählen",
+    text: "Sie vergleichen Konditionen transparent und wählen den passenden Finanzierungsweg.",
   },
   {
     id: "03",
@@ -25,7 +25,7 @@ const STEPS: Step[] = [
   {
     id: "04",
     title: "Live finalisieren",
-    text: "Wenn nÃ¶tig, klÃ¤ren wir Details direkt in der Live-Session und bringen den Fall ins Ziel.",
+    text: "Wenn nötig, klären wir Details direkt in der Live-Session und bringen den Fall ins Ziel.",
   },
 ]
 
@@ -33,7 +33,7 @@ const MODULES = [
   {
     name: "Baufinanzierungsvergleich",
     status: "Live",
-    text: "Von der Ersterfassung bis zum finalen Angebot in einem durchgÃ¤ngigen Flow.",
+    text: "Von der Ersterfassung bis zum finalen Angebot in einem durchgängigen Flow.",
   },
   {
     name: "Dokumentenhub",
@@ -43,12 +43,12 @@ const MODULES = [
   {
     name: "Live-Beratung",
     status: "Live",
-    text: "Direkte Ãœbergabe aus dem Vergleich in den digitalen Beratungsraum.",
+    text: "Direkte Übergabe aus dem Vergleich in den digitalen Beratungsraum.",
   },
   {
     name: "Privatkredit",
     status: "Neu",
-    text: "Neu verfuegbar als direkter Anfrage-Flow mit Live-Beratung und schneller Rueckmeldung.",
+    text: "Neu verfügbar als direkter Anfrage-Flow mit Live-Beratung und schneller Rückmeldung.",
   },
 ]
 
@@ -133,7 +133,7 @@ export default function HomePage() {
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-200">Ihre Vorteile</div>
             <div className="mt-2 text-xl font-semibold">Warum Kunden SEPANA lieben</div>
             <p className="mt-2 text-sm text-slate-200/90">
-              Wir kombinieren digitale Geschwindigkeit mit persÃ¶nlicher Beratung - klar strukturiert,
+              Wir kombinieren digitale Geschwindigkeit mit persönlicher Beratung - klar strukturiert,
               transparent und ohne Medienbruch.
             </p>
 
@@ -141,7 +141,7 @@ export default function HomePage() {
               <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2">Klarer 4-Schritte-Prozess vom Start bis Abschluss</div>
               <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2">Sicherer Upload statt unstrukturierter E-Mails</div>
               <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2">Live-Beratung direkt im richtigen Moment</div>
-              <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2">Transparente Konditionen und klare nÃ¤chste Schritte</div>
+              <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2">Transparente Konditionen und klare nächste Schritte</div>
             </div>
           </div>
         </div>
@@ -163,7 +163,7 @@ export default function HomePage() {
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Ablauf</div>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">So lÃ¤uft ein SEPANA-Fall</h2>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">So läuft ein SEPANA-Fall</h2>
           </div>
           <Link href="/baufinanzierung" className="text-sm font-semibold text-slate-900 underline underline-offset-4">
             Direkt zum Vergleich
@@ -187,7 +187,7 @@ export default function HomePage() {
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Neu im Produktbereich</div>
             <h3 className="mt-1 text-xl font-semibold text-slate-900">Privatkredit - Neu</h3>
             <p className="mt-2 max-w-2xl text-sm text-slate-600">
-              Der Privatkredit ist jetzt live als Anfrage-Flow mit direkter Live-Beratung verfuegbar.
+              Der Privatkredit ist jetzt live als Anfrage-Flow mit direkter Live-Beratung verfügbar.
             </p>
           </div>
           <Link

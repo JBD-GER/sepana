@@ -300,20 +300,20 @@ export default function ConsentBanner() {
               }}
               className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              Schliessen
+              Schließen
             </button>
           ) : null}
         </div>
 
         <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-          Wir nutzen optionale Cookies fuer Analyse, Marketing und Personalisierung. Sie koennen alle optionalen
+          Wir nutzen optionale Cookies für Analyse, Marketing und Personalisierung. Sie können alle optionalen
           Kategorien ablehnen, akzeptieren oder individuell einstellen.
         </p>
 
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-600">
           Details finden Sie in unserer{" "}
           <Link href="/datenschutz" className="font-semibold text-slate-900 underline underline-offset-2">
-            Datenschutzerklaerung
+            Datenschutzerklärung
           </Link>
           , im{" "}
           <Link href="/impressum" className="font-semibold text-slate-900 underline underline-offset-2">
@@ -331,7 +331,7 @@ export default function ConsentBanner() {
             <div>
               <div className="text-sm font-semibold text-slate-900">Notwendige Cookies</div>
               <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                Diese Cookies sind fuer Sicherheit, Login und technische Kernfunktionen erforderlich.
+                Diese Cookies sind für Sicherheit, Login und technische Kernfunktionen erforderlich.
               </p>
             </div>
             <span className="inline-flex h-7 items-center rounded-full border border-slate-300 bg-slate-100 px-3 text-xs font-semibold text-slate-700">
@@ -350,7 +350,7 @@ export default function ConsentBanner() {
             />
             <ToggleCard
               title="Marketing"
-              description="Erlaubt Conversion-Messung und Werbe-Attribution, z. B. fuer Google Ads."
+              description="Erlaubt Conversion-Messung und Werbe-Attribution, z. B. für Google Ads."
               checked={preferences.marketing}
               onToggle={() => setPreferences((prev) => ({ ...prev, marketing: !prev.marketing }))}
             />

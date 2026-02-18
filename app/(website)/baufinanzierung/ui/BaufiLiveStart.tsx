@@ -9,8 +9,8 @@ function isEmail(v: string) {
 
 function errorLabel(code: string | null) {
   if (!code) return "Etwas ist schiefgelaufen. Bitte erneut versuchen."
-  if (code === "invalid_email") return "Bitte eine gueltige E-Mail eingeben."
-  if (code === "email_in_use") return "Diese E-Mail gehoert bereits zu einem Beraterkonto."
+  if (code === "invalid_email") return "Bitte eine gültige E-Mail eingeben."
+  if (code === "email_in_use") return "Diese E-Mail gehört bereits zu einem Beraterkonto."
   return "Etwas ist schiefgelaufen. Bitte erneut versuchen."
 }
 
@@ -59,7 +59,7 @@ export default function BaufiLiveStart() {
     e.preventDefault()
     const trimmed = email.trim().toLowerCase()
     if (!isEmail(trimmed)) {
-      setError("Bitte eine gueltige E-Mail eingeben.")
+      setError("Bitte eine gültige E-Mail eingeben.")
       return
     }
     setBusy(true)
@@ -117,7 +117,7 @@ export default function BaufiLiveStart() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="E-Mail fuer die Live-Session"
+            placeholder="E-Mail für die Live-Session"
             className="h-11 w-full rounded-xl border border-white/40 bg-white/95 px-3 text-sm text-slate-900 outline-none transition focus:border-white focus:ring-2 focus:ring-white/70"
             required
           />
@@ -135,7 +135,7 @@ export default function BaufiLiveStart() {
 
       {availableCount === 0 ? (
         <div className="mt-2 rounded-xl border border-amber-200/30 bg-amber-200/10 px-3 py-2 text-[11px] text-amber-100">
-          Alle Berater sind aktuell im Gespraech. Wartezeit ca. {waitMinutes || 15} Minuten.
+          Alle Berater sind aktuell im Gespräch. Wartezeit ca. {waitMinutes || 15} Minuten.
         </div>
       ) : null}
 

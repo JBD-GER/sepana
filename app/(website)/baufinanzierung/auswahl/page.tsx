@@ -471,7 +471,7 @@ export default async function Page({
                 <div className="mt-1 text-sm text-slate-700">
                   {liveStatus?.availableCount && liveStatus.availableCount > 0
                     ? "Jetzt sofort live mit einem Berater sprechen."
-                    : `Alle Berater sind aktuell im Gespraech. Wartezeit ca. ${liveStatus?.waitMinutes ?? 15} Minuten.`}
+                    : `Alle Berater sind aktuell im Gespräch. Wartezeit ca. ${liveStatus?.waitMinutes ?? 15} Minuten.`}
                 </div>
               </div>
 

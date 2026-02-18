@@ -10,7 +10,7 @@ import { Alert, Button, Icon, Input } from "../components/auth/ui"
 function normalizeError(message: string) {
   const m = (message || "").toLowerCase()
   if (m.includes("invalid login credentials")) return "E-Mail oder Passwort ist falsch."
-  if (m.includes("email not confirmed")) return "Bitte bestaetigen Sie zuerst Ihre E-Mail."
+  if (m.includes("email not confirmed")) return "Bitte bestätigen Sie zuerst Ihre E-Mail."
   if (m.includes("too many requests")) return "Zu viele Versuche. Bitte kurz warten und erneut probieren."
   return message || "Login fehlgeschlagen."
 }
@@ -121,7 +121,7 @@ function LoginPageContent() {
           </div>
         </div>
 
-        <p className="text-xs leading-relaxed text-slate-500">Tipp: Nutzen Sie Ihr Portal fuer Uploads und Status statt langer Mailverlaeufe.</p>
+        <p className="text-xs leading-relaxed text-slate-500">Tipp: Nutzen Sie Ihr Portal für Uploads und Status statt langer Mailverläufe.</p>
       </form>
     </AuthShell>
   )

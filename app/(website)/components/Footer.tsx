@@ -8,7 +8,7 @@ export default function Footer() {
         <div className="space-y-3">
           <div className="text-sm font-semibold text-slate-900">SEPANA</div>
           <p className="max-w-md text-sm leading-relaxed text-slate-600">
-            Digitale Baufinanzierung mit klaren Schritten: Vergleich starten, Angebot wÃ¤hlen, Unterlagen sicher hochladen,
+            Digitale Baufinanzierung mit klaren Schritten: Vergleich starten, Angebot wählen, Unterlagen sicher hochladen,
             auf Wunsch live finalisieren.
           </p>
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
@@ -65,8 +65,8 @@ export default function Footer() {
 
       <div className="border-t border-slate-200/70">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <span>Â© {new Date().getFullYear()} SEPANA</span>
-          <span>Konditionen sind bonitÃ¤ts- und objektabhÃ¤ngig.</span>
+          <span>© {new Date().getFullYear()} SEPANA</span>
+          <span>Konditionen sind bonitäts- und objektabhängig.</span>
         </div>
       </div>
     </footer>
