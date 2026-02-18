@@ -75,6 +75,19 @@ type ProvidersResponse = {
   items: ProviderItem[]
 }
 
+type LogoItem = {
+  id: string
+  name: string
+  src: string
+}
+
+const SPARKASSE_PROVIDER_ID = "abcd7c3c-4e40-4e64-9a5f-a41ea7699a08"
+const SPARKASSE_LOGO_PATH = "Sparkasse.svg.png"
+
+function isSparkasseLogo(logo: Pick<LogoItem, "id" | "name">) {
+  return logo.id === SPARKASSE_PROVIDER_ID || logo.name.toLowerCase().includes("sparkasse")
+}
+
 function logoSrc(provider: Provider) {
   const prefer = provider?.preferred_logo_variant === "icon" ? "icon" : "horizontal"
   const preferredFile = prefer === "icon" ? provider?.logo_icon_path : provider?.logo_horizontal_path
@@ -106,15 +119,30 @@ async function fetchKonsumProviders(): Promise<ProviderItem[]> {
 
 export default async function PrivatkreditPage() {
   const providers = await fetchKonsumProviders()
-  const logos = providers
+  const availableLogos = providers
     .filter((item) => !!item.product)
     .map((item) => {
       const src = logoSrc(item.provider)
       if (!src) return null
       return { id: item.provider.id, name: item.provider.name, src }
     })
-    .filter((item): item is { id: string; name: string; src: string } => item !== null)
-    .slice(0, 7)
+    .filter((item): item is LogoItem => item !== null)
+
+  const sparkasseFromProviders = availableLogos.find((logo) => isSparkasseLogo(logo))
+  const sparkasseFallback: LogoItem = {
+    id: SPARKASSE_PROVIDER_ID,
+    name: "Sparkasse",
+    src: `/api/baufi/logo?bucket=logo_banken&path=${encodeURIComponent(SPARKASSE_LOGO_PATH)}`,
+  }
+  const sparkasseLogo = sparkasseFromProviders ?? sparkasseFallback
+
+  const baseLogos = availableLogos.slice(0, 7)
+  const hasSparkasseInBase = baseLogos.some((logo) => isSparkasseLogo(logo))
+  const logos = hasSparkasseInBase
+    ? baseLogos
+    : baseLogos.length
+      ? [...baseLogos.slice(0, 6), sparkasseLogo]
+      : [sparkasseLogo]
 
   return (
     <div className="space-y-10 sm:space-y-14">

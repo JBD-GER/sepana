@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { headers } from "next/headers"
 import { toNumber } from "@/lib/baufi/calc"
 import BaufiStart from "./ui/BaufiStart"
@@ -164,6 +165,21 @@ export default async function BaufinanzierungPage() {
             SEPANA führt Sie vom Erstvergleich bis zum Abschluss: transparent, digital und mit optionaler Expertenberatung.
           </p>
 
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              href="/baufinanzierung/anfrage"
+              className="inline-flex items-center rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+            >
+              Kostenloses Angebot anfordern
+            </Link>
+            <a
+              href="#vergleich-start"
+              className="inline-flex items-center rounded-2xl border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
+            >
+              Direkt zum Vergleich
+            </a>
+          </div>
+
           <div className="mt-4 w-full">
             <BaufiLiveStart />
           </div>
@@ -273,3 +289,4 @@ export default async function BaufinanzierungPage() {
     </div>
   )
 }
+
