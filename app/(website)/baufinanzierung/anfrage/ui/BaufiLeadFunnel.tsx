@@ -1,8 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
-import { useMemo, useState, type FormEvent } from "react"
+import { useState, type FormEvent } from "react"
 
 type Step = "start" | "details" | "contact" | "done"
 
@@ -22,19 +21,6 @@ const MIN_AMOUNT = 50000
 const MAX_AMOUNT = 2000000
 const STEP_AMOUNT = 5000
 const DEFAULT_AMOUNT = 350000
-
-const TRACKING_KEYS = [
-  "utm_source",
-  "utm_medium",
-  "utm_campaign",
-  "utm_term",
-  "utm_content",
-  "gclid",
-  "gad_source",
-  "gad_campaignid",
-  "gbraid",
-  "wbraid",
-] as const
 
 const PURPOSE_OPTIONS = [
   {
@@ -162,23 +148,13 @@ function OptionCard({
   )
 }
 
-export default function BaufiLeadFunnel() {
-  const searchParams = useSearchParams()
+export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?: Record<string, string> }) {
   const [step, setStep] = useState<Step>("start")
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
   const [amountInput, setAmountInput] = useState(() => formatAmount(DEFAULT_AMOUNT))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const tracking = useMemo(() => {
-    const payload: Record<string, string> = {}
-    for (const key of TRACKING_KEYS) {
-      const value = searchParams.get(key)
-      if (!value) continue
-      payload[key] = value
-    }
-    return payload
-  }, [searchParams])
+  const tracking = initialTracking ?? {}
 
   const detailsStepActive = step === "details" || step === "contact" || step === "done"
   const contactStepActive = step === "contact" || step === "done"

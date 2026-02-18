@@ -16,7 +16,44 @@ export const metadata: Metadata = {
   },
 }
 
-export default function BaufiLeadRequestPage() {
+const TRACKING_KEYS = [
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_term",
+  "utm_content",
+  "gclid",
+  "gad_source",
+  "gad_campaignid",
+  "gbraid",
+  "wbraid",
+] as const
+
+type SearchParams = Record<string, string | string[] | undefined>
+
+function toFirstValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
+
+function pickTracking(params: SearchParams) {
+  const tracking: Record<string, string> = {}
+  for (const key of TRACKING_KEYS) {
+    const value = toFirstValue(params[key])
+    if (!value) continue
+    tracking[key] = value
+  }
+  return tracking
+}
+
+export default async function BaufiLeadRequestPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>
+}) {
+  const resolvedSearchParams = await searchParams
+  const tracking = pickTracking(resolvedSearchParams)
+
   return (
     <div className="space-y-8 sm:space-y-10">
       <section className="relative overflow-hidden rounded-[34px] border border-slate-200/70 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-6 text-white shadow-[0_22px_68px_rgba(15,23,42,0.36)] sm:p-8">
@@ -50,7 +87,7 @@ export default function BaufiLeadRequestPage() {
       </section>
 
       <section id="anfrage" className="scroll-mt-24">
-        <BaufiLeadFunnel />
+        <BaufiLeadFunnel initialTracking={tracking} />
       </section>
     </div>
   )
