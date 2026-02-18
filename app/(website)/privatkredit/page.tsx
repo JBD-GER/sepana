@@ -84,6 +84,9 @@ type LogoItem = {
 
 const SPARKASSE_PROVIDER_ID = "abcd7c3c-4e40-4e64-9a5f-a41ea7699a08"
 const SPARKASSE_LOGO_PATH = "Sparkasse.svg.png"
+const EXCLUDED_KONSUM_PROVIDER_IDS = new Set([
+  "0947aaa4-9de7-4ea1-bacf-9964e8489c68", // Consors Finanz
+])
 
 function isSparkasseLogo(logo: Pick<LogoItem, "id" | "name">) {
   return logo.id === SPARKASSE_PROVIDER_ID || logo.name.toLowerCase().includes("sparkasse")
@@ -122,6 +125,7 @@ export default async function PrivatkreditPage() {
   const providers = await fetchKonsumProviders()
   const availableLogos = providers
     .filter((item) => !!item.product)
+    .filter((item) => !EXCLUDED_KONSUM_PROVIDER_IDS.has(item.provider.id))
     .map((item) => {
       const src = logoSrc(item.provider)
       if (!src) return null
