@@ -1,5 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { Suspense } from "react"
+import GoogleAdsDankeConversion from "./ui/GoogleAdsDankeConversion"
 
 export const metadata: Metadata = {
   title: "Anfrage erfolgreich | SEPANA",
@@ -10,6 +12,9 @@ export const metadata: Metadata = {
 export default function ErfolgreichPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:py-12">
+      <Suspense fallback={null}>
+        <GoogleAdsDankeConversion />
+      </Suspense>
       <section className="relative overflow-hidden rounded-[36px] border border-slate-200/70 bg-white p-6 shadow-[0_24px_70px_rgba(2,6,23,0.10)] sm:p-10">
         <div className="pointer-events-none absolute -left-20 -top-16 h-56 w-56 rounded-full bg-cyan-200/30 blur-3xl" />
         <div className="pointer-events-none absolute -right-20 -bottom-16 h-56 w-56 rounded-full bg-emerald-200/30 blur-3xl" />

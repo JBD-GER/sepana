@@ -99,12 +99,20 @@ function normalizeSiteUrl(raw: string | undefined) {
 }
 
 function parseAdminRecipients() {
-  const configured = String(process.env.PRIVATKREDIT_NOTIFY_TO ?? process.env.INVITE_ACCEPTED_NOTIFY_TO ?? "").trim()
-  const raw = configured || DEFAULT_ADMIN_RECIPIENT
+  const configured = [
+    process.env.PRIVATKREDIT_NOTIFY_TO,
+    process.env.ADMIN_NOTIFY_TO,
+    process.env.INVITE_ACCEPTED_NOTIFY_TO,
+  ]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean)
+    .join(" ")
+
+  const normalized = `${configured} ${DEFAULT_ADMIN_RECIPIENT}`
   const unique = new Set(
-    raw
+    normalized
       .split(/[;,\s]+/g)
-      .map((x) => x.trim().replace(/^["'<]+|[>"']+$/g, ""))
+      .map((x) => x.trim().replace(/^["'<]+|[>"']+$/g, "").toLowerCase())
       .filter((x) => x.includes("@"))
   )
   return Array.from(unique)

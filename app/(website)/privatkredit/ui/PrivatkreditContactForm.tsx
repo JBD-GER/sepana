@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
-import { trackPrivatkreditLeadConversion } from "@/lib/ads/googleAds"
+import { GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO } from "@/lib/ads/googleAds"
 
 type FormState = {
   firstName: string
@@ -93,8 +93,13 @@ export default function PrivatkreditContactForm() {
         return
       }
       setForm(INITIAL_STATE)
-      trackPrivatkreditLeadConversion()
-      router.push("/erfolgreich")
+      const params = new URLSearchParams({
+        source: "privatkredit",
+        conversion: GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO,
+      })
+      if (json?.leadId) params.set("leadId", String(json.leadId))
+      if (json?.externalLeadId) params.set("externalLeadId", String(json.externalLeadId))
+      router.push(`/erfolgreich?${params.toString()}`)
       return
     } finally {
       setBusy(false)

@@ -16,6 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/baufinanzierung",
     "/baufinanzierung/anfrage",
     "/privatkredit",
+    "/privatkredit/anfrage",
     "/agb",
     "/roadmap",
     "/status",

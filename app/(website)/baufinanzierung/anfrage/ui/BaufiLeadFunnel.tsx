@@ -1,7 +1,9 @@
-"use client"
+﻿"use client"
 
 import Link from "next/link"
-import { useState, type FormEvent } from "react"
+import { useMemo, useState, type FormEvent } from "react"
+import { useRouter } from "next/navigation"
+import { GOOGLE_ADS_BAUFINANZIERUNG_LEAD_SEND_TO } from "@/lib/ads/googleAds"
 
 type Step = "start" | "details" | "contact" | "done"
 
@@ -21,6 +23,9 @@ const MIN_AMOUNT = 50000
 const MAX_AMOUNT = 2000000
 const STEP_AMOUNT = 5000
 const DEFAULT_AMOUNT = 350000
+const BAUFI_APR_PERCENT = 3.3
+const BAUFI_TILGUNG_PERCENT = 2
+const BAUFI_FIXED_YEARS = 10
 
 const PURPOSE_OPTIONS = [
   {
@@ -93,6 +98,31 @@ function parseAmount(value: string) {
   return num
 }
 
+function calculateBaufiPreview(principal: number) {
+  const amount = Math.max(0, principal)
+  const interestRate = BAUFI_APR_PERCENT / 100
+  const tilgungRate = BAUFI_TILGUNG_PERCENT / 100
+  const monthlyRate = (amount * (interestRate + tilgungRate)) / 12
+  const firstMonthInterest = (amount * interestRate) / 12
+  const firstMonthPrincipal = Math.max(0, monthlyRate - firstMonthInterest)
+
+  const monthlyInterestRate = interestRate / 12
+  let remainingDebt = amount
+  const monthCount = BAUFI_FIXED_YEARS * 12
+  for (let i = 0; i < monthCount; i++) {
+    const interestPart = remainingDebt * monthlyInterestRate
+    const principalPart = Math.max(0, monthlyRate - interestPart)
+    remainingDebt = Math.max(0, remainingDebt - principalPart)
+  }
+
+  return {
+    monthlyRate,
+    firstMonthInterest,
+    firstMonthPrincipal,
+    remainingDebt,
+  }
+}
+
 function isEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
 }
@@ -104,7 +134,7 @@ function isPhone(value: string) {
 
 function StepMarker({ active, complete, number, label }: { active: boolean; complete: boolean; number: number; label: string }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex shrink-0 items-center gap-2">
       <div
         className={cn(
           "grid h-7 w-7 place-items-center rounded-full border text-xs font-semibold",
@@ -115,7 +145,7 @@ function StepMarker({ active, complete, number, label }: { active: boolean; comp
       >
         {number}
       </div>
-      <span className={cn("text-xs font-medium", active ? "text-slate-900" : "text-slate-500")}>{label}</span>
+      <span className={cn("whitespace-nowrap text-xs font-medium", active ? "text-slate-900" : "text-slate-500")}>{label}</span>
     </div>
   )
 }
@@ -149,12 +179,14 @@ function OptionCard({
 }
 
 export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?: Record<string, string> }) {
+  const router = useRouter()
   const [step, setStep] = useState<Step>("start")
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
   const [amountInput, setAmountInput] = useState(() => formatAmount(DEFAULT_AMOUNT))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const tracking = initialTracking ?? {}
+  const baufiPreview = useMemo(() => calculateBaufiPreview(form.financingNeed), [form.financingNeed])
 
   const detailsStepActive = step === "details" || step === "contact" || step === "done"
   const contactStepActive = step === "contact" || step === "done"
@@ -236,7 +268,15 @@ export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?:
         return
       }
 
-      setStep("done")
+      const payload = json as { leadId?: string | number; externalLeadId?: string | number }
+      const params = new URLSearchParams({
+        source: "baufi",
+        conversion: GOOGLE_ADS_BAUFINANZIERUNG_LEAD_SEND_TO,
+      })
+      if (payload?.leadId) params.set("leadId", String(payload.leadId))
+      if (payload?.externalLeadId) params.set("externalLeadId", String(payload.externalLeadId))
+      router.push(`/erfolgreich?${params.toString()}`)
+      return
     } catch {
       setError("Anfrage konnte nicht gesendet werden.")
     } finally {
@@ -245,12 +285,12 @@ export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?:
   }
 
   return (
-    <section className="relative overflow-hidden rounded-[34px] border border-slate-200/70 bg-white p-5 shadow-[0_24px_70px_rgba(2,6,23,0.12)] sm:p-8">
+    <section className="relative overflow-hidden rounded-[34px] border border-slate-200/70 bg-white p-4 shadow-[0_24px_70px_rgba(2,6,23,0.12)] sm:p-8">
       <div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-cyan-200/25 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-20 right-0 h-64 w-64 rounded-full bg-emerald-200/20 blur-3xl" />
 
       <div className="relative">
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-4 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible sm:pb-0">
           <StepMarker active={step === "start"} complete={detailsStepActive} number={1} label="Start" />
           <StepMarker active={step === "details"} complete={contactStepActive} number={2} label="Finanzierungsbedarf" />
           <StepMarker active={step === "contact"} complete={step === "done"} number={3} label="Kontaktdaten" />
@@ -278,7 +318,7 @@ export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?:
               <button
                 type="button"
                 onClick={goToDetails}
-                className="inline-flex h-12 items-center justify-center rounded-2xl bg-slate-900 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-slate-900 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 sm:w-auto"
               >
                 Kostenloses Angebot anfordern
               </button>
@@ -295,7 +335,7 @@ export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?:
 
             <div className="rounded-3xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Finanzierungsbedarf</div>
-              <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{formatAmount(form.financingNeed)}</div>
+              <div className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">{formatAmount(form.financingNeed)}</div>
 
               <input
                 type="range"
@@ -312,7 +352,7 @@ export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?:
                 <span>{formatAmount(MAX_AMOUNT)}</span>
               </div>
 
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {QUICK_AMOUNTS.map((amount) => (
                   <button
                     key={amount}
@@ -348,6 +388,34 @@ export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?:
               </div>
             </div>
 
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Ratenvorschau</div>
+              <h4 className="mt-1 text-base font-semibold text-slate-900">
+                Annahme: {BAUFI_APR_PERCENT.toFixed(2).replace(".", ",")} % Zins, {BAUFI_TILGUNG_PERCENT.toFixed(2).replace(".", ",")} % Tilgung, {BAUFI_FIXED_YEARS} Jahre Zinsbindung
+              </h4>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div className="text-[11px] uppercase tracking-[0.08em] text-slate-500">Monatsrate</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-900">{formatAmount(baufiPreview.monthlyRate)}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div className="text-[11px] uppercase tracking-[0.08em] text-slate-500">Restschuld nach 10 Jahren</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-900">{formatAmount(baufiPreview.remainingDebt)}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div className="text-[11px] uppercase tracking-[0.08em] text-slate-500">Zinsanteil (Monat 1)</div>
+                  <div className="mt-1 text-base font-semibold text-slate-900">{formatAmount(baufiPreview.firstMonthInterest)}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div className="text-[11px] uppercase tracking-[0.08em] text-slate-500">Tilgungsanteil (Monat 1)</div>
+                  <div className="mt-1 text-base font-semibold text-slate-900">{formatAmount(baufiPreview.firstMonthPrincipal)}</div>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-slate-500">
+                Hinweis: Diese Vorschau ist eine Orientierung. Finale Konditionen sind bonitäts-, objekt- und bankabhängig.
+              </p>
+            </div>
+
             <div>
               <div className="mb-2 text-sm font-semibold text-slate-900">Wofür ist die Finanzierung?</div>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -381,14 +449,14 @@ export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?:
               <button
                 type="button"
                 onClick={() => setStep("start")}
-                className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto"
               >
                 Zurück
               </button>
               <button
                 type="button"
                 onClick={goToContact}
-                className="h-11 rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                className="h-11 w-full rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
               >
                 Weiter zu Kontaktdaten
               </button>
@@ -484,14 +552,14 @@ export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?:
                 type="button"
                 onClick={goBackToDetails}
                 disabled={busy}
-                className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 sm:w-auto"
               >
                 Zurück
               </button>
               <button
                 type="submit"
                 disabled={busy}
-                className="h-11 rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-11 w-full rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 {busy ? "Sende Anfrage..." : "Kostenloses Angebot anfordern"}
               </button>
@@ -527,3 +595,5 @@ export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?:
     </section>
   )
 }
+
+
