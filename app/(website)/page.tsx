@@ -95,12 +95,12 @@ export default function HomePage() {
             </div>
 
             <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
-              Baufinanzierung neu gedacht: klar, schnell und voll digital.
+              Baufinanzierung und Privatkredit: klar, schnell und voll digital.
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-relaxed text-slate-200/95 sm:text-base">
-              SEPANA fokussiert sich auf einen kompromisslosen Baufinanzierungsprozess: Vergleich, Auswahl,
-              Upload und Live-Beratung greifen nahtlos ineinander.
+              SEPANA verbindet Baufinanzierung und Privatkredit (allgemeiner Kredit) in einem klaren Prozess:
+              Anfrage, Auswahl, Upload und Live-Beratung greifen nahtlos ineinander.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-2 text-xs font-medium text-slate-200">
@@ -121,7 +121,7 @@ export default function HomePage() {
                 href="/privatkredit"
                 className="inline-flex items-center gap-2 rounded-2xl border border-white/25 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
               >
-                <span>Privatkredit</span>
+                <span>Privatkredit / allgemeiner Kredit</span>
                 <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700">
                   Neu
                 </span>
