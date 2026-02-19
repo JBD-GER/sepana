@@ -33,35 +33,44 @@ function findFirstMissingTab(missing: MissingCheck[]) {
   return LIVE_CASE_TABS.find((tab) => missingTabs.has(tab)) ?? null
 }
 
-export async function GET() {
+function normalizeCaseType(raw: string | null): "baufi" | "konsum" | null {
+  const value = String(raw ?? "").trim().toLowerCase()
+  if (value === "baufi") return "baufi"
+  if (value === "konsum" || value === "privatkredit") return "konsum"
+  return null
+}
+
+export async function GET(req: Request) {
   const { user, role } = await getUserAndRole()
   if (!user) return NextResponse.json({ ok: false, error: "not_authenticated" }, { status: 401 })
   if (role !== "customer") return NextResponse.json({ ok: false, error: "not_allowed" }, { status: 403 })
 
+  const url = new URL(req.url)
+  const caseTypeFilter = normalizeCaseType(url.searchParams.get("caseType"))
   const admin = supabaseAdmin()
-  const { data: openCase, error: openError } = await admin
+  let openQuery = admin
     .from("cases")
-    .select("id,case_ref,status,created_at")
+    .select("id,case_ref,status,case_type,created_at")
     .eq("customer_id", user.id)
-    .eq("case_type", "baufi")
     .neq("status", "closed")
     .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle()
+  if (caseTypeFilter) openQuery = openQuery.eq("case_type", caseTypeFilter)
+  const { data: openCase, error: openError } = await openQuery.maybeSingle()
   if (openError) {
     return NextResponse.json({ ok: false, error: "case_lookup_failed" }, { status: 500 })
   }
 
   let targetCase = openCase
   if (!targetCase) {
-    const { data: latestCase, error: latestError } = await admin
+    let latestQuery = admin
       .from("cases")
-      .select("id,case_ref,status,created_at")
+      .select("id,case_ref,status,case_type,created_at")
       .eq("customer_id", user.id)
-      .eq("case_type", "baufi")
       .order("created_at", { ascending: false })
       .limit(1)
-      .maybeSingle()
+    if (caseTypeFilter) latestQuery = latestQuery.eq("case_type", caseTypeFilter)
+    const { data: latestCase, error: latestError } = await latestQuery.maybeSingle()
     if (latestError) {
       return NextResponse.json({ ok: false, error: "case_lookup_failed" }, { status: 500 })
     }
@@ -85,7 +94,7 @@ export async function GET() {
       .maybeSingle(),
     admin
       .from("case_baufi_details")
-      .select("purpose,property_type,purchase_price,property_address_kind,property_street,property_house_no,property_zip,property_city,property_plot_size")
+      .select("purpose,property_type,purchase_price,loan_amount_requested,property_address_kind,property_street,property_house_no,property_zip,property_city,property_plot_size")
       .eq("case_id", caseId)
       .maybeSingle(),
     admin.from("case_additional_details").select("*").eq("case_id", caseId).maybeSingle(),
@@ -97,6 +106,7 @@ export async function GET() {
     purpose?: string | null
     property_type?: string | null
     purchase_price?: number | null
+    loan_amount_requested?: number | null
     property_address_kind?: string | null
     property_street?: string | null
     property_house_no?: string | null
@@ -161,18 +171,6 @@ export async function GET() {
     { tab: "household", missing: !hasValue(primaryRow.expenses_monthly) },
     { tab: "household", missing: !hasValue(primaryRow.existing_loans_monthly) },
 
-    // Finanzierung
-    { tab: "finance", missing: !hasValue(baufiRow.purpose) },
-    { tab: "finance", missing: !hasValue(baufiRow.property_type) },
-    { tab: "finance", missing: !hasValue(baufiRow.purchase_price) },
-    { tab: "finance", missing: !hasValue(additionalUi.equity_total) },
-    { tab: "finance", missing: !hasValue(additionalUi.equity_used) },
-    { tab: "finance", missing: !hasValue(additionalUi.property_address_type) },
-    { tab: "finance", missing: !hasValue(additionalUi.property_street) },
-    { tab: "finance", missing: !hasValue(additionalUi.property_no) },
-    { tab: "finance", missing: !hasValue(additionalUi.property_zip) },
-    { tab: "finance", missing: !hasValue(additionalUi.property_city) },
-
     // Details
     { tab: "details", missing: !hasValue(additionalUi.birth_place) },
     { tab: "details", missing: !hasValue(additionalUi.id_document_number) },
@@ -186,6 +184,27 @@ export async function GET() {
     { tab: "details", missing: !hasValue(additionalUi.bank_iban) },
     { tab: "details", missing: !hasValue(additionalUi.bank_bic) },
   ]
+
+  const currentCaseType = normalizeCaseType(targetCase.case_type ?? null) ?? "baufi"
+  if (currentCaseType === "konsum") {
+    checks.push(
+      { tab: "finance", missing: !hasValue(baufiRow.purpose) },
+      { tab: "finance", missing: !hasValue(baufiRow.loan_amount_requested) }
+    )
+  } else {
+    checks.push(
+      { tab: "finance", missing: !hasValue(baufiRow.purpose) },
+      { tab: "finance", missing: !hasValue(baufiRow.property_type) },
+      { tab: "finance", missing: !hasValue(baufiRow.purchase_price) },
+      { tab: "finance", missing: !hasValue(additionalUi.equity_total) },
+      { tab: "finance", missing: !hasValue(additionalUi.equity_used) },
+      { tab: "finance", missing: !hasValue(additionalUi.property_address_type) },
+      { tab: "finance", missing: !hasValue(additionalUi.property_street) },
+      { tab: "finance", missing: !hasValue(additionalUi.property_no) },
+      { tab: "finance", missing: !hasValue(additionalUi.property_zip) },
+      { tab: "finance", missing: !hasValue(additionalUi.property_city) }
+    )
+  }
 
   if (!additionalUi.current_warm_rent_none) {
     checks.push({ tab: "details", missing: !hasValue(additionalUi.current_warm_rent) })
@@ -210,6 +229,7 @@ export async function GET() {
     ok: true,
     caseId,
     caseRef: targetCase.case_ref ?? null,
+    caseType: currentCaseType,
     missingCount: missing.length,
     firstTab,
   })

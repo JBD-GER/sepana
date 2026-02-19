@@ -17,7 +17,6 @@ export async function GET() {
       .from("cases")
       .select("id", { count: "exact", head: true })
       .eq("customer_id", user.id)
-      .eq("case_type", "baufi")
       .neq("status", "closed"),
     admin
       .from("cases")

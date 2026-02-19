@@ -7,7 +7,6 @@ export default async function FeedbackPage() {
   const { data: cases } = await supabase
     .from("cases")
     .select("id,case_ref,status,created_at")
-    .eq("case_type", "baufi")
     .eq("customer_id", user.id)
     .order("created_at", { ascending: false })
     .limit(50)

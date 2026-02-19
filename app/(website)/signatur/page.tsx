@@ -4,9 +4,10 @@ import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 export default async function SignatureRedirectPage({
   searchParams,
 }: {
-  searchParams?: { caseId?: string }
+  searchParams?: Promise<{ caseId?: string }>
 }) {
-  const caseId = String(searchParams?.caseId || "").trim()
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
+  const caseId = String(resolvedSearchParams?.caseId || "").trim()
   if (!caseId) redirect("/app")
 
   const { user, role, passwordSetAt } = await getUserAndRole()

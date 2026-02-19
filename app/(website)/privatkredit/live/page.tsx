@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import CustomerQueue from "@/components/live/CustomerQueue"
 
 export const metadata: Metadata = {
@@ -15,18 +15,18 @@ function Pill({ children }: { children: React.ReactNode }) {
 }
 
 const PRIVATE_CREDIT_FACTS = [
-  "Kurze Laufzeit bedeutet meist höhere Monatsrate, aber geringere Gesamtkosten.",
+  "Kurze Laufzeit bedeutet meist hoehere Monatsrate, aber geringere Gesamtkosten.",
   "Eine stabile Haushaltsrechnung verbessert oft den angebotenen Zinssatz.",
   "Bereits laufende Kredite beeinflussen die neue Finanzierung direkt.",
-  "Eine klare Kreditsumme beschleunigt die Vorprüfung erheblich.",
-  "Saubere Unterlagen sind oft wichtiger als ein langes Erklärungsschreiben.",
-  "Kleine Zinsunterschiede wirken sich über die Laufzeit deutlich aus.",
-  "Sondertilgungen können die Restschuld schneller reduzieren.",
-  "Eine realistische Monatsrate senkt das Risiko späterer Engpässe.",
-  "Bei Umschuldungen lohnt der Blick auf Vorfälligkeitskosten.",
+  "Eine klare Kreditsumme beschleunigt die Vorpruefung erheblich.",
+  "Saubere Unterlagen sind oft wichtiger als ein langes Erklaerungsschreiben.",
+  "Kleine Zinsunterschiede wirken sich ueber die Laufzeit deutlich aus.",
+  "Sondertilgungen koennen die Restschuld schneller reduzieren.",
+  "Eine realistische Monatsrate senkt das Risiko spaeterer Engpaesse.",
+  "Bei Umschuldungen lohnt der Blick auf Vorfaelligkeitskosten.",
   "Ein zweiter Antragsteller kann je nach Einkommen helfen.",
-  "Digitale Prüfung spart Zeit, ersetzt aber nicht die finale Bonitätsprüfung.",
-  "Vollständige Angaben bringen schneller eine belastbare Rückmeldung.",
+  "Digitale Pruefung spart Zeit, ersetzt aber nicht die finale Bonitaetspruefung.",
+  "Vollstaendige Angaben bringen schneller eine belastbare Rueckmeldung.",
 ] as const
 
 export default async function PrivatkreditLivePage({
@@ -50,16 +50,21 @@ export default async function PrivatkreditLivePage({
 
         <h1 className="mt-3 text-2xl font-semibold leading-tight text-slate-900 sm:text-3xl">Live-Beratung Privatkredit</h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 sm:text-base">
-          Sie werden in die Warteschlange aufgenommen. Bitte lassen Sie das Fenster geöffnet. Sobald ein Berater annimmt,
+          Sie werden in die Warteschlange aufgenommen. Bitte lassen Sie das Fenster geoeffnet. Sobald ein Berater annimmt,
           startet die Session automatisch.
         </p>
+        {existing ? (
+          <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-medium text-emerald-800">
+            Die Anfrage wird im Kundenkonto gespeichert.
+          </div>
+        ) : null}
 
         <div className="mt-4 rounded-3xl border border-white/60 bg-white/55 p-4 shadow-sm backdrop-blur-xl">
           <CustomerQueue
             caseId={caseId}
             caseRef={caseRef}
             backHref="/privatkredit"
-            backLabel="Zurück zu Privatkredit"
+            backLabel="Zurueck zu Privatkredit"
             backActionLabel="Warteschlange verlassen und zur Privatkredit-Seite"
             caseLabel="Anfrage-Referenz"
             factsTitle="12 kurze Hinweise zum Privatkredit"

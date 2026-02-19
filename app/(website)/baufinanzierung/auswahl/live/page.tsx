@@ -1,8 +1,8 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import CustomerQueue from "@/components/live/CustomerQueue"
 
 export const metadata: Metadata = {
-  title: "Live-Beratung – Baufinanzierung",
+  title: "Live-Beratung - Baufinanzierung",
   robots: { index: false, follow: false },
 }
 
@@ -30,7 +30,7 @@ export default async function Page({
     caseRef
   )}${existing ? "&existing=1" : ""}`
   const backHref = isLanding ? "/baufinanzierung" : backToAuswahl
-  const backLabel = isLanding ? "Zurück zur Startseite" : undefined
+  const backLabel = isLanding ? "Zurueck zur Startseite" : undefined
   const backActionLabel = isLanding ? "Warteschlange verlassen und zur Startseite" : undefined
 
   return (
@@ -44,8 +44,14 @@ export default async function Page({
 
         <h1 className="mt-3 text-2xl font-semibold leading-tight text-slate-900 sm:text-3xl">Live-Beratung</h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 sm:text-base">
-          Sie werden in die Warteschlange aufgenommen. Bitte lassen Sie das Fenster geöffnet. Sobald ein Berater annimmt, startet die Live-Beratung automatisch.
+          Sie werden in die Warteschlange aufgenommen. Bitte lassen Sie das Fenster geoeffnet. Sobald ein Berater annimmt,
+          startet die Live-Beratung automatisch.
         </p>
+        {existing ? (
+          <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-medium text-emerald-800">
+            Die Anfrage wird im Kundenkonto gespeichert.
+          </div>
+        ) : null}
 
         <div className="mt-4 rounded-3xl border border-white/60 bg-white/55 p-4 shadow-sm backdrop-blur-xl">
           <CustomerQueue

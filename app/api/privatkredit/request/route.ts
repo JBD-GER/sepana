@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
+import { createCaseFromLead, findUserIdByEmail, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
 
 export const runtime = "nodejs"
 
@@ -83,7 +84,7 @@ function esc(value: unknown) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+    .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;")
 }
 
@@ -356,6 +357,7 @@ export async function POST(req: Request) {
       phone,
       phone_mobile: phone,
       product_name: "Privatkredit",
+      lead_case_type: "konsum",
       product_price: loanAmount,
       loan_purpose: purpose,
       loan_amount_total: loanAmount,
@@ -376,6 +378,8 @@ export async function POST(req: Request) {
 
     const leadId = data?.id ?? null
     const externalLeadId = data?.external_lead_id ?? null
+    let linkedCaseId: string | null = null
+    let existingAccount = false
 
     const [adminMail, customerMail] = await Promise.all([
       sendAdminNotification({
@@ -398,6 +402,82 @@ export async function POST(req: Request) {
       }),
     ])
 
+    if (leadId && email) {
+      try {
+        const userId = await findUserIdByEmail(admin, email)
+        if (userId) {
+          const { data: profile } = await admin
+            .from("profiles")
+            .select("role")
+            .eq("user_id", userId)
+            .maybeSingle()
+
+          const role = String((profile as { role?: string } | null)?.role ?? "").trim().toLowerCase()
+          if (!role || role === "customer") {
+            existingAccount = true
+            if (!role) {
+              await admin.from("profiles").upsert({ user_id: userId, role: "customer" }, { onConflict: "user_id" })
+            }
+
+            const stickyAdvisorId = await pickStickyAdvisorId(admin, userId)
+            const safeExternalLeadId = Number.isFinite(Number(externalLeadId)) ? Number(externalLeadId) : 0
+            const leadForCase: LeadRow = {
+              id: String(leadId),
+              linked_case_id: null,
+              external_lead_id: safeExternalLeadId,
+              assigned_advisor_id: stickyAdvisorId,
+              lead_case_type: "konsum",
+              first_name: firstName,
+              last_name: lastName,
+              email,
+              phone,
+              phone_mobile: phone,
+              phone_work: null,
+              birth_date: null,
+              marital_status: null,
+              employment_status: null,
+              employment_type: null,
+              net_income_monthly: null,
+              address_street: null,
+              address_zip: null,
+              address_city: null,
+              product_name: "Privatkredit",
+              product_price: loanAmount,
+              loan_purpose: purpose,
+              loan_amount_total: loanAmount,
+              property_zip: null,
+              property_city: null,
+              property_type: null,
+              property_purchase_price: null,
+              notes,
+            }
+
+            const created = await createCaseFromLead({
+              admin,
+              lead: leadForCase,
+              customerId: userId,
+              advisorId: stickyAdvisorId,
+              caseType: "konsum",
+              entryChannel: "website_privatkredit",
+            })
+            linkedCaseId = created.caseId
+
+            await admin
+              .from("webhook_leads")
+              .update({
+                linked_case_id: created.caseId,
+                assigned_advisor_id: stickyAdvisorId,
+                assigned_at: stickyAdvisorId ? now : null,
+                lead_case_type: "konsum",
+              })
+              .eq("id", String(leadId))
+          }
+        }
+      } catch (existingAccountError) {
+        console.error("[privatkredit-request] existing account linking failed", existingAccountError)
+      }
+    }
+
     if (adminMail.successCount === 0 && adminMail.error) {
       console.error("[privatkredit-request] admin mail failed", adminMail.error)
     }
@@ -409,6 +489,8 @@ export async function POST(req: Request) {
       ok: true,
       leadId,
       externalLeadId,
+      linkedCaseId,
+      existingAccount,
       message: "Anfrage gespeichert",
       mail: {
         adminAttempted: adminMail.attempted,

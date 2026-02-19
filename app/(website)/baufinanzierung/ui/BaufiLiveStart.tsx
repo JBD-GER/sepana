@@ -68,7 +68,7 @@ export default function BaufiLiveStart() {
       const res = await fetch("/api/live/landing/start", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: trimmed, language: "de" }),
+        body: JSON.stringify({ email: trimmed, language: "de", caseType: "baufi" }),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok || !json?.ok) {

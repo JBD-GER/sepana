@@ -1,15 +1,28 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import Link from "next/link"
 import { Suspense } from "react"
 import GoogleAdsDankeConversion from "./ui/GoogleAdsDankeConversion"
 
 export const metadata: Metadata = {
   title: "Anfrage erfolgreich | SEPANA",
-  description: "Ihre Anfrage wurde erfolgreich übermittelt. Wir melden uns zeitnah bei Ihnen.",
+  description: "Ihre Anfrage wurde erfolgreich uebermittelt. Wir melden uns zeitnah bei Ihnen.",
   alternates: { canonical: "/erfolgreich" },
 }
 
-export default function ErfolgreichPage() {
+function parseExisting(value: string | string[] | undefined) {
+  const raw = Array.isArray(value) ? value[0] : value
+  const normalized = String(raw ?? "").trim().toLowerCase()
+  return normalized === "1" || normalized === "true" || normalized === "yes"
+}
+
+export default async function ErfolgreichPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ existing?: string | string[] }>
+}) {
+  const resolved = searchParams ? await searchParams : undefined
+  const existingAccount = parseExisting(resolved?.existing)
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:py-12">
       <Suspense fallback={null}>
@@ -24,24 +37,30 @@ export default function ErfolgreichPage() {
             Erfolgreich
           </div>
 
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Vielen Dank für Ihre Anfrage</h1>
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Vielen Dank fuer Ihre Anfrage</h1>
 
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-            Wir haben Ihre Angaben erhalten und melden uns zeitnah mit einer klaren Rückmeldung zu den nächsten Schritten.
+            Wir haben Ihre Angaben erhalten und melden uns zeitnah mit einer klaren Rueckmeldung zu den naechsten Schritten.
           </p>
+
+          {existingAccount ? (
+            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+              Die Anfrage wird im Kundenkonto gespeichert.
+            </div>
+          ) : null}
 
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
             <article className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Schritt 1</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">Datenprüfung</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">Datenpruefung</div>
             </article>
             <article className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Schritt 2</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">Persönliche Rückmeldung</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">Persoenliche Rueckmeldung</div>
             </article>
             <article className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Schritt 3</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">Nächster Schritt</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">Naechster Schritt</div>
             </article>
           </div>
 
@@ -50,7 +69,7 @@ export default function ErfolgreichPage() {
               href="/privatkredit"
               className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Zurück zur Privatkredit-Seite
+              Zurueck zur Privatkredit-Seite
             </Link>
             <Link
               href="/"

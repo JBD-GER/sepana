@@ -1,11 +1,14 @@
-﻿import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
+import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { buildEmailHtml, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
+
+export type CaseType = "baufi" | "konsum"
 
 export type LeadRow = {
   id: string
   linked_case_id: string | null
   external_lead_id: number
   assigned_advisor_id: string | null
+  lead_case_type?: string | null
   first_name: string | null
   last_name: string | null
   email: string | null
@@ -38,7 +41,21 @@ export function isEmail(v: string) {
 export function inferCaseTypeFromProduct(productName: string | null) {
   const value = String(productName ?? "").trim().toLowerCase()
   if (!value) return null
-  if (value.includes("baufi") || value.includes("darlehen")) return "baufi" as const
+
+  if (value.includes("privatkredit") || value.includes("ratenkredit") || value.includes("konsum")) {
+    return "konsum" as const
+  }
+
+  if (
+    value.includes("baufi") ||
+    value.includes("baufinanz") ||
+    value.includes("immobil") ||
+    value.includes("darlehen") ||
+    value.includes("hypothek")
+  ) {
+    return "baufi" as const
+  }
+
   return null
 }
 
@@ -60,14 +77,18 @@ function numberOrNull(value: number | string | null | undefined) {
   return Number.isFinite(n) ? n : null
 }
 
-async function nextCaseRef(admin: ReturnType<typeof supabaseAdmin>) {
+function caseRefPrefix(caseType: CaseType) {
+  return caseType === "konsum" ? "PK" : "BF"
+}
+
+export async function nextCaseRef(admin: ReturnType<typeof supabaseAdmin>, caseType: CaseType = "baufi") {
   const { data, error } = await admin.from("case_ref_seq").insert({}).select("id").single()
   if (error) throw error
   const id = Number(data.id ?? 0)
-  return `BF-${String(id).padStart(6, "0")}`
+  return `${caseRefPrefix(caseType)}-${String(id).padStart(6, "0")}`
 }
 
-async function findUserIdByEmail(admin: ReturnType<typeof supabaseAdmin>, email: string) {
+export async function findUserIdByEmail(admin: ReturnType<typeof supabaseAdmin>, email: string) {
   const target = email.trim().toLowerCase()
   const perPage = 1000
   const maxPages = 50
@@ -82,6 +103,51 @@ async function findUserIdByEmail(admin: ReturnType<typeof supabaseAdmin>, email:
   }
 
   return null
+}
+
+export async function pickStickyAdvisorId(admin: ReturnType<typeof supabaseAdmin>, customerId: string) {
+  const { data: priorCases } = await admin
+    .from("cases")
+    .select("assigned_advisor_id")
+    .eq("customer_id", customerId)
+    .not("assigned_advisor_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(50)
+
+  const candidateRows = (priorCases ?? []) as Array<{ assigned_advisor_id?: string | null }>
+  const candidateIds = Array.from(
+    new Set(
+      candidateRows
+        .map((row) => row.assigned_advisor_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    )
+  )
+
+  if (!candidateIds.length) {
+    const { data: randomAdvisors } = await admin.from("advisor_profiles").select("user_id").eq("is_active", true)
+    const ids = (randomAdvisors ?? [])
+      .map((row: { user_id?: string | null }) => row.user_id)
+      .filter((value: string | null | undefined): value is string => typeof value === "string" && value.length > 0)
+    if (!ids.length) return null
+    const idx = Math.floor(Math.random() * ids.length)
+    return ids[idx]
+  }
+
+  const { data: activeRows } = await admin
+    .from("advisor_profiles")
+    .select("user_id")
+    .in("user_id", candidateIds)
+    .eq("is_active", true)
+
+  const activeRowsTyped = (activeRows ?? []) as Array<{ user_id?: string | null }>
+  const activeSet = new Set(
+    activeRowsTyped
+      .map((row) => row.user_id)
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
+  )
+
+  const sticky = candidateIds.find((id) => activeSet.has(id))
+  return sticky ?? null
 }
 
 async function getPasswordSetAt(admin: ReturnType<typeof supabaseAdmin>, userId: string) {
@@ -225,21 +291,34 @@ export async function createCaseFromLead(opts: {
   admin: ReturnType<typeof supabaseAdmin>
   lead: LeadRow
   customerId: string
-  advisorId: string
-  caseType: "baufi"
+  advisorId?: string | null
+  caseType: CaseType
+  entryChannel?: string
+  language?: string
+  initialStatus?: string
 }) {
-  const { admin, lead, customerId, advisorId, caseType } = opts
-  const caseRef = await nextCaseRef(admin)
+  const {
+    admin,
+    lead,
+    customerId,
+    advisorId = null,
+    caseType,
+    entryChannel = "webhook",
+    language = "de",
+    initialStatus = "comparison_ready",
+  } = opts
+
+  const caseRef = await nextCaseRef(admin, caseType)
 
   const { data: createdCase, error: caseErr } = await admin
     .from("cases")
     .insert({
       case_type: caseType,
-      status: "comparison_ready",
+      status: initialStatus,
       customer_id: customerId,
       assigned_advisor_id: advisorId,
-      entry_channel: "webhook",
-      language: "de",
+      entry_channel: entryChannel,
+      language,
       is_email_verified: false,
       case_ref: caseRef,
     })
@@ -268,48 +347,67 @@ export async function createCaseFromLead(opts: {
   const { error: applicantErr } = await admin.from("case_applicants").insert(primaryApplicant)
   if (applicantErr) throw applicantErr
 
-  const baufiDetails = {
-    case_id: caseId,
-    purpose: trimOrNull(lead.loan_purpose),
-    property_type: trimOrNull(lead.property_type),
-    purchase_price: numberOrNull(lead.property_purchase_price),
-    loan_amount_requested: numberOrNull(lead.loan_amount_total ?? lead.product_price),
-    property_zip: trimOrNull(lead.property_zip),
-    property_city: trimOrNull(lead.property_city),
-  }
+  const baseLoanAmount = numberOrNull(lead.loan_amount_total ?? lead.product_price)
+  const detailsForCase =
+    caseType === "konsum"
+      ? {
+          case_id: caseId,
+          purpose: trimOrNull(lead.loan_purpose) ?? trimOrNull(lead.product_name),
+          loan_amount_requested: baseLoanAmount,
+        }
+      : {
+          case_id: caseId,
+          purpose: trimOrNull(lead.loan_purpose),
+          property_type: trimOrNull(lead.property_type),
+          purchase_price: numberOrNull(lead.property_purchase_price),
+          loan_amount_requested: baseLoanAmount,
+          property_zip: trimOrNull(lead.property_zip),
+          property_city: trimOrNull(lead.property_city),
+        }
 
-  const hasBaufiDetails = Object.entries(baufiDetails).some(
+  const hasDetails = Object.entries(detailsForCase).some(
     ([key, value]) => key !== "case_id" && value !== null && value !== ""
   )
-  if (hasBaufiDetails) {
-    const { error: detailsErr } = await admin.from("case_baufi_details").insert(baufiDetails)
+  if (hasDetails) {
+    const { error: detailsErr } = await admin.from("case_baufi_details").insert(detailsForCase)
     if (detailsErr) throw detailsErr
   }
 
-  const { data: templates } = await admin
+  let { data: templates } = await admin
     .from("document_templates")
     .select("title,required")
     .eq("case_type", caseType)
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
 
+  if ((templates ?? []).length === 0 && caseType === "konsum") {
+    const fallback = await admin
+      .from("document_templates")
+      .select("title,required")
+      .eq("case_type", "baufi")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+    templates = fallback.data ?? []
+  }
+
   if ((templates ?? []).length > 0) {
     const rows = (templates ?? []).map((t: any) => ({
       case_id: caseId,
       title: t.title,
       required: !!t.required,
-      created_by: advisorId,
+      created_by: advisorId ?? customerId,
     }))
     const { error: requestErr } = await admin.from("document_requests").insert(rows)
     if (requestErr) throw requestErr
   }
 
+  const productLabel = caseType === "konsum" ? "Privatkredit" : "Baufinanzierung"
   await logCaseEvent({
     caseId,
     actorRole: "admin",
     type: "lead_imported",
     title: "Lead uebernommen",
-    body: `Lead #${lead.external_lead_id} wurde in einen Fall uebernommen.`,
+    body: `Lead #${lead.external_lead_id} wurde als ${productLabel}-Fall uebernommen.`,
   })
 
   return { caseId, caseRef }

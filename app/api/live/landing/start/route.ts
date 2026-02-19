@@ -4,6 +4,8 @@ import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 
 export const runtime = "nodejs"
 
+type CaseType = "baufi" | "konsum"
+
 function isEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
 }
@@ -41,11 +43,17 @@ async function findUserIdByEmail(admin: ReturnType<typeof supabaseAdmin>, email:
   return null
 }
 
-async function nextCaseRef(admin: ReturnType<typeof supabaseAdmin>) {
+function normalizeCaseType(value: unknown): CaseType {
+  const raw = String(value ?? "").trim().toLowerCase()
+  return raw === "konsum" || raw === "privatkredit" ? "konsum" : "baufi"
+}
+
+async function nextCaseRef(admin: ReturnType<typeof supabaseAdmin>, caseType: CaseType) {
   const { data, error } = await admin.from("case_ref_seq").insert({}).select("id").single()
   if (error) throw error
   const id = Number(data.id ?? 0)
-  return `BF-${String(id).padStart(6, "0")}`
+  const prefix = caseType === "konsum" ? "PK" : "BF"
+  return `${prefix}-${String(id).padStart(6, "0")}`
 }
 
 async function getProfile(admin: ReturnType<typeof supabaseAdmin>, userId: string) {
@@ -92,6 +100,7 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => null)
     const email = String(body?.email ?? "").trim().toLowerCase()
     const language = String(body?.language ?? "de").trim() || "de"
+    const caseType = normalizeCaseType(body?.caseType)
 
     if (!isEmail(email)) {
       return NextResponse.json({ ok: false, error: "invalid_email" }, { status: 400 })
@@ -151,15 +160,15 @@ export async function POST(req: Request) {
       }
     }
 
-    const caseRef = await nextCaseRef(admin)
+    const caseRef = await nextCaseRef(admin, caseType)
     const { data: createdCase, error: caseErr } = await admin
       .from("cases")
       .insert({
-        case_type: "baufi",
+        case_type: caseType,
         status: "draft",
         customer_id: userId,
         assigned_advisor_id: null,
-        entry_channel: "live_landing",
+        entry_channel: caseType === "konsum" ? "live_landing_privatkredit" : "live_landing_baufi",
         language,
         is_email_verified: false,
         case_ref: caseRef,

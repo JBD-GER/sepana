@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { createBrowserSupabaseClientNoAuth } from "@/lib/supabase/browser"
@@ -84,6 +84,14 @@ const PURPOSE_OPTIONS = [
   { value: "refi", label: "Anschlussfinanzierung / Umschuldung" },
   { value: "modernize", label: "Umbau / Modernisierung" },
   { value: "equity_release", label: "Kapitalbeschaffung" },
+]
+
+const KONSUM_PURPOSE_OPTIONS = [
+  { value: "freie_verwendung", label: "Freie Verwendung" },
+  { value: "umschuldung", label: "Umschuldung" },
+  { value: "auto", label: "Auto" },
+  { value: "modernisierung", label: "Modernisierung" },
+  { value: "sonstiges", label: "Sonstiges" },
 ]
 
 const PROPERTY_OPTIONS = [
@@ -465,6 +473,7 @@ export default function LiveCasePanel({
   const [reminderBusy, setReminderBusy] = useState(false)
   const [reminderMsg, setReminderMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [caseType, setCaseType] = useState<"baufi" | "konsum">("baufi")
   const [viewerRole, setViewerRole] = useState<string | null>(null)
   const [customerCanEdit, setCustomerCanEdit] = useState(true)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -540,6 +549,7 @@ export default function LiveCasePanel({
     setBaufi(nextBaufi)
     setAdditional(nextAdditional)
     setChildren(nextChildren)
+    setCaseType(String(json?.case?.case_type ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi")
     setViewerRole(json?.viewer_role ?? null)
     setCustomerCanEdit(!!json?.customer_can_edit)
   }
@@ -752,6 +762,7 @@ export default function LiveCasePanel({
 
   const ratioPct = nfNumber.format(calc.surplusRatio * 100)
   const surplusStr = nfCurrency.format(calc.surplus)
+  const isKonsum = caseType === "konsum"
   const isCustomerView = viewerRole === "customer" || viewerRole === "guest"
   const canEdit = !isCustomerView || customerCanEdit
   const fieldDisabled = !canEdit
@@ -777,18 +788,6 @@ export default function LiveCasePanel({
       { id: "primary.expenses_monthly", tab: "household", label: "Fixkosten", missing: !hasValue(primary.expenses_monthly) },
       { id: "primary.existing_loans_monthly", tab: "household", label: "Bestehende Kredite", missing: !hasValue(primary.existing_loans_monthly) },
 
-      // Finanzierung
-      { id: "baufi.purpose", tab: "finance", label: "Vorhaben", missing: !hasValue(baufi.purpose) },
-      { id: "baufi.property_type", tab: "finance", label: "Immobilienart", missing: !hasValue(baufi.property_type) },
-      { id: "baufi.purchase_price", tab: "finance", label: "Kaufpreis", missing: !hasValue(baufi.purchase_price) },
-      { id: "additional.equity_total", tab: "finance", label: "Eigenkapital insgesamt", missing: !hasValue(additional.equity_total) },
-      { id: "additional.equity_used", tab: "finance", label: "Eingesetztes Eigenkapital", missing: !hasValue(additional.equity_used) },
-      { id: "additional.property_address_type", tab: "finance", label: "Adressart", missing: !hasValue(additional.property_address_type) },
-      { id: "additional.property_street", tab: "finance", label: "Objektstrasse", missing: !hasValue(additional.property_street) },
-      { id: "additional.property_no", tab: "finance", label: "Objektnummer", missing: !hasValue(additional.property_no) },
-      { id: "additional.property_zip", tab: "finance", label: "Objekt-PLZ", missing: !hasValue(additional.property_zip) },
-      { id: "additional.property_city", tab: "finance", label: "Objekt-Ort", missing: !hasValue(additional.property_city) },
-
       // Details
       { id: "additional.birth_place", tab: "details", label: "Geburtsort", missing: !hasValue(additional.birth_place) },
       { id: "additional.id_document_number", tab: "details", label: "Ausweisnummer", missing: !hasValue(additional.id_document_number) },
@@ -802,6 +801,26 @@ export default function LiveCasePanel({
       { id: "additional.bank_iban", tab: "details", label: "IBAN", missing: !hasValue(additional.bank_iban) },
       { id: "additional.bank_bic", tab: "details", label: "BIC", missing: !hasValue(additional.bank_bic) },
     ]
+
+    if (isKonsum) {
+      checks.push(
+        { id: "baufi.purpose", tab: "finance", label: "Verwendungszweck", missing: !hasValue(baufi.purpose) },
+        { id: "baufi.loan_amount_requested", tab: "finance", label: "Kreditsumme", missing: !hasValue(baufi.loan_amount_requested) }
+      )
+    } else {
+      checks.push(
+        { id: "baufi.purpose", tab: "finance", label: "Vorhaben", missing: !hasValue(baufi.purpose) },
+        { id: "baufi.property_type", tab: "finance", label: "Immobilienart", missing: !hasValue(baufi.property_type) },
+        { id: "baufi.purchase_price", tab: "finance", label: "Kaufpreis", missing: !hasValue(baufi.purchase_price) },
+        { id: "additional.equity_total", tab: "finance", label: "Eigenkapital insgesamt", missing: !hasValue(additional.equity_total) },
+        { id: "additional.equity_used", tab: "finance", label: "Eingesetztes Eigenkapital", missing: !hasValue(additional.equity_used) },
+        { id: "additional.property_address_type", tab: "finance", label: "Adressart", missing: !hasValue(additional.property_address_type) },
+        { id: "additional.property_street", tab: "finance", label: "Objektstrasse", missing: !hasValue(additional.property_street) },
+        { id: "additional.property_no", tab: "finance", label: "Objektnummer", missing: !hasValue(additional.property_no) },
+        { id: "additional.property_zip", tab: "finance", label: "Objekt-PLZ", missing: !hasValue(additional.property_zip) },
+        { id: "additional.property_city", tab: "finance", label: "Objekt-Ort", missing: !hasValue(additional.property_city) }
+      )
+    }
 
     if (!additional.current_warm_rent_none) {
       checks.push({
@@ -848,7 +867,7 @@ export default function LiveCasePanel({
     }
 
     return checks
-  }, [primary, baufi, additional, children])
+  }, [primary, baufi, additional, children, isKonsum])
   const missingRequired = useMemo(() => requiredChecks.filter((check) => check.missing), [requiredChecks])
   const missingRequiredIds = useMemo(() => new Set(missingRequired.map((check) => check.id)), [missingRequired])
   const missingRequiredByTab = useMemo(
@@ -917,7 +936,7 @@ export default function LiveCasePanel({
                     : "border-amber-200 bg-amber-50 text-amber-700"
                 )}
               >
-                {completedForFinalOffer ? "Geschafft 🎉 bereit fuer finales Angebot" : `${missingRequired.length} Pflichtfelder offen`}
+                {completedForFinalOffer ? "Geschafft ðŸŽ‰ bereit fuer finales Angebot" : `${missingRequired.length} Pflichtfelder offen`}
               </span>
             ) : (
               <span className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-center text-[11px] font-semibold text-slate-600 sm:w-auto">
@@ -981,7 +1000,7 @@ export default function LiveCasePanel({
             {canEdit && !loading ? (
               completedForFinalOffer ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800">
-                  Geschafft 🎉 Alle noetigen Felder fuer ein finales Angebot sind vollstaendig ausgefuellt.
+                  Geschafft ðŸŽ‰ Alle noetigen Felder fuer ein finales Angebot sind vollstaendig ausgefuellt.
                 </div>
               ) : (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3">
@@ -1334,132 +1353,166 @@ export default function LiveCasePanel({
               </>
             ) : null}
 
-            {activeTab === "finance" ? (
+                        {activeTab === "finance" ? (
               <>
-          <Card title="Eckdaten zur Finanzierung">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-              <Field label="Vorhaben" required invalid={isFieldMissing("baufi.purpose")}>
-                <Select
-                  value={toInput(baufi.purpose)}
-                  onChange={(v) => updateBaufi("purpose", v)}
-                  className={missingFieldStyle("baufi.purpose")}
-                >
-                  <option value="">Bitte waehlen</option>
-                  {PURPOSE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+                {isKonsum ? (
+                  <Card
+                    title="Eckdaten zum Privatkredit"
+                    subtitle="Nur die Kernangaben fuer das finale Angebot."
+                  >
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <Field label="Verwendungszweck" required invalid={isFieldMissing("baufi.purpose")}>
+                        <Select
+                          value={toInput(baufi.purpose)}
+                          onChange={(v) => updateBaufi("purpose", v)}
+                          className={missingFieldStyle("baufi.purpose")}
+                        >
+                          <option value="">Bitte waehlen</option>
+                          {KONSUM_PURPOSE_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </Field>
+                      <Field label="Kreditsumme" required invalid={isFieldMissing("baufi.loan_amount_requested")}>
+                        <MoneyInput
+                          value={toMoneyInput(baufi.loan_amount_requested)}
+                          onChange={(v) => updateBaufi("loan_amount_requested", v)}
+                          placeholder="z. B. 25.000"
+                          className={missingFieldStyle("baufi.loan_amount_requested")}
+                        />
+                      </Field>
+                    </div>
+                  </Card>
+                ) : (
+                  <>
+                    <Card title="Eckdaten zur Finanzierung">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                        <Field label="Vorhaben" required invalid={isFieldMissing("baufi.purpose")}>
+                          <Select
+                            value={toInput(baufi.purpose)}
+                            onChange={(v) => updateBaufi("purpose", v)}
+                            className={missingFieldStyle("baufi.purpose")}
+                          >
+                            <option value="">Bitte waehlen</option>
+                            {PURPOSE_OPTIONS.map((o) => (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
 
-              <Field label="Immobilienart" required invalid={isFieldMissing("baufi.property_type")}>
-                <Select
-                  value={toInput(baufi.property_type)}
-                  onChange={(v) => updateBaufi("property_type", v)}
-                  className={missingFieldStyle("baufi.property_type")}
-                >
-                  <option value="">Bitte waehlen</option>
-                  {PROPERTY_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+                        <Field label="Immobilienart" required invalid={isFieldMissing("baufi.property_type")}>
+                          <Select
+                            value={toInput(baufi.property_type)}
+                            onChange={(v) => updateBaufi("property_type", v)}
+                            className={missingFieldStyle("baufi.property_type")}
+                          >
+                            <option value="">Bitte waehlen</option>
+                            {PROPERTY_OPTIONS.map((o) => (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
 
-              <Field label="Kaufpreis" required invalid={isFieldMissing("baufi.purchase_price")}>
-                <MoneyInput
-                  value={toMoneyInput(baufi.purchase_price)}
-                  onChange={(v) => updateBaufi("purchase_price", v)}
-                  placeholder="z. B. 300.000"
-                  className={missingFieldStyle("baufi.purchase_price")}
-                />
-              </Field>
+                        <Field label="Kaufpreis" required invalid={isFieldMissing("baufi.purchase_price")}>
+                          <MoneyInput
+                            value={toMoneyInput(baufi.purchase_price)}
+                            onChange={(v) => updateBaufi("purchase_price", v)}
+                            placeholder="z. B. 300.000"
+                            className={missingFieldStyle("baufi.purchase_price")}
+                          />
+                        </Field>
 
-              <Field label="Darlehenssumme" hint="optional">
-                <MoneyInput
-                  value={toMoneyInput(baufi.loan_amount_requested)}
-                  onChange={(v) => updateBaufi("loan_amount_requested", v)}
-                  placeholder="z. B. 250.000"
-                />
-              </Field>
-            </div>
-          </Card>
+                        <Field label="Darlehenssumme" hint="optional">
+                          <MoneyInput
+                            value={toMoneyInput(baufi.loan_amount_requested)}
+                            onChange={(v) => updateBaufi("loan_amount_requested", v)}
+                            placeholder="z. B. 250.000"
+                          />
+                        </Field>
+                      </div>
+                    </Card>
 
-          <Card title="Eigenkapital" subtitle="Fuer den digitalen Abschluss erforderlich">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="Eigenkapital insgesamt" required invalid={isFieldMissing("additional.equity_total")}>
-                <MoneyInput
-                  value={toMoneyInput(additional.equity_total)}
-                  onChange={(v) => updateAdditional("equity_total", v)}
-                  placeholder="z. B. 50.000"
-                  className={missingFieldStyle("additional.equity_total")}
-                />
-              </Field>
-              <Field label="Eingesetztes Eigenkapital" required invalid={isFieldMissing("additional.equity_used")}>
-                <MoneyInput
-                  value={toMoneyInput(additional.equity_used)}
-                  onChange={(v) => updateAdditional("equity_used", v)}
-                  placeholder="z. B. 25.000"
-                  className={missingFieldStyle("additional.equity_used")}
-                />
-              </Field>
-            </div>
-          </Card>
+                    <Card title="Eigenkapital" subtitle="Fuer den digitalen Abschluss erforderlich">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <Field label="Eigenkapital insgesamt" required invalid={isFieldMissing("additional.equity_total")}>
+                          <MoneyInput
+                            value={toMoneyInput(additional.equity_total)}
+                            onChange={(v) => updateAdditional("equity_total", v)}
+                            placeholder="z. B. 50.000"
+                            className={missingFieldStyle("additional.equity_total")}
+                          />
+                        </Field>
+                        <Field label="Eingesetztes Eigenkapital" required invalid={isFieldMissing("additional.equity_used")}>
+                          <MoneyInput
+                            value={toMoneyInput(additional.equity_used)}
+                            onChange={(v) => updateAdditional("equity_used", v)}
+                            placeholder="z. B. 25.000"
+                            className={missingFieldStyle("additional.equity_used")}
+                          />
+                        </Field>
+                      </div>
+                    </Card>
 
-          <Card title="Objektadresse">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <Field label="Adressart" required invalid={isFieldMissing("additional.property_address_type")}>
-                <Select
-                  value={toInput(additional.property_address_type)}
-                  onChange={(v) => updateAdditional("property_address_type", v)}
-                  className={missingFieldStyle("additional.property_address_type")}
-                >
-                  <option value="">Bitte waehlen</option>
-                  {PROPERTY_ADDRESS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Strasse" required invalid={isFieldMissing("additional.property_street")}>
-                <Input
-                  value={toInput(additional.property_street)}
-                  onChange={(e) => updateAdditional("property_street", e.target.value)}
-                  className={missingFieldStyle("additional.property_street")}
-                />
-              </Field>
-              <Field label="Nr." required invalid={isFieldMissing("additional.property_no")}>
-                <Input
-                  value={toInput(additional.property_no)}
-                  onChange={(e) => updateAdditional("property_no", e.target.value)}
-                  className={missingFieldStyle("additional.property_no")}
-                />
-              </Field>
-              <Field label="PLZ" required invalid={isFieldMissing("additional.property_zip")}>
-                <Input
-                  value={toInput(additional.property_zip)}
-                  onChange={(e) => updateAdditional("property_zip", e.target.value)}
-                  className={missingFieldStyle("additional.property_zip")}
-                />
-              </Field>
-              <Field label="Ort" required invalid={isFieldMissing("additional.property_city")}>
-                <Input
-                  value={toInput(additional.property_city)}
-                  onChange={(e) => updateAdditional("property_city", e.target.value)}
-                  className={missingFieldStyle("additional.property_city")}
-                />
-              </Field>
-              <Field label="Grundstuecksgroesse (m²)" hint="optional">
-                <Input
-                  value={toInput(additional.property_plot_size)}
-                  onChange={(e) => updateAdditional("property_plot_size", e.target.value)}
-                />
-              </Field>
-            </div>
-          </Card>
+                    <Card title="Objektadresse">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <Field label="Adressart" required invalid={isFieldMissing("additional.property_address_type")}>
+                          <Select
+                            value={toInput(additional.property_address_type)}
+                            onChange={(v) => updateAdditional("property_address_type", v)}
+                            className={missingFieldStyle("additional.property_address_type")}
+                          >
+                            <option value="">Bitte waehlen</option>
+                            {PROPERTY_ADDRESS_OPTIONS.map((o) => (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
+                        <Field label="Strasse" required invalid={isFieldMissing("additional.property_street")}>
+                          <Input
+                            value={toInput(additional.property_street)}
+                            onChange={(e) => updateAdditional("property_street", e.target.value)}
+                            className={missingFieldStyle("additional.property_street")}
+                          />
+                        </Field>
+                        <Field label="Nr." required invalid={isFieldMissing("additional.property_no")}>
+                          <Input
+                            value={toInput(additional.property_no)}
+                            onChange={(e) => updateAdditional("property_no", e.target.value)}
+                            className={missingFieldStyle("additional.property_no")}
+                          />
+                        </Field>
+                        <Field label="PLZ" required invalid={isFieldMissing("additional.property_zip")}>
+                          <Input
+                            value={toInput(additional.property_zip)}
+                            onChange={(e) => updateAdditional("property_zip", e.target.value)}
+                            className={missingFieldStyle("additional.property_zip")}
+                          />
+                        </Field>
+                        <Field label="Ort" required invalid={isFieldMissing("additional.property_city")}>
+                          <Input
+                            value={toInput(additional.property_city)}
+                            onChange={(e) => updateAdditional("property_city", e.target.value)}
+                            className={missingFieldStyle("additional.property_city")}
+                          />
+                        </Field>
+                        <Field label="Grundstuecksgroesse (m2)" hint="optional">
+                          <Input
+                            value={toInput(additional.property_plot_size)}
+                            onChange={(e) => updateAdditional("property_plot_size", e.target.value)}
+                          />
+                        </Field>
+                      </div>
+                    </Card>
+                  </>
+                )}
               </>
             ) : null}
 
@@ -1737,3 +1790,4 @@ export default function LiveCasePanel({
     </div>
   )
 }
+

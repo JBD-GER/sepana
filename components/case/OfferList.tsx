@@ -22,6 +22,8 @@ type OfferItem = {
   created_at: string
 }
 
+type CaseType = "baufi" | "konsum"
+
 function formatEUR(n: number | null | undefined) {
   if (n == null || Number.isNaN(Number(n))) return "-"
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n))
@@ -49,13 +51,16 @@ export default function OfferList({
   canManage,
   canRespond = false,
   filterStatuses,
+  caseType = "baufi",
 }: {
   offers: OfferItem[]
   canManage: boolean
   canRespond?: boolean
   filterStatuses?: string[]
+  caseType?: CaseType
 }) {
   const router = useRouter()
+  const isKonsum = caseType === "konsum"
   const [busyId, setBusyId] = useState<string | null>(null)
   const [statusBusyId, setStatusBusyId] = useState<string | null>(null)
   const [decisionBusyId, setDecisionBusyId] = useState<string | null>(null)
@@ -354,9 +359,14 @@ export default function OfferList({
             </div>
 
             <div className="mt-2 text-xs text-slate-600">
-              Sondertilgung: {o.special_repayment || "-"} | Zinsbindung:{" "}
-              {o.zinsbindung_years ? `${o.zinsbindung_years} Jahre` : "-"} | Laufzeit:{" "}
-              {o.term_months ? `${o.term_months} Monate` : "-"}
+              {isKonsum ? "Hinweise" : "Sondertilgung"}: {o.special_repayment || "-"}
+              {!isKonsum ? (
+                <>
+                  {" "}
+                  | Zinsbindung: {o.zinsbindung_years ? `${o.zinsbindung_years} Jahre` : "-"}
+                </>
+              ) : null}{" "}
+              | Laufzeit: {o.term_months ? `${o.term_months} Monate` : "-"}
             </div>
           </div>
         )

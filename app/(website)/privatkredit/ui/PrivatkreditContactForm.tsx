@@ -99,6 +99,7 @@ export default function PrivatkreditContactForm() {
       })
       if (json?.leadId) params.set("leadId", String(json.leadId))
       if (json?.externalLeadId) params.set("externalLeadId", String(json.externalLeadId))
+      if (json?.existingAccount) params.set("existing", "1")
       router.push(`/erfolgreich?${params.toString()}`)
       return
     } finally {

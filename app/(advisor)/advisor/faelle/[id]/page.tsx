@@ -158,6 +158,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   }
 
   const c = data.case
+  const caseType = String(c.case_type ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
+  const isKonsum = caseType === "konsum"
   const previewRow = data.offer_previews?.[0] ?? null
   let previewPayload: any = previewRow?.payload ?? null
   if (typeof previewPayload === "string") {
@@ -260,88 +262,89 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
 
       <LiveCasePanel caseId={c.id} caseRef={c.case_ref ?? null} defaultCollapsed showMissingDataReminderButton />
 
-      {/* Startschuss */}
-      <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-sm font-medium text-slate-900">Startschuss (Vergleich bereit)</div>
-            <p className="mt-1 text-xs text-slate-600">
-              Momentaufnahme aus dem Vergleich - dient als Startpunkt. Finale Angebote kommen separat hinzu.
-            </p>
+      {!isKonsum ? (
+        <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium text-slate-900">Startschuss (Vergleich bereit)</div>
+              <p className="mt-1 text-xs text-slate-600">
+                Momentaufnahme aus dem Vergleich - dient als Startpunkt. Finale Angebote kommen separat hinzu.
+              </p>
+            </div>
+            {previewLogoUrl ? (
+              <img src={previewLogoUrl} alt="" className="h-10 w-auto max-w-[160px] object-contain" loading="lazy" />
+            ) : null}
           </div>
-          {previewLogoUrl ? (
-            <img src={previewLogoUrl} alt="" className="h-10 w-auto max-w-[160px] object-contain" loading="lazy" />
-          ) : null}
+
+          {!previewPayload ? (
+            <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-4 text-sm text-slate-600">
+              Noch kein Startschuss vorhanden.
+            </div>
+          ) : (
+            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
+                <div className="text-xs text-slate-600">Ausgewaehlte Bank</div>
+                <div className="mt-1 text-lg font-semibold text-slate-900">{previewProviderName}</div>
+
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
+                    <div className="text-[11px] text-slate-600">Monatsrate</div>
+                    <div className="mt-0.5 text-sm font-semibold text-slate-900">
+                      {formatEUR(previewPayload?.computed?.rateMonthly ?? null)}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
+                    <div className="text-[11px] text-slate-600">Effektivzins</div>
+                    <div className="mt-0.5 text-sm font-semibold text-slate-900">
+                      {formatPct(previewPayload?.computed?.aprEffective ?? null)}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
+                    <div className="text-[11px] text-slate-600">Zinsbindung</div>
+                    <div className="mt-0.5 text-sm font-semibold text-slate-900">
+                      {previewPayload?.computed?.zinsbindung || "-"}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
+                    <div className="text-[11px] text-slate-600">Sondertilgung</div>
+                    <div className="mt-0.5 text-sm font-semibold text-slate-900">
+                      {previewPayload?.computed?.specialRepayment || "-"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
+                <div className="text-xs text-slate-600">Eckdaten</div>
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
+                    <div className="text-[11px] text-slate-600">Darlehen</div>
+                    <div className="mt-0.5 text-sm font-semibold text-slate-900">
+                      {formatEUR(previewPayload?.inputs?.loanAmount ?? null)}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
+                    <div className="text-[11px] text-slate-600">Laufzeit</div>
+                    <div className="mt-0.5 text-sm font-semibold text-slate-900">
+                      {previewPayload?.inputs?.years ? `${previewPayload.inputs.years} Jahre` : "-"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-xl border border-slate-200/70 bg-white px-3 py-2 text-xs text-slate-700">
+                  Fall-Ref: {previewPayload?.caseRef || c.case_ref || "-"}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
+      ) : null}
 
-        {!previewPayload ? (
-          <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50 p-4 text-sm text-slate-600">
-            Noch kein Startschuss vorhanden.
-          </div>
-        ) : (
-          <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
-              <div className="text-xs text-slate-600">Ausgewaehlte Bank</div>
-              <div className="mt-1 text-lg font-semibold text-slate-900">{previewProviderName}</div>
-
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
-                  <div className="text-[11px] text-slate-600">Monatsrate</div>
-                  <div className="mt-0.5 text-sm font-semibold text-slate-900">
-                    {formatEUR(previewPayload?.computed?.rateMonthly ?? null)}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
-                  <div className="text-[11px] text-slate-600">Effektivzins</div>
-                  <div className="mt-0.5 text-sm font-semibold text-slate-900">
-                    {formatPct(previewPayload?.computed?.aprEffective ?? null)}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
-                  <div className="text-[11px] text-slate-600">Zinsbindung</div>
-                  <div className="mt-0.5 text-sm font-semibold text-slate-900">
-                    {previewPayload?.computed?.zinsbindung || "-"}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
-                  <div className="text-[11px] text-slate-600">Sondertilgung</div>
-                  <div className="mt-0.5 text-sm font-semibold text-slate-900">
-                    {previewPayload?.computed?.specialRepayment || "-"}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
-              <div className="text-xs text-slate-600">Eckdaten</div>
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
-                  <div className="text-[11px] text-slate-600">Darlehen</div>
-                  <div className="mt-0.5 text-sm font-semibold text-slate-900">
-                    {formatEUR(previewPayload?.inputs?.loanAmount ?? null)}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
-                  <div className="text-[11px] text-slate-600">Laufzeit</div>
-                  <div className="mt-0.5 text-sm font-semibold text-slate-900">
-                    {previewPayload?.inputs?.years ? `${previewPayload.inputs.years} Jahre` : "-"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-xl border border-slate-200/70 bg-white px-3 py-2 text-xs text-slate-700">
-                Fall-Ref: {previewPayload?.caseRef || c.case_ref || "-"}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <OfferEditor caseId={c.id} />
+      <OfferEditor caseId={c.id} caseType={caseType} />
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="text-sm font-medium text-slate-900">Finale Angebote</div>
         <p className="mt-1 text-xs text-slate-600">Diese Angebote werden spaeter vom Berater erstellt und freigegeben.</p>
-        <OfferList offers={data.offers ?? []} canManage />
+        <OfferList offers={data.offers ?? []} canManage caseType={caseType} />
       </div>
 
       <DocumentPanel

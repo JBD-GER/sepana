@@ -8,6 +8,7 @@ type CaseRow = {
   case_ref: string | null
   advisor_case_ref: string | null
   advisor_status: string | null
+  case_type: string
   customer_name?: string | null
   customer_phone?: string | null
   status: string
@@ -21,6 +22,7 @@ type CaseRow = {
 }
 
 type CaseListResp = { cases: CaseRow[] }
+type ProductTab = "baufi" | "konsum"
 
 function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(d))
@@ -50,17 +52,37 @@ function statusLabel(value: string) {
   return STATUS_TABS.find((s) => s.value === value)?.label ?? "Neu"
 }
 
+function normalizeProduct(value: string | string[] | undefined): ProductTab {
+  const raw = Array.isArray(value) ? value[0] : value
+  return String(raw ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
+}
+
+function productHref(product: ProductTab) {
+  return product === "konsum" ? "/advisor/faelle?product=konsum" : "/advisor/faelle?product=baufi"
+}
+
+function statusHref(product: ProductTab, status: string) {
+  const params = new URLSearchParams()
+  if (product !== "baufi") params.set("product", product)
+  params.set("tab", status)
+  return `/advisor/faelle?${params.toString()}`
+}
+
 export default async function CasesPage({
   searchParams,
 }: {
-  searchParams?: { tab?: string | string[] } | Promise<{ tab?: string | string[] }>
+  searchParams?:
+    | { tab?: string | string[]; product?: string | string[] }
+    | Promise<{ tab?: string | string[]; product?: string | string[] }>
 }) {
   await requireAdvisor()
 
   const resolvedSearchParams = await searchParams
+  const product = normalizeProduct(resolvedSearchParams?.product)
+  const productLabel = product === "konsum" ? "Privatkredit" : "Baufinanzierung"
   const [activeRes, confirmedRes] = await Promise.all([
-    authFetch("/api/app/cases/list?advisorBucket=all&limit=1000").catch(() => null),
-    authFetch("/api/app/cases/list?advisorBucket=confirmed&limit=1").catch(() => null),
+    authFetch(`/api/app/cases/list?advisorBucket=all&limit=1000&caseType=${product}`).catch(() => null),
+    authFetch(`/api/app/cases/list?advisorBucket=confirmed&limit=1&caseType=${product}`).catch(() => null),
   ])
 
   const data: CaseListResp = activeRes && activeRes.ok ? await activeRes.json() : { cases: [] }
@@ -93,16 +115,41 @@ export default async function CasesPage({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold text-slate-900">Faelle</h1>
           <Link
-            href="/advisor/faelle/bestaetigt"
+            href={`/advisor/faelle/bestaetigt?product=${product}`}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
           >
             Bestaetigte Faelle ({confirmedCount})
           </Link>
         </div>
         <p className="mt-1 text-sm text-slate-600">
-          Status wird pro Fall gepflegt. Bankseitig bestaetigte Faelle finden Sie auf der separaten Seite
+          Status wird pro Fall gepflegt. Bereich: <span className="font-medium text-slate-900">{productLabel}</span>.
+          Bankseitig bestaetigte Faelle finden Sie auf der separaten Seite
           <span className="font-medium text-slate-900"> Bestaetigte Faelle</span>.
         </p>
+      </div>
+
+      <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap gap-2">
+          {([
+            { id: "baufi" as const, label: "Baufinanzierung" },
+            { id: "konsum" as const, label: "Privatkredit" },
+          ] as const).map((tab) => {
+            const active = product === tab.id
+            return (
+              <Link
+                key={tab.id}
+                href={productHref(tab.id)}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                  active
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            )
+          })}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -128,7 +175,7 @@ export default async function CasesPage({
             return (
               <Link
                 key={tab.value}
-                href={`/advisor/faelle?tab=${tab.value}`}
+                href={statusHref(product, tab.value)}
                 className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
                   isActive
                     ? "border-slate-900 bg-slate-900 text-white"
@@ -181,7 +228,7 @@ export default async function CasesPage({
 
         {scopedCases.length === 0 ? (
           <div className="rounded-3xl border border-slate-200/70 bg-white p-6 text-sm text-slate-600 shadow-sm">
-            Noch keine Faelle in diesem Status vorhanden.
+            Noch keine {productLabel}-Faelle in diesem Status vorhanden.
           </div>
         ) : null}
       </div>
@@ -238,7 +285,7 @@ export default async function CasesPage({
               {scopedCases.length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-slate-500" colSpan={5}>
-                    Noch keine Faelle in diesem Status vorhanden.
+                    Noch keine {productLabel}-Faelle in diesem Status vorhanden.
                   </td>
                 </tr>
               ) : null}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
+import { createCaseFromLead, findUserIdByEmail, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
 
 export const runtime = "nodejs"
 
@@ -20,7 +21,7 @@ const PROPERTY_TYPE_LABELS = {
   wohnung: "Eigentumswohnung",
   haus: "Einfamilienhaus",
   mehrfamilienhaus: "Mehrfamilienhaus",
-  grundstueck: "Grundstück",
+  grundstueck: "Grundstueck",
 } as const
 
 type AllowedPurpose = keyof typeof PURPOSE_LABELS
@@ -141,7 +142,7 @@ function esc(value: unknown) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+    .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;")
 }
 
@@ -241,7 +242,7 @@ async function sendAdminNotification(opts: {
 
   const html = buildEmailHtml({
     title: subject,
-    intro: "Es wurde eine neue Anfrage über den Baufinanzierungs-Lead-Funnel eingereicht.",
+    intro: "Es wurde eine neue Anfrage ueber den Baufinanzierungs-Lead-Funnel eingereicht.",
     bodyHtml,
     ctaLabel: "Zu den Leads",
     ctaUrl: adminUrl,
@@ -269,14 +270,14 @@ async function sendCustomerConfirmation(opts: {
   const subject = "Ihre Baufinanzierungs-Anfrage ist eingegangen"
   const html = buildEmailHtml({
     title: subject,
-    intro: `Hallo ${opts.firstName}, vielen Dank für Ihre Anfrage bei SEPANA.`,
+    intro: `Hallo ${opts.firstName}, vielen Dank fuer Ihre Anfrage bei SEPANA.`,
     steps: [
-      `Wir prüfen Ihren Finanzierungsbedarf von ${formatAmount(opts.financingNeed)} (${PURPOSE_LABELS[opts.purpose]}).`,
-      "Ein Berater meldet sich zeitnah mit einer ersten Einschätzung bei Ihnen.",
-      "Wenn Sie Rückfragen haben, erreichen Sie uns unter 05035 3169996.",
+      `Wir pruefen Ihren Finanzierungsbedarf von ${formatAmount(opts.financingNeed)} (${PURPOSE_LABELS[opts.purpose]}).`,
+      "Ein Berater meldet sich zeitnah mit einer ersten Einschaetzung bei Ihnen.",
+      "Wenn Sie Rueckfragen haben, erreichen Sie uns unter 05035 3169996.",
     ],
     preheader: subject,
-    eyebrow: "SEPANA - Bestätigung",
+    eyebrow: "SEPANA - Bestaetigung",
   })
 
   const result = await sendEmail({
@@ -295,11 +296,11 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json().catch(() => null)) as RequestBody | null
     if (!body || typeof body !== "object") {
-      return NextResponse.json({ ok: false, error: "Ungültige Anfrage." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Ungueltige Anfrage." }, { status: 400 })
     }
 
     if (trimOrNull(body.website)) {
-      return NextResponse.json({ ok: false, error: "Ungültige Anfrage." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Ungueltige Anfrage." }, { status: 400 })
     }
 
     const firstName = trimOrNull(body.firstName)
@@ -316,7 +317,7 @@ export async function POST(req: Request) {
     }
 
     if (!firstName || !lastName || !email || !phone || financingNeed === null || !purpose || !propertyType) {
-      return NextResponse.json({ ok: false, error: "Bitte alle Pflichtfelder ausfüllen." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Bitte alle Pflichtfelder ausfuellen." }, { status: 400 })
     }
 
     if (firstName.length > MAX_NAME_LENGTH || lastName.length > MAX_NAME_LENGTH) {
@@ -324,11 +325,11 @@ export async function POST(req: Request) {
     }
 
     if (!isEmail(email)) {
-      return NextResponse.json({ ok: false, error: "Bitte eine gültige E-Mail eingeben." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Bitte eine gueltige E-Mail eingeben." }, { status: 400 })
     }
 
     if (!isPhone(phone)) {
-      return NextResponse.json({ ok: false, error: "Bitte eine gültige Telefonnummer eingeben." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Bitte eine gueltige Telefonnummer eingeben." }, { status: 400 })
     }
 
     if (financingNeed < 10000 || financingNeed > 10000000) {
@@ -351,11 +352,12 @@ export async function POST(req: Request) {
       phone,
       phone_mobile: phone,
       product_name: "Baufinanzierung",
+      lead_case_type: "baufi",
       product_price: financingNeed,
       loan_purpose: PURPOSE_LABELS[purpose],
       loan_amount_total: financingNeed,
       property_type: PROPERTY_TYPE_LABELS[propertyType],
-      notes: "Anfrage über Baufinanzierungs-Lead-Funnel",
+      notes: "Anfrage ueber Baufinanzierungs-Lead-Funnel",
       additional: {
         origin: "website",
         page: "/baufinanzierung/anfrage",
@@ -375,6 +377,8 @@ export async function POST(req: Request) {
 
     const leadId = data?.id ?? null
     const externalLeadId = data?.external_lead_id ?? null
+    let linkedCaseId: string | null = null
+    let existingAccount = false
 
     const [adminMail, customerMail] = await Promise.all([
       sendAdminNotification({
@@ -396,6 +400,82 @@ export async function POST(req: Request) {
       }),
     ])
 
+    if (leadId && email) {
+      try {
+        const userId = await findUserIdByEmail(admin, email)
+        if (userId) {
+          const { data: profile } = await admin
+            .from("profiles")
+            .select("role")
+            .eq("user_id", userId)
+            .maybeSingle()
+
+          const role = String((profile as { role?: string } | null)?.role ?? "").trim().toLowerCase()
+          if (!role || role === "customer") {
+            existingAccount = true
+            if (!role) {
+              await admin.from("profiles").upsert({ user_id: userId, role: "customer" }, { onConflict: "user_id" })
+            }
+
+            const stickyAdvisorId = await pickStickyAdvisorId(admin, userId)
+            const safeExternalLeadId = Number.isFinite(Number(externalLeadId)) ? Number(externalLeadId) : 0
+            const leadForCase: LeadRow = {
+              id: String(leadId),
+              linked_case_id: null,
+              external_lead_id: safeExternalLeadId,
+              assigned_advisor_id: stickyAdvisorId,
+              lead_case_type: "baufi",
+              first_name: firstName,
+              last_name: lastName,
+              email,
+              phone,
+              phone_mobile: phone,
+              phone_work: null,
+              birth_date: null,
+              marital_status: null,
+              employment_status: null,
+              employment_type: null,
+              net_income_monthly: null,
+              address_street: null,
+              address_zip: null,
+              address_city: null,
+              product_name: "Baufinanzierung",
+              product_price: financingNeed,
+              loan_purpose: PURPOSE_LABELS[purpose],
+              loan_amount_total: financingNeed,
+              property_zip: null,
+              property_city: null,
+              property_type: PROPERTY_TYPE_LABELS[propertyType],
+              property_purchase_price: null,
+              notes: "Anfrage ueber Baufinanzierungs-Lead-Funnel",
+            }
+
+            const created = await createCaseFromLead({
+              admin,
+              lead: leadForCase,
+              customerId: userId,
+              advisorId: stickyAdvisorId,
+              caseType: "baufi",
+              entryChannel: "website_baufi_lead",
+            })
+            linkedCaseId = created.caseId
+
+            await admin
+              .from("webhook_leads")
+              .update({
+                linked_case_id: created.caseId,
+                assigned_advisor_id: stickyAdvisorId,
+                assigned_at: stickyAdvisorId ? now : null,
+                lead_case_type: "baufi",
+              })
+              .eq("id", String(leadId))
+          }
+        }
+      } catch (existingAccountError) {
+        console.error("[baufi-lead-request] existing account linking failed", existingAccountError)
+      }
+    }
+
     if (adminMail.successCount === 0 && adminMail.error) {
       console.error("[baufi-lead-request] admin mail failed", adminMail.error)
     }
@@ -407,6 +487,8 @@ export async function POST(req: Request) {
       ok: true,
       leadId,
       externalLeadId,
+      linkedCaseId,
+      existingAccount,
       message: "Anfrage gespeichert",
       mail: {
         adminAttempted: adminMail.attempted,

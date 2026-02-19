@@ -35,6 +35,8 @@ type CaseListResp = {
   total?: number
 }
 
+type ProductTab = "baufi" | "konsum"
+
 const COMMISSION_RATE = 0.0025
 
 function formatEUR(value: number | null | undefined) {
@@ -54,10 +56,22 @@ function isCurrentMonth(value: string | null | undefined) {
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
 }
 
-export default async function AdvisorConfirmedCasesPage() {
-  await requireAdvisor()
+function normalizeProduct(raw: string | string[] | undefined): ProductTab {
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return String(value ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
+}
 
-  const res = await authFetch("/api/app/cases/list?advisorBucket=confirmed&limit=1000").catch(() => null)
+export default async function AdvisorConfirmedCasesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ product?: string | string[] }>
+}) {
+  await requireAdvisor()
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
+  const product = normalizeProduct(resolvedSearchParams?.product)
+  const productLabel = product === "konsum" ? "Privatkredit" : "Baufinanzierung"
+
+  const res = await authFetch(`/api/app/cases/list?advisorBucket=confirmed&limit=1000&caseType=${product}`).catch(() => null)
   const data: CaseListResp = res && res.ok ? await res.json() : { cases: [] }
   const cases = data.cases ?? []
 
@@ -77,14 +91,40 @@ export default async function AdvisorConfirmedCasesPage() {
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">Bestaetigte Faelle</h1>
             <p className="mt-1 text-sm text-slate-600">
-              Diese Faelle wurden von der Bank bestaetigt. Provisionsmodell v0.1: 0,25 % vom bestaetigten Volumen.
+              Bereich: {productLabel}. Diese Faelle wurden von der Bank bestaetigt. Provisionsmodell v0.1: 0,25 % vom
+              bestaetigten Volumen.
             </p>
           </div>
           <Link
-            href="/advisor/faelle"
+            href={`/advisor/faelle?product=${product}`}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
           >
             Aktive Faelle
+          </Link>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/advisor/faelle/bestaetigt?product=baufi"
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+              product === "baufi"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            Baufinanzierung
+          </Link>
+          <Link
+            href="/advisor/faelle/bestaetigt?product=konsum"
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+              product === "konsum"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            Privatkredit
           </Link>
         </div>
       </div>

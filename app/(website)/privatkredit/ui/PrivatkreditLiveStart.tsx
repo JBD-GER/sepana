@@ -78,7 +78,7 @@ export default function PrivatkreditLiveStart() {
       const res = await fetch("/api/live/landing/start", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: trimmed, language: "de" }),
+        body: JSON.stringify({ email: trimmed, language: "de", caseType: "konsum" }),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok || !json?.ok) {

@@ -10,6 +10,13 @@ function readPositiveInt(raw: string | null, fallback: number) {
   return Math.floor(value)
 }
 
+function normalizeCaseType(raw: string | null): "baufi" | "konsum" | null {
+  const value = String(raw ?? "").trim().toLowerCase()
+  if (value === "baufi") return "baufi"
+  if (value === "konsum" || value === "privatkredit") return "konsum"
+  return null
+}
+
 type BaseCaseRow = {
   id: string
   case_ref: string | null
@@ -162,16 +169,19 @@ export async function GET(req: Request) {
   const to = from + limit - 1
   const advisorBucketRaw = String(url.searchParams.get("advisorBucket") || "all").trim().toLowerCase()
   const advisorBucket = advisorBucketRaw === "active" || advisorBucketRaw === "confirmed" ? advisorBucketRaw : "all"
+  const caseTypeFilter = normalizeCaseType(url.searchParams.get("caseType"))
 
   let baseCases: BaseCaseRow[] = []
   let baseTotal = 0
 
   if (role === "advisor") {
-    const { data: advisorCases, error: advisorErr } = await supabase
+    let advisorQuery = supabase
       .from("cases")
       .select("id,case_ref,advisor_case_ref,advisor_status,status,created_at,assigned_advisor_id,case_type")
       .eq("assigned_advisor_id", user.id)
       .order("created_at", { ascending: false })
+    if (caseTypeFilter) advisorQuery = advisorQuery.eq("case_type", caseTypeFilter)
+    const { data: advisorCases, error: advisorErr } = await advisorQuery
     if (advisorErr) return NextResponse.json({ error: advisorErr.message }, { status: 400 })
     baseCases = (advisorCases ?? []) as BaseCaseRow[]
     baseTotal = baseCases.length
@@ -183,9 +193,11 @@ export async function GET(req: Request) {
       .range(from, to)
 
     if (role === "customer") {
-      query = query.eq("customer_id", user.id).eq("case_type", "baufi")
+      query = query.eq("customer_id", user.id).eq("case_type", caseTypeFilter ?? "baufi")
     } else if (role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    } else if (caseTypeFilter) {
+      query = query.eq("case_type", caseTypeFilter)
     }
 
     const { data: nonAdvisorCases, error: nonAdvisorErr, count } = await query

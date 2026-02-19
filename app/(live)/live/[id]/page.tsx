@@ -56,15 +56,17 @@ export default async function LiveRoomPage({
 
   const { data: caseRow } = await admin
     .from("cases")
-    .select("id,case_ref,assigned_advisor_id,customer_id")
+    .select("id,case_ref,case_type,assigned_advisor_id,customer_id")
     .eq("id", ticket.case_id)
     .maybeSingle()
+  const caseType = String(caseRow?.case_type ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
 
   return (
     <LiveRoomClient
       ticketId={ticket.id}
       caseId={ticket.case_id}
       caseRef={caseRow?.case_ref ?? null}
+      caseType={caseType}
       canOffer={canOffer}
       isCustomer={isCustomer}
       initialStatus={ticket.status}

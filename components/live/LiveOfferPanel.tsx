@@ -21,6 +21,7 @@ type ProviderItem = {
 
 type OfferStatus = "draft" | "sent" | "accepted" | "rejected" | null
 type OfferRealtimeUpdate = { status?: OfferStatus }
+type CaseType = "baufi" | "konsum"
 
 function formatEUR(n: number | null | undefined) {
   if (n == null || Number.isNaN(Number(n))) return "-"
@@ -74,8 +75,16 @@ function normalizeDecimalInput(value: string) {
   return value.replace(/\./g, ",")
 }
 
-export default function LiveOfferPanel({ caseId }: { caseId: string }) {
+export default function LiveOfferPanel({
+  caseId,
+  caseType = "baufi",
+}: {
+  caseId: string
+  caseType?: CaseType
+}) {
   const supabase = useMemo(() => createBrowserSupabaseClientNoAuth(), [])
+  const isKonsum = caseType === "konsum"
+  const providerProduct = isKonsum ? "konsum" : "baufi"
   const [providers, setProviders] = useState<ProviderItem[]>([])
   const [providerId, setProviderId] = useState("")
   const [loanAmount, setLoanAmount] = useState("")
@@ -110,12 +119,12 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
 
   useEffect(() => {
     ;(async () => {
-      const res = await fetch("/api/baufi/providers?product=baufi")
+      const res = await fetch(`/api/baufi/providers?product=${providerProduct}`)
       const json = await res.json().catch(() => ({}))
       const items = Array.isArray(json?.items) ? json.items : []
       setProviders(items)
     })()
-  }, [])
+  }, [providerProduct])
 
   useEffect(() => {
     return () => {
@@ -242,8 +251,8 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
           rateMonthly,
           aprEffective,
           interestNominal,
-          tilgungPct,
-          zinsbindungYears,
+          tilgungPct: isKonsum ? null : tilgungPct,
+          zinsbindungYears: isKonsum ? null : zinsbindungYears,
           termMonths,
           specialRepayment: specialRepayment.trim() || defaultSpecial,
           notes: notes.trim() || defaultNotes,
@@ -326,7 +335,7 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
         </div>
 
         <div>
-          <label className="text-xs text-slate-600">Darlehen</label>
+          <label className="text-xs text-slate-600">{isKonsum ? "Kreditsumme" : "Darlehen"}</label>
           <input
             value={loanAmount}
             onChange={(e) => setLoanAmount(e.target.value)}
@@ -372,28 +381,32 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
           />
         </div>
 
-        <div>
-          <label className="text-xs text-slate-600">Tilgung %</label>
-          <input
-            value={tilgungPct}
-            onChange={(e) => setTilgungPct(normalizeDecimalInput(e.target.value))}
-            inputMode="decimal"
-            placeholder="z.B. 2,0"
-            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
-            disabled={locked}
-          />
-        </div>
+        {!isKonsum ? (
+          <>
+            <div>
+              <label className="text-xs text-slate-600">Tilgung %</label>
+              <input
+                value={tilgungPct}
+                onChange={(e) => setTilgungPct(normalizeDecimalInput(e.target.value))}
+                inputMode="decimal"
+                placeholder="z.B. 2,0"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
+                disabled={locked}
+              />
+            </div>
 
-        <div>
-          <label className="text-xs text-slate-600">Zinsbindung (Jahre)</label>
-          <input
-            value={zinsbindungYears}
-            onChange={(e) => setZinsbindungYears(e.target.value)}
-            placeholder="z.B. 10"
-            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
-            disabled={locked}
-          />
-        </div>
+            <div>
+              <label className="text-xs text-slate-600">Zinsbindung (Jahre)</label>
+              <input
+                value={zinsbindungYears}
+                onChange={(e) => setZinsbindungYears(e.target.value)}
+                placeholder="z.B. 10"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
+                disabled={locked}
+              />
+            </div>
+          </>
+        ) : null}
 
         <div>
           <label className="text-xs text-slate-600">Laufzeit (Monate)</label>
@@ -409,11 +422,11 @@ export default function LiveOfferPanel({ caseId }: { caseId: string }) {
 
       <div className="mt-3 grid grid-cols-1 gap-3">
         <div>
-          <label className="text-xs text-slate-600">Sondertilgung / Hinweis</label>
+          <label className="text-xs text-slate-600">{isKonsum ? "Besondere Hinweise" : "Sondertilgung / Hinweis"}</label>
           <input
             value={specialRepayment}
             onChange={(e) => setSpecialRepayment(e.target.value)}
-            placeholder="z.B. 5% p.a."
+            placeholder={isKonsum ? "z.B. Restschuldversicherung optional" : "z.B. 5% p.a."}
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
             disabled={locked}
           />

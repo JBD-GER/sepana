@@ -5,12 +5,25 @@ import { buildEmailHtml, logCaseEvent, sendAdvisorAssignedEmail, sendEmail } fro
 import {
   createCaseFromLead,
   ensureCustomerAccount,
+  CaseType,
   inferCaseTypeFromProduct,
   isEmail,
   LeadRow,
 } from "@/lib/admin/leads"
 
 export const runtime = "nodejs"
+
+function productLabel(caseType: CaseType) {
+  return caseType === "konsum" ? "Privatkredit" : "Baufinanzierung"
+}
+
+function isMissingLeadCaseTypeColumnError(error: unknown) {
+  const anyError = error as { code?: string; message?: string } | null
+  if (!anyError) return false
+  if (anyError.code === "42703") return true
+  const msg = String(anyError.message ?? "").toLowerCase()
+  return msg.includes("lead_case_type") && (msg.includes("column") || msg.includes("exist"))
+}
 
 export async function POST(req: Request) {
   try {
@@ -26,13 +39,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "leadId fehlt" }, { status: 400 })
     }
 
-    const { data: existingLead } = await admin
+    const leadSelectBase =
+      "id,linked_case_id,external_lead_id,assigned_advisor_id,first_name,last_name,email,phone,phone_mobile,phone_work,birth_date,marital_status,employment_status,employment_type,net_income_monthly,address_street,address_zip,address_city,product_name,product_price,loan_purpose,loan_amount_total,property_zip,property_city,property_type,property_purchase_price,notes"
+    const leadSelectWithCaseType = `${leadSelectBase},lead_case_type`
+
+    let existingLead: LeadRow | null = null
+    const leadQuery = await admin
       .from("webhook_leads")
-      .select(
-        "id,linked_case_id,external_lead_id,assigned_advisor_id,first_name,last_name,email,phone,phone_mobile,phone_work,birth_date,marital_status,employment_status,employment_type,net_income_monthly,address_street,address_zip,address_city,product_name,product_price,loan_purpose,loan_amount_total,property_zip,property_city,property_type,property_purchase_price,notes"
-      )
+      .select(leadSelectWithCaseType)
       .eq("id", leadId)
       .maybeSingle()
+
+    if (leadQuery.error && isMissingLeadCaseTypeColumnError(leadQuery.error)) {
+      const fallbackLeadQuery = await admin
+        .from("webhook_leads")
+        .select(leadSelectBase)
+        .eq("id", leadId)
+        .maybeSingle()
+      if (fallbackLeadQuery.error) throw fallbackLeadQuery.error
+      existingLead = fallbackLeadQuery.data
+        ? ({ ...fallbackLeadQuery.data, lead_case_type: null } as LeadRow)
+        : null
+    } else {
+      if (leadQuery.error) throw leadQuery.error
+      existingLead = (leadQuery.data as LeadRow | null) ?? null
+    }
     if (!existingLead) {
       return NextResponse.json({ ok: false, error: "Lead nicht gefunden" }, { status: 404 })
     }
@@ -63,7 +94,12 @@ export async function POST(req: Request) {
     let advisorMailSent = false
 
     if (advisorId && !caseId) {
-      const caseType = inferCaseTypeFromProduct(lead.product_name)
+      const normalizedLeadCaseType = (() => {
+        const raw = String(lead.lead_case_type ?? "").trim().toLowerCase()
+        if (raw === "baufi" || raw === "konsum") return raw as CaseType
+        return null
+      })()
+      const caseType = normalizedLeadCaseType ?? inferCaseTypeFromProduct(lead.product_name)
       if (!caseType) {
         await admin
           .from("webhook_leads")
@@ -77,7 +113,7 @@ export async function POST(req: Request) {
           ok: true,
           caseCreated: false,
           message:
-            "Berater wurde zugewiesen, aber kein Fall erstellt: Produkt passt aktuell nicht zum Baufi-Flow.",
+            "Berater wurde zugewiesen, aber kein Fall erstellt: Produkt konnte nicht eindeutig zugeordnet werden.",
         })
       }
 
@@ -105,12 +141,13 @@ export async function POST(req: Request) {
         customerId: customer.userId,
         advisorId,
         caseType,
+        entryChannel: "webhook",
       })
       caseId = created.caseId
       caseCreated = true
 
       const nextStepsHtml = buildEmailHtml({
-        title: "Naechste Schritte zu Ihrer Baufinanzierung",
+        title: `Naechste Schritte zu Ihrem ${productLabel(caseType)}`,
         intro: "Vielen Dank. Ihre Anfrage wurde uebernommen und wir starten jetzt mit der Bearbeitung.",
         steps: [
           "Ihr Berater meldet sich zeitnah bei Ihnen.",
@@ -120,7 +157,7 @@ export async function POST(req: Request) {
       })
       const nextStepsMail = await sendEmail({
         to: customer.email,
-        subject: "Naechste Schritte zur Baufinanzierung",
+        subject: `Naechste Schritte zum ${productLabel(caseType)}`,
         html: nextStepsHtml,
       })
       nextStepsMailSent = !!nextStepsMail.ok
@@ -145,16 +182,22 @@ export async function POST(req: Request) {
       }
     }
 
-    const { error } = await admin
-      .from("webhook_leads")
-      .update({
-        assigned_advisor_id: advisorId,
-        assigned_at: advisorId ? new Date().toISOString() : null,
-        linked_case_id: caseId ?? null,
-      })
-      .eq("id", leadId)
+    const inferredCaseType = lead.lead_case_type ?? inferCaseTypeFromProduct(lead.product_name)
+    const updatePayload: Record<string, unknown> = {
+      assigned_advisor_id: advisorId,
+      assigned_at: advisorId ? new Date().toISOString() : null,
+      linked_case_id: caseId ?? null,
+    }
+    if (inferredCaseType) updatePayload.lead_case_type = inferredCaseType
 
-    if (error) throw error
+    const updateQuery = await admin.from("webhook_leads").update(updatePayload).eq("id", leadId)
+    if (updateQuery.error && isMissingLeadCaseTypeColumnError(updateQuery.error) && "lead_case_type" in updatePayload) {
+      delete updatePayload.lead_case_type
+      const retryUpdate = await admin.from("webhook_leads").update(updatePayload).eq("id", leadId)
+      if (retryUpdate.error) throw retryUpdate.error
+    } else if (updateQuery.error) {
+      throw updateQuery.error
+    }
 
     if (caseId && advisorId && isAdvisorChanged) {
       await logCaseEvent({

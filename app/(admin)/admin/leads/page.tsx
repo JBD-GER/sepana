@@ -5,6 +5,45 @@ import AssignLeadAdvisorButton from "./ui/AssignLeadAdvisorButton"
 import CreateLeadStartOfferButton from "./ui/CreateLeadStartOfferButton"
 import CreateManualLeadForm from "./ui/CreateManualLeadForm"
 
+type ProductTab = "baufi" | "konsum"
+type LeadRow = {
+  id: string
+  external_lead_id: number | null
+  event_type: string | null
+  status: string | null
+  complaint_reason: string | null
+  first_name: string | null
+  last_name: string | null
+  email: string | null
+  phone: string | null
+  phone_mobile: string | null
+  phone_work: string | null
+  birth_date: string | null
+  marital_status: string | null
+  employment_status: string | null
+  address_street: string | null
+  address_zip: string | null
+  address_city: string | null
+  product_name: string | null
+  product_price: number | null
+  lead_case_type: string | null
+  notes: string | null
+  assigned_advisor_id: string | null
+  assigned_at: string | null
+  linked_case_id: string | null
+  created_at: string | null
+  last_event_at: string | null
+  source_created_at: string | null
+}
+
+function isMissingLeadCaseTypeColumnError(error: unknown) {
+  const anyError = error as { code?: string; message?: string } | null
+  if (!anyError) return false
+  if (anyError.code === "42703") return true
+  const msg = String(anyError.message ?? "").toLowerCase()
+  return msg.includes("lead_case_type") && (msg.includes("column") || msg.includes("exist"))
+}
+
 function dt(value: string | null | undefined) {
   if (!value) return "-"
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" }).format(new Date(value))
@@ -22,17 +61,62 @@ function statusUi(status: string | null | undefined) {
   return { label: "Neu", cls: "border-sky-200 bg-sky-50 text-sky-800" }
 }
 
-export default async function AdminLeadsPage() {
+function normalizeProduct(raw: string | string[] | undefined): ProductTab {
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return String(value ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
+}
+
+function resolveLeadType(leadCaseType: string | null | undefined, productName: string | null | undefined): ProductTab {
+  const explicit = String(leadCaseType ?? "").trim().toLowerCase()
+  if (explicit === "konsum") return "konsum"
+  if (explicit === "baufi") return "baufi"
+
+  const product = String(productName ?? "").trim().toLowerCase()
+  if (product.includes("privatkredit") || product.includes("ratenkredit") || product.includes("konsum")) return "konsum"
+  return "baufi"
+}
+
+export default async function AdminLeadsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ product?: string | string[] }>
+}) {
   await requireAdmin()
   const admin = supabaseAdmin()
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
+  const product = normalizeProduct(resolvedSearchParams?.product)
+  const productLabel = product === "konsum" ? "Privatkredit" : "Baufinanzierung"
 
-  const { data: leads, error: leadsError } = await admin
+  const selectBase =
+    "id,external_lead_id,event_type,status,complaint_reason,first_name,last_name,email,phone,phone_mobile,phone_work,birth_date,marital_status,employment_status,address_street,address_zip,address_city,product_name,product_price,notes,assigned_advisor_id,assigned_at,linked_case_id,created_at,last_event_at,source_created_at"
+  const selectWithCaseType = `${selectBase},lead_case_type`
+
+  let leadsError: { message?: string } | null = null
+  let leadsRaw: LeadRow[] = []
+
+  const primaryQuery = await admin
     .from("webhook_leads")
-    .select(
-      "id,external_lead_id,event_type,status,complaint_reason,first_name,last_name,email,phone,phone_mobile,phone_work,birth_date,marital_status,employment_status,address_street,address_zip,address_city,product_name,product_price,notes,assigned_advisor_id,assigned_at,linked_case_id,created_at,last_event_at,source_created_at"
-    )
+    .select(selectWithCaseType)
     .order("created_at", { ascending: false })
     .limit(300)
+
+  if (primaryQuery.error && isMissingLeadCaseTypeColumnError(primaryQuery.error)) {
+    const fallbackQuery = await admin
+      .from("webhook_leads")
+      .select(selectBase)
+      .order("created_at", { ascending: false })
+      .limit(300)
+    leadsError = fallbackQuery.error as { message?: string } | null
+    leadsRaw = ((fallbackQuery.data ?? []) as Array<Omit<LeadRow, "lead_case_type">>).map((row) => ({
+      ...row,
+      lead_case_type: null,
+    }))
+  } else {
+    leadsError = primaryQuery.error as { message?: string } | null
+    leadsRaw = (primaryQuery.data ?? []) as LeadRow[]
+  }
+
+  const scopedLeads = leadsRaw.filter((lead) => resolveLeadType(lead.lead_case_type, lead.product_name) === product)
 
   const { data: advisors } = await admin
     .from("profiles")
@@ -66,7 +150,7 @@ export default async function AdminLeadsPage() {
     })
     .sort((a, b) => a.label.localeCompare(b.label, "de"))
 
-  const linkedCaseIds = Array.from(new Set((leads ?? []).map((l) => l.linked_case_id).filter(Boolean)))
+  const linkedCaseIds = Array.from(new Set(leadsRaw.map((l) => l.linked_case_id).filter(Boolean)))
   const { data: linkedCases } = linkedCaseIds.length
     ? await admin
         .from("cases")
@@ -96,12 +180,37 @@ export default async function AdminLeadsPage() {
             <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Webhook Inbox</div>
             <h1 className="mt-1 text-2xl font-semibold text-slate-900">Leads</h1>
             <p className="mt-1 text-sm text-slate-600">
-              Eingehende Leads aus externen Webhooks, getrennt vom Case-Flow.
+              Eingehende Leads aus externen Webhooks, getrennt nach Produkt. Aktiver Bereich: {productLabel}.
             </p>
           </div>
           <div className="rounded-full border border-slate-200/70 bg-white px-3 py-1 text-xs text-slate-600">
-            {(leads ?? []).length} Leads
+            {scopedLeads.length} Leads
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/admin/leads?product=baufi"
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+              product === "baufi"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            Baufinanzierung
+          </Link>
+          <Link
+            href="/admin/leads?product=konsum"
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+              product === "konsum"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            Privatkredit
+          </Link>
         </div>
       </div>
 
@@ -127,7 +236,7 @@ export default async function AdminLeadsPage() {
               </tr>
             </thead>
             <tbody>
-              {(leads ?? []).map((lead) => {
+              {scopedLeads.map((lead) => {
                 const ui = statusUi(lead.status)
                 const fullName = [lead.first_name, lead.last_name].filter(Boolean).join(" ").trim() || "-"
                 const phone = lead.phone_mobile || lead.phone || lead.phone_work || "-"
@@ -184,7 +293,7 @@ export default async function AdminLeadsPage() {
                     </td>
 
                     <td className="px-4 py-3 text-slate-700">
-                      <div className="font-medium text-slate-900">{lead.product_name || "-"}</div>
+                      <div className="font-medium text-slate-900">{lead.product_name || productLabel}</div>
                       <div className="text-xs text-slate-600">{eur(lead.product_price)}</div>
                     </td>
 
@@ -217,7 +326,9 @@ export default async function AdminLeadsPage() {
                           >
                             Fall oeffnen
                           </Link>
-                          <CreateLeadStartOfferButton leadId={lead.id} providerOptions={startOfferProviders} />
+                          {linkedCase.case_type === "baufi" ? (
+                            <CreateLeadStartOfferButton leadId={lead.id} providerOptions={startOfferProviders} />
+                          ) : null}
                         </div>
                       ) : null}
                     </td>
@@ -225,10 +336,10 @@ export default async function AdminLeadsPage() {
                 )
               })}
 
-              {(leads ?? []).length === 0 && !leadsError ? (
+              {scopedLeads.length === 0 && !leadsError ? (
                 <tr>
                   <td className="px-4 py-6 text-slate-500" colSpan={6}>
-                    Noch keine Leads empfangen.
+                    Noch keine Leads in {productLabel} empfangen.
                   </td>
                 </tr>
               ) : null}

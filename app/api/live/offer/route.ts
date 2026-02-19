@@ -114,7 +114,7 @@ export async function POST(req: Request) {
 
   const { data: caseRow } = await supabase
     .from("cases")
-    .select("id,assigned_advisor_id,customer_id")
+    .select("id,assigned_advisor_id,customer_id,case_type")
     .eq("id", caseId)
     .maybeSingle()
   if (!caseRow) return NextResponse.json({ ok: false, error: "case_not_found" }, { status: 404 })
@@ -122,6 +122,8 @@ export async function POST(req: Request) {
   if (role !== "admin" && caseRow.assigned_advisor_id !== user.id) {
     return NextResponse.json({ ok: false, error: "not_assigned" }, { status: 403 })
   }
+
+  const caseType = String(caseRow.case_type ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
 
   const { data: acceptedOffer } = await supabase
     .from("case_offers")
@@ -137,15 +139,15 @@ export async function POST(req: Request) {
   const insertPayload = {
     case_id: caseId,
     provider_id: providerId,
-    product_type: "baufi",
+    product_type: caseType,
     status: "draft",
     loan_amount: num(body?.loanAmount),
     rate_monthly: num(body?.rateMonthly),
     apr_effective: num(body?.aprEffective),
     interest_nominal: num(body?.interestNominal),
     term_months: num(body?.termMonths),
-    zinsbindung_years: num(body?.zinsbindungYears),
-    tilgung_pct: num(body?.tilgungPct),
+    zinsbindung_years: caseType === "konsum" ? null : num(body?.zinsbindungYears),
+    tilgung_pct: caseType === "konsum" ? null : num(body?.tilgungPct),
     special_repayment: body?.specialRepayment ? String(body.specialRepayment).trim() : null,
     notes_for_customer: body?.notes ? String(body.notes).trim() : null,
   }

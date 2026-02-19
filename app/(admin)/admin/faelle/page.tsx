@@ -1,3 +1,4 @@
+﻿import Link from "next/link"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import AssignAdvisorButton from "./ui/AssignAdvisorButton"
@@ -8,14 +9,29 @@ function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(d))
 }
 
-export default async function AdminCasesPage() {
+type ProductTab = "baufi" | "konsum"
+
+function normalizeProduct(raw: string | string[] | undefined): ProductTab {
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return String(value ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
+}
+
+export default async function AdminCasesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ product?: string | string[] }>
+}) {
   await requireAdmin()
   const admin = supabaseAdmin()
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
+  const product = normalizeProduct(resolvedSearchParams?.product)
+  const productLabel = product === "konsum" ? "Privatkredit" : "Baufinanzierung"
 
   const [{ data: cases }, { data: advisors }, { data: offers }, { data: docs }] = await Promise.all([
     admin
       .from("cases")
       .select("id,case_ref,case_type,status,customer_id,assigned_advisor_id,created_at,updated_at")
+      .eq("case_type", product)
       .order("created_at", { ascending: false })
       .limit(200),
     admin.from("profiles").select("user_id").eq("role", "advisor"),
@@ -35,7 +51,6 @@ export default async function AdminCasesPage() {
 
   const { data: usersPage, error: usersErr } = await admin.auth.admin.listUsers({ page: 1, perPage: 2000 })
   if (usersErr) {
-    // optional: du kannst hier einen UI-Hinweis rendern; ich lasse es bewusst leise, aber du siehst es im Log
     console.error("listUsers error:", usersErr)
   }
 
@@ -53,12 +68,39 @@ export default async function AdminCasesPage() {
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Fälle & Unterlagen</h1>
-        <p className="mt-1 text-sm text-slate-600">Berater zuweisen, Vorgänge/Status bearbeiten, Unterlagen einsehen.</p>
+        <h1 className="text-2xl font-semibold text-slate-900">Faelle & Unterlagen</h1>
+        <p className="mt-1 text-sm text-slate-600">
+          Bereich: {productLabel}. Berater zuweisen, Vorgaenge/Status bearbeiten, Unterlagen einsehen.
+        </p>
+      </div>
+
+      <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/admin/faelle?product=baufi"
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+              product === "baufi"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            Baufinanzierung
+          </Link>
+          <Link
+            href="/admin/faelle?product=konsum"
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+              product === "konsum"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            Privatkredit
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
-        <div className="text-sm font-medium text-slate-900">Fälle (letzte 200)</div>
+        <div className="text-sm font-medium text-slate-900">Faelle (letzte 200)</div>
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70">
           <table className="w-full text-left text-sm">
@@ -79,7 +121,7 @@ export default async function AdminCasesPage() {
                 const custEmail = emailById.get(c.customer_id) || c.customer_id
                 const advEmail = c.assigned_advisor_id
                   ? (emailById.get(c.assigned_advisor_id) || c.assigned_advisor_id)
-                  : "—"
+                  : "-"
 
                 return (
                   <tr key={c.id} className="border-b border-slate-200/60 last:border-0 hover:bg-slate-50/60 align-top">
@@ -101,7 +143,7 @@ export default async function AdminCasesPage() {
                           {d.file_name}
                         </div>
                       ))}
-                      {caseDocs.length > 2 ? <div className="text-xs text-slate-500">…</div> : null}
+                      {caseDocs.length > 2 ? <div className="text-xs text-slate-500">...</div> : null}
                     </td>
 
                     <td className="px-4 py-3">
@@ -123,7 +165,7 @@ export default async function AdminCasesPage() {
               {(cases ?? []).length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-slate-500" colSpan={6}>
-                    Keine Fälle gefunden.
+                    Keine Faelle gefunden.
                   </td>
                 </tr>
               ) : null}
@@ -135,7 +177,7 @@ export default async function AdminCasesPage() {
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="text-sm font-medium text-slate-900">Alle Unterlagen (letzte 500)</div>
         <div className="mt-3 text-xs text-slate-500">
-          (Download/Signed-URL hängt von deinem Storage-Bucket ab – hier zeigen wir Pfad + Metadaten.)
+          (Download/Signed-URL haengt von deinem Storage-Bucket ab - hier zeigen wir Pfad + Metadaten.)
         </div>
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70">
@@ -145,7 +187,7 @@ export default async function AdminCasesPage() {
                 <th className="px-4 py-3 font-medium text-slate-700">Datei</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Case</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Typ</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Größe</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Groesse</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Zeit</th>
               </tr>
             </thead>
@@ -157,7 +199,7 @@ export default async function AdminCasesPage() {
                     <div className="text-xs text-slate-500">{d.file_path}</div>
                   </td>
                   <td className="px-4 py-3 text-slate-700">{d.case_id.slice(0, 8)}</td>
-                  <td className="px-4 py-3 text-slate-700">{d.mime_type ?? "—"}</td>
+                  <td className="px-4 py-3 text-slate-700">{d.mime_type ?? "-"}</td>
                   <td className="px-4 py-3 text-slate-700">{Math.round(Number(d.size_bytes ?? 0) / 1024)} KB</td>
                   <td className="px-4 py-3 text-slate-700">{dt(d.created_at)}</td>
                 </tr>
@@ -177,3 +219,4 @@ export default async function AdminCasesPage() {
     </div>
   )
 }
+

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useMemo, useState } from "react"
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
@@ -20,14 +20,15 @@ type Offer = {
 }
 
 type ProviderItem = { provider: { id: string; name: string } }
+type CaseType = "baufi" | "konsum"
 
 function formatEUR(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return "—"
+  if (n == null || Number.isNaN(Number(n))) return "â€”"
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n))
 }
 
 function formatPct(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return "—"
+  if (n == null || Number.isNaN(Number(n))) return "â€”"
   return `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(Number(n))} %`
 }
 
@@ -35,12 +36,15 @@ export default function LiveOfferModal({
   caseId,
   ticketId,
   guestToken,
+  caseType = "baufi",
 }: {
   caseId: string
   ticketId: string
   guestToken?: string
+  caseType?: CaseType
 }) {
   const supabase = useMemo(() => createBrowserSupabaseClientNoAuth(), [])
+  const isKonsum = caseType === "konsum"
   const [offer, setOffer] = useState<Offer | null>(null)
   const [providers, setProviders] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
@@ -66,14 +70,14 @@ export default function LiveOfferModal({
 
   useEffect(() => {
     ;(async () => {
-      const res = await fetch("/api/baufi/providers?product=baufi")
+      const res = await fetch(`/api/baufi/providers?product=${isKonsum ? "konsum" : "baufi"}`)
       const json = await res.json().catch(() => ({}))
       const items: ProviderItem[] = Array.isArray(json?.items) ? json.items : []
       const map: Record<string, string> = {}
       for (const item of items) map[item.provider.id] = item.provider.name
       setProviders(map)
     })()
-  }, [])
+  }, [isKonsum])
 
   useEffect(() => {
     const channel = supabase
@@ -152,19 +156,23 @@ export default function LiveOfferModal({
               <div className="text-left font-semibold sm:text-right">{formatPct(offer.apr_effective)}</div>
               <div className="text-slate-300">Nominalzins</div>
               <div className="text-left font-semibold sm:text-right">{formatPct(offer.interest_nominal)}</div>
-              <div className="text-slate-300">Tilgung</div>
-              <div className="text-left font-semibold sm:text-right">{formatPct(offer.tilgung_pct)}</div>
-              <div className="text-slate-300">Zinsbindung</div>
-              <div className="text-left font-semibold sm:text-right">
-                {offer.zinsbindung_years ? `${offer.zinsbindung_years} Jahre` : "—"}
-              </div>
+              {!isKonsum ? (
+                <>
+                  <div className="text-slate-300">Tilgung</div>
+                  <div className="text-left font-semibold sm:text-right">{formatPct(offer.tilgung_pct)}</div>
+                  <div className="text-slate-300">Zinsbindung</div>
+                  <div className="text-left font-semibold sm:text-right">
+                    {offer.zinsbindung_years ? `${offer.zinsbindung_years} Jahre` : "-"}
+                  </div>
+                </>
+              ) : null}
               <div className="text-slate-300">Darlehen</div>
               <div className="text-left font-semibold sm:text-right">{formatEUR(offer.loan_amount)}</div>
             </div>
 
             {offer.special_repayment ? (
               <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200">
-                Sondertilgung: {offer.special_repayment}
+                {isKonsum ? "Hinweise" : "Sondertilgung"}: {offer.special_repayment}
               </div>
             ) : null}
 
@@ -200,3 +208,4 @@ export default function LiveOfferModal({
     </>
   )
 }
+

@@ -262,19 +262,21 @@ export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?:
         }),
       })
 
-      const json = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null
+      const json = (await response.json().catch(() => null)) as
+        | { ok?: boolean; error?: string; existingAccount?: boolean; leadId?: string | number; externalLeadId?: string | number }
+        | null
       if (!response.ok || !json?.ok) {
         setError(json?.error || "Anfrage konnte nicht gesendet werden.")
         return
       }
 
-      const payload = json as { leadId?: string | number; externalLeadId?: string | number }
       const params = new URLSearchParams({
         source: "baufi",
         conversion: GOOGLE_ADS_BAUFINANZIERUNG_LEAD_SEND_TO,
       })
-      if (payload?.leadId) params.set("leadId", String(payload.leadId))
-      if (payload?.externalLeadId) params.set("externalLeadId", String(payload.externalLeadId))
+      if (json?.leadId) params.set("leadId", String(json.leadId))
+      if (json?.externalLeadId) params.set("externalLeadId", String(json.externalLeadId))
+      if (json?.existingAccount) params.set("existing", "1")
       router.push(`/erfolgreich?${params.toString()}`)
       return
     } catch {

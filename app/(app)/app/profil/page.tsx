@@ -10,7 +10,6 @@ export default async function ProfilPage() {
     .from("cases")
     .select("id")
     .eq("customer_id", user.id)
-    .eq("case_type", "baufi")
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle()
@@ -93,7 +92,7 @@ export default async function ProfilPage() {
         <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Baufinanzierung</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Anfrage</div>
               <div className="mt-1 text-base font-semibold text-slate-900">Antragsteller</div>
             </div>
             <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">

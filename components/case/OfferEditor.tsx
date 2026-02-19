@@ -13,8 +13,18 @@ function normalizeDecimalInput(value: string) {
   return value.replace(/\./g, ",")
 }
 
-export default function OfferEditor({ caseId }: { caseId: string }) {
+type CaseType = "baufi" | "konsum"
+
+export default function OfferEditor({
+  caseId,
+  caseType = "baufi",
+}: {
+  caseId: string
+  caseType?: CaseType
+}) {
   const router = useRouter()
+  const isKonsum = caseType === "konsum"
+  const providerProduct = isKonsum ? "konsum" : "baufi"
   const [providers, setProviders] = useState<ProviderItem[]>([])
   const [providerId, setProviderId] = useState("")
   const [loanAmount, setLoanAmount] = useState("")
@@ -33,12 +43,12 @@ export default function OfferEditor({ caseId }: { caseId: string }) {
 
   useEffect(() => {
     ;(async () => {
-      const res = await fetch("/api/baufi/providers?product=baufi")
+      const res = await fetch(`/api/baufi/providers?product=${providerProduct}`)
       const json = await res.json().catch(() => ({}))
       const items = Array.isArray(json?.items) ? json.items : []
       setProviders(items)
     })()
-  }, [])
+  }, [providerProduct])
 
   useEffect(() => {
     ;(async () => {
@@ -79,8 +89,8 @@ export default function OfferEditor({ caseId }: { caseId: string }) {
           rateMonthly,
           aprEffective,
           interestNominal,
-          tilgungPct,
-          zinsbindungYears,
+          tilgungPct: isKonsum ? null : tilgungPct,
+          zinsbindungYears: isKonsum ? null : zinsbindungYears,
           termMonths,
           specialRepayment,
           notes,
@@ -104,7 +114,9 @@ export default function OfferEditor({ caseId }: { caseId: string }) {
   return (
     <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
       <div className="text-sm font-medium text-slate-900">Finales Angebot erstellen</div>
-      <p className="mt-1 text-xs text-slate-600">Du kannst mehrere finale Angebote anlegen. Sichtbar fuer den Kunden erst mit Status "Abgeschickt".</p>
+      <p className="mt-1 text-xs text-slate-600">
+        Du kannst mehrere finale Angebote anlegen. Sichtbar fuer den Kunden erst mit Status &quot;Abgeschickt&quot;.
+      </p>
 
       {statusNote ? <div className="mt-2 text-xs text-slate-600">{statusNote}</div> : null}
       {msg ? <div className="mt-2 text-xs text-rose-600">{msg}</div> : null}
@@ -128,7 +140,7 @@ export default function OfferEditor({ caseId }: { caseId: string }) {
         </label>
 
         <label className="text-xs text-slate-600">
-          Darlehen
+          {isKonsum ? "Kreditsumme" : "Darlehen"}
           <input
             value={loanAmount}
             onChange={(e) => setLoanAmount(e.target.value)}
@@ -174,28 +186,32 @@ export default function OfferEditor({ caseId }: { caseId: string }) {
           />
         </label>
 
-        <label className="text-xs text-slate-600">
-          Tilgung %
-          <input
-            value={tilgungPct}
-            onChange={(e) => setTilgungPct(normalizeDecimalInput(e.target.value))}
-            inputMode="decimal"
-            disabled={busy || blocked}
-            placeholder="z.B. 2,0"
-            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
-          />
-        </label>
+        {!isKonsum ? (
+          <>
+            <label className="text-xs text-slate-600">
+              Tilgung %
+              <input
+                value={tilgungPct}
+                onChange={(e) => setTilgungPct(normalizeDecimalInput(e.target.value))}
+                inputMode="decimal"
+                disabled={busy || blocked}
+                placeholder="z.B. 2,0"
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+              />
+            </label>
 
-        <label className="text-xs text-slate-600">
-          Zinsbindung (Jahre)
-          <input
-            value={zinsbindungYears}
-            onChange={(e) => setZinsbindungYears(e.target.value)}
-            disabled={busy || blocked}
-            placeholder="z.B. 10"
-            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
-          />
-        </label>
+            <label className="text-xs text-slate-600">
+              Zinsbindung (Jahre)
+              <input
+                value={zinsbindungYears}
+                onChange={(e) => setZinsbindungYears(e.target.value)}
+                disabled={busy || blocked}
+                placeholder="z.B. 10"
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+              />
+            </label>
+          </>
+        ) : null}
 
         <label className="text-xs text-slate-600">
           Laufzeit (Monate)
@@ -211,12 +227,12 @@ export default function OfferEditor({ caseId }: { caseId: string }) {
 
       <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className="text-xs text-slate-600">
-          Sondertilgung / Hinweis
+          {isKonsum ? "Besondere Hinweise" : "Sondertilgung / Hinweis"}
           <input
             value={specialRepayment}
             onChange={(e) => setSpecialRepayment(e.target.value)}
             disabled={busy || blocked}
-            placeholder="z.B. 5% p.a."
+            placeholder={isKonsum ? "z.B. Restschuldversicherung optional" : "z.B. 5% p.a."}
             className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
           />
         </label>

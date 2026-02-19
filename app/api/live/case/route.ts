@@ -202,6 +202,8 @@ export async function GET(req: Request) {
   }
 
   const { readClient, caseRow, viewerRole } = access as any
+  const caseType = String(caseRow.case_type ?? "").trim().toLowerCase()
+  const isKonsum = caseType === "konsum"
   const { data: latestOffer } = await readClient
     .from("case_offers")
     .select("status,created_at")
@@ -250,20 +252,20 @@ export async function GET(req: Request) {
 
   const baufiUi = {
     purpose: baufi?.purpose ?? null,
-    property_type: baufi?.property_type ?? null,
-    purchase_price: baufi?.purchase_price ?? null,
+    property_type: isKonsum ? null : (baufi?.property_type ?? null),
+    purchase_price: isKonsum ? null : (baufi?.purchase_price ?? null),
     loan_amount_requested: baufi?.loan_amount_requested ?? null,
   }
 
   const additionalUi = {
-    equity_total: additional?.equity_total ?? null,
-    equity_used: additional?.equity_used ?? null,
-    property_address_type: toUiAddressKind(baufi?.property_address_kind),
-    property_street: baufi?.property_street ?? null,
-    property_no: baufi?.property_house_no ?? null,
-    property_zip: baufi?.property_zip ?? null,
-    property_city: baufi?.property_city ?? null,
-    property_plot_size: baufi?.property_plot_size ?? null,
+    equity_total: isKonsum ? null : (additional?.equity_total ?? null),
+    equity_used: isKonsum ? null : (additional?.equity_used ?? null),
+    property_address_type: isKonsum ? null : toUiAddressKind(baufi?.property_address_kind),
+    property_street: isKonsum ? null : (baufi?.property_street ?? null),
+    property_no: isKonsum ? null : (baufi?.property_house_no ?? null),
+    property_zip: isKonsum ? null : (baufi?.property_zip ?? null),
+    property_city: isKonsum ? null : (baufi?.property_city ?? null),
+    property_plot_size: isKonsum ? null : (baufi?.property_plot_size ?? null),
     current_warm_rent: additional?.warm_rent_monthly ?? additional?.current_warm_rent ?? null,
     current_warm_rent_none: additional?.warm_rent_not_applicable ?? additional?.current_warm_rent_none ?? false,
     birth_place: additional?.birth_place ?? null,
@@ -319,7 +321,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: access.error }, { status: access.status })
   }
 
-  const { readClient } = access as any
+  const { readClient, caseRow } = access as any
+  const caseType = String(caseRow?.case_type ?? "").trim().toLowerCase()
+  const isKonsum = caseType === "konsum"
   const effectiveRole = user ? role : "customer"
   const { data: latestOffer, error: latestOfferError } = await readClient
     .from("case_offers")
@@ -341,25 +345,33 @@ export async function POST(req: Request) {
   const incomingBaufi = body?.baufi ?? {}
   const incomingAdditional = body?.additional ?? {}
   const primaryPatch = pick(body?.primary ?? {}, PRIMARY_FIELDS)
-  const baufiPatch = pick(
-    defined({
-      purpose: incomingBaufi.purpose,
-      property_type: incomingBaufi.property_type,
-      purchase_price: incomingBaufi.purchase_price,
-      loan_amount_requested: incomingBaufi.loan_amount_requested,
-      property_address_kind: toDbAddressKind(incomingAdditional.property_address_type ?? incomingBaufi.property_address_type),
-      property_street: incomingAdditional.property_street ?? incomingBaufi.property_street,
-      property_house_no: incomingAdditional.property_no ?? incomingBaufi.property_no ?? incomingBaufi.property_house_no,
-      property_zip: incomingAdditional.property_zip ?? incomingBaufi.property_zip,
-      property_city: incomingAdditional.property_city ?? incomingBaufi.property_city,
-      property_plot_size: incomingAdditional.property_plot_size ?? incomingBaufi.property_plot_size,
-    }),
-    BAUFI_DB_FIELDS
-  )
+  const baufiPatch = isKonsum
+    ? pick(
+        defined({
+          purpose: incomingBaufi.purpose,
+          loan_amount_requested: incomingBaufi.loan_amount_requested,
+        }),
+        BAUFI_DB_FIELDS
+      )
+    : pick(
+        defined({
+          purpose: incomingBaufi.purpose,
+          property_type: incomingBaufi.property_type,
+          purchase_price: incomingBaufi.purchase_price,
+          loan_amount_requested: incomingBaufi.loan_amount_requested,
+          property_address_kind: toDbAddressKind(incomingAdditional.property_address_type ?? incomingBaufi.property_address_type),
+          property_street: incomingAdditional.property_street ?? incomingBaufi.property_street,
+          property_house_no: incomingAdditional.property_no ?? incomingBaufi.property_no ?? incomingBaufi.property_house_no,
+          property_zip: incomingAdditional.property_zip ?? incomingBaufi.property_zip,
+          property_city: incomingAdditional.property_city ?? incomingBaufi.property_city,
+          property_plot_size: incomingAdditional.property_plot_size ?? incomingBaufi.property_plot_size,
+        }),
+        BAUFI_DB_FIELDS
+      )
   const additionalPatch = pick(
     defined({
-      equity_total: incomingAdditional.equity_total,
-      equity_used: incomingAdditional.equity_used,
+      equity_total: isKonsum ? undefined : incomingAdditional.equity_total,
+      equity_used: isKonsum ? undefined : incomingAdditional.equity_used,
       warm_rent_monthly: incomingAdditional.current_warm_rent,
       warm_rent_not_applicable: incomingAdditional.current_warm_rent_none,
       birth_place: incomingAdditional.birth_place,

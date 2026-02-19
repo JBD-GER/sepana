@@ -133,6 +133,8 @@ export default async function AdminCaseDetailPage({ params }: { params: Promise<
   }
 
   const c = data.case
+  const caseType = String(c.case_type ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
+  const isKonsum = caseType === "konsum"
   const previewRow = data.offer_previews?.[0] ?? null
   let previewPayload: any = previewRow?.payload ?? null
   if (typeof previewPayload === "string") {
@@ -178,27 +180,29 @@ export default async function AdminCaseDetailPage({ params }: { params: Promise<
 
       <LiveCasePanel caseId={c.id} caseRef={c.case_ref ?? null} defaultCollapsed />
 
-      <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-sm font-medium text-slate-900">Startschuss (Vergleich bereit)</div>
-            <p className="mt-1 text-xs text-slate-600">
-              Momentaufnahme aus dem Vergleich - dient als Startpunkt. Finale Angebote kommen separat hinzu.
-            </p>
+      {!isKonsum ? (
+        <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium text-slate-900">Startschuss (Vergleich bereit)</div>
+              <p className="mt-1 text-xs text-slate-600">
+                Momentaufnahme aus dem Vergleich - dient als Startpunkt. Finale Angebote kommen separat hinzu.
+              </p>
+            </div>
+            {previewLogoUrl ? (
+              <img src={previewLogoUrl} alt="" className="h-10 w-auto max-w-[160px] object-contain" loading="lazy" />
+            ) : null}
           </div>
-          {previewLogoUrl ? (
-            <img src={previewLogoUrl} alt="" className="h-10 w-auto max-w-[160px] object-contain" loading="lazy" />
-          ) : null}
+          <div className="mt-3 text-sm text-slate-700">Ausgewaehlte Bank: {previewProviderName}</div>
         </div>
-        <div className="mt-3 text-sm text-slate-700">Ausgewaehlte Bank: {previewProviderName}</div>
-      </div>
+      ) : null}
 
-      <OfferEditor caseId={c.id} />
+      <OfferEditor caseId={c.id} caseType={caseType} />
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="text-sm font-medium text-slate-900">Finale Angebote</div>
         <p className="mt-1 text-xs text-slate-600">Verwaltung der finalen Angebote inklusive Bankrueckmeldung.</p>
-        <OfferList offers={data.offers ?? []} canManage />
+        <OfferList offers={data.offers ?? []} canManage caseType={caseType} />
       </div>
 
       <DocumentPanel

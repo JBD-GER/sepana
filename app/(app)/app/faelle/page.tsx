@@ -41,6 +41,8 @@ type CaseListResp = {
   totalPages?: number
 }
 
+type ProductTab = "baufi" | "konsum"
+
 function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(d))
 }
@@ -88,19 +90,35 @@ function parsePage(raw: string | string[] | undefined) {
   return Math.floor(num)
 }
 
-function pageHref(page: number) {
-  return page <= 1 ? "/app/faelle" : `/app/faelle?page=${page}`
+function parseProduct(raw: string | string[] | undefined): ProductTab {
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return String(value ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
+}
+
+function productHref(product: ProductTab) {
+  return product === "baufi" ? "/app/faelle?product=baufi" : "/app/faelle?product=konsum"
+}
+
+function pageHref(page: number, product: ProductTab) {
+  const params = new URLSearchParams()
+  if (product !== "baufi") params.set("product", product)
+  if (page > 1) params.set("page", String(page))
+  const query = params.toString()
+  return query ? `/app/faelle?${query}` : "/app/faelle"
 }
 
 export default async function CasesPage({
   searchParams,
 }: {
-  searchParams?: { page?: string | string[] }
+  searchParams?: Promise<{ page?: string | string[]; product?: string | string[] }>
 }) {
   await requireCustomer()
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
 
-  const requestedPage = parsePage(searchParams?.page)
-  const res = await authFetch(`/api/app/cases/list?limit=10&page=${requestedPage}`).catch(() => null)
+  const requestedPage = parsePage(resolvedSearchParams?.page)
+  const product = parseProduct(resolvedSearchParams?.product)
+  const productLabel = product === "konsum" ? "Privatkredit" : "Baufinanzierung"
+  const res = await authFetch(`/api/app/cases/list?limit=10&page=${requestedPage}&caseType=${product}`).catch(() => null)
   const data: CaseListResp = res && res.ok ? await res.json() : { cases: [], page: 1, pageSize: 10, total: 0, totalPages: 1 }
 
   const page = Math.max(1, Number(data.page ?? requestedPage))
@@ -115,8 +133,32 @@ export default async function CasesPage({
         <div className="relative">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">Ihre Fälle</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">
-            Hier sehen Sie den aktuellen Stand Ihrer Baufinanzierung inklusive Vergleich, Unterlagen und Angeboten.
+            Hier sehen Sie den aktuellen Stand Ihrer {productLabel} inklusive Unterlagen und Angeboten.
           </p>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200/70 bg-white p-3 shadow-sm">
+        <div className="flex flex-wrap gap-2">
+          {([
+            { id: "baufi" as const, label: "Baufinanzierung" },
+            { id: "konsum" as const, label: "Privatkredit" },
+          ] as const).map((tab) => {
+            const active = product === tab.id
+            return (
+              <Link
+                key={tab.id}
+                href={productHref(tab.id)}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                  active
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            )
+          })}
         </div>
       </section>
 
@@ -212,7 +254,7 @@ export default async function CasesPage({
 
         {data.cases.length === 0 ? (
           <div className="rounded-3xl border border-slate-200/70 bg-white p-6 text-sm text-slate-600 shadow-sm">
-            Noch keine Fälle vorhanden.
+            Noch keine Faelle in {productLabel} vorhanden.
           </div>
         ) : null}
       </section>
@@ -311,7 +353,7 @@ export default async function CasesPage({
               {data.cases.length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-slate-500" colSpan={9}>
-                    Noch keine Fälle vorhanden.
+                    Noch keine Faelle in {productLabel} vorhanden.
                   </td>
                 </tr>
               ) : null}
@@ -330,7 +372,7 @@ export default async function CasesPage({
             <div className="flex items-center gap-2">
               {page > 1 ? (
                 <Link
-                  href={pageHref(page - 1)}
+                  href={pageHref(page - 1, product)}
                   className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-slate-300"
                 >
                   Zurueck
@@ -343,7 +385,7 @@ export default async function CasesPage({
 
               {page < totalPages ? (
                 <Link
-                  href={pageHref(page + 1)}
+                  href={pageHref(page + 1, product)}
                   className="rounded-xl border border-slate-900 bg-slate-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-slate-800"
                 >
                   Weiter

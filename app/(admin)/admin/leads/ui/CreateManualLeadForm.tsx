@@ -9,6 +9,7 @@ type AdvisorOption = {
 }
 
 type FormState = {
+  productType: "baufi" | "konsum"
   advisorId: string
   firstName: string
   lastName: string
@@ -30,6 +31,7 @@ type FormState = {
 }
 
 const initialState: FormState = {
+  productType: "baufi",
   advisorId: "",
   firstName: "",
   lastName: "",
@@ -97,6 +99,18 @@ export default function CreateManualLeadForm({ advisorOptions }: { advisorOption
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="space-y-4">
+          <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Produkt</div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <select
+              value={form.productType}
+              onChange={(e) => updateField("productType", (e.target.value === "konsum" ? "konsum" : "baufi"))}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
+            >
+              <option value="baufi">Baufinanzierung</option>
+              <option value="konsum">Privatkredit</option>
+            </select>
+          </div>
+
           <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Kunde</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <input
@@ -187,11 +201,23 @@ export default function CreateManualLeadForm({ advisorOptions }: { advisorOption
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm sm:col-span-2"
             >
               <option value="">Art des Darlehens waehlen</option>
-              <option value="buy">Kauf Immobilie / Grundstueck</option>
-              <option value="build">Eigenes Bauvorhaben</option>
-              <option value="refi">Anschlussfinanzierung / Umschuldung</option>
-              <option value="modernize">Umbau / Modernisierung</option>
-              <option value="equity_release">Kapitalbeschaffung</option>
+              {form.productType === "konsum" ? (
+                <>
+                  <option value="freie_verwendung">Freie Verwendung</option>
+                  <option value="umschuldung">Umschuldung</option>
+                  <option value="auto">Auto</option>
+                  <option value="modernisierung">Modernisierung</option>
+                  <option value="sonstiges">Sonstiges</option>
+                </>
+              ) : (
+                <>
+                  <option value="buy">Kauf Immobilie / Grundstueck</option>
+                  <option value="build">Eigenes Bauvorhaben</option>
+                  <option value="refi">Anschlussfinanzierung / Umschuldung</option>
+                  <option value="modernize">Umbau / Modernisierung</option>
+                  <option value="equity_release">Kapitalbeschaffung</option>
+                </>
+              )}
             </select>
             <input
               value={form.loanAmountTotal}
@@ -201,40 +227,44 @@ export default function CreateManualLeadForm({ advisorOptions }: { advisorOption
             />
           </div>
 
-          <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Immobilie</div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input
-              value={form.propertyZip}
-              onChange={(e) => updateField("propertyZip", e.target.value)}
-              placeholder="Immobilie PLZ"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
-            />
-            <input
-              value={form.propertyCity}
-              onChange={(e) => updateField("propertyCity", e.target.value)}
-              placeholder="Immobilie Ort"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
-            />
-            <select
-              value={form.propertyType}
-              onChange={(e) => updateField("propertyType", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
-            >
-              <option value="">Art der Immobilie waehlen</option>
-              <option value="condo">Eigentumswohnung</option>
-              <option value="house">Einfamilienhaus</option>
-              <option value="two_family">Zweifamilienhaus</option>
-              <option value="multi">Mehrfamilienhaus</option>
-              <option value="land">Grundstueck</option>
-              <option value="other">Sonstiges</option>
-            </select>
-            <input
-              value={form.propertyPurchasePrice}
-              onChange={(e) => updateField("propertyPurchasePrice", e.target.value)}
-              placeholder="Kaufpreis"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
-            />
-          </div>
+          {form.productType === "baufi" ? (
+            <>
+              <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Immobilie</div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <input
+                  value={form.propertyZip}
+                  onChange={(e) => updateField("propertyZip", e.target.value)}
+                  placeholder="Immobilie PLZ"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
+                />
+                <input
+                  value={form.propertyCity}
+                  onChange={(e) => updateField("propertyCity", e.target.value)}
+                  placeholder="Immobilie Ort"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
+                />
+                <select
+                  value={form.propertyType}
+                  onChange={(e) => updateField("propertyType", e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
+                >
+                  <option value="">Art der Immobilie waehlen</option>
+                  <option value="condo">Eigentumswohnung</option>
+                  <option value="house">Einfamilienhaus</option>
+                  <option value="two_family">Zweifamilienhaus</option>
+                  <option value="multi">Mehrfamilienhaus</option>
+                  <option value="land">Grundstueck</option>
+                  <option value="other">Sonstiges</option>
+                </select>
+                <input
+                  value={form.propertyPurchasePrice}
+                  onChange={(e) => updateField("propertyPurchasePrice", e.target.value)}
+                  placeholder="Kaufpreis"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
+                />
+              </div>
+            </>
+          ) : null}
 
           <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Berater</div>
           <select

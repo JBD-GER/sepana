@@ -5,8 +5,8 @@ import { buildEmailHtml, logCaseEvent, sendAdvisorAssignedEmail, sendEmail } fro
 import {
   createCaseFromLead,
   ensureCustomerAccount,
-  inferCaseTypeFromProduct,
   isEmail,
+  CaseType,
   LeadRow,
 } from "@/lib/admin/leads"
 
@@ -37,12 +37,30 @@ function pickString(value: any) {
   return trimmed ? trimmed : null
 }
 
+function normalizeCaseType(value: any): CaseType {
+  const raw = String(value ?? "").trim().toLowerCase()
+  return raw === "konsum" || raw === "privatkredit" ? "konsum" : "baufi"
+}
+
+function productLabel(caseType: CaseType) {
+  return caseType === "konsum" ? "Privatkredit" : "Baufinanzierung"
+}
+
+function isMissingLeadCaseTypeColumnError(error: unknown) {
+  const anyError = error as { code?: string; message?: string } | null
+  if (!anyError) return false
+  if (anyError.code === "42703") return true
+  const msg = String(anyError.message ?? "").toLowerCase()
+  return msg.includes("lead_case_type") && (msg.includes("column") || msg.includes("exist"))
+}
+
 export async function POST(req: Request) {
   try {
     await requireAdmin()
     const admin = supabaseAdmin()
 
     const body = await req.json().catch(() => null)
+    const caseType = normalizeCaseType(body?.productType)
     const advisorId = pickString(body?.advisorId)
 
     const firstName = pickString(body?.firstName)
@@ -67,7 +85,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Bitte Berater auswaehlen." }, { status: 400 })
     }
 
-    const requiredMissing =
+    const missingCommonFields =
       !firstName ||
       !lastName ||
       !email ||
@@ -79,13 +97,18 @@ export async function POST(req: Request) {
       !employmentType ||
       netIncomeMonthly === null ||
       !loanPurpose ||
-      loanAmountTotal === null ||
-      !propertyZip ||
-      !propertyCity ||
-      !propertyType ||
-      propertyPurchasePrice === null
+      loanAmountTotal === null
 
-    if (requiredMissing) {
+    const missingBaufiOnly =
+      caseType === "baufi" &&
+      (
+        !propertyZip ||
+        !propertyCity ||
+        !propertyType ||
+        propertyPurchasePrice === null
+      )
+
+    if (missingCommonFields || missingBaufiOnly) {
       return NextResponse.json(
         { ok: false, error: "Bitte alle Pflichtfelder ausfuellen." },
         { status: 400 }
@@ -108,52 +131,60 @@ export async function POST(req: Request) {
     }
 
     const now = new Date().toISOString()
+    const leadPayloadBase = {
+      source: "admin",
+      event_type: "lead.new",
+      status: "new",
+      source_created_at: now,
+      last_event_at: now,
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      birth_date: birthDate,
+      address_street: addressStreet,
+      address_zip: addressZip,
+      address_city: addressCity,
+      employment_type: employmentType,
+      net_income_monthly: netIncomeMonthly,
+      loan_purpose: loanPurpose,
+      loan_amount_total: loanAmountTotal,
+      property_zip: propertyZip,
+      property_city: propertyCity,
+      property_type: propertyType,
+      property_purchase_price: propertyPurchasePrice,
+      product_name: productLabel(caseType),
+      product_price: loanAmountTotal,
+      notes,
+      assigned_advisor_id: advisorId,
+      assigned_at: now,
+    }
+    const leadPayloadWithCaseType = { ...leadPayloadBase, lead_case_type: caseType }
+    const leadSelectBase =
+      "id,linked_case_id,external_lead_id,assigned_advisor_id,first_name,last_name,email,phone,phone_mobile,phone_work,birth_date,marital_status,employment_status,employment_type,net_income_monthly,address_street,address_zip,address_city,product_name,product_price,loan_purpose,loan_amount_total,property_zip,property_city,property_type,property_purchase_price,notes"
+    const leadSelectWithCaseType = `${leadSelectBase},lead_case_type`
 
-    const { data: leadRow, error: leadError } = await admin
+    let lead: LeadRow | null = null
+    const primaryInsert = await admin
       .from("webhook_leads")
-      .insert({
-        source: "admin",
-        event_type: "lead.new",
-        status: "new",
-        source_created_at: now,
-        last_event_at: now,
-        first_name: firstName,
-        last_name: lastName,
-        email,
-        phone,
-        birth_date: birthDate,
-        address_street: addressStreet,
-        address_zip: addressZip,
-        address_city: addressCity,
-        employment_type: employmentType,
-        net_income_monthly: netIncomeMonthly,
-        loan_purpose: loanPurpose,
-        loan_amount_total: loanAmountTotal,
-        property_zip: propertyZip,
-        property_city: propertyCity,
-        property_type: propertyType,
-        property_purchase_price: propertyPurchasePrice,
-        product_name: "Baufinanzierung",
-        product_price: loanAmountTotal,
-        notes,
-        assigned_advisor_id: advisorId,
-        assigned_at: now,
-      })
-      .select(
-        "id,linked_case_id,external_lead_id,assigned_advisor_id,first_name,last_name,email,phone,phone_mobile,phone_work,birth_date,marital_status,employment_status,employment_type,net_income_monthly,address_street,address_zip,address_city,product_name,product_price,loan_purpose,loan_amount_total,property_zip,property_city,property_type,property_purchase_price,notes"
-      )
+      .insert(leadPayloadWithCaseType)
+      .select(leadSelectWithCaseType)
       .single()
 
-    if (leadError) throw leadError
-    const lead = leadRow as LeadRow
-
-    const caseType = inferCaseTypeFromProduct(lead.product_name)
-    if (!caseType) {
-      return NextResponse.json(
-        { ok: false, error: "Produkt passt aktuell nicht zum Baufi-Flow." },
-        { status: 400 }
-      )
+    if (primaryInsert.error && isMissingLeadCaseTypeColumnError(primaryInsert.error)) {
+      const fallbackInsert = await admin
+        .from("webhook_leads")
+        .insert(leadPayloadBase)
+        .select(leadSelectBase)
+        .single()
+      if (fallbackInsert.error) throw fallbackInsert.error
+      lead = fallbackInsert.data ? ({ ...fallbackInsert.data, lead_case_type: null } as LeadRow) : null
+    } else {
+      if (primaryInsert.error) throw primaryInsert.error
+      lead = (primaryInsert.data as LeadRow | null) ?? null
     }
+
+    if (!lead) throw new Error("Lead konnte nicht angelegt werden.")
 
     const customer = await ensureCustomerAccount({
       admin,
@@ -169,12 +200,13 @@ export async function POST(req: Request) {
       customerId: customer.userId,
       advisorId,
       caseType,
+      entryChannel: "admin_manual",
     })
 
     const caseId = created.caseId
 
     const nextStepsHtml = buildEmailHtml({
-      title: "Naechste Schritte zu Ihrer Baufinanzierung",
+      title: `Naechste Schritte zu Ihrem ${productLabel(caseType)}`,
       intro: "Vielen Dank. Ihre Anfrage wurde uebernommen und wir starten jetzt mit der Bearbeitung.",
       steps: [
         "Ihr Berater meldet sich zeitnah bei Ihnen.",
@@ -184,7 +216,7 @@ export async function POST(req: Request) {
     })
     const nextStepsMail = await sendEmail({
       to: customer.email,
-      subject: "Naechste Schritte zur Baufinanzierung",
+      subject: `Naechste Schritte zum ${productLabel(caseType)}`,
       html: nextStepsHtml,
     })
 
@@ -217,7 +249,7 @@ export async function POST(req: Request) {
       passwordInviteSent: customer.passwordInviteSent,
       nextStepsMailSent: !!nextStepsMail.ok,
       advisorMailSent: !!advisorMail.ok,
-      message: "Lead angelegt, Fall erstellt und Einladung versendet.",
+      message: `Lead angelegt, ${productLabel(caseType)}-Fall erstellt und Einladung versendet.`,
     })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
