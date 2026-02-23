@@ -16,6 +16,11 @@ function normalizeSendTo(value: string | null) {
   return /^AW-\d+\/[A-Za-z0-9_-]+$/.test(candidate) ? candidate : null
 }
 
+function normalizeTrackingRef(value: string | null) {
+  const candidate = String(value ?? "").trim()
+  return candidate || null
+}
+
 function fallbackSendTo(source: string | null) {
   if (source === "privatkredit") return GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO
   if (source === "baufi") return GOOGLE_ADS_BAUFINANZIERUNG_LEAD_SEND_TO
@@ -32,9 +37,10 @@ export default function GoogleAdsDankeConversion() {
     const sendTo = normalizeSendTo(searchParams.get("conversion")) ?? fallbackSendTo(source)
     if (!sendTo) return
 
-    const leadRef =
+    const trackingRef =
+      normalizeTrackingRef(searchParams.get("convref")) ||
       searchParams.get("externalLeadId") || searchParams.get("leadId") || searchParams.get("lead") || "no-ref"
-    const onceKey = `${STORAGE_PREFIX}:${source || "unknown"}:${sendTo}:${leadRef}`
+    const onceKey = `${STORAGE_PREFIX}:${source || "unknown"}:${sendTo}:${trackingRef}`
     if (window.sessionStorage.getItem(onceKey) === "1") return
 
     const tracked = trackGoogleAdsConversion(sendTo)
@@ -45,4 +51,3 @@ export default function GoogleAdsDankeConversion() {
 
   return null
 }
-

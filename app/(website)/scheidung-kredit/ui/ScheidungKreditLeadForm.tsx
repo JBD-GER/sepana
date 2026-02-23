@@ -276,6 +276,7 @@ export default function ScheidungKreditLeadForm() {
         source: isPrivat ? "scheidung-kredit-privat" : "scheidung-kredit-immobilie",
         conversion: isPrivat ? GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO : GOOGLE_ADS_BAUFINANZIERUNG_LEAD_SEND_TO,
       })
+      params.set("convref", `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`)
       if (json?.leadId) params.set("leadId", String(json.leadId))
       if (json?.externalLeadId) params.set("externalLeadId", String(json.externalLeadId))
       if (json?.existingAccount) params.set("existing", "1")
