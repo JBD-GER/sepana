@@ -58,6 +58,7 @@ function resolveDisplayName(user: any) {
 function toRoleLabel(role: string | null | undefined) {
   if (role === "advisor") return "Berater"
   if (role === "admin") return "Admin"
+  if (role === "tipgeber") return "Tippgeber"
   return "Kunde"
 }
 

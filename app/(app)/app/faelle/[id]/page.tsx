@@ -11,6 +11,7 @@ import LiveCasePanel from "@/components/live/LiveCasePanel"
 import CaseAppointmentPanel from "@/components/appointments/CaseAppointmentPanel"
 import AdvisorCard from "@/components/case/AdvisorCard"
 import ClearSignatureHash from "@/components/case/ClearSignatureHash"
+import RecommendedByCard from "@/components/case/RecommendedByCard"
 
 type Resp = {
   case: {
@@ -85,6 +86,11 @@ type Resp = {
     photo_path: string | null
     phone: string | null
     is_active: boolean | null
+  } | null
+  recommended_by?: {
+    referral_id: string
+    company_name: string
+    logo_path: string | null
   } | null
   viewer_role: string | null
 }
@@ -237,6 +243,8 @@ export default async function CaseDetailPage({
           avatarUrl={advisorAvatar}
         />
       ) : null}
+
+      <RecommendedByCard recommendedBy={data.recommended_by} />
 
       <LiveCasePanel
         caseId={c.id}

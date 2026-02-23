@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-type Role = 'customer' | 'advisor' | 'admin'
+type Role = 'customer' | 'advisor' | 'admin' | 'tipgeber'
 
 function hasPrefixSegment(pathname: string, base: string) {
   return pathname === base || pathname.startsWith(base + '/')
@@ -11,12 +11,16 @@ function isProtectedPath(pathname: string) {
   return (
     hasPrefixSegment(pathname, '/app') ||
     hasPrefixSegment(pathname, '/advisor') ||
-    hasPrefixSegment(pathname, '/admin')
+    hasPrefixSegment(pathname, '/admin') ||
+    hasPrefixSegment(pathname, '/tippgeber')
   )
 }
 
 function roleHome(r: Role) {
-  return r === 'admin' ? '/admin' : r === 'advisor' ? '/advisor' : '/app'
+  if (r === 'admin') return '/admin'
+  if (r === 'advisor') return '/advisor'
+  if (r === 'tipgeber') return '/tippgeber'
+  return '/app'
 }
 
 function isAllowedNext(r: Role, nextPath: string) {
@@ -25,6 +29,7 @@ function isAllowedNext(r: Role, nextPath: string) {
 
   if (hasPrefixSegment(nextPath, '/admin')) return r === 'admin'
   if (hasPrefixSegment(nextPath, '/advisor')) return r === 'advisor' || r === 'admin'
+  if (hasPrefixSegment(nextPath, '/tippgeber')) return r === 'tipgeber' || r === 'admin'
   if (hasPrefixSegment(nextPath, '/app')) return r === 'customer'
   return true
 }
@@ -87,12 +92,19 @@ export async function proxy(req: NextRequest) {
 
     if (hasPrefixSegment(pathname, '/advisor') && !(r === 'advisor' || r === 'admin')) {
       const url = req.nextUrl.clone()
-      url.pathname = '/app'
+      url.pathname = roleHome(r)
       url.search = ''
       return NextResponse.redirect(url)
     }
 
-    if (hasPrefixSegment(pathname, '/app') && (r === 'admin' || r === 'advisor')) {
+    if (hasPrefixSegment(pathname, '/tippgeber') && !(r === 'tipgeber' || r === 'admin')) {
+      const url = req.nextUrl.clone()
+      url.pathname = roleHome(r)
+      url.search = ''
+      return NextResponse.redirect(url)
+    }
+
+    if (hasPrefixSegment(pathname, '/app') && (r === 'admin' || r === 'advisor' || r === 'tipgeber')) {
       const url = req.nextUrl.clone()
       url.pathname = roleHome(r)
       url.search = ''

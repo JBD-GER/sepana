@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
+import { applyReferralBankOutcomeAndCommission } from "@/lib/tippgeber/service"
 
 export const runtime = "nodejs"
 
@@ -227,6 +228,15 @@ export async function POST(req: Request) {
           })
           await sendEmail({ to: meta.customer_email, subject, html })
         }
+      }
+
+      if (patch.bank_status === "approved" || patch.bank_status === "declined") {
+        await applyReferralBankOutcomeAndCommission({
+          caseId: offer.case_id,
+          offerId,
+          outcome: patch.bank_status === "approved" ? "approved" : "declined",
+          sourceActorRole: "admin",
+        }).catch(() => null)
       }
     }
 

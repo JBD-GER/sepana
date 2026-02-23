@@ -9,6 +9,7 @@ import DocumentPanel from "@/components/case/DocumentPanel"
 import SignaturePanel from "@/components/case/SignaturePanel"
 import LiveCasePanel from "@/components/live/LiveCasePanel"
 import ClearSignatureHash from "@/components/case/ClearSignatureHash"
+import RecommendedByCard from "@/components/case/RecommendedByCard"
 
 type Resp = {
   case: {
@@ -83,6 +84,11 @@ type Resp = {
     photo_path: string | null
     phone: string | null
     is_active: boolean | null
+  } | null
+  recommended_by?: {
+    referral_id: string
+    company_name: string
+    logo_path: string | null
   } | null
   viewer_role: string | null
 }
@@ -177,6 +183,8 @@ export default async function AdminCaseDetailPage({ params }: { params: Promise<
           </div>
         </div>
       </div>
+
+      <RecommendedByCard recommendedBy={data.recommended_by} />
 
       <LiveCasePanel caseId={c.id} caseRef={c.case_ref ?? null} defaultCollapsed />
 

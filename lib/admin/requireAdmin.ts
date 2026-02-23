@@ -13,6 +13,7 @@ export async function requireAdmin() {
 
   if (role !== "admin") {
     if (role === "advisor") redirect("/advisor")
+    if (role === "tipgeber") redirect("/tippgeber")
     redirect("/app")
   }
 

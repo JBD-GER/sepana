@@ -10,6 +10,7 @@ import DocumentPanel from "@/components/case/DocumentPanel"
 import SignaturePanel from "@/components/case/SignaturePanel"
 import LiveCasePanel from "@/components/live/LiveCasePanel"
 import ClearSignatureHash from "@/components/case/ClearSignatureHash"
+import RecommendedByCard from "@/components/case/RecommendedByCard"
 import AdvisorCaseRefEditor from "./ui/AdvisorCaseRefEditor"
 import AdvisorPrivateNoteEditor from "./ui/AdvisorPrivateNoteEditor"
 import AdvisorCaseStatusSelect from "../ui/AdvisorCaseStatusSelect"
@@ -90,6 +91,11 @@ type Resp = {
     photo_path: string | null
     phone: string | null
     is_active: boolean | null
+  } | null
+  recommended_by?: {
+    referral_id: string
+    company_name: string
+    logo_path: string | null
   } | null
   viewer_role: string | null
 }
@@ -217,6 +223,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           <AdvisorCaseRefEditor caseId={c.id} initialValue={c.advisor_case_ref ?? null} variant="inline" />
         </div>
       </div>
+
+      <RecommendedByCard recommendedBy={data.recommended_by} />
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { logCaseEvent, buildEmailHtml, sendEmail, getCaseMeta } from "@/lib/notifications/notify"
+import { applyReferralBankOutcomeAndCommission } from "@/lib/tippgeber/service"
 
 export const runtime = "nodejs"
 
@@ -155,6 +156,15 @@ export async function POST(req: Request) {
         })
         await sendEmail({ to: caseMeta.customer_email, subject, html })
       }
+    }
+
+    if (bankStatus === "approved" || bankStatus === "declined") {
+      await applyReferralBankOutcomeAndCommission({
+        caseId: offer.case_id,
+        offerId,
+        outcome: bankStatus === "approved" ? "approved" : "declined",
+        sourceActorRole: role ?? "advisor",
+      }).catch(() => null)
     }
 
     return NextResponse.json({ ok: true })

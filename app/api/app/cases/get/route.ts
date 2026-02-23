@@ -4,6 +4,7 @@ export const runtime = "nodejs"
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
+import { getTippgeberBrandForCase } from "@/lib/tippgeber/service"
 
 type ProviderMini = {
   id: string
@@ -81,6 +82,7 @@ export async function GET(req: Request) {
     { data: notes },
     { data: additional },
     { data: children },
+    tippgeberReferrer,
   ] =
     await Promise.all([
       readClient.from("case_baufi_details").select("*").eq("case_id", id).maybeSingle(),
@@ -122,6 +124,7 @@ export async function GET(req: Request) {
         .limit(200),
       readClient.from("case_additional_details").select("*").eq("case_id", id).maybeSingle(),
       readClient.from("case_children").select("*").eq("case_id", id).order("created_at", { ascending: true }),
+      getTippgeberBrandForCase(id),
     ])
 
   // ✅ Provider Infos für Offers nachladen (optional, wenn Tabelle existiert)
@@ -237,6 +240,7 @@ export async function GET(req: Request) {
     document_requests: docRequests ?? [],
     chat: notes ?? [],
     advisor,
+    recommended_by: tippgeberReferrer ?? null,
     viewer_role: role ?? null,
   })
 }

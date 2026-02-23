@@ -27,6 +27,14 @@ function isEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
 }
 
+function roleHome(role: string | null | undefined) {
+  const normalized = String(role ?? "").trim().toLowerCase()
+  if (normalized === "admin") return "/admin"
+  if (normalized === "advisor") return "/advisor"
+  if (normalized === "tipgeber") return "/tippgeber"
+  return "/app"
+}
+
 function InvitationOrResetPageContent() {
   const supabase = useMemo(
     () =>
@@ -200,9 +208,22 @@ function InvitationOrResetPageContent() {
         return
       }
 
+      let nextPath = "/app"
+      try {
+        const userId = sessionData.session.user.id
+        const { data: profileAfter } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("user_id", userId)
+          .maybeSingle()
+        nextPath = roleHome((profileAfter as { role?: string | null } | null)?.role ?? null)
+      } catch {
+        nextPath = "/app"
+      }
+
       setMsg({ type: "ok", text: "Passwort gesetzt. Sie werden weitergeleitet..." })
       router.refresh()
-      setTimeout(() => router.replace("/app"), 650)
+      setTimeout(() => router.replace(nextPath), 650)
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : ""
       setMsg({ type: "err", text: normalizeError(message) })
