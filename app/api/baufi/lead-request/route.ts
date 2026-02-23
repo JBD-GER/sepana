@@ -98,6 +98,7 @@ function parseAdminRecipients() {
     process.env.BAUFI_LEAD_NOTIFY_TO,
     process.env.PRIVATKREDIT_NOTIFY_TO,
     process.env.ADMIN_NOTIFY_TO,
+    process.env.LIVE_QUEUE_ALERT_TO,
     process.env.INVITE_ACCEPTED_NOTIFY_TO,
   ]
     .map((value) => String(value ?? "").trim())
