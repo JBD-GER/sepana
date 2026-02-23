@@ -14,6 +14,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const publicRoutes = [
     "/",
     "/scheidung-kredit",
+    "/tippgeber-baufinanzierung",
     "/baufinanzierung",
     "/baufinanzierung/anfrage",
     "/privatkredit",

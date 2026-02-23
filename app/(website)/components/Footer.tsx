@@ -28,6 +28,9 @@ export default function Footer() {
             <Link className="text-slate-600 transition hover:text-slate-900" href="/status">
               Systemstatus
             </Link>
+            <Link className="text-slate-600 transition hover:text-slate-900" href="/tippgeber-baufinanzierung">
+              Tippgeber Baufinanzierung
+            </Link>
             <Link
               className="inline-flex items-center gap-2 text-emerald-700 transition hover:text-emerald-800"
               href="/privatkredit"
