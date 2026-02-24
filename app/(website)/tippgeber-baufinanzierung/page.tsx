@@ -163,9 +163,9 @@ export default function TippgeberBaufinanzierungPage() {
               </div>
               <div className="rounded-2xl border border-emerald-200/30 bg-emerald-300/10 p-4">
                 <div className="text-xs uppercase tracking-[0.08em] text-emerald-100">Bankstatus angenommen</div>
-                <div className="mt-1 text-lg font-semibold text-white">0,2 % + 100 EUR zzgl. MwSt.</div>
+                <div className="mt-1 text-lg font-semibold text-white">30 % der SEPANA-Provision zzgl. MwSt.</div>
                 <div className="mt-1 text-xs text-slate-200/85">
-                  Berechnung im System, Freigabe und Auszahlung über den Admin-Prozess.
+                  Basis ist die intern erfasste Provision nach Bankannahme. Freigabe und Auszahlung über den Admin-Prozess.
                 </div>
               </div>
             </div>

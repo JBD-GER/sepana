@@ -27,6 +27,14 @@ function pickAdvisorName(meta: Awaited<ReturnType<typeof getCaseMeta>>) {
   return email.split("@")[0] || "Ihr Berater"
 }
 
+function parseOptionalMoneyInput(value: unknown) {
+  if (value == null || value === "") return { ok: true as const, value: null as number | null }
+  const num = Number(value)
+  if (!Number.isFinite(num)) return { ok: false as const, error: "invalid_commission_amount" as const }
+  if (num < 0) return { ok: false as const, error: "invalid_commission_amount" as const }
+  return { ok: true as const, value: Math.round((num + Number.EPSILON) * 100) / 100 }
+}
+
 async function syncCaseOfferStatus(supabase: any, caseId: string) {
   const { data: offers } = await supabase.from("case_offers").select("status").eq("case_id", caseId)
   const statuses = (offers ?? []).map((row: any) => String(row?.status ?? "").toLowerCase())
@@ -48,10 +56,16 @@ export async function POST(req: Request) {
   const status = body?.status ? String(body.status).trim().toLowerCase() : null
   const bankStatus = body?.bankStatus ? String(body.bankStatus).trim().toLowerCase() : null
   const bankFeedbackNoteRaw = body?.bankFeedbackNote ?? body?.bank_feedback_note
+  const bankCommissionAmountRaw = body?.bankCommissionAmount ?? body?.bank_commission_amount
   const bankFeedbackNote =
     typeof bankFeedbackNoteRaw === "string" && bankFeedbackNoteRaw.trim()
       ? bankFeedbackNoteRaw.trim()
       : null
+  const hasBankCommissionAmount = bankCommissionAmountRaw !== undefined
+  const parsedBankCommissionAmount = parseOptionalMoneyInput(bankCommissionAmountRaw)
+  if (!parsedBankCommissionAmount.ok) {
+    return NextResponse.json({ ok: false, error: parsedBankCommissionAmount.error }, { status: 400 })
+  }
   if (!offerId || (!status && !bankStatus)) {
     return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 })
   }
@@ -67,7 +81,7 @@ export async function POST(req: Request) {
 
   const { data: offer } = await supabase
     .from("case_offers")
-    .select("id,case_id,status,bank_status")
+    .select("id,case_id,status,bank_status,bank_commission_amount")
     .eq("id", offerId)
     .maybeSingle()
   if (!offer) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 })
@@ -83,9 +97,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "not_allowed" }, { status: 403 })
   }
 
+  const offerBankCommissionAmount = (offer as { bank_commission_amount?: number | null }).bank_commission_amount ?? null
+  const effectiveBankCommissionAmount =
+    (hasBankCommissionAmount ? parsedBankCommissionAmount.value : offerBankCommissionAmount) ?? null
+
   if (bankStatus) {
     if (offer.status !== "accepted") {
       return NextResponse.json({ ok: false, error: "bank_status_not_allowed" }, { status: 409 })
+    }
+    if (bankStatus === "approved" && (effectiveBankCommissionAmount == null || Number(effectiveBankCommissionAmount) <= 0)) {
+      return NextResponse.json({ ok: false, error: "bank_commission_amount_required" }, { status: 400 })
     }
     const bankConfirmedAt = bankStatus === "approved" ? new Date().toISOString() : null
     const { error } = await supabase
@@ -94,6 +115,7 @@ export async function POST(req: Request) {
         bank_status: bankStatus,
         bank_confirmed_at: bankConfirmedAt,
         bank_feedback_note: bankStatus === "questions" ? bankFeedbackNote : null,
+        ...(hasBankCommissionAmount ? { bank_commission_amount: parsedBankCommissionAmount.value } : {}),
       })
       .eq("id", offerId)
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
@@ -163,6 +185,7 @@ export async function POST(req: Request) {
         caseId: offer.case_id,
         offerId,
         outcome: bankStatus === "approved" ? "approved" : "declined",
+        approvedCommissionBaseAmount: bankStatus === "approved" ? Number(effectiveBankCommissionAmount ?? 0) : undefined,
         sourceActorRole: role ?? "advisor",
       }).catch(() => null)
     }

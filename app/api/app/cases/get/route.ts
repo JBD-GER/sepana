@@ -94,9 +94,13 @@ export async function GET(req: Request) {
         .order("created_at", { ascending: false })
         .limit(5),
       (() => {
+        const offerSelectBase =
+          "id,case_id,provider_id,product_type,status,bank_status,bank_feedback_note,loan_amount,rate_monthly,interest_nominal,apr_effective,term_months,zinsbindung_years,special_repayment,created_at"
+        const offerSelect =
+          role === "customer" ? offerSelectBase : `${offerSelectBase},bank_commission_amount`
         let query = readClient
           .from("case_offers")
-          .select("id,case_id,provider_id,product_type,status,bank_status,bank_feedback_note,loan_amount,rate_monthly,interest_nominal,apr_effective,term_months,zinsbindung_years,special_repayment,created_at")
+          .select(offerSelect)
           .eq("case_id", id)
           .order("created_at", { ascending: false })
           .limit(50)

@@ -57,6 +57,7 @@ type OfferRow = {
   bank_status: string | null
   bank_feedback_note: string | null
   bank_confirmed_at: string | null
+  bank_commission_amount: number | null
   loan_amount: number | null
   rate_monthly: number | null
   apr_effective: number | null
@@ -214,7 +215,7 @@ export async function GET(req: Request) {
     caseIds.length
       ? supabase
           .from("case_offers")
-          .select("id,case_id,provider_id,status,bank_status,bank_feedback_note,bank_confirmed_at,loan_amount,rate_monthly,apr_effective,interest_nominal,zinsbindung_years,special_repayment,created_at")
+          .select("id,case_id,provider_id,status,bank_status,bank_feedback_note,bank_confirmed_at,bank_commission_amount,loan_amount,rate_monthly,apr_effective,interest_nominal,zinsbindung_years,special_repayment,created_at")
           .in("case_id", caseIds)
       : Promise.resolve({ data: [] as OfferRow[] }),
     caseIds.length
@@ -356,6 +357,8 @@ export async function GET(req: Request) {
       is_bank_confirmed: !!approvedOffer,
       confirmed_at: approvedOffer ? approvedOffer.bank_confirmed_at ?? approvedOffer.created_at : null,
       confirmed_loan_amount: approvedOffer?.loan_amount ?? null,
+      confirmed_bank_commission_amount:
+        role === "customer" ? null : (approvedOffer?.bank_commission_amount ?? null),
     }
   })
 

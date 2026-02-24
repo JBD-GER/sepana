@@ -120,16 +120,40 @@ function nextExternalLeadId() {
   return Date.now() * 100 + Math.floor(Math.random() * 100)
 }
 
+function isMissingLeadCaseTypeColumnError(error: unknown) {
+  const err = error as { code?: string; message?: string } | null
+  if (!err) return false
+  if (String(err.code ?? "") === "42703") return true
+  const msg = String(err.message ?? "").toLowerCase()
+  return msg.includes("lead_case_type") && (msg.includes("column") || msg.includes("schema cache"))
+}
+
 async function insertLeadWithRetry(admin: ReturnType<typeof supabaseAdmin>, rowBase: Record<string, unknown>) {
   for (let attempt = 0; attempt < 4; attempt++) {
     const externalLeadId = nextExternalLeadId()
+    const payload = { ...rowBase, external_lead_id: externalLeadId }
     const { data, error } = await admin
       .from("webhook_leads")
-      .insert({ ...rowBase, external_lead_id: externalLeadId })
+      .insert(payload)
       .select("id,external_lead_id")
       .single()
 
     if (!error) return { data, error: null as null }
+
+    if (isMissingLeadCaseTypeColumnError(error)) {
+      const fallbackPayload = { ...payload }
+      delete (fallbackPayload as { lead_case_type?: unknown }).lead_case_type
+      const fallback = await admin
+        .from("webhook_leads")
+        .insert(fallbackPayload)
+        .select("id,external_lead_id")
+        .single()
+      if (!fallback.error) return { data: fallback.data, error: null as null }
+      if (String((fallback.error as { code?: string } | null)?.code ?? "") !== "23505") {
+        return { data: null, error: fallback.error }
+      }
+      continue
+    }
 
     const code = String((error as { code?: string } | null)?.code ?? "")
     if (code !== "23505") return { data: null, error }
@@ -461,15 +485,17 @@ export async function POST(req: Request) {
             })
             linkedCaseId = created.caseId
 
-            await admin
-              .from("webhook_leads")
-              .update({
-                linked_case_id: created.caseId,
-                assigned_advisor_id: stickyAdvisorId,
-                assigned_at: stickyAdvisorId ? now : null,
-                lead_case_type: "baufi",
-              })
-              .eq("id", String(leadId))
+            const updatePayload: Record<string, unknown> = {
+              linked_case_id: created.caseId,
+              assigned_advisor_id: stickyAdvisorId,
+              assigned_at: stickyAdvisorId ? now : null,
+              lead_case_type: "baufi",
+            }
+            const updateQuery = await admin.from("webhook_leads").update(updatePayload).eq("id", String(leadId))
+            if (updateQuery.error && isMissingLeadCaseTypeColumnError(updateQuery.error) && "lead_case_type" in updatePayload) {
+              delete updatePayload.lead_case_type
+              await admin.from("webhook_leads").update(updatePayload).eq("id", String(leadId))
+            }
           }
         }
       } catch (existingAccountError) {

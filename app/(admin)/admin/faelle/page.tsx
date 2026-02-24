@@ -37,7 +37,7 @@ export default async function AdminCasesPage({
     admin.from("profiles").select("user_id").eq("role", "advisor"),
     admin
       .from("case_offers")
-      .select("id,case_id,provider_id,product_type,status,bank_status,bank_feedback_note,loan_amount,notes_for_customer,created_at")
+      .select("id,case_id,provider_id,product_type,status,bank_status,bank_feedback_note,bank_commission_amount,loan_amount,notes_for_customer,created_at")
       .order("created_at", { ascending: false })
       .limit(400),
     admin

@@ -9,6 +9,7 @@ type Offer = {
   status: "draft" | "sent" | "accepted" | "rejected"
   bank_status?: "submitted" | "documents" | "approved" | "declined" | "questions" | null
   bank_feedback_note?: string | null
+  bank_commission_amount?: number | null
   loan_amount: number | null
   notes_for_customer: string | null
   created_at: string
@@ -25,6 +26,20 @@ function isBankDecision(value: string): value is (typeof BANK_DECISIONS)[number]
   return BANK_DECISIONS.includes(value as (typeof BANK_DECISIONS)[number])
 }
 
+function formatMoneyInput(value: number | null | undefined) {
+  if (value == null || !Number.isFinite(Number(value))) return ""
+  return String(Number(value)).replace(".", ",")
+}
+
+function parseMoneyInput(value: string) {
+  const raw = String(value ?? "").trim()
+  if (!raw) return null
+  const normalized = raw.replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, "")
+  const num = Number(normalized)
+  if (!Number.isFinite(num)) return null
+  return Math.round((num + Number.EPSILON) * 100) / 100
+}
+
 export default function UpdateOfferStatus({
   offers,
 }: {
@@ -38,6 +53,9 @@ export default function UpdateOfferStatus({
   const [questionsOffer, setQuestionsOffer] = useState<Offer | null>(null)
   const [questionsNote, setQuestionsNote] = useState("")
   const [questionsError, setQuestionsError] = useState<string | null>(null)
+  const [approvedOffer, setApprovedOffer] = useState<Offer | null>(null)
+  const [approvedCommissionInput, setApprovedCommissionInput] = useState("")
+  const [approvedError, setApprovedError] = useState<string | null>(null)
 
   async function update(offerId: string, patch: Partial<Offer>) {
     setMsg(null)
@@ -68,6 +86,12 @@ export default function UpdateOfferStatus({
       setQuestionsError(null)
       return
     }
+    if (value === "approved") {
+      setApprovedOffer(offer)
+      setApprovedCommissionInput(formatMoneyInput(offer.bank_commission_amount ?? null))
+      setApprovedError(null)
+      return
+    }
     await update(offer.id, { bank_status: value, bank_feedback_note: null })
   }
 
@@ -86,6 +110,23 @@ export default function UpdateOfferStatus({
     }
     await update(questionsOffer.id, { bank_status: "questions", bank_feedback_note: note })
     closeQuestionsModal()
+  }
+
+  function closeApprovedModal() {
+    setApprovedOffer(null)
+    setApprovedCommissionInput("")
+    setApprovedError(null)
+  }
+
+  async function submitApprovedModal() {
+    if (!approvedOffer) return
+    const amount = parseMoneyInput(approvedCommissionInput)
+    if (amount == null || amount <= 0) {
+      setApprovedError("Bitte eine gueltige Provision groesser 0 eingeben.")
+      return
+    }
+    await update(approvedOffer.id, { bank_status: "approved", bank_feedback_note: null, bank_commission_amount: amount })
+    closeApprovedModal()
   }
 
   return (
@@ -125,6 +166,14 @@ export default function UpdateOfferStatus({
                             Rueckfragen: {o.bank_feedback_note}
                           </div>
                         ) : null}
+                        {String(o.bank_status || "").toLowerCase() === "approved" ? (
+                          <div className="mt-1 rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-[11px] text-violet-800">
+                            Interne Provision (nur Admin/Berater):{" "}
+                            {o.bank_commission_amount == null
+                              ? "-"
+                              : new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(o.bank_commission_amount))}
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>
@@ -156,7 +205,7 @@ export default function UpdateOfferStatus({
                     defaultValue={o.loan_amount ?? ""}
                     onBlur={(e) => {
                       const v = e.target.value.trim()
-                      update(o.id, { loan_amount: v ? Number(v) : null } as any)
+                      update(o.id, { loan_amount: v ? Number(v) : null })
                     }}
                     placeholder="Loan Amount"
                     className="rounded-lg border border-slate-200/70 bg-white px-2 py-1 text-xs"
@@ -185,6 +234,18 @@ export default function UpdateOfferStatus({
                         <option value="declined">Abgelehnt</option>
                       </select>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setApprovedOffer(o)
+                        setApprovedCommissionInput(formatMoneyInput(o.bank_commission_amount ?? null))
+                        setApprovedError(null)
+                      }}
+                      disabled={loading}
+                      className="rounded-lg border border-violet-200 bg-violet-50 px-2 py-1 text-[11px] font-semibold text-violet-700"
+                    >
+                      {o.bank_commission_amount != null ? "Provision aendern" : "Provision erfassen"}
+                    </button>
                   </div>
                 ) : null}
               </div>
@@ -233,6 +294,49 @@ export default function UpdateOfferStatus({
               className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
             >
               Rueckfragen speichern
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
+    {approvedOffer ? (
+      <div className="fixed inset-0 z-[131] flex items-center justify-center bg-slate-950/60 px-4">
+        <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
+          <div className="text-sm font-semibold text-slate-900">Interne Provision erfassen</div>
+          <p className="mt-1 text-xs text-slate-600">
+            Tatsaechliche Bank-/SEPANA-Provision eintragen. Tippgeber-Anteil wird daraus intern mit 30 % berechnet.
+          </p>
+          <p className="mt-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
+            Nur intern sichtbar (Admin/Berater), nicht fuer Kunden.
+          </p>
+          <label className="mt-3 block">
+            <div className="mb-1 text-xs font-medium text-slate-700">Provision (EUR) *</div>
+            <input
+              value={approvedCommissionInput}
+              onChange={(e) => {
+                setApprovedCommissionInput(e.target.value)
+                if (approvedError) setApprovedError(null)
+              }}
+              inputMode="decimal"
+              placeholder="z. B. 4500"
+              className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+            />
+          </label>
+          {approvedError ? <div className="mt-2 text-xs text-rose-600">{approvedError}</div> : null}
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeApprovedModal}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              onClick={submitApprovedModal}
+              className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
+            >
+              Angenommen + Provision speichern
             </button>
           </div>
         </div>

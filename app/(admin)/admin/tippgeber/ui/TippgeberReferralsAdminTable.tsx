@@ -34,6 +34,8 @@ type ReferralRow = {
   linked_case_status: string | null
   bank_outcome: string | null
   commission_status: string
+  commission_base_amount: number | null
+  commission_percent_rate: number | null
   commission_gross_amount: number | null
   commission_net_amount: number | null
   payout_credit_note_path: string | null
@@ -345,6 +347,14 @@ export default function TippgeberReferralsAdminTable({
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-900">{eur(r.commission_gross_amount)}</div>
                     <div className="text-xs text-slate-600">Netto: {eur(r.commission_net_amount)}</div>
+                    {String(r.bank_outcome ?? "").toLowerCase() === "approved" ? (
+                      <>
+                        <div className="text-xs text-slate-600">Basis (intern): {eur(r.commission_base_amount)}</div>
+                        <div className="text-xs text-slate-600">
+                          Anteil: {Number((r.commission_percent_rate ?? 0) * 100).toLocaleString("de-DE", { maximumFractionDigits: 2 })} %
+                        </div>
+                      </>
+                    ) : null}
                     <div className="text-xs text-slate-600">
                       Provisionsstatus: {r.commission_status === "paid" ? "Bezahlt" : r.commission_status === "open" ? "Offen" : "Keine"}
                     </div>

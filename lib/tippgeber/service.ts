@@ -3,6 +3,7 @@ import { buildEmailHtml, getCaseMeta, sendEmail } from "@/lib/notifications/noti
 import {
   calculateTippgeberCommission,
   formatEuro,
+  toMoney,
   type TippgeberBankOutcome,
 } from "@/lib/tippgeber/commission"
 
@@ -188,46 +189,30 @@ async function resolveCommissionBaseAmount(opts: {
   admin: ReturnType<typeof supabaseAdmin>
   caseId: string
   offerId?: string | null
-  fallbackManualPurchasePrice?: number | null
 }) {
-  const { admin, caseId, offerId, fallbackManualPurchasePrice } = opts
+  const { admin, caseId, offerId } = opts
 
   if (offerId) {
     const { data: currentOffer } = await admin
       .from("case_offers")
-      .select("loan_amount")
+      .select("bank_commission_amount")
       .eq("id", offerId)
       .maybeSingle()
-    const currentAmount = Number((currentOffer as any)?.loan_amount ?? 0)
+    const currentAmount = Number((currentOffer as { bank_commission_amount?: number | null } | null)?.bank_commission_amount ?? 0)
     if (Number.isFinite(currentAmount) && currentAmount > 0) return currentAmount
   }
 
   const { data: acceptedOffer } = await admin
     .from("case_offers")
-    .select("loan_amount")
+    .select("bank_commission_amount")
     .eq("case_id", caseId)
-    .eq("status", "accepted")
+    .eq("bank_status", "approved")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle()
 
-  const acceptedAmount = Number((acceptedOffer as any)?.loan_amount ?? 0)
+  const acceptedAmount = Number((acceptedOffer as { bank_commission_amount?: number | null } | null)?.bank_commission_amount ?? 0)
   if (Number.isFinite(acceptedAmount) && acceptedAmount > 0) return acceptedAmount
-
-  const { data: details } = await admin
-    .from("case_baufi_details")
-    .select("loan_amount_requested,purchase_price")
-    .eq("case_id", caseId)
-    .maybeSingle()
-
-  const requested = Number((details as any)?.loan_amount_requested ?? 0)
-  if (Number.isFinite(requested) && requested > 0) return requested
-
-  const purchasePrice = Number((details as any)?.purchase_price ?? 0)
-  if (Number.isFinite(purchasePrice) && purchasePrice > 0) return purchasePrice
-
-  const manual = Number(fallbackManualPurchasePrice ?? 0)
-  if (Number.isFinite(manual) && manual > 0) return manual
 
   return 0
 }
@@ -315,6 +300,7 @@ export async function applyReferralBankOutcomeAndCommission(opts: {
   caseId: string
   offerId?: string | null
   outcome: TippgeberBankOutcome
+  approvedCommissionBaseAmount?: number | null
   sourceActorRole?: string | null
 }) {
   const admin = supabaseAdmin()
@@ -329,12 +315,22 @@ export async function applyReferralBankOutcomeAndCommission(opts: {
     return { ok: true as const, skipped: true as const, reason: "no_referral" as const }
   }
 
-  const baseAmount = await resolveCommissionBaseAmount({
-    admin,
-    caseId: opts.caseId,
-    offerId: opts.offerId ?? null,
-    fallbackManualPurchasePrice: referral.manual_purchase_price,
-  })
+  let baseAmount = 0
+  if (opts.outcome === "approved") {
+    const explicitBase = toMoney(opts.approvedCommissionBaseAmount ?? 0)
+    baseAmount =
+      explicitBase > 0
+        ? explicitBase
+        : await resolveCommissionBaseAmount({
+            admin,
+            caseId: opts.caseId,
+            offerId: opts.offerId ?? null,
+          })
+
+    if (!Number.isFinite(baseAmount) || baseAmount <= 0) {
+      return { ok: false as const, error: "approved_commission_base_missing" as const }
+    }
+  }
 
   const calc = calculateTippgeberCommission(opts.outcome, baseAmount)
   const nowIso = new Date().toISOString()

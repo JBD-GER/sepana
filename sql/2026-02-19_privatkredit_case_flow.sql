@@ -86,20 +86,59 @@ end $$;
 create index if not exists idx_case_offers_case_product_created
   on public.case_offers (case_id, product_type, created_at desc);
 
-insert into public.document_templates (case_type, title, required, sort_order, is_active)
-select
-  'konsum' as case_type,
-  t.title,
-  t.required,
-  t.sort_order,
-  t.is_active
-from public.document_templates t
-where t.case_type = 'baufi'
-  and not exists (
+do $$
+declare
+  has_template_key boolean;
+begin
+  select exists (
     select 1
-    from public.document_templates existing
-    where existing.case_type = 'konsum'
-      and existing.title = t.title
-  );
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'document_templates'
+      and column_name = 'template_key'
+  )
+  into has_template_key;
+
+  if has_template_key then
+    execute $sql$
+      insert into public.document_templates (template_key, case_type, title, required, sort_order, is_active)
+      select
+        case
+          when nullif(trim(coalesce(t.template_key, '')), '') is not null
+            then 'konsum_' || trim(t.template_key)
+          else 'konsum_' || md5(coalesce(t.title, '') || ':' || coalesce(t.sort_order::text, ''))
+        end as template_key,
+        'konsum' as case_type,
+        t.title,
+        t.required,
+        t.sort_order,
+        t.is_active
+      from public.document_templates t
+      where t.case_type = 'baufi'
+        and not exists (
+          select 1
+          from public.document_templates existing
+          where existing.case_type = 'konsum'
+            and existing.title = t.title
+        );
+    $sql$;
+  else
+    insert into public.document_templates (case_type, title, required, sort_order, is_active)
+    select
+      'konsum' as case_type,
+      t.title,
+      t.required,
+      t.sort_order,
+      t.is_active
+    from public.document_templates t
+    where t.case_type = 'baufi'
+      and not exists (
+        select 1
+        from public.document_templates existing
+        where existing.case_type = 'konsum'
+          and existing.title = t.title
+      );
+  end if;
+end $$;
 
 commit;

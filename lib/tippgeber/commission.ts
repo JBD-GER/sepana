@@ -1,5 +1,5 @@
 export const TIPPGEBER_DECLINED_FIXED_NET_EUR = 100
-export const TIPPGEBER_APPROVED_PERCENT_RATE = 0.002 // 0,2 %
+export const TIPPGEBER_APPROVED_PERCENT_RATE = 0.3 // 30 % der internen Provision
 export const TIPPGEBER_VAT_RATE = 0.19
 
 export type TippgeberBankOutcome = "approved" | "declined"
@@ -32,7 +32,7 @@ export function calculateTippgeberCommission(
 ): TippgeberCommissionBreakdown {
   const baseAmount = Math.max(0, toMoney(baseAmountInput ?? 0))
   const percentRate = outcome === "approved" ? TIPPGEBER_APPROVED_PERCENT_RATE : 0
-  const fixedNetAmount = TIPPGEBER_DECLINED_FIXED_NET_EUR
+  const fixedNetAmount = outcome === "declined" ? TIPPGEBER_DECLINED_FIXED_NET_EUR : 0
   const variableNet = outcome === "approved" ? round2(baseAmount * percentRate) : 0
   const netAmount = round2(fixedNetAmount + variableNet)
   const vatAmount = round2(netAmount * TIPPGEBER_VAT_RATE)
@@ -47,7 +47,7 @@ export function calculateTippgeberCommission(
     vatRate: TIPPGEBER_VAT_RATE,
     vatAmount,
     grossAmount,
-    reason: outcome === "approved" ? "bank_approved_0_2pct_plus_100" : "bank_declined_100",
+    reason: outcome === "approved" ? "bank_approved_30pct_of_internal_commission" : "bank_declined_100",
   }
 }
 

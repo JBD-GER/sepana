@@ -28,6 +28,7 @@ type CaseRow = {
   bestOffer: ComparisonMini | null
   confirmed_at: string | null
   confirmed_loan_amount: number | null
+  confirmed_bank_commission_amount?: number | null
 }
 
 type CaseListResp = {
@@ -37,7 +38,7 @@ type CaseListResp = {
 
 type ProductTab = "baufi" | "konsum"
 
-const COMMISSION_RATE = 0.0025
+const COMMISSION_SHARE_RATE = 0.3
 
 function formatEUR(value: number | null | undefined) {
   if (value == null || Number.isNaN(Number(value))) return "-"
@@ -81,8 +82,14 @@ export default async function AdvisorConfirmedCasesPage({
     (sum, row) => sum + (isCurrentMonth(row.confirmed_at) ? Number(row.confirmed_loan_amount ?? 0) : 0),
     0
   )
-  const totalCommission = totalVolume * COMMISSION_RATE
-  const monthCommission = monthVolume * COMMISSION_RATE
+  const totalCommissionBase = cases.reduce((sum, row) => sum + Number(row.confirmed_bank_commission_amount ?? 0), 0)
+  const monthCommissionBase = cases.reduce(
+    (sum, row) => sum + (isCurrentMonth(row.confirmed_at) ? Number(row.confirmed_bank_commission_amount ?? 0) : 0),
+    0
+  )
+  const totalCommission = totalCommissionBase * COMMISSION_SHARE_RATE
+  const monthCommission = monthCommissionBase * COMMISSION_SHARE_RATE
+  const missingCommissionCount = cases.filter((row) => Number(row.confirmed_bank_commission_amount ?? 0) <= 0).length
 
   return (
     <div className="space-y-6">
@@ -91,9 +98,14 @@ export default async function AdvisorConfirmedCasesPage({
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">Bestaetigte Faelle</h1>
             <p className="mt-1 text-sm text-slate-600">
-              Bereich: {productLabel}. Diese Faelle wurden von der Bank bestaetigt. Provisionsmodell v0.1: 0,25 % vom
-              bestaetigten Volumen.
+              Bereich: {productLabel}. Diese Faelle wurden von der Bank bestaetigt. Provisionsmodell: 30 % der intern
+              erfassten Provision (nicht vom bestaetigten Volumen).
             </p>
+            {missingCommissionCount > 0 ? (
+              <p className="mt-2 text-xs text-amber-700">
+                Hinweis: {missingCommissionCount} bestaetigte(r) Fall/Faelle ohne erfasste interne Provision (werden aktuell mit 0 EUR gerechnet).
+              </p>
+            ) : null}
           </div>
           <Link
             href={`/advisor/faelle?product=${product}`}
@@ -139,7 +151,7 @@ export default async function AdvisorConfirmedCasesPage({
           <div className="text-lg font-semibold text-slate-900">{formatEUR(monthVolume)}</div>
         </div>
         <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
-          <div className="text-xs text-slate-500">Provision (aktueller Monat)</div>
+          <div className="text-xs text-slate-500">Anteil 30 % (aktueller Monat)</div>
           <div className="text-lg font-semibold text-slate-900">{formatEUR(monthCommission)}</div>
         </div>
         <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
@@ -147,7 +159,7 @@ export default async function AdvisorConfirmedCasesPage({
           <div className="text-lg font-semibold text-slate-900">{formatEUR(totalVolume)}</div>
         </div>
         <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
-          <div className="text-xs text-slate-500">Provision (gesamt)</div>
+          <div className="text-xs text-slate-500">Anteil 30 % (gesamt)</div>
           <div className="text-lg font-semibold text-slate-900">{formatEUR(totalCommission)}</div>
         </div>
       </div>
@@ -156,7 +168,8 @@ export default async function AdvisorConfirmedCasesPage({
         {cases.map((row) => {
           const offer = row.bestOffer ?? row.comparison
           const providerName = offer?.provider_name || (offer?.provider_id ? `Bank ${offer.provider_id}` : "-")
-          const provision = Number(row.confirmed_loan_amount ?? 0) * COMMISSION_RATE
+          const commissionBase = Number(row.confirmed_bank_commission_amount ?? 0)
+          const provision = commissionBase > 0 ? commissionBase * COMMISSION_SHARE_RATE : null
           return (
             <Link
               key={row.id}
@@ -172,8 +185,9 @@ export default async function AdvisorConfirmedCasesPage({
                   <div className="text-sm font-semibold text-slate-900">{formatEUR(row.confirmed_loan_amount)}</div>
                 </div>
                 <div className="rounded-xl border border-slate-200/70 bg-slate-50 px-3 py-2">
-                  <div className="text-[11px] text-slate-600">Provision</div>
+                  <div className="text-[11px] text-slate-600">Anteil 30 %</div>
                   <div className="text-sm font-semibold text-slate-900">{formatEUR(provision)}</div>
+                  <div className="mt-0.5 text-[10px] text-slate-500">Basis: {formatEUR(commissionBase || null)}</div>
                 </div>
               </div>
             </Link>
@@ -191,14 +205,15 @@ export default async function AdvisorConfirmedCasesPage({
                 <th className="px-4 py-3 font-medium text-slate-700">Bestaetigt am</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Bank</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Volumen</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Provision</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Anteil 30 %</th>
               </tr>
             </thead>
             <tbody>
               {cases.map((row) => {
                 const offer = row.bestOffer ?? row.comparison
                 const providerName = offer?.provider_name || (offer?.provider_id ? `Bank ${offer.provider_id}` : "-")
-                const provision = Number(row.confirmed_loan_amount ?? 0) * COMMISSION_RATE
+                const commissionBase = Number(row.confirmed_bank_commission_amount ?? 0)
+                const provision = commissionBase > 0 ? commissionBase * COMMISSION_SHARE_RATE : null
                 return (
                   <tr key={row.id} className="border-b border-slate-200/60 last:border-0 hover:bg-slate-50/60">
                     <td className="px-4 py-3">
@@ -212,7 +227,10 @@ export default async function AdvisorConfirmedCasesPage({
                     <td className="px-4 py-3 text-slate-700">{formatDateTime(row.confirmed_at)}</td>
                     <td className="px-4 py-3 text-slate-700">{providerName}</td>
                     <td className="px-4 py-3 text-slate-700">{formatEUR(row.confirmed_loan_amount)}</td>
-                    <td className="px-4 py-3 text-slate-700">{formatEUR(provision)}</td>
+                    <td className="px-4 py-3 text-slate-700">
+                      <div>{formatEUR(provision)}</div>
+                      <div className="text-xs text-slate-500">Basis: {formatEUR(commissionBase || null)}</div>
+                    </td>
                   </tr>
                 )
               })}

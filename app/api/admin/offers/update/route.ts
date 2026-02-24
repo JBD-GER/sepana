@@ -29,6 +29,14 @@ function pickAdvisorName(meta: Awaited<ReturnType<typeof getCaseMeta>>) {
   return email.split("@")[0] || "Ihr Berater"
 }
 
+function parseOptionalMoneyInput(value: unknown) {
+  if (value == null || value === "") return { ok: true as const, value: null as number | null }
+  const num = Number(value)
+  if (!Number.isFinite(num)) return { ok: false as const, error: "Ungueltige Provisionshoehe" }
+  if (num < 0) return { ok: false as const, error: "Provisionshoehe darf nicht negativ sein" }
+  return { ok: true as const, value: Math.round((num + Number.EPSILON) * 100) / 100 }
+}
+
 async function syncCaseOfferStatus(admin: ReturnType<typeof supabaseAdmin>, caseId: string) {
   const { data: offers } = await admin.from("case_offers").select("status").eq("case_id", caseId)
   const statuses = (offers ?? []).map((row: any) => String(row?.status ?? "").toLowerCase())
@@ -52,10 +60,16 @@ export async function POST(req: Request) {
     const bankStatus =
       typeof body?.bank_status === "string" ? String(body.bank_status).trim().toLowerCase() : null
     const bankFeedbackNoteRaw = body?.bank_feedback_note ?? body?.bankFeedbackNote
+    const bankCommissionAmountRaw = body?.bank_commission_amount ?? body?.bankCommissionAmount
     const bankFeedbackNote =
       typeof bankFeedbackNoteRaw === "string" && bankFeedbackNoteRaw.trim()
         ? bankFeedbackNoteRaw.trim()
         : null
+    const hasBankCommissionAmount = bankCommissionAmountRaw !== undefined
+    const parsedBankCommissionAmount = parseOptionalMoneyInput(bankCommissionAmountRaw)
+    if (!parsedBankCommissionAmount.ok) {
+      return NextResponse.json({ ok: false, error: parsedBankCommissionAmount.error }, { status: 400 })
+    }
 
     if (status) {
       if (!ALLOWED_STATUSES.includes(status as any)) {
@@ -71,9 +85,14 @@ export async function POST(req: Request) {
       patch.bank_status = bankStatus
       patch.bank_confirmed_at = bankStatus === "approved" ? new Date().toISOString() : null
       patch.bank_feedback_note = bankStatus === "questions" ? bankFeedbackNote : null
+      if (hasBankCommissionAmount) patch.bank_commission_amount = parsedBankCommissionAmount.value
       if (bankStatus === "questions" && !bankFeedbackNote) {
         return NextResponse.json({ ok: false, error: "Rueckfragen-Text fehlt" }, { status: 400 })
       }
+    }
+
+    if (!bankStatus && hasBankCommissionAmount) {
+      patch.bank_commission_amount = parsedBankCommissionAmount.value
     }
 
     if (body?.loan_amount === null || typeof body?.loan_amount === "number") patch.loan_amount = body.loan_amount
@@ -84,14 +103,27 @@ export async function POST(req: Request) {
 
     const { data: offer } = await admin
       .from("case_offers")
-      .select("id,case_id,status,bank_status")
+      .select("id,case_id,status,bank_status,bank_commission_amount")
       .eq("id", offerId)
       .maybeSingle()
     if (!offer) return NextResponse.json({ ok: false, error: "Offer nicht gefunden" }, { status: 404 })
 
+    const offerBankCommissionAmount =
+      (offer as { bank_commission_amount?: number | null }).bank_commission_amount ?? null
+    const effectiveBankCommissionAmount =
+      (Object.prototype.hasOwnProperty.call(patch, "bank_commission_amount")
+        ? patch.bank_commission_amount
+        : offerBankCommissionAmount) ?? null
+
     const effectiveStatus = patch.status ?? offer.status
     if (patch.bank_status && effectiveStatus !== "accepted") {
       return NextResponse.json({ ok: false, error: "Bank-Status nur bei akzeptiertem Angebot" }, { status: 409 })
+    }
+    if (patch.bank_status === "approved" && (effectiveBankCommissionAmount == null || Number(effectiveBankCommissionAmount) <= 0)) {
+      return NextResponse.json(
+        { ok: false, error: "Bitte interne Provision (Bank-/SEPANA-Provision) fuer 'Angenommen' erfassen." },
+        { status: 400 }
+      )
     }
 
     if (patch.status === "accepted" && !offer.bank_status && !patch.bank_status) {
@@ -235,6 +267,8 @@ export async function POST(req: Request) {
           caseId: offer.case_id,
           offerId,
           outcome: patch.bank_status === "approved" ? "approved" : "declined",
+          approvedCommissionBaseAmount:
+            patch.bank_status === "approved" ? Number(effectiveBankCommissionAmount ?? 0) : undefined,
           sourceActorRole: "admin",
         }).catch(() => null)
       }
