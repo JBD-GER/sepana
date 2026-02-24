@@ -122,7 +122,7 @@ export default function TippgeberReferralForm({ companyName }: { companyName: st
       setZip("")
       setCity("")
       setExpose(null)
-      setMessage("Tipp erfolgreich eingereicht.")
+      setMessage("Tipp erfolgreich eingereicht. Sie und SEPANA erhalten eine Bestaetigung per E-Mail.")
       router.refresh()
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Fehler beim Speichern"))

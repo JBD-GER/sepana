@@ -62,6 +62,10 @@ function parseRecipients() {
   return Array.from(set)
 }
 
+function siteBaseUrl() {
+  return (process.env.NEXT_PUBLIC_SITE_URL || "https://www.sepana.de").replace(/\/$/, "")
+}
+
 async function notifyAdminNewReferral(opts: {
   companyName: string
   customerName: string
@@ -72,7 +76,7 @@ async function notifyAdminNewReferral(opts: {
 }) {
   const recipients = parseRecipients()
   if (!recipients.length) return
-  const base = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.sepana.de").replace(/\/$/, "")
+  const base = siteBaseUrl()
   const html = buildEmailHtml({
     title: "Neuer Tippgeber-Tipp eingegangen",
     intro: "Ein neuer Tipp wurde über das Tippgeber-Dashboard eingereicht.",
@@ -94,6 +98,41 @@ async function notifyAdminNewReferral(opts: {
   await Promise.all(
     recipients.map((to) => sendEmail({ to, subject: "Neuer Tippgeber-Tipp", html }).catch(() => null))
   )
+}
+
+async function notifyTippgeberReferralConfirmation(opts: {
+  toEmail: string | null | undefined
+  companyName: string
+  customerName: string
+  referralId: string
+  hasExpose: boolean
+}) {
+  const to = String(opts.toEmail ?? "").trim().toLowerCase()
+  if (!isEmail(to)) return
+
+  const base = siteBaseUrl()
+  const html = buildEmailHtml({
+    title: "Bestaetigung: Kundenanfrage eingereicht",
+    intro: "Ihre Kundenanfrage wurde erfolgreich im Tippgeber-Dashboard eingereicht.",
+    steps: [
+      "SEPANA wurde automatisch informiert.",
+      "Sie sehen den Eintrag ab sofort in Ihrer Tipp-Uebersicht im Dashboard.",
+      "Status-Aenderungen erhalten Sie zusaetzlich per E-Mail.",
+    ],
+    bodyHtml: `
+      <div style="font-size:13px; line-height:22px; color:#334155;">
+        <div><strong style="color:#0f172a;">Tipp-ID:</strong> ${opts.referralId}</div>
+        <div><strong style="color:#0f172a;">Tippgeber:</strong> ${opts.companyName}</div>
+        <div><strong style="color:#0f172a;">Kunde:</strong> ${opts.customerName}</div>
+        <div><strong style="color:#0f172a;">ExposÃ© hochgeladen:</strong> ${opts.hasExpose ? "Ja" : "Nein"}</div>
+      </div>
+    `,
+    ctaLabel: "Zum Tippgeber-Dashboard",
+    ctaUrl: `${base}/tippgeber`,
+    eyebrow: "SEPANA - Tippgeber",
+  })
+
+  await sendEmail({ to, subject: "Bestaetigung Ihrer Kundenanfrage", html }).catch(() => null)
 }
 
 export async function POST(req: Request) {
@@ -186,16 +225,30 @@ export async function POST(req: Request) {
 
     if (error) throw error
 
-    await notifyAdminNewReferral({
-      companyName: String((tgProfile as any).company_name ?? "Tippgeber"),
-      customerName: `${customerFirstName} ${customerLastName}`.trim(),
-      customerEmail,
-      customerPhone,
-      referralId: String(created.id),
-      hasExpose: Boolean(exposePath),
-    }).catch(() => null)
+    const companyName = String((tgProfile as any).company_name ?? "Tippgeber")
+    const customerName = `${customerFirstName} ${customerLastName}`.trim()
+    const referralId = String(created.id)
+    const hasExpose = Boolean(exposePath)
 
-    return NextResponse.json({ ok: true, referralId: String(created.id) })
+    await Promise.all([
+      notifyAdminNewReferral({
+        companyName,
+        customerName,
+        customerEmail,
+        customerPhone,
+        referralId,
+        hasExpose,
+      }),
+      notifyTippgeberReferralConfirmation({
+        toEmail: user.email ?? null,
+        companyName,
+        customerName,
+        referralId,
+        hasExpose,
+      }),
+    ]).catch(() => null)
+
+    return NextResponse.json({ ok: true, referralId })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
