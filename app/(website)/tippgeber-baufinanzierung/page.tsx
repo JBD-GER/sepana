@@ -157,9 +157,9 @@ export default function TippgeberBaufinanzierungPage() {
 
             <div className="mt-4 grid gap-3">
               <div className="rounded-2xl border border-white/20 bg-white/10 p-4">
-                <div className="text-xs uppercase tracking-[0.08em] text-slate-300">Bankstatus abgelehnt</div>
-                <div className="mt-1 text-lg font-semibold text-white">Keine Provision</div>
-                <div className="mt-1 text-xs text-slate-200/80">Provisionen entstehen nur bei Bankzusage.</div>
+                <div className="text-xs uppercase tracking-[0.08em] text-slate-300">Schnelle Kontaktaufnahme</div>
+                <div className="mt-1 text-lg font-semibold text-white">Innerhlab von 48 Stunden</div>
+                <div className="mt-1 text-xs text-slate-200/80">Wir garantieren eine schnelle Kontaktaufnahme innerhalb von 48 Stunden nach Tipp-Eingabe.</div>
               </div>
               <div className="rounded-2xl border border-emerald-200/30 bg-emerald-300/10 p-4">
                 <div className="text-xs uppercase tracking-[0.08em] text-emerald-100">Bankstatus angenommen</div>
