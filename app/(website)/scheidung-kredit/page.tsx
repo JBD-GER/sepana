@@ -3,9 +3,9 @@ import Link from "next/link"
 import ScheidungKreditLeadForm from "./ui/ScheidungKreditLeadForm"
 
 export const metadata: Metadata = {
-  title: "Kredit bei Scheidung oder Trennung | SEPANA",
+  title: "Kredit bei Scheidung oder Trennung | Kostenlos anfragen | SEPANA",
   description:
-    "Landingpage für Kredit bei Scheidung und Trennung: Neustart-Privatkredit oder Hauskredit-Umschuldung. Kostenloser Service mit Anfrageformular.",
+    "Kredit bei Scheidung oder Trennung anfragen: Privatkredit für den Neustart oder Hauskredit-Umschuldung. Kostenloser Service mit Mehrschrittformular.",
   keywords: [
     "scheidung kredit",
     "ehepartner auszahlen haus kredit",
@@ -125,9 +125,9 @@ export default function ScheidungKreditPage() {
               </span>
             </div>
 
-            <h1 className="mx-auto mt-4 max-w-5xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
-              Kredit bei Scheidung oder Trennung:
-              <span className="block text-slate-100">Neustart-Kredit oder Hauskredit-Umschuldung</span>
+            <h1 className="mx-auto mt-4 max-w-4xl text-2xl font-semibold leading-tight tracking-tight sm:text-3xl lg:text-4xl">
+              Kredit bei Scheidung oder Trennung
+              <span className="block text-slate-100">Privatkredit für den Neustart oder Hauskredit-Umschuldung</span>
             </h1>
 
             <p className="mx-auto mt-4 max-w-4xl text-sm leading-relaxed text-slate-200/95 sm:text-base">
@@ -135,9 +135,24 @@ export default function ScheidungKreditPage() {
               <strong>scheidung hauskredit</strong> oder <strong>hauskredit bei trennung</strong>.
             </p>
             <p className="mx-auto mt-3 max-w-4xl text-sm leading-relaxed text-slate-200/95 sm:text-base">
-              Ob Privatkredit für den Neustart oder Immobilienkredit als reine Umschuldung: Sie starten oben direkt mit
-              einem Mehrschrittformular.
+              Kostenloser Service, klare Einordnung und direkter Start im Mehrschrittformular. Sie wählen zuerst die
+              Kreditart und geben danach Betrag sowie Kontaktdaten an.
             </p>
+
+            <div className="mx-auto mt-4 flex max-w-4xl flex-wrap justify-center gap-2">
+              <span className="inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-slate-100">
+                Privatkredit für Neustart
+              </span>
+              <span className="inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-slate-100">
+                Hauskredit: nur Umschuldung
+              </span>
+              <span className="inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-slate-100">
+                Kostenlos & unverbindlich anfragen
+              </span>
+              <span className="inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-slate-100">
+                Keine Rechtsberatung
+              </span>
+            </div>
           </div>
 
           <div id="anfrage-formular" className="scroll-mt-24">
@@ -148,7 +163,7 @@ export default function ScheidungKreditPage() {
             <div className="rounded-2xl border border-white/15 bg-white/5 p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">Kosten</div>
               <div className="mt-1 text-lg font-semibold text-white">0 EUR Service</div>
-              <div className="mt-1 text-xs text-slate-300">Anfrage und Rückmeldung kostenlos</div>
+              <div className="mt-1 text-xs text-slate-300">Anfrage und Erstprüfung kostenlos</div>
             </div>
             <div className="rounded-2xl border border-white/15 bg-white/5 p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">Auswahl</div>
@@ -158,7 +173,7 @@ export default function ScheidungKreditPage() {
             <div className="rounded-2xl border border-white/15 bg-white/5 p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">Ablauf</div>
               <div className="mt-1 text-lg font-semibold text-white">Telefon &rarr; Antrag &rarr; Auszahlung</div>
-              <div className="mt-1 text-xs text-slate-300">Klar und menschlich</div>
+              <div className="mt-1 text-xs text-slate-300">Klarer Ablauf statt Vergleichsdschungel</div>
             </div>
           </div>
 
@@ -167,13 +182,13 @@ export default function ScheidungKreditPage() {
               href="#anfrage-formular"
               className="inline-flex w-full items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100 sm:flex-1"
             >
-              Anfrage jetzt starten
+              Kostenlose Anfrage starten
             </a>
             <a
               href="#produkte"
               className="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:flex-1"
             >
-              Produkte ansehen
+              Kreditarten ansehen
             </a>
           </div>
 

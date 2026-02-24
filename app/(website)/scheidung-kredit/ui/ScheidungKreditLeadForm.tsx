@@ -307,9 +307,9 @@ export default function ScheidungKreditLeadForm() {
           </span>
         </div>
 
-        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Anfrageformular</h2>
+        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Kostenlose Anfrage in 4 Schritten</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-200/90">
-          Erst Produkt wählen, dann Summe, dann Kontaktdaten, dann DSGVO bestätigen und abschicken.
+          Erst Produkt wählen, dann Summe, dann Kontaktdaten, dann DSGVO bestätigen und kostenlos absenden.
         </p>
 
         <div className="mt-4 flex flex-wrap gap-4">
@@ -571,7 +571,7 @@ export default function ScheidungKreditLeadForm() {
                 disabled={busy}
                 className="h-11 w-full rounded-xl bg-white px-5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
-                {busy ? "Sende Anfrage..." : "Kostenlos anfragen"}
+                {busy ? "Sende Anfrage..." : "Jetzt kostenlos anfragen"}
               </button>
             )}
           </div>
