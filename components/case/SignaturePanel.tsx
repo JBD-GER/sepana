@@ -55,6 +55,10 @@ type SignatureRequest = {
   documents: SignatureDoc[]
 }
 
+type SaveFieldsOptions = {
+  reopenCustomerSignature?: boolean
+}
+
 function fileUrl(
   path: string,
   rawOrOpts: boolean | { raw?: boolean; download?: boolean; filename?: string } = false
@@ -309,13 +313,18 @@ export default function SignaturePanel({
     }
   }
 
-  async function saveFields(requestId: string, fields: SignatureField[]) {
+  async function saveFields(requestId: string, fields: SignatureField[], opts?: SaveFieldsOptions) {
     setBusy(true)
+    setMsg(null)
     try {
       const res = await fetch("/api/app/signatures", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: requestId, fields }),
+        body: JSON.stringify({
+          id: requestId,
+          fields,
+          reopenCustomerSignature: opts?.reopenCustomerSignature === true,
+        }),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok || !json?.ok) throw new Error(json?.error || "Fehler")
@@ -470,7 +479,7 @@ function SignatureRequestCard({
   req: SignatureRequest
   canEdit: boolean
   busy: boolean
-  onSaveFields: (id: string, fields: SignatureField[]) => Promise<void>
+  onSaveFields: (id: string, fields: SignatureField[], opts?: SaveFieldsOptions) => Promise<void>
   onUploadSigned: (id: string, files: FileList) => Promise<void>
   onSubmitDigital: (id: string, values: Record<string, any>) => Promise<boolean>
 }) {
@@ -492,6 +501,7 @@ function SignatureRequestCard({
   const isComplete =
     (!advisorRequired || !!req.advisor_signed_at) && (!customerRequired || !!req.customer_signed_at)
   const hasAnySignature = !!req.advisor_signed_at || !!req.customer_signed_at
+  const finalDoc = isComplete ? primarySigned : null
   const statusLabel = isComplete ? "Abgeschlossen" : hasAnySignature ? "Gestartet" : "Entwurf"
   const alreadySigned = canEdit ? !!req.advisor_signed_at : !!req.customer_signed_at
   const advisorLabel = advisorRequired ? (req.advisor_signed_at ? shortIso(req.advisor_signed_at) : "--") : "nicht erforderlich"
@@ -523,13 +533,13 @@ function SignatureRequestCard({
               Original erforderlich (jede Seite scannen/fotografieren und hochladen).
             </div>
           ) : null}
-          {primarySigned ? (
+          {finalDoc ? (
             <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="text-xs font-semibold text-emerald-900">Finales Dokument</div>
                   <div className="mt-0.5 text-[11px] text-emerald-700">
-                    {primarySigned.file_name} · {shortIso(primarySigned.created_at)} · {formatBytes(primarySigned.size_bytes)}
+                    {finalDoc.file_name} · {shortIso(finalDoc.created_at)} · {formatBytes(finalDoc.size_bytes)}
                   </div>
                 </div>
                 {signedDownloadUrl ? (
@@ -573,7 +583,7 @@ function SignatureRequestCard({
               Editor oeffnen
             </button>
           ) : null}
-          {signedDownloadUrl ? (
+          {finalDoc && signedDownloadUrl ? (
             <a
               href={signedDownloadUrl}
               download
@@ -633,10 +643,12 @@ function SignatureEditorModal({
   canEdit: boolean
   busy: boolean
   onClose: () => void
-  onSaveFields: (id: string, fields: SignatureField[]) => Promise<void>
+  onSaveFields: (id: string, fields: SignatureField[], opts?: SaveFieldsOptions) => Promise<void>
 }) {
   const [editing, setEditing] = useState(canEdit)
-  const [tab, setTab] = useState<"advisor" | "customer">(canEdit ? "advisor" : "customer")
+  const [tab, setTab] = useState<"advisor" | "customer">(
+    canEdit && !req.customer_signed_at ? "advisor" : "customer"
+  )
   const [fields, setFields] = useState<SignatureField[]>(req.fields ?? [])
   const [activeType, setActiveType] = useState<SignatureField["type"]>("signature")
   const [placing, setPlacing] = useState(false)
@@ -684,8 +696,15 @@ function SignatureEditorModal({
   const showPagePicker = pageCount > 1
   const pagesWithFields = new Set(fields.map((f) => f.page))
 
-  const canEditFields = canEdit && !req.advisor_signed_at && !req.customer_signed_at
+  const canReopenCustomerSignature = canEdit && !!req.customer_signed_at
+  const canEditFields =
+    canEdit &&
+    ((!req.advisor_signed_at && !req.customer_signed_at) || canReopenCustomerSignature)
   const tabFields = fields.filter((f) => f.owner === tab && f.page === page)
+
+  useEffect(() => {
+    if (canReopenCustomerSignature && tab !== "customer") setTab("customer")
+  }, [canReopenCustomerSignature, tab])
 
   useEffect(() => {
     setPlacing(false)
@@ -857,9 +876,10 @@ function SignatureEditorModal({
                   <>
                     <button
                       onClick={() => setTab("advisor")}
+                      disabled={canReopenCustomerSignature}
                       className={`rounded-full border px-3 py-1 text-[11px] ${
                         tab === "advisor" ? "border-orange-400 bg-orange-50 text-orange-700" : "border-slate-200 text-slate-600"
-                      }`}
+                      } disabled:cursor-not-allowed disabled:opacity-50`}
                     >
                       Berater
                     </button>
@@ -901,6 +921,13 @@ function SignatureEditorModal({
                   {placing ? "Platzieren aktiv" : "Feld platzieren"}
                 </button>
                 <span className="text-[11px] text-slate-500">Klicke ins Dokument, um das Feld zu setzen.</span>
+              </div>
+            ) : null}
+
+            {canReopenCustomerSignature ? (
+              <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                Nachtraegliche Felder sind aktiv. Mit dem Spezial-Button unten wird die Kundensignatur zurueckgesetzt
+                und der Kunde per E-Mail erneut zur Unterschrift aufgefordert.
               </div>
             ) : null}
 
@@ -1091,16 +1118,29 @@ function SignatureEditorModal({
             </div>
 
             {editing && canEditFields ? (
-              <button
-                onClick={async () => {
-                  await onSaveFields(req.id, fields)
-                  setEditing(false)
-                }}
-                disabled={busy}
-                className="mt-3 w-full rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
-              >
-                Felder speichern
-              </button>
+              canReopenCustomerSignature ? (
+                <button
+                  onClick={async () => {
+                    await onSaveFields(req.id, fields, { reopenCustomerSignature: true })
+                    setEditing(false)
+                  }}
+                  disabled={busy}
+                  className="mt-3 w-full rounded-xl bg-amber-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                >
+                  Zusatzfeld speichern + Kunde erneut anfordern
+                </button>
+              ) : (
+                <button
+                  onClick={async () => {
+                    await onSaveFields(req.id, fields)
+                    setEditing(false)
+                  }}
+                  disabled={busy}
+                  className="mt-3 w-full rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                >
+                  Felder speichern
+                </button>
+              )
             ) : null}
 
           </div>

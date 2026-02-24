@@ -81,6 +81,27 @@ function isAdvisorOnly(raw: any) {
   return hasAdvisorFields(raw) && !hasCustomerFields(raw)
 }
 
+function fieldSetForOwner(raw: any, owner: "advisor" | "customer") {
+  return normalizeFields(raw)
+    .filter((f: any) => String(f?.owner || "").toLowerCase() === owner)
+    .map((f: any) => ({
+      id: String(f?.id || ""),
+      owner,
+      type: String(f?.type || ""),
+      label: String(f?.label || ""),
+      page: Number(f?.page || 1),
+      width: Number(f?.width || 0),
+      height: Number(f?.height || 0),
+      x: Number(f?.x || 0),
+      y: Number(f?.y || 0),
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id))
+}
+
+function ownerFieldsChanged(previousRaw: any, nextRaw: any, owner: "advisor" | "customer") {
+  return JSON.stringify(fieldSetForOwner(previousRaw, owner)) !== JSON.stringify(fieldSetForOwner(nextRaw, owner))
+}
+
 export async function GET(req: Request) {
   try {
     const { user, role } = await getUserAndRole()
@@ -275,12 +296,15 @@ export async function PATCH(req: Request) {
     const body = await req.json().catch(() => null)
     const id = String(body?.id ?? "").trim()
     const fields = Array.isArray(body?.fields) ? body.fields : null
+    const reopenCustomerSignature = body?.reopenCustomerSignature === true
     if (!id || !fields) return NextResponse.json({ error: "Missing fields" }, { status: 400 })
 
     const admin = supabaseAdmin()
     const { data: reqRow } = await admin
       .from("case_signature_requests")
-      .select("id,case_id,title,requires_wet_signature,customer_notified_at")
+      .select(
+        "id,case_id,title,requires_wet_signature,customer_notified_at,advisor_signed_at,customer_signed_at,fields"
+      )
       .eq("id", id)
       .maybeSingle()
     if (!reqRow) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -288,33 +312,83 @@ export async function PATCH(req: Request) {
     const allowed = await canAccessCase(admin, reqRow.case_id, user.id, role)
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
+    const customerFieldsChanged = ownerFieldsChanged(reqRow.fields, fields, "customer")
+    const advisorFieldsChanged = ownerFieldsChanged(reqRow.fields, fields, "advisor")
+    const hasSignedActors = !!reqRow.advisor_signed_at || !!reqRow.customer_signed_at
+
+    if (hasSignedActors && (customerFieldsChanged || advisorFieldsChanged) && !reopenCustomerSignature) {
+      return NextResponse.json(
+        {
+          error:
+            "Dokument wurde bereits unterschrieben. Bitte den Button fuer nachtraegliche Felder verwenden, damit Signaturen korrekt neu angefordert werden.",
+        },
+        { status: 409 }
+      )
+    }
+
+    let nextAdvisorSignedAt = reqRow.advisor_signed_at
+    let nextCustomerSignedAt = reqRow.customer_signed_at
+    if (reopenCustomerSignature) {
+      if (advisorFieldsChanged && nextAdvisorSignedAt) nextAdvisorSignedAt = null
+      if (customerFieldsChanged && nextCustomerSignedAt) nextCustomerSignedAt = null
+    }
+
+    const advisorRequiredAfter = hasAdvisorFields(fields)
+    const customerRequiredAfter = hasCustomerFields(fields)
+    const isCompleteAfter =
+      (!advisorRequiredAfter || !!nextAdvisorSignedAt) && (!customerRequiredAfter || !!nextCustomerSignedAt)
+
     const { error } = await admin
       .from("case_signature_requests")
-      .update({ fields })
+      .update({
+        fields,
+        advisor_signed_at: nextAdvisorSignedAt,
+        customer_signed_at: nextCustomerSignedAt,
+        status: isCompleteAfter ? "completed" : "pending",
+      })
       .eq("id", id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     const advisorOnly = isAdvisorOnly(fields)
     const customerRelevant = !advisorOnly && (hasCustomerFields(fields) || !!reqRow.requires_wet_signature)
+    const shouldSendReopenCustomerMail =
+      reopenCustomerSignature && customerRelevant && customerFieldsChanged && !!reqRow.customer_signed_at
+    const shouldSendInitialCustomerMail = customerRelevant && !reqRow.customer_notified_at
+    const shouldSendCustomerMail = shouldSendInitialCustomerMail || shouldSendReopenCustomerMail
 
-    if (customerRelevant && !reqRow.customer_notified_at) {
+    if (shouldSendCustomerMail) {
       const caseMeta = await getCaseMeta(reqRow.case_id)
       if (caseMeta?.customer_email) {
         const siteUrl = resolveSiteUrl()
         const ctaUrl = `${siteUrl}/signatur?caseId=${encodeURIComponent(reqRow.case_id)}`
+        const isReopen = shouldSendReopenCustomerMail
         const html = buildEmailHtml({
-          title: "Unterschrift angefordert",
-          intro: "Ein Dokument wartet auf Ihre digitale Unterschrift.",
-          steps: [
-            "Loggen Sie sich ins Portal ein und oeffnen Sie den Fall.",
-            "Unterzeichnen Sie das Dokument direkt online.",
-            "Wir informieren Sie nach Abschluss ueber die naechsten Schritte.",
-          ],
+          title: isReopen ? "Weitere Unterschrift erforderlich" : "Unterschrift angefordert",
+          intro: isReopen
+            ? "Zu einem bereits unterschriebenen Dokument wurde ein weiteres Unterschriftsfeld ergaenzt."
+            : "Ein Dokument wartet auf Ihre digitale Unterschrift.",
+          steps: isReopen
+            ? [
+                "Loggen Sie sich ins Portal ein und oeffnen Sie den Fall.",
+                "Pruefen Sie das Dokument und unterschreiben Sie das neu hinzugefuegte Feld.",
+                "Bereits vorhandene Eingaben bleiben erhalten.",
+              ]
+            : [
+                "Loggen Sie sich ins Portal ein und oeffnen Sie den Fall.",
+                "Unterzeichnen Sie das Dokument direkt online.",
+                "Wir informieren Sie nach Abschluss ueber die naechsten Schritte.",
+              ],
           ctaLabel: "Dokument unterzeichnen",
           ctaUrl,
-          preheader: "Ein Dokument wartet auf Ihre Unterschrift. Jetzt direkt online unterschreiben.",
+          preheader: isReopen
+            ? "Es ist eine weitere Unterschrift fuer ein bereits unterschriebenes Dokument erforderlich."
+            : "Ein Dokument wartet auf Ihre Unterschrift. Jetzt direkt online unterschreiben.",
         })
-        await sendEmail({ to: caseMeta.customer_email, subject: "Dokument zur Unterschrift", html })
+        await sendEmail({
+          to: caseMeta.customer_email,
+          subject: isReopen ? "Weitere Unterschrift erforderlich" : "Dokument zur Unterschrift",
+          html,
+        })
       }
 
       await admin
@@ -327,9 +401,14 @@ export async function PATCH(req: Request) {
         actorId: user.id,
         actorRole: role ?? "advisor",
         type: "signature_requested",
-        title: "Unterschrift angefordert",
-        body: `Dokument: ${reqRow.title || "Dokument"}`,
-        meta: { request_id: id },
+        title: shouldSendReopenCustomerMail ? "Weitere Unterschrift angefordert" : "Unterschrift angefordert",
+        body: shouldSendReopenCustomerMail
+          ? `Nachtraegliches Unterschriftsfeld fuer ${reqRow.title || "Dokument"} angefordert`
+          : `Dokument: ${reqRow.title || "Dokument"}`,
+        meta: {
+          request_id: id,
+          reopened_customer_signature: shouldSendReopenCustomerMail ? true : undefined,
+        },
         notifyAdvisor: false,
       })
     }
