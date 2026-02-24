@@ -176,7 +176,8 @@ export default async function TippgeberDashboardPage() {
                       {r.assigned_advisor_id ? <div className="text-xs text-slate-500">Berater zugewiesen</div> : null}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-slate-900">{formatEuro(r.commission_gross_amount)}</div>
+                      <div className="font-medium text-slate-900">Brutto: {formatEuro(r.commission_gross_amount)}</div>
+                      <div className="text-xs text-slate-600">Netto: {formatEuro(r.commission_net_amount)}</div>
                       <div className="text-xs text-slate-600">
                         {r.commission_status === "paid" ? "Ausgezahlt" : r.commission_status === "open" ? "Offen" : "Noch keine Provision"}
                       </div>

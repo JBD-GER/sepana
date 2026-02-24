@@ -122,7 +122,7 @@ export default function UpdateOfferStatus({
     if (!approvedOffer) return
     const amount = parseMoneyInput(approvedCommissionInput)
     if (amount == null || amount <= 0) {
-      setApprovedError("Bitte eine gueltige Provision groesser 0 eingeben.")
+      setApprovedError("Bitte eine gueltige Provision inkl. MwSt. groesser 0 eingeben.")
       return
     }
     await update(approvedOffer.id, { bank_status: "approved", bank_feedback_note: null, bank_commission_amount: amount })
@@ -168,7 +168,7 @@ export default function UpdateOfferStatus({
                         ) : null}
                         {String(o.bank_status || "").toLowerCase() === "approved" ? (
                           <div className="mt-1 rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-[11px] text-violet-800">
-                            Interne Provision (nur Admin/Berater):{" "}
+                            Interne Provision inkl. MwSt. (nur Admin/Berater):{" "}
                             {o.bank_commission_amount == null
                               ? "-"
                               : new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(o.bank_commission_amount))}
@@ -302,15 +302,15 @@ export default function UpdateOfferStatus({
     {approvedOffer ? (
       <div className="fixed inset-0 z-[131] flex items-center justify-center bg-slate-950/60 px-4">
         <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
-          <div className="text-sm font-semibold text-slate-900">Interne Provision erfassen</div>
+          <div className="text-sm font-semibold text-slate-900">Interne Provision erfassen (inkl. MwSt.)</div>
           <p className="mt-1 text-xs text-slate-600">
-            Tatsaechliche Bank-/SEPANA-Provision eintragen. Tippgeber-Anteil wird daraus intern mit 30 % berechnet.
+            Tatsaechliche Bank-/SEPANA-Provision inkl. MwSt. eintragen. Tippgeber-Anteil wird daraus intern auf Netto-Basis mit 30 % berechnet.
           </p>
           <p className="mt-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
             Nur intern sichtbar (Admin/Berater), nicht fuer Kunden.
           </p>
           <label className="mt-3 block">
-            <div className="mb-1 text-xs font-medium text-slate-700">Provision (EUR) *</div>
+            <div className="mb-1 text-xs font-medium text-slate-700">Provision (EUR, inkl. MwSt.) *</div>
             <input
               value={approvedCommissionInput}
               onChange={(e) => {

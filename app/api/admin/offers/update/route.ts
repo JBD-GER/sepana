@@ -121,7 +121,7 @@ export async function POST(req: Request) {
     }
     if (patch.bank_status === "approved" && (effectiveBankCommissionAmount == null || Number(effectiveBankCommissionAmount) <= 0)) {
       return NextResponse.json(
-        { ok: false, error: "Bitte interne Provision (Bank-/SEPANA-Provision) fuer 'Angenommen' erfassen." },
+        { ok: false, error: "Bitte interne Provision inkl. MwSt. (Bank-/SEPANA-Provision) fuer 'Angenommen' erfassen." },
         { status: 400 }
       )
     }

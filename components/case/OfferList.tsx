@@ -218,7 +218,7 @@ export default function OfferList({
     if (!approvedModalOfferId) return
     const amount = parseMoneyInput(approvedCommissionInput)
     if (amount == null || amount <= 0) {
-      setApprovedError("Bitte eine gueltige Provision groesser 0 eingeben.")
+      setApprovedError("Bitte eine gueltige Provision inkl. MwSt. groesser 0 eingeben.")
       return
     }
     await updateBankStatus(approvedModalOfferId, "approved", null, amount)
@@ -299,7 +299,7 @@ export default function OfferList({
                     ) : null}
                     {canManage && !isKonsum && bankApproved ? (
                       <div className="mt-2 rounded-lg border border-white/60 bg-white/70 px-2 py-1 text-[11px] text-slate-700">
-                        Interne Provision (nur Admin/Berater): {formatEUR(o.bank_commission_amount ?? null)}
+                        Interne Provision inkl. MwSt. (nur Admin/Berater): {formatEUR(o.bank_commission_amount ?? null)}
                       </div>
                     ) : null}
                   </div>
@@ -475,15 +475,15 @@ export default function OfferList({
     {approvedModalOfferId ? (
       <div className="fixed inset-0 z-[121] flex items-center justify-center bg-slate-950/60 px-4">
         <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
-          <div className="text-sm font-semibold text-slate-900">Interne Provision erfassen</div>
+          <div className="text-sm font-semibold text-slate-900">Interne Provision erfassen (inkl. MwSt.)</div>
           <p className="mt-1 text-xs text-slate-600">
-            Bitte die tatsaechliche Bank-/SEPANA-Provision eintragen. Daraus wird die 30%-Berechnung abgeleitet.
+            Bitte die tatsaechliche Bank-/SEPANA-Provision inkl. MwSt. eintragen. Die 30%-Berechnung erfolgt intern auf Netto-Basis.
           </p>
           <p className="mt-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
             Nur intern sichtbar (Admin/Berater) und nicht fuer Kunden vorgesehen.
           </p>
           <label className="mt-3 block">
-            <div className="mb-1 text-xs font-medium text-slate-700">Provision (EUR) *</div>
+            <div className="mb-1 text-xs font-medium text-slate-700">Provision (EUR, inkl. MwSt.) *</div>
             <input
               value={approvedCommissionInput}
               onChange={(e) => {

@@ -349,7 +349,7 @@ export default function TippgeberReferralsAdminTable({
                     <div className="text-xs text-slate-600">Netto: {eur(r.commission_net_amount)}</div>
                     {String(r.bank_outcome ?? "").toLowerCase() === "approved" ? (
                       <>
-                        <div className="text-xs text-slate-600">Basis (intern): {eur(r.commission_base_amount)}</div>
+                        <div className="text-xs text-slate-600">Basis (intern netto): {eur(r.commission_base_amount)}</div>
                         <div className="text-xs text-slate-600">
                           Anteil: {Number((r.commission_percent_rate ?? 0) * 100).toLocaleString("de-DE", { maximumFractionDigits: 2 })} %
                         </div>

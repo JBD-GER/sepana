@@ -20,6 +20,12 @@ function round2(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100
 }
 
+function netFromGross(value: number, vatRate: number) {
+  const divisor = 1 + vatRate
+  if (!Number.isFinite(divisor) || divisor <= 0) return round2(value)
+  return round2(value / divisor)
+}
+
 export function toMoney(value: unknown) {
   const n = Number(value)
   if (!Number.isFinite(n)) return 0
@@ -30,7 +36,13 @@ export function calculateTippgeberCommission(
   outcome: TippgeberBankOutcome,
   baseAmountInput: number | null | undefined
 ): TippgeberCommissionBreakdown {
-  const baseAmount = Math.max(0, toMoney(baseAmountInput ?? 0))
+  const inputAmount = Math.max(0, toMoney(baseAmountInput ?? 0))
+  // Interne Provision wird im Admin/Berater-Frontend jetzt inkl. MwSt. erfasst.
+  // Fuer die Tippgeber-Berechnung bleibt die Basis netto (30 % von SEPANA-Provision netto).
+  const baseAmount =
+    outcome === "approved"
+      ? netFromGross(inputAmount, TIPPGEBER_VAT_RATE)
+      : inputAmount
   const percentRate = outcome === "approved" ? TIPPGEBER_APPROVED_PERCENT_RATE : 0
   const fixedNetAmount = outcome === "declined" ? TIPPGEBER_DECLINED_FIXED_NET_EUR : 0
   const variableNet = outcome === "approved" ? round2(baseAmount * percentRate) : 0
