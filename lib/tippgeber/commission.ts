@@ -1,5 +1,4 @@
-export const TIPPGEBER_DECLINED_FIXED_NET_EUR = 100
-export const TIPPGEBER_APPROVED_PERCENT_RATE = 0.3 // 30 % der internen Provision
+export const TIPPGEBER_APPROVED_PERCENT_RATE = 0.35 // 35 % Auszahlung inkl. MwSt. (berechnet auf Netto-Basis)
 export const TIPPGEBER_VAT_RATE = 0.19
 
 export type TippgeberBankOutcome = "approved" | "declined"
@@ -37,14 +36,15 @@ export function calculateTippgeberCommission(
   baseAmountInput: number | null | undefined
 ): TippgeberCommissionBreakdown {
   const inputAmount = Math.max(0, toMoney(baseAmountInput ?? 0))
-  // Interne Provision wird im Admin/Berater-Frontend jetzt inkl. MwSt. erfasst.
-  // Fuer die Tippgeber-Berechnung bleibt die Basis netto (30 % von SEPANA-Provision netto).
+  // Interne Provision wird im Admin/Berater-Frontend inkl. MwSt. erfasst.
+  // Fuer die Tippgeber-Berechnung bleibt die Basis netto; 35 % netto zzgl. MwSt.
+  // entsprechen damit exakt 35 % des eingegebenen Bruttobetrags.
   const baseAmount =
     outcome === "approved"
       ? netFromGross(inputAmount, TIPPGEBER_VAT_RATE)
       : inputAmount
   const percentRate = outcome === "approved" ? TIPPGEBER_APPROVED_PERCENT_RATE : 0
-  const fixedNetAmount = outcome === "declined" ? TIPPGEBER_DECLINED_FIXED_NET_EUR : 0
+  const fixedNetAmount = 0
   const variableNet = outcome === "approved" ? round2(baseAmount * percentRate) : 0
   const netAmount = round2(fixedNetAmount + variableNet)
   const vatAmount = round2(netAmount * TIPPGEBER_VAT_RATE)
@@ -59,7 +59,7 @@ export function calculateTippgeberCommission(
     vatRate: TIPPGEBER_VAT_RATE,
     vatAmount,
     grossAmount,
-    reason: outcome === "approved" ? "bank_approved_30pct_of_internal_commission" : "bank_declined_100",
+    reason: outcome === "approved" ? "bank_approved_35pct_incl_vat" : "bank_declined_no_commission",
   }
 }
 

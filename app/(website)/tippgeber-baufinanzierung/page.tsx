@@ -19,7 +19,7 @@ const BENEFITS = [
   },
   {
     title: "Klare Provisionslogik",
-    text: "Nach Bankstatus wird die Provision automatisch vorgemerkt und im Dashboard sichtbar gemacht.",
+    text: "Nur bei Bankzusage wird die Provision automatisch vorgemerkt und im Dashboard sichtbar gemacht.",
   },
   {
     title: "Saubere Dokumentation",
@@ -77,7 +77,7 @@ const FAQS = [
   },
   {
     q: "Wann erhalte ich eine Auszahlung?",
-    a: "Die Provision wird nach Bankstatus zunächst als offen vorgemerkt. Die Auszahlung erfolgt nach interner Freigabe und wird anschließend im Dashboard als bezahlt markiert.",
+    a: "Nur bei Bankzusage wird die Provision als offen vorgemerkt. Die Auszahlung erfolgt nach interner Freigabe und wird anschliessend im Dashboard als bezahlt markiert.",
   },
 ]
 
@@ -152,20 +152,20 @@ export default function TippgeberBaufinanzierungPage() {
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-200">Provisionsmodell (aktuell)</div>
             <div className="mt-2 text-xl font-semibold">Klare Regeln statt Blackbox</div>
             <p className="mt-2 text-sm text-slate-200/90">
-              Provisionen werden nach Bankstatus im System vorgemerkt und bis zur Auszahlungsfreigabe transparent angezeigt.
+              Provisionen werden nur bei Bankzusage im System vorgemerkt und bis zur Auszahlungsfreigabe transparent angezeigt.
             </p>
 
             <div className="mt-4 grid gap-3">
               <div className="rounded-2xl border border-white/20 bg-white/10 p-4">
                 <div className="text-xs uppercase tracking-[0.08em] text-slate-300">Bankstatus abgelehnt</div>
-                <div className="mt-1 text-lg font-semibold text-white">100 EUR zzgl. MwSt.</div>
-                <div className="mt-1 text-xs text-slate-200/80">Als offene Provision im Dashboard sichtbar.</div>
+                <div className="mt-1 text-lg font-semibold text-white">Keine Provision</div>
+                <div className="mt-1 text-xs text-slate-200/80">Provisionen entstehen nur bei Bankzusage.</div>
               </div>
               <div className="rounded-2xl border border-emerald-200/30 bg-emerald-300/10 p-4">
                 <div className="text-xs uppercase tracking-[0.08em] text-emerald-100">Bankstatus angenommen</div>
-                <div className="mt-1 text-lg font-semibold text-white">30 % der SEPANA-Provision zzgl. MwSt.</div>
+                <div className="mt-1 text-lg font-semibold text-white">35 % der SEPANA-Provision inkl. MwSt.</div>
                 <div className="mt-1 text-xs text-slate-200/85">
-                  Basis ist die intern erfasste Provision nach Bankannahme. Freigabe und Auszahlung über den Admin-Prozess.
+                  Basis ist die intern erfasste SEPANA-Provision (inkl. MwSt.) nach Bankannahme. Freigabe und Auszahlung ueber den Admin-Prozess.
                 </div>
               </div>
             </div>
@@ -289,3 +289,4 @@ export default function TippgeberBaufinanzierungPage() {
     </div>
   )
 }
+

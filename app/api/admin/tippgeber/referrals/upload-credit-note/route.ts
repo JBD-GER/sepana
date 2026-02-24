@@ -32,7 +32,17 @@ export async function POST(req: Request) {
       .select("*")
       .eq("id", referralId)
       .single()
+    if (!referralRaw) {
+      return NextResponse.json({ ok: false, error: "Tipp nicht gefunden" }, { status: 404 })
+    }
     const referral = referralRaw as TippgeberReferralRow
+    const commissionStatus = String(referral.commission_status ?? "")
+    if (commissionStatus !== "open" && commissionStatus !== "paid") {
+      return NextResponse.json(
+        { ok: false, error: "Gutschrift-Upload nur fuer Provisionen nach Bankzusage." },
+        { status: 409 }
+      )
+    }
 
     const path = `credit-notes/${referralId}/${Date.now()}_${safeFileName(file.name || "gutschrift.pdf")}`
     const upload = await admin.storage

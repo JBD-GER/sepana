@@ -233,29 +233,35 @@ export async function sendTippgeberBankOutcomeEmail(opts: {
   if (!email) return { ok: false as const, error: "missing_tippgeber_email" }
 
   const caseMeta = await getCaseMeta(opts.caseId)
+  const approved = opts.outcome === "approved"
   const subject =
-    opts.outcome === "approved"
+    approved
       ? "Bankstatus: Angenommen (Tippgeber-Provision offen)"
-      : "Bankstatus: Abgelehnt (Tippgeber-Provision offen)"
+      : "Bankstatus: Abgelehnt (keine Tippgeber-Provision)"
 
   const grossText = formatEuro(opts.referral.commission_gross_amount)
   const netText = formatEuro(opts.referral.commission_net_amount)
 
   const html = buildEmailHtml({
-    title: opts.outcome === "approved" ? "Bankstatus: Angenommen" : "Bankstatus: Abgelehnt",
+    title: approved ? "Bankstatus: Angenommen" : "Bankstatus: Abgelehnt",
     intro:
       opts.outcome === "approved"
         ? "Für einen von Ihnen empfohlenen Fall wurde der Bankstatus auf angenommen gesetzt."
         : "Für einen von Ihnen empfohlenen Fall wurde der Bankstatus auf abgelehnt gesetzt.",
-    steps: [
-      `Ihre Provision wurde vorgemerkt (${grossText} brutto / ${netText} netto).`,
-      "Die Auszahlung erfolgt nach interner Freigabe.",
-    ],
+    steps: approved
+      ? [
+          `Ihre Provision wurde vorgemerkt (${grossText} brutto / ${netText} netto).`,
+          "Die Auszahlung erfolgt nach interner Freigabe.",
+        ]
+      : [
+          "Bei Bankablehnung wird keine Tippgeber-Provision vorgemerkt.",
+          "Eine Provision entsteht nur bei Bankzusage.",
+        ],
     bodyHtml: `
       <div style="font-size:13px; line-height:22px; color:#334155;">
         <div><strong style="color:#0f172a;">Tipp-ID:</strong> ${opts.referral.id}</div>
         <div><strong style="color:#0f172a;">Fall:</strong> ${caseMeta?.case_ref ?? opts.caseId}</div>
-        <div><strong style="color:#0f172a;">Status:</strong> ${opts.outcome === "approved" ? "Angenommen" : "Abgelehnt"}</div>
+        <div><strong style="color:#0f172a;">Status:</strong> ${approved ? "Angenommen" : "Abgelehnt"}</div>
       </div>
     `,
     eyebrow: "SEPANA - Tippgeber",
@@ -335,12 +341,13 @@ export async function applyReferralBankOutcomeAndCommission(opts: {
   const calc = calculateTippgeberCommission(opts.outcome, baseAmount)
   const nowIso = new Date().toISOString()
 
-  const nextStatus = "commission_open"
+  const hasCommission = opts.outcome === "approved" && calc.grossAmount > 0
+  const nextStatus = hasCommission ? "commission_open" : opts.outcome === "declined" ? "bank_declined" : "bank_approved"
   const updatePayload = {
     linked_offer_id: opts.offerId ?? referral.linked_offer_id ?? null,
     bank_outcome: opts.outcome,
     bank_decided_at: nowIso,
-    commission_status: "open",
+    commission_status: hasCommission ? "open" : "none",
     commission_base_amount: calc.baseAmount,
     commission_percent_rate: calc.percentRate,
     commission_fixed_net_amount: calc.fixedNetAmount,

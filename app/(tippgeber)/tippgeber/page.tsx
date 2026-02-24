@@ -43,6 +43,22 @@ function statusBadgeClass(referral: TippgeberReferralRow) {
   return "border-slate-200 bg-slate-50 text-slate-700"
 }
 
+function commissionReasonLabel(value: string | null | undefined) {
+  const v = String(value ?? "").trim().toLowerCase()
+  switch (v) {
+    case "bank_approved_35pct_incl_vat":
+      return "35 % inkl. MwSt. (nur bei Bankzusage)"
+    case "bank_declined_no_commission":
+      return "Keine Provision (nur bei Bankzusage)"
+    case "bank_approved_30pct_of_internal_commission":
+      return "Altmodell: 30 % zzgl. MwSt."
+    case "bank_declined_100":
+      return "Altmodell: 100 EUR zzgl. MwSt."
+    default:
+      return v || null
+  }
+}
+
 function tippgeberLogoUrl(path: string | null | undefined) {
   const clean = String(path ?? "").trim()
   if (!clean) return null
@@ -149,6 +165,7 @@ export default async function TippgeberDashboardPage() {
                 const location = [r.property_zip, r.property_city].filter(Boolean).join(" ")
                 const hasExpose = Boolean(r.expose_file_path)
                 const hasCreditNote = Boolean(r.payout_credit_note_path)
+                const reasonLabel = commissionReasonLabel(r.commission_reason)
                 return (
                   <tr key={r.id} className="border-b border-slate-200/60 align-top last:border-0 hover:bg-slate-50/60">
                     <td className="px-4 py-3">
@@ -181,7 +198,7 @@ export default async function TippgeberDashboardPage() {
                       <div className="text-xs text-slate-600">
                         {r.commission_status === "paid" ? "Ausgezahlt" : r.commission_status === "open" ? "Offen" : "Noch keine Provision"}
                       </div>
-                      {r.commission_reason ? <div className="mt-1 text-xs text-slate-500">{r.commission_reason}</div> : null}
+                      {reasonLabel ? <div className="mt-1 text-xs text-slate-500">{reasonLabel}</div> : null}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-2">

@@ -21,11 +21,18 @@ export async function POST(req: Request) {
       .eq("id", referralId)
       .maybeSingle()
     if (!referral) return NextResponse.json({ ok: false, error: "Tipp nicht gefunden" }, { status: 404 })
+    const commissionStatus = String(referral.commission_status ?? "")
+    if (commissionStatus === "paid") {
+      return NextResponse.json({ ok: true, alreadyPaid: true })
+    }
+    if (commissionStatus !== "open") {
+      return NextResponse.json(
+        { ok: false, error: "Keine offene Provision zur Freigabe (Provision nur bei Bankzusage)." },
+        { status: 409 }
+      )
+    }
     if (!referral.payout_credit_note_path) {
       return NextResponse.json({ ok: false, error: "Bitte zuerst Gutschrift hochladen." }, { status: 409 })
-    }
-    if (String(referral.commission_status ?? "") === "paid") {
-      return NextResponse.json({ ok: true, alreadyPaid: true })
     }
 
     const result = await markReferralCommissionPaid({ referralId })
