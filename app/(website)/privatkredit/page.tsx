@@ -1,303 +1,158 @@
 ﻿import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
-import { headers } from "next/headers"
-import PrivatkreditLiveStart from "./ui/PrivatkreditLiveStart"
-import PrivatkreditContactForm from "./ui/PrivatkreditContactForm"
-import PrivatkreditReviews from "./ui/PrivatkreditReviews"
-import PrivatkreditCallbackBox from "./ui/PrivatkreditCallbackBox"
+import WebsiteReviewsOverviewCard from "../components/WebsiteReviewsOverviewCard"
+import {
+  BRAND_SLOGAN,
+  ImageFeatureBlock,
+  LeadCtaSection,
+  TeamSection,
+  ValueGridSection,
+} from "../components/marketing/sections"
 
 export const metadata: Metadata = {
-  title: "Privatkredit Anfrage | SEPANA",
+  title: "Privatkredit | SEPANA Finanzpartner",
   description:
-    "Moderne Privatkredit-Landingpage mit persönlicher Beratung, transparenter Zinsprüfung und schneller Auszahlung bei positiver Entscheidung.",
+    "Privatkredit mit SEPANA als Finanzpartner: klare Kreditanfrage, schnelle Rückmeldung und persönliche Begleitung statt anonymer Standardstrecke.",
   alternates: { canonical: "/privatkredit" },
 }
 
-const TRUST_POINTS = [
-  "Persönliche Beratung statt anonymer Standardstrecke",
-  "Transparente Konditionseinschätzung in Echtzeit",
-  "Sichere, DSGVO-konforme Verarbeitung Ihrer Daten",
-]
-
-const BENEFITS = [
+const PRIVAT_VALUES = [
   {
-    title: "Klarer Prozess",
-    text: "Sie wissen zu jedem Zeitpunkt, was als Nächstes passiert und welche Unterlagen wirklich benötigt werden.",
+    title: "Schneller Einstieg",
+    text: "Die Anfrage startet in einem klaren Funnel ohne unnötige Hürden - passend für schnelle Privatkredit-Fälle.",
   },
   {
-    title: "Direkter Kontakt",
-    text: "Auf Wunsch starten Sie sofort die Live-Beratung und sprechen direkt mit einer Beraterin oder einem Berater.",
+    title: "Persönlicher Ansprechpartner",
+    text: "Auch beim Privatkredit bleibt die Kommunikation persönlich und nachvollziehbar.",
   },
   {
-    title: "Schnelle Entscheidungen",
-    text: "Bei vollständigen Angaben erhalten Sie eine zügige Rückmeldung und können ohne Verzögerung weitermachen.",
+    title: "Klare nächste Schritte",
+    text: "Statt unklarer Statusmeldungen erhalten Sie eine strukturierte Einordnung und konkrete Rückmeldung.",
   },
 ]
 
-const FLOW = [
-  {
-    title: "1. Anfrage starten",
-    text: "Sie übermitteln Ihre wichtigsten Eckdaten sicher über das Kontaktformular oder starten direkt die Live-Beratung.",
-  },
-  {
-    title: "2. Zinssatz in Echtzeit prüfen",
-    text: "Wir prüfen Ihre Zinsspanne auf Basis Ihrer Angaben direkt im Gespräch oder unmittelbar nach Eingang Ihrer Anfrage.",
-  },
-  {
-    title: "3. Klare Rückmeldung erhalten",
-    text: "Sie erhalten zeitnah eine transparente Einschätzung, welche Unterlagen benötigt werden und wie der nächste Schritt aussieht.",
-  },
-  {
-    title: "4. Auszahlung in bis zu 48 Stunden",
-    text: "Bei positiver Entscheidung und vollständigen Unterlagen kann die Auszahlung innerhalb von bis zu 48 Stunden erfolgen.",
-  },
+const PRIVAT_POINTS = [
+  "Privatkredit im Funnel auswählen",
+  "Wichtige Angaben strukturiert erfassen",
+  "Rückmeldung und nächste Schritte abstimmen",
+  "Weitere Bearbeitung mit klarer Kommunikation",
 ]
 
-type Provider = {
-  id: string
-  name: string
-  logo_horizontal_path: string | null
-  logo_icon_path: string | null
-  preferred_logo_variant: string | null
-}
-
-type ProviderItem = {
-  provider: Provider
-  product: {
-    is_available_online: boolean
-    is_available_live: boolean
-  } | null
-}
-
-type ProvidersResponse = {
-  ok: boolean
-  items: ProviderItem[]
-}
-
-type LogoItem = {
-  id: string
-  name: string
-  src: string
-  variant: "icon" | "horizontal"
-}
-
-const SPARKASSE_PROVIDER_ID = "abcd7c3c-4e40-4e64-9a5f-a41ea7699a08"
-const SPARKASSE_LOGO_PATH = "Sparkasse.svg.png"
-const COMMERZBANK_PROVIDER_ID = "7954e840-9aa5-44e7-9a99-06dfbbfacb79"
-const SANTANDER_PROVIDER_ID = "eee2c187-0c6d-4947-92f6-be1800f1a46d"
-const TARGOBANK_PROVIDER_ID = "3198054c-cdfb-4465-939a-a083ac68d1a7"
-const DKB_PROVIDER_ID = "c46a7c1d-4060-4b59-8b16-32571f751f4d"
-const ING_PROVIDER_ID = "8332cd03-6bb4-47d6-822d-799843451d34"
-
-const REQUESTED_LOGO_ORDER = [
-  COMMERZBANK_PROVIDER_ID,
-  SANTANDER_PROVIDER_ID,
-  TARGOBANK_PROVIDER_ID,
-  SPARKASSE_PROVIDER_ID,
-  DKB_PROVIDER_ID,
-  ING_PROVIDER_ID,
-] as const
-
-function logoSrc(provider: Provider) {
-  const prefer = provider?.preferred_logo_variant === "icon" ? "icon" : "horizontal"
-  const preferredFile = prefer === "icon" ? provider?.logo_icon_path : provider?.logo_horizontal_path
-  const fallbackFile = prefer === "icon" ? provider?.logo_horizontal_path : provider?.logo_icon_path
-  const file = preferredFile || fallbackFile
-  if (!file) return null
-  return `/api/baufi/logo?bucket=logo_banken&path=${encodeURIComponent(String(file))}`
-}
-
-async function getBaseUrl() {
-  const h = await headers()
-  const host = h.get("x-forwarded-host") || h.get("host") || "localhost:3000"
-  const proto = h.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https")
-  return `${proto}://${host}`
-}
-
-async function fetchKonsumProviders(): Promise<ProviderItem[]> {
-  try {
-    const base = await getBaseUrl()
-    const res = await fetch(`${base}/api/baufi/providers?product=konsum`, { cache: "no-store" })
-    if (!res.ok) return []
-    const json = (await res.json().catch(() => null)) as ProvidersResponse | null
-    if (!json?.ok || !Array.isArray(json.items)) return []
-    return json.items
-  } catch {
-    return []
-  }
-}
-
-export default async function PrivatkreditPage() {
-  const providers = await fetchKonsumProviders()
-  const availableById = new Map(
-    providers
-    .filter((item) => !!item.product)
-    .map((item) => {
-      const src = logoSrc(item.provider)
-      if (!src) return null
-      const variant = item.provider.preferred_logo_variant === "icon" ? "icon" : "horizontal"
-      return { id: item.provider.id, name: item.provider.name, src, variant }
-    })
-      .filter((item): item is LogoItem => item !== null)
-      .map((logo) => [logo.id, logo] as const),
-  )
-
-  const sparkasseFromProviders = availableById.get(SPARKASSE_PROVIDER_ID)
-  const sparkasseFallback: LogoItem = {
-    id: SPARKASSE_PROVIDER_ID,
-    name: "Sparkasse",
-    src: `/api/baufi/logo?bucket=logo_banken&path=${encodeURIComponent(SPARKASSE_LOGO_PATH)}`,
-    variant: "icon",
-  }
-  const logos = REQUESTED_LOGO_ORDER.map((id) => {
-    if (id === SPARKASSE_PROVIDER_ID) return sparkasseFromProviders ?? sparkasseFallback
-    return availableById.get(id) ?? null
-  }).filter((item): item is LogoItem => item !== null)
-
+export default function PrivatkreditPage() {
   return (
-    <div className="space-y-10 sm:space-y-14">
-      <section className="relative overflow-hidden rounded-[36px] border border-slate-200/70 bg-[radial-gradient(circle_at_15%_20%,rgba(34,211,238,0.2),transparent_42%),radial-gradient(circle_at_90%_8%,rgba(16,185,129,0.18),transparent_38%),linear-gradient(135deg,#0f172a_0%,#0b2143_48%,#123a57_100%)] p-6 text-white shadow-[0_24px_70px_rgba(2,6,23,0.46)] sm:p-10">
-        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 right-0 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
+    <div className="space-y-8 sm:space-y-10">
+      <section className="relative overflow-hidden rounded-[34px] border border-slate-200/70 bg-[radial-gradient(circle_at_12%_10%,rgba(16,185,129,0.18),transparent_36%),radial-gradient(circle_at_90%_14%,rgba(56,189,248,0.14),transparent_34%),linear-gradient(135deg,#07162f_0%,#0b1f5e_55%,#0f3d82_100%)] p-5 text-white shadow-[0_22px_66px_rgba(2,6,23,0.38)] sm:p-8">
+        <div className="pointer-events-none absolute -left-20 -top-16 h-64 w-64 rounded-full bg-emerald-300/14 blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-cyan-300/14 blur-3xl" />
 
-        <div className="relative grid gap-8 xl:grid-cols-[1.12fr_0.88fr] xl:items-end">
+        <div className="relative grid gap-6 xl:grid-cols-[1.02fr_0.98fr] xl:items-center">
           <div>
-            <div className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-100/95">
-              Privatkredit · Finale Anfrage
+            <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-100">
+              Privatkredit
             </div>
-
             <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
-              Smart finanzieren. Persönlich beraten. Schnell entscheiden.
+              Privatkredit modern, klar und persönlich begleitet.
             </h1>
-
-            <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-200/95 sm:text-base">
-              Diese Seite ist Ihr direkter Weg zum Privatkredit. Ohne überladene Vergleichslisten, dafür mit klarer
-              Beratung, transparenter Zinseinordnung und einem Ablauf, der auf zügige Entscheidungen ausgelegt ist.
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-slate-200/95 sm:text-base">
+              {BRAND_SLOGAN} Gerade beim Privatkredit zahlt sich ein sauberer Start aus: schnelle Anfrage, klare Kommunikation
+              und eine Strecke, die nicht wie eine App aussieht, sondern wie eine moderne Finanzpartner-Seite.
             </p>
 
-            <ul className="mt-6 space-y-2 text-sm text-slate-100/95">
-              {TRUST_POINTS.map((item) => (
-                <li key={item} className="flex gap-2">
-                  <span className="mt-[7px] h-2 w-2 shrink-0 rounded-full bg-emerald-300" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-5 flex flex-wrap gap-2 text-xs text-slate-100/95">
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Privatkredit</span>
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Schnelle Rückmeldung</span>
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Persönliche Begleitung</span>
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Klarer Funnel</span>
+            </div>
 
             <div className="mt-7 flex flex-wrap gap-3">
               <Link
-                href="#kontakt"
+                href="/kreditanfrage"
                 className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100"
               >
-                Anfrage jetzt starten
+                Kreditanfrage starten
               </Link>
               <Link
-                href="#live-start"
-                className="inline-flex items-center justify-center rounded-2xl border border-white/25 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
+                href="/bewertungen"
+                className="inline-flex items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15"
               >
-                Zur Live-Beratung
+                Bewertungen ansehen
               </Link>
             </div>
           </div>
 
-          <div className="rounded-[30px] border border-white/20 bg-white/10 p-4 shadow-xl backdrop-blur-sm">
-            <div className="relative overflow-hidden rounded-[24px] border border-white/20 bg-slate-100 shadow-inner">
-              <div className="pointer-events-none absolute left-4 top-4 z-20 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
-                Live & persönlich
-              </div>
-              <div className="relative h-[360px] sm:h-[420px]">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2 rounded-[24px] border border-white/20 bg-white/10 p-3 backdrop-blur">
+              <div className="relative h-[250px] overflow-hidden rounded-[18px] border border-white/10 bg-slate-900 sm:h-[300px]">
                 <Image
-                  src="/1769756216141_ChatGPT_Image_29._Jan._2026_14_51_21.png"
-                  alt="Berater für Privatkredit"
+                  src="/familie_umzug.jpg"
+                  alt="Familie beim Umzug"
                   fill
                   priority
-                  className="object-cover object-top"
+                  className="object-cover object-center"
+                  sizes="(max-width: 640px) 100vw, 50vw"
                 />
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-200/85">Bewertungen</div>
-                <div className="mt-1 text-lg font-semibold text-white">5,0 / 5,0</div>
-                <div className="text-xs text-slate-200/85">25 aktuelle Stimmen</div>
-              </div>
-              <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-200/85">Tempo</div>
-                <div className="mt-1 text-lg font-semibold text-white">48h Auszahlung*</div>
-                <div className="text-xs text-slate-200/85">bei positiver Entscheidung</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {logos.length ? (
-          <div className="relative mt-6">
-            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-200/85">
-              Konsumkredit-Partnerbanken
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-              {logos.map((logo) => (
-                <div key={logo.id} className="flex h-16 items-center justify-center rounded-xl border border-white/20 bg-white/95 px-4 py-2">
-                  <img
-                    src={logo.src}
-                    alt={logo.name}
-                    className={logo.variant === "icon" ? "h-8 w-8 object-contain" : "max-h-8 w-auto max-w-full object-contain"}
-                    loading="lazy"
-                  />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-900/10 to-transparent" />
+                <div className="absolute inset-x-3 bottom-3 rounded-2xl border border-white/15 bg-white/10 p-3 text-white backdrop-blur">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Privatkredit</div>
+                  <div className="mt-1 text-sm font-semibold sm:text-base">Ein Anfrageweg, klare Kommunikation, schnelle Weiterleitung</div>
                 </div>
-              ))}
+              </div>
+            </div>
+
+            <div className="rounded-[22px] border border-white/20 bg-white/10 p-4 backdrop-blur">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-200/80">Tempo</div>
+              <div className="mt-2 text-lg font-semibold text-white">Fokus auf schnelle Bearbeitung</div>
+              <p className="mt-2 text-sm leading-relaxed text-slate-200/90">
+                Vollständige Angaben im Funnel helfen dabei, Rückfragen zu reduzieren und schneller weiterzuarbeiten.
+              </p>
+            </div>
+
+            <div className="rounded-[22px] border border-white/20 bg-white/10 p-4 backdrop-blur">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-200/80">Vertrauen</div>
+              <div className="mt-2 text-lg font-semibold text-white">Persönlich statt anonym</div>
+              <p className="mt-2 text-sm leading-relaxed text-slate-200/90">
+                Privatkredit bleibt bei SEPANA ein berateter Prozess - modern, clean und trotzdem menschlich.
+              </p>
             </div>
           </div>
-        ) : null}
-      </section>
-
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="space-y-6 xl:flex xl:h-full xl:flex-col xl:gap-6 xl:space-y-0">
-          <div className="xl:[&>section]:h-full xl:[&>section]:min-h-[220px]">
-            <PrivatkreditReviews />
-          </div>
-          <div id="live-start" className="scroll-mt-24 xl:flex-1 xl:[&>section]:h-full xl:[&>section]:min-h-[520px]">
-            <PrivatkreditLiveStart />
-          </div>
-        </div>
-
-        <div id="kontakt" className="scroll-mt-24">
-          <PrivatkreditContactForm />
-        </div>
-      </div>
-
-      <section id="rueckruf" className="scroll-mt-24">
-        <PrivatkreditCallbackBox />
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-3">
-        {BENEFITS.map((item) => (
-          <article key={item.title} className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
-            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Vorteil</div>
-            <h2 className="mt-2 text-lg font-semibold text-slate-900">{item.title}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.text}</p>
-          </article>
-        ))}
-      </section>
-
-      <section className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
-        <div className="mb-5">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">So läuft es ab</div>
-          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Ihr Weg zum Privatkredit in 4 Schritten</h2>
-        </div>
-
-        <div className="grid gap-3 lg:grid-cols-2">
-          {FLOW.map((step, idx) => (
-            <article key={step.title} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Schritt {idx + 1}</div>
-              <h3 className="mt-1 text-sm font-semibold text-slate-900">{step.title}</h3>
-              <p className="mt-2 text-sm text-slate-600">{step.text}</p>
-            </article>
-          ))}
         </div>
       </section>
+
+      <ValueGridSection
+        eyebrow="Privatkredit"
+        title="Was den Privatkredit-Prozess bei SEPANA stark macht"
+        description="Die Antragsstrecke ist klar aufgebaut, damit der Start schnell gelingt. Die Qualität entsteht in der Struktur und in der anschließenden Begleitung."
+        items={PRIVAT_VALUES}
+      />
+
+      <ImageFeatureBlock
+        imageSrc="/familie_kueche.jpg"
+        imageAlt="Familie in der Küche"
+        eyebrow="Ablauf"
+        title="Privatkredit ohne Umwege starten"
+        text="Auch Privatkredit-Anfragen starten über die gemeinsame Kreditanfrage. Dort erfolgt direkt die Produktauswahl, danach führt die Antragsstrecke Schritt für Schritt weiter."
+        points={PRIVAT_POINTS}
+      />
+
+      <WebsiteReviewsOverviewCard
+        eyebrow="Bewertungen"
+        title="Vertrauen sichtbar vor der Privatkreditanfrage"
+        description="Bewertungen schaffen Vertrauen und geben einen schnellen Eindruck zur Qualität unserer Begleitung im Privatkredit."
+      />
+
+      <TeamSection
+        eyebrow="Team Privatkredit"
+        title="Das Team hinter Ihrer Privatkreditanfrage"
+        description="Pfad, Wagner und Müller begleiten auch schnelle Privatkredit-Fälle mit klarer Kommunikation und sauberer Struktur."
+      />
+
+      <LeadCtaSection
+        title="Privatkredit starten"
+        text="Starten Sie die gemeinsame Kreditanfrage und wählen Sie im ersten Schritt Privatkredit. Der Funnel führt Sie direkt weiter."
+      />
     </div>
   )
 }
+

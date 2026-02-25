@@ -2,9 +2,9 @@
 import Image from "next/image"
 import Link from "next/link"
 import { headers } from "next/headers"
+import WebsiteReviewsOverviewCard from "../../components/WebsiteReviewsOverviewCard"
 import PrivatkreditLiveStart from "../ui/PrivatkreditLiveStart"
 import PrivatkreditContactForm from "../ui/PrivatkreditContactForm"
-import PrivatkreditReviews from "../ui/PrivatkreditReviews"
 import PrivatkreditCallbackBox from "../ui/PrivatkreditCallbackBox"
 import PrivatkreditRateCalculator from "../ui/PrivatkreditRateCalculator"
 
@@ -277,19 +277,20 @@ export default async function PrivatkreditAnfragePage() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="space-y-6 lg:flex lg:h-full lg:flex-col lg:gap-6 lg:space-y-0">
-          <div className="lg:[&>section]:h-full lg:[&>section]:min-h-[220px]">
-            <PrivatkreditReviews />
-          </div>
-          <div id="live-start" className="scroll-mt-24 lg:flex-1 lg:[&>section]:h-full lg:[&>section]:min-h-[520px]">
-            <PrivatkreditLiveStart />
-          </div>
+        <div id="live-start" className="scroll-mt-24">
+          <PrivatkreditLiveStart />
         </div>
 
         <div id="kontakt" className="scroll-mt-24">
           <PrivatkreditContactForm />
         </div>
       </div>
+
+      <WebsiteReviewsOverviewCard
+        eyebrow="Bewertungen & Vertrauen"
+        title="SEPANA gesamt bewertet"
+        description="Kompakter Bewertungs-Überblick für die Landingpage. Alle veröffentlichten Einzelbewertungen finden Sie auf der separaten Bewertungsseite."
+      />
 
       <section id="rueckruf" className="scroll-mt-24">
         <PrivatkreditCallbackBox />

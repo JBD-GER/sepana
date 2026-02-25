@@ -36,6 +36,25 @@ type LeadRow = {
   source_created_at: string | null
 }
 
+type TippgeberProfileMini = {
+  user_id: string
+  company_name: string
+  email: string | null
+  is_active: boolean | null
+}
+
+type AdvisorProfileMini = {
+  user_id: string
+  display_name: string | null
+}
+
+type LinkedCaseMini = {
+  id: string
+  case_ref: string | null
+  case_type: string
+  status: string
+}
+
 function isMissingLeadCaseTypeColumnError(error: unknown) {
   const anyError = error as { code?: string; message?: string } | null
   if (!anyError) return false
@@ -124,11 +143,18 @@ export default async function AdminLeadsPage({
     .eq("role", "advisor")
     .order("created_at", { ascending: true })
 
+  const { data: tippgeberProfilesRes } = await admin
+    .from("tippgeber_profiles")
+    .select("user_id,company_name,email,is_active")
+    .eq("is_active", true)
+    .order("company_name", { ascending: true })
+
   const advisorIds = (advisors ?? []).map((a) => a.user_id)
+  const tippgeberProfiles = (tippgeberProfilesRes ?? []) as TippgeberProfileMini[]
 
   const { data: advisorProfiles } = advisorIds.length
     ? await admin.from("advisor_profiles").select("user_id,display_name").in("user_id", advisorIds)
-    : { data: [] as any[] }
+    : { data: [] as AdvisorProfileMini[] }
 
   const usersRes = await admin.auth.admin.listUsers({ page: 1, perPage: 2000 })
 
@@ -150,13 +176,23 @@ export default async function AdminLeadsPage({
     })
     .sort((a, b) => a.label.localeCompare(b.label, "de"))
 
+  const tippgeberOptions = tippgeberProfiles
+    .map((row) => {
+      const company = String(row.company_name ?? "").trim() || "Tippgeber"
+      const authEmail = emailById.get(row.user_id) || null
+      const email = row.email || authEmail
+      const label = email ? `${company} (${email})` : company
+      return { id: row.user_id, label }
+    })
+    .sort((a, b) => a.label.localeCompare(b.label, "de"))
+
   const linkedCaseIds = Array.from(new Set(leadsRaw.map((l) => l.linked_case_id).filter(Boolean)))
   const { data: linkedCases } = linkedCaseIds.length
     ? await admin
         .from("cases")
         .select("id,case_ref,case_type,status")
         .in("id", linkedCaseIds as string[])
-    : { data: [] as any[] }
+    : { data: [] as LinkedCaseMini[] }
   const caseById = new Map<string, { id: string; case_ref: string | null; case_type: string; status: string }>()
   for (const row of linkedCases ?? []) {
     caseById.set(row.id, row)
@@ -220,7 +256,7 @@ export default async function AdminLeadsPage({
         </div>
       ) : null}
 
-      <CreateManualLeadForm advisorOptions={advisorOptions} />
+      <CreateManualLeadForm advisorOptions={advisorOptions} tippgeberOptions={tippgeberOptions} />
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="overflow-hidden rounded-2xl border border-slate-200/70">

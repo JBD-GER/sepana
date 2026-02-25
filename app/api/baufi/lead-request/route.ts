@@ -9,12 +9,18 @@ const SOURCE = "website_baufi_lead_funnel"
 const DEFAULT_ADMIN_RECIPIENT = "info@sepana.de"
 const MAX_NAME_LENGTH = 80
 const MAX_TRACKING_VALUE_LENGTH = 300
+const DEFAULT_PAGE_PATH = "/baufinanzierung/anfrage"
+const MAX_PAGE_PATH_LENGTH = 180
 
 const PURPOSE_LABELS = {
   kauf: "Kauf einer Immobilie",
   neubau: "Neubau",
+  neubau_bautraeger: "Neubau (Kauf vom Bautraeger)",
+  neubau_eigenes: "Neubau (eigenes Bauvorhaben)",
   umschuldung: "Anschlussfinanzierung/Umschuldung",
+  anschlussfinanzierung: "Anschlussfinanzierung",
   modernisierung: "Modernisierung",
+  kapitalbeschaffung: "Kapitalbeschaffung",
 } as const
 
 const PROPERTY_TYPE_LABELS = {
@@ -22,6 +28,8 @@ const PROPERTY_TYPE_LABELS = {
   haus: "Einfamilienhaus",
   mehrfamilienhaus: "Mehrfamilienhaus",
   grundstueck: "Grundstueck",
+  wohn_geschaeftshaus: "Wohn- und Geschaeftshaus",
+  gewerbeimmobilie: "Gewerbeimmobilie",
 } as const
 
 type AllowedPurpose = keyof typeof PURPOSE_LABELS
@@ -37,6 +45,7 @@ type RequestBody = {
   propertyType?: string
   consentAccepted?: boolean
   website?: string
+  pagePath?: string
   tracking?: Record<string, unknown>
 }
 
@@ -91,6 +100,18 @@ function normalizeSiteUrl(raw: string | undefined) {
   } catch {
     return fallback
   }
+}
+
+function normalizePagePath(value: unknown) {
+  const raw = trimOrNull(value)
+  if (!raw) return DEFAULT_PAGE_PATH
+
+  const pathOnly = raw.split(/[?#]/, 1)[0] ?? ""
+  if (!pathOnly || pathOnly.length > MAX_PAGE_PATH_LENGTH) return DEFAULT_PAGE_PATH
+  if (!pathOnly.startsWith("/") || pathOnly.startsWith("//")) return DEFAULT_PAGE_PATH
+  if (pathOnly.includes("://")) return DEFAULT_PAGE_PATH
+
+  return pathOnly
 }
 
 function parseAdminRecipients() {
@@ -362,6 +383,7 @@ export async function POST(req: Request) {
     }
 
     const tracking = cleanTracking(body.tracking)
+    const pagePath = normalizePagePath(body.pagePath)
     const now = new Date().toISOString()
     const admin = supabaseAdmin()
 
@@ -385,7 +407,7 @@ export async function POST(req: Request) {
       notes: "Anfrage ueber Baufinanzierungs-Lead-Funnel",
       additional: {
         origin: "website",
-        page: "/baufinanzierung/anfrage",
+        page: pagePath,
         purpose_key: purpose,
         property_type_key: propertyType,
         consent_accepted: consentAccepted,

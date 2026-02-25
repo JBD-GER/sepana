@@ -8,9 +8,15 @@ type AdvisorOption = {
   label: string
 }
 
+type TippgeberOption = {
+  id: string
+  label: string
+}
+
 type FormState = {
   productType: "baufi" | "konsum"
   advisorId: string
+  tippgeberUserId: string
   firstName: string
   lastName: string
   phone: string
@@ -33,6 +39,7 @@ type FormState = {
 const initialState: FormState = {
   productType: "baufi",
   advisorId: "",
+  tippgeberUserId: "",
   firstName: "",
   lastName: "",
   phone: "",
@@ -52,7 +59,13 @@ const initialState: FormState = {
   notes: "",
 }
 
-export default function CreateManualLeadForm({ advisorOptions }: { advisorOptions: AdvisorOption[] }) {
+export default function CreateManualLeadForm({
+  advisorOptions,
+  tippgeberOptions,
+}: {
+  advisorOptions: AdvisorOption[]
+  tippgeberOptions: TippgeberOption[]
+}) {
   const router = useRouter()
   const [form, setForm] = useState<FormState>(initialState)
   const [saving, setSaving] = useState(false)
@@ -78,8 +91,8 @@ export default function CreateManualLeadForm({ advisorOptions }: { advisorOption
       setMsg(String(json?.message ?? "Lead erstellt."))
       setForm(initialState)
       router.refresh()
-    } catch (error: any) {
-      setMsg(error?.message ?? "Fehler")
+    } catch (error: unknown) {
+      setMsg(error instanceof Error ? error.message : "Fehler")
     } finally {
       setSaving(false)
     }
@@ -103,7 +116,14 @@ export default function CreateManualLeadForm({ advisorOptions }: { advisorOption
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <select
               value={form.productType}
-              onChange={(e) => updateField("productType", (e.target.value === "konsum" ? "konsum" : "baufi"))}
+              onChange={(e) => {
+                const nextProduct = e.target.value === "konsum" ? "konsum" : "baufi"
+                setForm((prev) => ({
+                  ...prev,
+                  productType: nextProduct,
+                  tippgeberUserId: nextProduct === "baufi" ? prev.tippgeberUserId : "",
+                }))
+              }}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
             >
               <option value="baufi">Baufinanzierung</option>
@@ -262,6 +282,27 @@ export default function CreateManualLeadForm({ advisorOptions }: { advisorOption
                   placeholder="Kaufpreis"
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
                 />
+              </div>
+            </>
+          ) : null}
+
+          {form.productType === "baufi" ? (
+            <>
+              <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Tippgeber (optional)</div>
+              <select
+                value={form.tippgeberUserId}
+                onChange={(e) => updateField("tippgeberUserId", e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
+              >
+                <option value="">- Kein Tippgeber -</option>
+                {tippgeberOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <div className="text-xs text-slate-500">
+                Wenn gesetzt, wird beim Anlegen direkt ein verknuepfter Tippgeber-Eintrag erstellt.
               </div>
             </>
           ) : null}

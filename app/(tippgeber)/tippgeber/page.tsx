@@ -65,6 +65,16 @@ function tippgeberLogoUrl(path: string | null | undefined) {
   return `/api/baufi/logo?bucket=tipgeber_logos&width=192&height=192&resize=contain&path=${encodeURIComponent(clean)}`
 }
 
+function companyInitials(name: string) {
+  const parts = String(name ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+  const value = parts.map((part) => part.charAt(0)).join("").toUpperCase()
+  return value || "TG"
+}
+
 export default async function TippgeberDashboardPage() {
   const { user, role } = await requireTippgeber()
 
@@ -89,6 +99,7 @@ export default async function TippgeberDashboardPage() {
   const metrics = computeTippgeberYtdMetrics(referrals)
   const companyName = profile?.company_name ?? "Tippgeber"
   const logoUrl = tippgeberLogoUrl(profile?.logo_path)
+  const initials = companyInitials(companyName)
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -105,12 +116,57 @@ export default async function TippgeberDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur">
-            <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-2xl border border-white/15 bg-white/5">
-              {logoUrl ? <img src={logoUrl} alt="" className="h-full w-full object-contain p-1" /> : <span className="text-xs text-slate-200">Logo</span>}
+            <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-2xl border border-white/15 bg-white/5">
+              {logoUrl ? (
+                <img src={logoUrl} alt={`${companyName} Logo`} className="h-full w-full object-contain p-1.5" />
+              ) : (
+                <span className="text-sm font-semibold text-slate-100">{initials}</span>
+              )}
             </div>
             <div className="text-xs text-slate-200/90">
+              <div className="font-semibold text-white">Ihr Profil</div>
               <div>{profile?.email ?? user.email ?? "-"}</div>
               <div>{[profile?.address_zip, profile?.address_city].filter(Boolean).join(" ") || "-"}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex items-start gap-4">
+            <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+              {logoUrl ? (
+                <img src={logoUrl} alt={`${companyName} Logo`} className="h-full w-full object-contain p-2" />
+              ) : (
+                <span className="text-lg font-semibold text-slate-700">{initials}</span>
+              )}
+            </div>
+
+            <div className="min-w-0">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Willkommen</div>
+              <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
+                Schön, dass Sie da sind, {companyName}.
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                In Ihrem Tippgeber-Bereich können Sie neue Tipps einreichen, den Bearbeitungsstand verfolgen und Ihre Provisionen transparent einsehen.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200/70 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-sm sm:p-6">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Schnellstart</div>
+          <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">So legen Sie los</h2>
+          <div className="mt-4 space-y-2">
+            <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700">
+              1. Neuen Tipp erfassen und Kontaktdaten vollständig eintragen
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700">
+              2. Status in der Übersicht verfolgen (Berater, Fall, Provision)
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700">
+              3. Exposé/Gutschriften später direkt pro Tipp herunterladen
             </div>
           </div>
         </div>

@@ -24,7 +24,7 @@ function normalizeMoneyString(v?: string) {
   return cleaned.replace(/\./g, "")
 }
 
-function parseNumber(value: any) {
+function parseNumber(value: unknown) {
   if (value === null || value === undefined) return null
   const raw = normalizeMoneyString(String(value))
   if (!raw) return null
@@ -32,12 +32,12 @@ function parseNumber(value: any) {
   return Number.isFinite(num) ? num : null
 }
 
-function pickString(value: any) {
+function pickString(value: unknown) {
   const trimmed = String(value ?? "").trim()
   return trimmed ? trimmed : null
 }
 
-function normalizeCaseType(value: any): CaseType {
+function normalizeCaseType(value: unknown): CaseType {
   const raw = String(value ?? "").trim().toLowerCase()
   return raw === "konsum" || raw === "privatkredit" ? "konsum" : "baufi"
 }
@@ -62,6 +62,7 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => null)
     const caseType = normalizeCaseType(body?.productType)
     const advisorId = pickString(body?.advisorId)
+    const tippgeberUserId = pickString(body?.tippgeberUserId)
 
     const firstName = pickString(body?.firstName)
     const lastName = pickString(body?.lastName)
@@ -83,6 +84,13 @@ export async function POST(req: Request) {
 
     if (!advisorId) {
       return NextResponse.json({ ok: false, error: "Bitte Berater auswaehlen." }, { status: 400 })
+    }
+
+    if (tippgeberUserId && caseType !== "baufi") {
+      return NextResponse.json(
+        { ok: false, error: "Tippgeber-Zuweisung ist aktuell nur fuer Baufinanzierung verfuegbar." },
+        { status: 400 }
+      )
     }
 
     const missingCommonFields =
@@ -128,6 +136,23 @@ export async function POST(req: Request) {
 
     if (!advisorProfile) {
       return NextResponse.json({ ok: false, error: "Berater nicht gefunden." }, { status: 400 })
+    }
+
+    let tippgeberCompanyName: string | null = null
+    if (tippgeberUserId) {
+      const { data: tippgeberProfile } = await admin
+        .from("tippgeber_profiles")
+        .select("user_id,company_name,is_active")
+        .eq("user_id", tippgeberUserId)
+        .maybeSingle()
+
+      const isActive = (tippgeberProfile as { is_active?: boolean | null } | null)?.is_active
+      if (!tippgeberProfile || isActive === false) {
+        return NextResponse.json({ ok: false, error: "Tippgeber nicht gefunden oder inaktiv." }, { status: 400 })
+      }
+
+      tippgeberCompanyName =
+        String((tippgeberProfile as { company_name?: string | null }).company_name ?? "").trim() || "Tippgeber"
     }
 
     const now = new Date().toISOString()
@@ -229,6 +254,43 @@ export async function POST(req: Request) {
       })
       .eq("id", lead.id)
 
+    let tippgeberReferralId: string | null = null
+    if (tippgeberUserId) {
+      const referralInsert = await admin
+        .from("tippgeber_referrals")
+        .insert({
+          tippgeber_user_id: tippgeberUserId,
+          status: "case_created",
+          customer_first_name: firstName,
+          customer_last_name: lastName,
+          customer_email: email,
+          customer_phone: phone,
+          manual_purchase_price: propertyPurchasePrice,
+          property_zip: propertyZip,
+          property_city: propertyCity,
+          assigned_advisor_id: advisorId,
+          assigned_at: now,
+          linked_lead_id: lead.id,
+          linked_case_id: caseId,
+          admin_internal_note: notes ? `Manueller Admin-Lead. Notiz: ${notes}` : "Manueller Admin-Lead.",
+        })
+        .select("id")
+        .single()
+
+      if (referralInsert.error) throw referralInsert.error
+      const createdReferralId = referralInsert.data?.id ? String(referralInsert.data.id) : null
+      if (!createdReferralId) throw new Error("Tippgeber-Verknuepfung konnte nicht erstellt werden.")
+      tippgeberReferralId = createdReferralId
+
+      await logCaseEvent({
+        caseId,
+        actorRole: "admin",
+        type: "tippgeber_referral_linked",
+        title: "Tippgeber verknuepft",
+        body: `${tippgeberCompanyName ?? "Tippgeber"} wurde dem Fall zugeordnet.`,
+      })
+    }
+
     await logCaseEvent({
       caseId,
       actorRole: "admin",
@@ -249,9 +311,13 @@ export async function POST(req: Request) {
       passwordInviteSent: customer.passwordInviteSent,
       nextStepsMailSent: !!nextStepsMail.ok,
       advisorMailSent: !!advisorMail.ok,
-      message: `Lead angelegt, ${productLabel(caseType)}-Fall erstellt und Einladung versendet.`,
+      tippgeberReferralId,
+      message: `Lead angelegt, ${productLabel(caseType)}-Fall erstellt${tippgeberReferralId ? " und Tippgeber verknuepft" : ""} und Einladung versendet.`,
     })
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
+  } catch (e: unknown) {
+    return NextResponse.json(
+      { ok: false, error: e instanceof Error ? e.message : "Serverfehler" },
+      { status: 500 }
+    )
   }
 }

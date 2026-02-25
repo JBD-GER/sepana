@@ -823,8 +823,8 @@ function SignatureEditorModal({
   }, [fields])
 
   return (
-    <div className="fixed inset-0 z-[70] bg-slate-900/45 p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
-      <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl sm:h-[85vh] sm:max-w-[1200px] sm:rounded-3xl">
+    <div className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-slate-900/45 p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+      <div className="flex h-[100dvh] w-full flex-col overflow-y-auto bg-white shadow-2xl sm:h-[85vh] sm:max-w-[1200px] sm:overflow-hidden sm:rounded-3xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5 sm:px-5 sm:py-3">
           <div>
             <div className="text-sm font-semibold text-slate-900">{req.title}</div>
@@ -841,7 +841,7 @@ function SignatureEditorModal({
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col gap-0 xl:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col gap-0 xl:flex-row">
           {showPagePicker ? (
             <div className="flex w-full items-center gap-2 border-b border-slate-200 bg-slate-50 p-3 xl:w-[180px] xl:flex-col xl:items-stretch xl:border-b-0 xl:border-r">
               <div className="shrink-0 text-[11px] font-semibold text-slate-600">Seiten</div>
@@ -869,7 +869,7 @@ function SignatureEditorModal({
             </div>
           ) : null}
 
-          <div className="flex flex-1 flex-col p-3 sm:p-4">
+          <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
             <div className="flex items-center justify-between text-xs text-slate-600">
               <div className="flex items-center gap-2">
                 {canEdit ? (
@@ -933,7 +933,7 @@ function SignatureEditorModal({
 
             <div
               ref={pageFrameRef}
-              className="relative mt-3 min-h-[38vh] flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 sm:min-h-0"
+              className="relative mt-3 min-h-[28vh] flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 sm:min-h-[38vh] xl:min-h-0"
             >
               <div
                 ref={pageRef}
@@ -1242,8 +1242,8 @@ function SignatureSignModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[70] bg-slate-900/45 p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
-      <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl sm:h-[85vh] sm:max-w-[1200px] sm:rounded-3xl">
+    <div className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-slate-900/45 p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+      <div className="flex h-[100dvh] w-full flex-col overflow-y-auto bg-white shadow-2xl sm:h-[85vh] sm:max-w-[1200px] sm:overflow-hidden sm:rounded-3xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5 sm:px-5 sm:py-3">
           <div>
             <div className="text-sm font-semibold text-slate-900">Unterschrift: {req.title}</div>
@@ -1260,7 +1260,7 @@ function SignatureSignModal({
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col gap-0 xl:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col gap-0 xl:flex-row">
           {showPagePicker ? (
             <div className="flex w-full items-center gap-2 border-b border-slate-200 bg-slate-50 p-3 xl:w-[180px] xl:flex-col xl:items-stretch xl:border-b-0 xl:border-r">
               <div className="shrink-0 text-[11px] font-semibold text-slate-600">Seiten</div>
@@ -1288,7 +1288,7 @@ function SignatureSignModal({
             </div>
           ) : null}
 
-          <div className="flex flex-1 flex-col p-3 sm:p-4">
+          <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
             <div className="flex items-center justify-between text-xs text-slate-600">
               <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] text-slate-700">
                 {actor === "advisor" ? "Berater" : "Kunde"}
@@ -1300,7 +1300,7 @@ function SignatureSignModal({
 
             <div
               ref={pageFrameRef}
-              className="relative mt-3 min-h-[38vh] flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 sm:min-h-0"
+              className="relative mt-3 min-h-[28vh] flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 sm:min-h-[38vh] xl:min-h-0"
             >
               <div
                 ref={pageRef}
@@ -1515,6 +1515,7 @@ function SignaturePad({
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const drawingRef = useRef(false)
+  const activePointerIdRef = useRef<number | null>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -1556,6 +1557,12 @@ function SignaturePad({
     const canvas = canvasRef.current
     const ctx = canvas?.getContext("2d")
     if (!canvas || !ctx) return
+    if (!e.isPrimary) return
+    e.preventDefault()
+    activePointerIdRef.current = e.pointerId
+    try {
+      canvas.setPointerCapture(e.pointerId)
+    } catch {}
     const p = getPoint(e)
     drawingRef.current = true
     ctx.beginPath()
@@ -1564,9 +1571,11 @@ function SignaturePad({
 
   function onPointerMove(e: ReactPointerEvent<HTMLCanvasElement>) {
     if (disabled || !drawingRef.current) return
+    if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return
     const canvas = canvasRef.current
     const ctx = canvas?.getContext("2d")
     if (!canvas || !ctx) return
+    e.preventDefault()
     const p = getPoint(e)
     ctx.lineTo(p.x, p.y)
     ctx.stroke()
@@ -1576,6 +1585,12 @@ function SignaturePad({
     if (!drawingRef.current) return
     drawingRef.current = false
     const canvas = canvasRef.current
+    if (canvas && activePointerIdRef.current !== null) {
+      try {
+        canvas.releasePointerCapture(activePointerIdRef.current)
+      } catch {}
+    }
+    activePointerIdRef.current = null
     if (canvas) onChange(canvas.toDataURL("image/png"))
   }
 
@@ -1588,14 +1603,16 @@ function SignaturePad({
   }
 
   return (
-    <div className="rounded-xl border border-slate-300 bg-white p-2">
+    <div className="rounded-xl border border-slate-300 bg-white p-2 select-none">
       <canvas
         ref={canvasRef}
-        className="h-[150px] w-full rounded-lg bg-white sm:h-[120px]"
+        className="h-[180px] w-full touch-none rounded-lg bg-white sm:h-[120px]"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}
+        onPointerCancel={onPointerUp}
+        aria-label="Signaturfeld"
       />
       <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
         <span>Bitte hier unterschreiben</span>

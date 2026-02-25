@@ -9,8 +9,11 @@ const SOURCE = "website_privatkredit"
 const MAX_MESSAGE_LENGTH = 2000
 const MAX_CALLBACK_LENGTH = 120
 const DEFAULT_ADMIN_RECIPIENT = "info@sepana.de"
+const DEFAULT_PAGE_PATH = "/privatkredit"
+const MAX_PAGE_PATH_LENGTH = 180
 
 type RequestType = "contact" | "callback"
+type MailSendResult = { ok?: boolean; error?: unknown } | null | undefined
 
 function normalizeRequestType(value: unknown): RequestType {
   const v = String(value ?? "").trim().toLowerCase()
@@ -61,7 +64,10 @@ function purposeLabel(value: string | null) {
   if (v === "freie_verwendung") return "Freie Verwendung"
   if (v === "umschuldung") return "Umschuldung"
   if (v === "auto") return "Auto"
+  if (v === "autokredit") return "Auto"
   if (v === "modernisierung") return "Modernisierung"
+  if (v === "renovierung") return "Modernisierung"
+  if (v === "moebel") return "Moebel / Elektronik"
   if (v === "sonstiges") return "Sonstiges"
   return "Privatkredit"
 }
@@ -97,6 +103,18 @@ function normalizeSiteUrl(raw: string | undefined) {
   } catch {
     return fallback
   }
+}
+
+function normalizePagePath(value: unknown) {
+  const raw = trimOrNull(value)
+  if (!raw) return DEFAULT_PAGE_PATH
+
+  const pathOnly = raw.split(/[?#]/, 1)[0] ?? ""
+  if (!pathOnly || pathOnly.length > MAX_PAGE_PATH_LENGTH) return DEFAULT_PAGE_PATH
+  if (!pathOnly.startsWith("/") || pathOnly.startsWith("//")) return DEFAULT_PAGE_PATH
+  if (pathOnly.includes("://")) return DEFAULT_PAGE_PATH
+
+  return pathOnly
 }
 
 function parseAdminRecipients() {
@@ -163,7 +181,7 @@ async function insertLeadWithRetry(admin: ReturnType<typeof supabaseAdmin>, rowB
       continue
     }
 
-    if (String((error as any)?.code ?? "") !== "23505") {
+    if (String((error as { code?: unknown } | null)?.code ?? "") !== "23505") {
       return { data: null, error }
     }
   }
@@ -257,12 +275,12 @@ async function sendAdminNotification(opts: {
     )
   )
 
-  const successCount = results.filter((x: any) => x?.ok).length
-  const failed = results.find((x: any) => !x?.ok)
+  const successCount = results.filter((x: MailSendResult) => x?.ok).length
+  const failed = results.find((x: MailSendResult) => !x?.ok)
   return {
     attempted: recipients.length,
     successCount,
-    error: failed ? String((failed as any).error ?? "mail_send_failed") : null,
+    error: failed ? String((failed as { error?: unknown }).error ?? "mail_send_failed") : null,
   }
 }
 
@@ -311,7 +329,7 @@ async function sendCustomerConfirmation(opts: {
   return {
     sent: !!result?.ok,
     skipped: false,
-    error: result?.ok ? null : String((result as any)?.error ?? "mail_send_failed"),
+    error: result?.ok ? null : String((result as { error?: unknown } | null)?.error ?? "mail_send_failed"),
   }
 }
 
@@ -367,6 +385,7 @@ export async function POST(req: Request) {
     }
 
     const now = new Date().toISOString()
+    const pagePath = normalizePagePath(body?.pagePath)
     const notes = [callbackTime ? `Beste Erreichbarkeit: ${callbackTime}` : null, message].filter(Boolean).join("\n\n") || null
     const fullNameResolved = [firstName, lastName].filter(Boolean).join(" ").trim() || null
     const purpose = purposeLabel(purposeRaw)
@@ -391,7 +410,7 @@ export async function POST(req: Request) {
       notes,
       additional: {
         origin: "website",
-        page: "/privatkredit",
+        page: pagePath,
         callback_time: callbackTime,
         request_type: requestType === "callback" ? "privatkredit_callback" : "privatkredit_contact",
       },
@@ -399,7 +418,10 @@ export async function POST(req: Request) {
 
     const { data, error } = await insertLeadWithRetry(admin, rowBase)
     if (error) {
-      const message = error instanceof Error ? error.message : (error as any)?.message ?? "Lead konnte nicht gespeichert werden."
+      const message =
+        error instanceof Error
+          ? error.message
+          : String((error as { message?: unknown } | null)?.message ?? "Lead konnte nicht gespeichert werden.")
       return NextResponse.json({ ok: false, error: message }, { status: 500 })
     }
 

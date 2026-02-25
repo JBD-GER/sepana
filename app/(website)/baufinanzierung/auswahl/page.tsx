@@ -13,6 +13,7 @@ import {
   toNumber,
   clamp,
 } from "@/lib/baufi/calc"
+import BaufiStart from "../ui/BaufiStart"
 import SelectionSummaryEditor from "./ui/SelectionSummaryEditor"
 import GoogleAdsAuswahlConversion from "./ui/GoogleAdsAuswahlConversion"
 
@@ -194,6 +195,17 @@ export default async function Page({
   const caseId = sp.caseId || ""
   const caseRef = sp.caseRef || ""
   const existing = sp.existing === "1"
+
+  // Einstieg im Vergleichsportal: zuerst Wizard/Flow anzeigen.
+  // Nach erfolgreichem Wizard-Submit landet der Nutzer wieder hier mit caseId/caseRef
+  // und sieht dann wie gewohnt die Banken-Auswahl.
+  if (!caseId && !caseRef) {
+    return (
+      <div className="w-full overflow-x-clip space-y-4">
+        <BaufiStart />
+      </div>
+    )
+  }
 
   const loanAmount = Math.max(50_000, toNumber(sp.loanAmount) || 300_000)
   const years = clamp(Math.round(toNumber(sp.years) || 30), 5, 35)

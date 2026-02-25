@@ -13,12 +13,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const publicRoutes = [
     "/",
+    "/kreditanfrage",
     "/scheidung-kredit",
     "/tippgeber-baufinanzierung",
     "/baufinanzierung",
     "/baufinanzierung/anfrage",
     "/privatkredit",
     "/privatkredit/anfrage",
+    "/bewertungen",
     "/agb",
     "/roadmap",
     "/status",

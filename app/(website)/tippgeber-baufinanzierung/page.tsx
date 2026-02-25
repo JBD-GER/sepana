@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Image from "next/image"
 import Link from "next/link"
 
 export const metadata: Metadata = {
@@ -81,6 +82,52 @@ const FAQS = [
   },
 ]
 
+type TippgeberTeamMember = {
+  name: string
+  role: string
+  email: string
+  imageSrc: string
+  imageAlt: string
+  focus: string
+}
+
+const PARTNER_CONTACT = {
+  name: "Hr. Pfad",
+  role: "Ansprechpartner Tippgeber-Partnerschaften",
+  email: "c.pfad@sepana.de",
+  phone: "05035 3169996",
+  response: "Rueckmeldung i. d. R. innerhalb von 48 Stunden",
+  imageSrc: "/pfad.png",
+  imageAlt: "Herr Pfad",
+}
+
+const TEAM_MEMBERS: TippgeberTeamMember[] = [
+  {
+    name: "Hr. Pfad",
+    role: "Kreditexperte",
+    email: "c.pfad@sepana.de",
+    imageSrc: "/pfad.png",
+    imageAlt: "Herr Pfad",
+    focus: "Partnerbetreuung, Fallstruktur und Uebergabe an die Finanzierung.",
+  },
+  {
+    name: "Hr. Wagner",
+    role: "Kreditexperte",
+    email: "m.wagner@sepana.de",
+    imageSrc: "/wagner.png",
+    imageAlt: "Herr Wagner",
+    focus: "Baufinanzierung, Objektstrategie und Bankansprache.",
+  },
+  {
+    name: "Fr. Mueller",
+    role: "Kreditexpertin",
+    email: "s.mueller@sepana.de",
+    imageSrc: "/mueller.png",
+    imageAlt: "Frau Mueller",
+    focus: "Rueckfragen, Statuskommunikation und saubere Prozessbegleitung.",
+  },
+]
+
 function SectionHeadline({
   eyebrow,
   title,
@@ -158,7 +205,7 @@ export default function TippgeberBaufinanzierungPage() {
             <div className="mt-4 grid gap-3">
               <div className="rounded-2xl border border-white/20 bg-white/10 p-4">
                 <div className="text-xs uppercase tracking-[0.08em] text-slate-300">Schnelle Kontaktaufnahme</div>
-                <div className="mt-1 text-lg font-semibold text-white">Innerhlab von 48 Stunden</div>
+                <div className="mt-1 text-lg font-semibold text-white">Innerhalb von 48 Stunden</div>
                 <div className="mt-1 text-xs text-slate-200/80">Wir garantieren eine schnelle Kontaktaufnahme innerhalb von 48 Stunden nach Tipp-Eingabe.</div>
               </div>
               <div className="rounded-2xl border border-emerald-200/30 bg-emerald-300/10 p-4">
@@ -172,6 +219,108 @@ export default function TippgeberBaufinanzierungPage() {
 
             <div className="mt-4 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-xs text-slate-200/90">
               Hinweis: Auszahlungen erfolgen nach interner Freigabe und üblicherweise nach Eingang der SEPANA-Provision.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="relative overflow-hidden rounded-[34px] border border-slate-200/70 bg-[radial-gradient(circle_at_18%_14%,rgba(34,211,238,0.12),transparent_42%),radial-gradient(circle_at_88%_12%,rgba(59,130,246,0.10),transparent_34%),linear-gradient(135deg,#07162f_0%,#0b1f5e_58%,#0f3a80_100%)] p-5 text-white shadow-[0_18px_50px_rgba(2,6,23,0.28)] sm:p-7">
+        <div className="pointer-events-none absolute -left-16 -top-12 h-48 w-48 rounded-full bg-cyan-300/16 blur-3xl" />
+        <div className="pointer-events-none absolute -right-16 -bottom-16 h-48 w-48 rounded-full bg-blue-300/16 blur-3xl" />
+
+        <div className="relative grid gap-4 xl:grid-cols-[0.95fr_1.05fr] xl:items-start">
+          <div className="rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur sm:p-5">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-200/90">Ansprechpartner</div>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Direkter Kontakt fuer neue Tippgeber</h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-200/90">
+              Wir klaeren Setup, Ablauf und Freischaltung persoenlich mit Ihnen und begleiten den Start ins Dashboard.
+            </p>
+
+            <div className="mt-4 rounded-2xl border border-white/15 bg-white/10 p-4">
+              <div className="flex items-center gap-4">
+                <div className="relative h-16 w-16 overflow-hidden rounded-2xl border border-white/20 bg-white/10">
+                  <Image src={PARTNER_CONTACT.imageSrc} alt={PARTNER_CONTACT.imageAlt} fill className="object-cover object-top" sizes="64px" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-base font-semibold text-white">{PARTNER_CONTACT.name}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-200">{PARTNER_CONTACT.role}</div>
+                  <a
+                    href={`mailto:${PARTNER_CONTACT.email}`}
+                    className="mt-1 block truncate text-sm text-white/95 underline decoration-white/25 underline-offset-4 hover:decoration-white/60"
+                  >
+                    {PARTNER_CONTACT.email}
+                  </a>
+                  <a href={`tel:${PARTNER_CONTACT.phone.replace(/\s+/g, "")}`} className="text-sm text-slate-200/95">
+                    {PARTNER_CONTACT.phone}
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-200/85">Rueckmeldung</div>
+                <div className="mt-1 text-sm font-semibold text-white">{PARTNER_CONTACT.response}</div>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-200/85">Start</div>
+                <div className="mt-1 text-sm font-semibold text-white">Einladung, Zugang und Prozess-Einweisung</div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <a
+                href="mailto:c.pfad@sepana.de?subject=Tippgeber%20Partnerschaft%20anfragen"
+                className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+              >
+                Ansprechpartner kontaktieren
+              </a>
+              <a
+                href="mailto:info@sepana.de?subject=Tippgeber%20Baufinanzierung%20anfragen"
+                className="inline-flex items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
+              >
+                Zugang anfragen
+              </a>
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-200/90">Team</div>
+                <h3 className="mt-1 text-xl font-semibold tracking-tight text-white">Das SEPANA-Team hinter Ihren Tipps</h3>
+              </div>
+              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-slate-100">
+                Baufinanzierung & Betreuung
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {TEAM_MEMBERS.map((member) => (
+                <article key={member.email} className="overflow-hidden rounded-2xl border border-white/15 bg-white/10">
+                  <div className="relative h-36 bg-slate-900/40">
+                    <Image
+                      src={member.imageSrc}
+                      alt={member.imageAlt}
+                      fill
+                      className="object-cover object-top"
+                      sizes="(max-width: 1280px) 50vw, 20vw"
+                    />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-900/5 to-transparent" />
+                  </div>
+                  <div className="p-3.5">
+                    <div className="text-sm font-semibold text-white">{member.name}</div>
+                    <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-200">{member.role}</div>
+                    <p className="mt-2 text-xs leading-relaxed text-slate-200/90">{member.focus}</p>
+                    <a
+                      href={`mailto:${member.email}`}
+                      className="mt-2 block truncate text-xs font-semibold text-white underline decoration-white/20 underline-offset-4 hover:decoration-white/60"
+                    >
+                      {member.email}
+                    </a>
+                  </div>
+                </article>
+              ))}
             </div>
           </div>
         </div>
@@ -226,7 +375,7 @@ export default function TippgeberBaufinanzierungPage() {
         />
         <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
-            <div className="text-sm font-semibold text-slate-900">Auf der Startseite</div>
+            <div className="text-sm font-semibold text-slate-900">Im Dashboard-Ueberblick</div>
             <ul className="mt-3 space-y-2 text-sm text-slate-700">
               <li className="flex gap-2"><span className="mt-[7px] h-1.5 w-1.5 rounded-full bg-slate-400" />Übersicht gesamte Tipps</li>
               <li className="flex gap-2"><span className="mt-[7px] h-1.5 w-1.5 rounded-full bg-slate-400" />Ausgezahlte Provision (YTD)</li>
@@ -289,4 +438,3 @@ export default function TippgeberBaufinanzierungPage() {
     </div>
   )
 }
-

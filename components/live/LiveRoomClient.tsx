@@ -180,8 +180,12 @@ export default function LiveRoomClient({
 
   const summaryLoaded = useRef(false)
   const endingRef = useRef(false)
+  const endNavigationScheduledRef = useRef(false)
+  const endNavigationTimerRef = useRef<number | null>(null)
   const showOfferPanel = canOffer && !isCustomer
   const hasEnded = ticketStatus === "ended" || ticketStatus === "cancelled"
+  const customerEndHref = guestToken ? `/erfolgreich?source=${isKonsum ? "privatkredit" : "baufi"}` : "/app"
+  const customerEndLabel = guestToken ? "Weiter" : "Zum Dashboard"
 
   const loadSummary = useCallback(async () => {
     if (summaryLoaded.current) return
@@ -211,6 +215,29 @@ export default function LiveRoomClient({
     }
   }, [caseId, ticketId, guestToken, isKonsum])
 
+  const closeWindowOrRedirect = useCallback(
+    (delayMs: number) => {
+      if (endNavigationScheduledRef.current) return
+      endNavigationScheduledRef.current = true
+
+      if (typeof window !== "undefined") {
+        try {
+          window.close()
+        } catch {
+          // ignore and use redirect fallback below
+        }
+
+        endNavigationTimerRef.current = window.setTimeout(() => {
+          router.replace(isCustomer ? customerEndHref : "/advisor")
+        }, Math.max(0, delayMs))
+        return
+      }
+
+      router.replace(isCustomer ? customerEndHref : "/advisor")
+    },
+    [router, isCustomer, customerEndHref]
+  )
+
   async function endCall() {
     if (endingRef.current) return
     endingRef.current = true
@@ -226,10 +253,11 @@ export default function LiveRoomClient({
       setTicketStatus("ended")
       setEndedAt(new Date().toISOString())
       loadSummary()
+      closeWindowOrRedirect(4000)
       return
     }
 
-    router.replace("/advisor")
+    closeWindowOrRedirect(400)
   }
 
   const handleRemoteEnd = useCallback((nextEndedAt?: string | null) => {
@@ -242,10 +270,11 @@ export default function LiveRoomClient({
 
     if (isCustomer) {
       loadSummary()
+      closeWindowOrRedirect(4000)
       return
     }
-    router.replace("/advisor")
-  }, [isCustomer, loadSummary, room, router])
+    closeWindowOrRedirect(400)
+  }, [isCustomer, loadSummary, room, closeWindowOrRedirect])
 
   useEffect(() => {
     const channel = supabase
@@ -273,6 +302,14 @@ export default function LiveRoomClient({
   useEffect(() => {
     if (hasEnded && isCustomer) loadSummary()
   }, [hasEnded, isCustomer, loadSummary])
+
+  useEffect(() => {
+    return () => {
+      if (endNavigationTimerRef.current) {
+        window.clearTimeout(endNavigationTimerRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (hasEnded) return
@@ -417,11 +454,14 @@ export default function LiveRoomClient({
               <span className="font-semibold text-white">{formatDuration(acceptedAt || initialCreatedAt, endedAt)}</span> Â·
               Beendet: <span className="font-semibold text-white">{dt(endedAt)}</span>
             </div>
+            <div className="mt-3 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-slate-200">
+              Dieses Fenster wird automatisch geschlossen oder Sie werden in wenigen Sekunden weitergeleitet.
+            </div>
             <button
-              onClick={() => router.replace("/app")}
+              onClick={() => router.replace(customerEndHref)}
               className="mt-4 inline-flex items-center rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
             >
-              Zum Dashboard
+              {customerEndLabel}
             </button>
           </div>
 

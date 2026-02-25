@@ -178,9 +178,21 @@ function OptionCard({
   )
 }
 
-export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?: Record<string, string> }) {
+type BaufiLeadFunnelProps = {
+  initialTracking?: Record<string, string>
+  initialStep?: "start" | "details"
+  pagePath?: string
+  successPath?: string
+}
+
+export default function BaufiLeadFunnel({
+  initialTracking,
+  initialStep = "start",
+  pagePath = "/baufinanzierung/anfrage",
+  successPath = "/erfolgreich",
+}: BaufiLeadFunnelProps) {
   const router = useRouter()
-  const [step, setStep] = useState<Step>("start")
+  const [step, setStep] = useState<Step>(initialStep)
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
   const [amountInput, setAmountInput] = useState(() => formatAmount(DEFAULT_AMOUNT))
   const [busy, setBusy] = useState(false)
@@ -258,6 +270,7 @@ export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?:
           propertyType: form.propertyType,
           consentAccepted: form.consentAccepted,
           website: form.website,
+          pagePath,
           tracking,
         }),
       })
@@ -277,7 +290,7 @@ export default function BaufiLeadFunnel({ initialTracking }: { initialTracking?:
       if (json?.leadId) params.set("leadId", String(json.leadId))
       if (json?.externalLeadId) params.set("externalLeadId", String(json.externalLeadId))
       if (json?.existingAccount) params.set("existing", "1")
-      router.push(`/erfolgreich?${params.toString()}`)
+      router.push(`${successPath}?${params.toString()}`)
       return
     } catch {
       setError("Anfrage konnte nicht gesendet werden.")
