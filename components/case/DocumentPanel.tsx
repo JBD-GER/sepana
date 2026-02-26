@@ -39,8 +39,16 @@ function formatBytes(n: number | null | undefined) {
   return `${v.toFixed(v >= 10 || i === 0 ? 0 : 1)} ${units[i]}`
 }
 
-function fileUrl(path: string) {
-  return `/api/baufi/logo?bucket=case_documents&path=${encodeURIComponent(path)}`
+function fileUrl(
+  path: string,
+  opts?: {
+    download?: boolean
+    filename?: string | null
+  }
+) {
+  const downloadParam = opts?.download ? "&download=1" : ""
+  const filenameParam = opts?.filename ? `&filename=${encodeURIComponent(opts.filename)}` : ""
+  return `/api/baufi/logo?bucket=case_documents&path=${encodeURIComponent(path)}${downloadParam}${filenameParam}`
 }
 
 export default function DocumentPanel({
@@ -114,7 +122,11 @@ export default function DocumentPanel({
               ) : null}
             </div>
             <div className="flex items-center gap-2">
-              <a className="text-xs font-medium text-slate-700 hover:underline" href={fileUrl(d.file_path)} target="_blank">
+              <a
+                className="text-xs font-medium text-slate-700 hover:underline"
+                href={fileUrl(d.file_path, { download: true, filename: d.file_name })}
+                download={d.file_name}
+              >
                 Download
               </a>
               <button
