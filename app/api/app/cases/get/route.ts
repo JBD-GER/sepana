@@ -138,7 +138,8 @@ export async function GET(req: Request) {
       getTippgeberBrandForCase(id),
     ])
 
-  let offers = offersResult?.data ?? []
+  // Supabase's typed select parser can return ParserError types for dynamic select unions.
+  let offers: any[] = (offersResult?.data as any[]) ?? []
   if (offersResult?.error) {
     if (isMissingBankCommissionAmountColumnError(offersResult.error)) {
       let fallbackQuery = readClient
