@@ -14,7 +14,7 @@ type Message = {
 }
 
 function dt(d: string) {
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(d))
+  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Berlin" }).format(new Date(d))
 }
 
 export default function CaseChat({

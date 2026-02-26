@@ -24,7 +24,7 @@ type DocumentRow = {
 }
 
 function dt(d: string) {
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(d))
+  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeZone: "Europe/Berlin" }).format(new Date(d))
 }
 
 function formatBytes(n: number | null | undefined) {
@@ -71,6 +71,7 @@ export default function DocumentPanel({
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [freeOpen, setFreeOpen] = useState(false)
+  const [imagePreview, setImagePreview] = useState<{ src: string; name: string } | null>(null)
 
   const { docsByRequest, orphanDocs } = useMemo(() => {
     const map = new Map<string, DocumentRow[]>()
@@ -105,13 +106,20 @@ export default function DocumentPanel({
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {list.map((d) => (
           <div key={d.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2">
-            <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-              {d.mime_type?.startsWith("image/") ? (
+            {d.mime_type?.startsWith("image/") ? (
+              <button
+                type="button"
+                onClick={() => setImagePreview({ src: fileUrl(d.file_path), name: d.file_name })}
+                className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+                aria-label={`Vorschau öffnen: ${d.file_name}`}
+              >
                 <img src={fileUrl(d.file_path)} alt="" className="h-full w-full object-cover" />
-              ) : (
+              </button>
+            ) : (
+              <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                 <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">DOC</div>
-              )}
-            </div>
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium text-slate-900">{d.file_name}</div>
               <div className="text-xs text-slate-500">
@@ -326,6 +334,35 @@ export default function DocumentPanel({
           ) : null}
         </div>
       </div>
+
+      {imagePreview ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4"
+          onClick={() => setImagePreview(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Bildvorschau"
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="truncate text-sm font-medium text-slate-900">{imagePreview.name}</div>
+              <button
+                type="button"
+                onClick={() => setImagePreview(null)}
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700"
+              >
+                Schließen
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
+              <img src={imagePreview.src} alt={imagePreview.name} className="mx-auto h-auto max-h-[62vh] w-auto max-w-full rounded-lg" />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

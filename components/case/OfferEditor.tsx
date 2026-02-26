@@ -13,6 +13,15 @@ function normalizeDecimalInput(value: string) {
   return value.replace(/\./g, ",")
 }
 
+function yearsToMonthsInput(value: string) {
+  const raw = String(value ?? "").trim()
+  if (!raw) return ""
+  const normalized = raw.replace(/\s+/g, "").replace(",", ".")
+  const years = Number(normalized)
+  if (!Number.isFinite(years)) return raw
+  return String(Math.round(years * 12))
+}
+
 type CaseType = "baufi" | "konsum"
 
 export default function OfferEditor({
@@ -91,7 +100,7 @@ export default function OfferEditor({
           interestNominal,
           tilgungPct: isKonsum ? null : tilgungPct,
           zinsbindungYears: isKonsum ? null : zinsbindungYears,
-          termMonths,
+          termMonths: yearsToMonthsInput(termMonths),
           specialRepayment,
           notes,
         }),
@@ -214,12 +223,12 @@ export default function OfferEditor({
         ) : null}
 
         <label className="text-xs text-slate-600">
-          Laufzeit (Monate)
+          Laufzeit (Jahre)
           <input
             value={termMonths}
             onChange={(e) => setTermMonths(e.target.value)}
             disabled={busy || blocked}
-            placeholder="z.B. 360"
+            placeholder="z.B. 30"
             className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
           />
         </label>

@@ -36,7 +36,7 @@ function formatPct(n: number | null | undefined) {
 }
 
 function dt(d: string) {
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(d))
+  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeZone: "Europe/Berlin" }).format(new Date(d))
 }
 
 function formatMoneyInput(value: number | null | undefined) {

@@ -85,7 +85,7 @@ function formatBytes(n: number | null | undefined) {
 function shortIso(ts?: string | null) {
   if (!ts) return "--"
   try {
-    return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(ts))
+    return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeZone: "Europe/Berlin" }).format(new Date(ts))
   } catch {
     return ts
   }
@@ -234,6 +234,12 @@ function hasCustomerFields(fields: SignatureField[] | null | undefined) {
     const owner = String((f as any)?.owner || "").toLowerCase()
     return owner === "customer"
   })
+}
+
+function signatureFieldTypeLabel(type: SignatureField["type"]) {
+  if (type === "signature") return "Unterschrift"
+  if (type === "checkbox") return "Checkbox"
+  return "Eingabe"
 }
 
 export default function SignaturePanel({
@@ -729,13 +735,14 @@ function SignatureEditorModal({
   function addField(type: SignatureField["type"], pos?: { x: number; y: number }) {
     const count = fields.filter((f) => f.type === type && f.owner === tab).length
     if (count >= 3) return
+    const nextIndex = count + 1
     const width = type === "checkbox" ? 3 : type === "signature" ? 18 : 12
     const height = type === "checkbox" ? 3 : type === "signature" ? 6 : 4
     const x = clamp(pos?.x ?? 10, 0, 100 - width)
     const y = clamp(pos?.y ?? 10, 0, 100 - height)
     setFields([
       ...fields,
-      { id: uuidLike(), owner: tab, type, label: "", page, x, y, width, height },
+      { id: uuidLike(), owner: tab, type, label: `${signatureFieldTypeLabel(type)} ${nextIndex}`, page, x, y, width, height },
     ])
   }
 
@@ -1071,24 +1078,30 @@ function SignatureEditorModal({
                 .filter((f) => f.owner === tab)
                 .map((f) => (
                   <div key={f.id} className="rounded-lg border border-slate-200 bg-white p-2 text-xs">
-                    <div className="font-medium text-slate-800">{f.label || f.type}</div>
+                    <div className="font-medium text-slate-800">{f.label || signatureFieldTypeLabel(f.type)}</div>
                     <div className="text-[11px] text-slate-500">
                       Seite {f.page} · {Math.round(f.x)}/{Math.round(f.y)} · {Math.round(f.width)}x{Math.round(f.height)}
                     </div>
                     {editing && canEditFields ? (
                       <div className="mt-2 grid grid-cols-2 gap-1">
                         <input
-                          value={String(f.page)}
-                          onChange={(e) =>
-                            setFields(fields.map((x) => (x.id === f.id ? { ...x, page: Number(e.target.value || 1) } : x)))
-                          }
-                          className="rounded border border-slate-200 px-2 py-1 text-[11px]"
-                        />
-                        <input
                           value={String(f.label)}
                           onChange={(e) =>
                             setFields(fields.map((x) => (x.id === f.id ? { ...x, label: e.target.value } : x)))
                           }
+                          placeholder="Name des Felds"
+                          aria-label="Name des Felds"
+                          className="col-span-2 rounded border border-slate-200 px-2 py-1 text-[11px]"
+                        />
+                        <input
+                          value={String(f.page)}
+                          onChange={(e) =>
+                            setFields(fields.map((x) => (x.id === f.id ? { ...x, page: Number(e.target.value || 1) } : x)))
+                          }
+                          type="number"
+                          min={1}
+                          placeholder="Seite"
+                          aria-label="Seite"
                           className="rounded border border-slate-200 px-2 py-1 text-[11px]"
                         />
                         <input
@@ -1096,6 +1109,10 @@ function SignatureEditorModal({
                           onChange={(e) =>
                             setFields(fields.map((x) => (x.id === f.id ? { ...x, width: Number(e.target.value || 10) } : x)))
                           }
+                          type="number"
+                          min={1}
+                          placeholder="Breite"
+                          aria-label="Breite"
                           className="rounded border border-slate-200 px-2 py-1 text-[11px]"
                         />
                         <input
@@ -1103,6 +1120,10 @@ function SignatureEditorModal({
                           onChange={(e) =>
                             setFields(fields.map((x) => (x.id === f.id ? { ...x, height: Number(e.target.value || 5) } : x)))
                           }
+                          type="number"
+                          min={1}
+                          placeholder="Hoehe"
+                          aria-label="Hoehe"
                           className="rounded border border-slate-200 px-2 py-1 text-[11px]"
                         />
                         <button
