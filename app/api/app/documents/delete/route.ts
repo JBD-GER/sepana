@@ -30,7 +30,7 @@ export async function DELETE(req: Request) {
     const admin = supabaseAdmin()
     const { data: doc } = await admin
       .from("documents")
-      .select("id,case_id,file_path,uploaded_by")
+      .select("id,case_id,file_path,uploaded_by,document_kind")
       .eq("id", docId)
       .maybeSingle()
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -38,7 +38,12 @@ export async function DELETE(req: Request) {
     const allowed = await canAccessCase(supabase, doc.case_id, user.id, role)
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-    // Allow customers/advisors/admins who can access the case to delete
+    const isSignedSignatureDoc = String(doc.document_kind || "") === "signature_signed"
+    if (isSignedSignatureDoc && role !== "advisor" && role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // General case documents can be deleted by case participants; signed signature docs are advisor/admin only.
     const { error: rmErr } = await admin.storage.from("case_documents").remove([doc.file_path])
     if (rmErr) throw rmErr
 

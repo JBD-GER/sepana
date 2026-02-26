@@ -64,6 +64,9 @@ export function translateBankStatus(raw?: string | null) {
   const s = String(raw ?? "").trim().toLowerCase()
   const map: Record<string, string> = {
     submitted: "Eingereicht",
+    precheck: "Vorpruefung",
+    pre_check: "Vorpruefung",
+    vorpruefung: "Vorpruefung",
     documents: "Dokumente",
     approved: "Angenommen",
     accepted: "Angenommen",

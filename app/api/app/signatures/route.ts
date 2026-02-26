@@ -418,3 +418,67 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const { user, role } = await getUserAndRole()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (role !== "advisor" && role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const body = await req.json().catch(() => null)
+    const id = String(body?.id ?? "").trim()
+    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
+
+    const admin = supabaseAdmin()
+    const { data: reqRow } = await admin
+      .from("case_signature_requests")
+      .select("id,case_id,title")
+      .eq("id", id)
+      .maybeSingle()
+    if (!reqRow) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
+    const allowed = await canAccessCase(admin, reqRow.case_id, user.id, role)
+    if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+    const { data: docs, error: docsErr } = await admin
+      .from("documents")
+      .select("id,file_path")
+      .eq("signature_request_id", id)
+    if (docsErr) return NextResponse.json({ error: docsErr.message }, { status: 500 })
+
+    const filePaths = Array.from(new Set((docs ?? []).map((d: any) => String(d?.file_path || "").trim()).filter(Boolean)))
+    if (filePaths.length) {
+      const { error: rmErr } = await admin.storage.from("case_documents").remove(filePaths)
+      if (rmErr) return NextResponse.json({ error: rmErr.message }, { status: 500 })
+    }
+
+    const { error: valueErr } = await admin.from("case_signature_field_values").delete().eq("request_id", id)
+    if (valueErr) return NextResponse.json({ error: valueErr.message }, { status: 500 })
+
+    const { error: eventErr } = await admin.from("case_signature_events").delete().eq("request_id", id)
+    if (eventErr) return NextResponse.json({ error: eventErr.message }, { status: 500 })
+
+    const { error: docDelErr } = await admin.from("documents").delete().eq("signature_request_id", id)
+    if (docDelErr) return NextResponse.json({ error: docDelErr.message }, { status: 500 })
+
+    const { error: reqDelErr } = await admin.from("case_signature_requests").delete().eq("id", id)
+    if (reqDelErr) return NextResponse.json({ error: reqDelErr.message }, { status: 500 })
+
+    await logCaseEvent({
+      caseId: reqRow.case_id,
+      actorId: user.id,
+      actorRole: role ?? "advisor",
+      type: "signature_deleted",
+      title: "Unterschriftsdokument geloescht",
+      body: reqRow.title ? `Dokument: ${reqRow.title}` : "Unterschriftsdokument wurde geloescht",
+      meta: { request_id: id },
+      notifyCustomer: false,
+    }).catch(() => null)
+
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message ?? "Serverfehler" }, { status: 500 })
+  }
+}

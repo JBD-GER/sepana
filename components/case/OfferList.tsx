@@ -238,7 +238,9 @@ export default function OfferList({
     <div className="mt-4 space-y-3">
       {ordered.map((o) => {
         const offerLogo = o.provider_logo_path ? logoSrc(o.provider_logo_path) : null
+        const canManageBankStatus = canManage && (o.status === "sent" || o.status === "accepted")
         const bankStatus = String(o.bank_status || "submitted").toLowerCase()
+        const bankPrecheck = bankStatus === "precheck"
         const bankDocuments = bankStatus === "documents"
         const bankApproved = bankStatus === "approved"
         const bankDeclined = bankStatus === "declined"
@@ -264,11 +266,13 @@ export default function OfferList({
                   {o.provider_name ? " | " : ""}
                   Status: {translateOfferStatus(o.status)} | Erstellt: {dt(o.created_at)}
                 </div>
-                {o.status === "accepted" ? (
+                {(o.status === "accepted" || canManageBankStatus) ? (
                   <div
                     className={`mt-2 rounded-xl border px-3 py-2 text-xs ${
                       bankApproved
                         ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : bankPrecheck
+                          ? "border-cyan-200 bg-cyan-50 text-cyan-800"
                         : bankDeclined
                           ? "border-rose-200 bg-rose-50 text-rose-800"
                           : bankDocuments
@@ -284,6 +288,8 @@ export default function OfferList({
                     <div className="mt-1 font-semibold">
                       {bankApproved
                         ? "\u{1F389} Die Bank hat das Angebot angenommen."
+                        : bankPrecheck
+                          ? "Die Bank befindet sich in der Vorpruefung."
                         : bankDeclined
                           ? "Die Bank hat das Angebot abgelehnt."
                           : bankDocuments
@@ -326,7 +332,7 @@ export default function OfferList({
                     </select>
                   </div>
                 ) : null}
-                {canManage && o.status === "accepted" ? (
+                {canManageBankStatus ? (
                   <div className="rounded-xl border border-orange-200 bg-orange-50 px-2 py-1">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-orange-700">
                       Bank-Status
@@ -352,6 +358,7 @@ export default function OfferList({
                       <option value="" disabled>
                         Eingereicht
                       </option>
+                      <option value="precheck">Vorpruefung</option>
                       <option value="documents">Dokumente</option>
                       <option value="questions">Rueckfragen</option>
                       <option value="approved">Angenommen</option>
@@ -359,7 +366,7 @@ export default function OfferList({
                     </select>
                   </div>
                 ) : null}
-                {canManage && !isKonsum && o.status === "accepted" ? (
+                {canManageBankStatus && !isKonsum ? (
                   <button
                     type="button"
                     onClick={() => openApprovedModal(o)}

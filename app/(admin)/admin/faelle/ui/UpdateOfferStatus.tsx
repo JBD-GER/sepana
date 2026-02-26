@@ -7,7 +7,7 @@ import { translateBankStatus, translateOfferStatus } from "@/lib/caseStatus"
 type Offer = {
   id: string
   status: "draft" | "sent" | "accepted" | "rejected"
-  bank_status?: "submitted" | "documents" | "approved" | "declined" | "questions" | null
+  bank_status?: "submitted" | "precheck" | "documents" | "approved" | "declined" | "questions" | null
   bank_feedback_note?: string | null
   bank_commission_amount?: number | null
   loan_amount: number | null
@@ -16,7 +16,7 @@ type Offer = {
 }
 
 const OFFER_STATUSES = ["draft", "sent", "accepted", "rejected"] as const
-const BANK_DECISIONS = ["documents", "approved", "declined", "questions"] as const
+const BANK_DECISIONS = ["precheck", "documents", "approved", "declined", "questions"] as const
 
 function isOfferStatus(value: string): value is (typeof OFFER_STATUSES)[number] {
   return OFFER_STATUSES.includes(value as (typeof OFFER_STATUSES)[number])
@@ -153,12 +153,17 @@ export default function UpdateOfferStatus({
                 <div className="flex items-center justify-between">
                   <div className="text-xs text-slate-700">
                     Status: <span className="font-medium text-slate-900">{translateOfferStatus(o.status)}</span>
-                    {o.status === "accepted" ? (
+                    {(o.status === "sent" || o.status === "accepted") ? (
                       <div className="mt-1 text-[11px] text-slate-500">
                         Bank-Status: {translateBankStatus(o.bank_status || "submitted")}
                         {String(o.bank_status || "").toLowerCase() === "documents" ? (
                           <div className="mt-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] text-sky-800">
                             Kunde muss alle Unterlagen im Bereich Dokumente hochladen.
+                          </div>
+                        ) : null}
+                        {String(o.bank_status || "").toLowerCase() === "precheck" ? (
+                          <div className="mt-1 rounded-md border border-cyan-200 bg-cyan-50 px-2 py-1 text-[11px] text-cyan-800">
+                            Bank befindet sich in der Vorpruefung.
                           </div>
                         ) : null}
                         {String(o.bank_status || "").toLowerCase() === "questions" && o.bank_feedback_note ? (
@@ -213,7 +218,7 @@ export default function UpdateOfferStatus({
                   />
                 </div>
 
-                {o.status === "accepted" ? (
+                {(o.status === "sent" || o.status === "accepted") ? (
                   <div className="mt-2">
                     <div className="rounded-lg border border-orange-200 bg-orange-50 px-2 py-1">
                       <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-orange-700">
@@ -228,6 +233,7 @@ export default function UpdateOfferStatus({
                         <option value="" disabled>
                           Eingereicht
                         </option>
+                        <option value="precheck">Vorpruefung</option>
                         <option value="documents">Dokumente</option>
                         <option value="questions">Rueckfragen</option>
                         <option value="approved">Angenommen</option>

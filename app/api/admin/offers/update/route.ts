@@ -8,7 +8,7 @@ import { applyReferralBankOutcomeAndCommission } from "@/lib/tippgeber/service"
 export const runtime = "nodejs"
 
 const ALLOWED_STATUSES = ["draft", "sent", "accepted", "rejected"] as const
-const ALLOWED_BANK_STATUS = ["submitted", "documents", "approved", "declined", "questions"] as const
+const ALLOWED_BANK_STATUS = ["submitted", "precheck", "documents", "approved", "declined", "questions"] as const
 
 function normalizeSiteUrl(raw: string | undefined) {
   const fallback = "https://www.sepana.de"
@@ -35,6 +35,14 @@ function parseOptionalMoneyInput(value: unknown) {
   if (!Number.isFinite(num)) return { ok: false as const, error: "Ungueltige Provisionshoehe" }
   if (num < 0) return { ok: false as const, error: "Provisionshoehe darf nicht negativ sein" }
   return { ok: true as const, value: Math.round((num + Number.EPSILON) * 100) / 100 }
+}
+
+function isMissingBankCommissionAmountColumnError(error: unknown) {
+  const anyError = error as { code?: string; message?: string } | null
+  if (!anyError) return false
+  if (anyError.code !== "42703") return false
+  const msg = String(anyError.message ?? "").toLowerCase()
+  return msg.includes("bank_commission_amount")
 }
 
 async function syncCaseOfferStatus(admin: ReturnType<typeof supabaseAdmin>, caseId: string) {
@@ -101,11 +109,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Kein Patch uebergeben" }, { status: 400 })
     }
 
-    const { data: offer } = await admin
+    let bankCommissionColumnAvailable = true
+    let {
+      data: offer,
+      error: offerErr,
+    } = await admin
       .from("case_offers")
       .select("id,case_id,status,bank_status,bank_commission_amount")
       .eq("id", offerId)
       .maybeSingle()
+    if (offerErr && isMissingBankCommissionAmountColumnError(offerErr)) {
+      bankCommissionColumnAvailable = false
+      const fallback = await admin
+        .from("case_offers")
+        .select("id,case_id,status,bank_status")
+        .eq("id", offerId)
+        .maybeSingle()
+      offerErr = fallback.error ?? null
+      offer = fallback.data ? ({ ...fallback.data, bank_commission_amount: null } as any) : null
+    }
+    if (offerErr) throw offerErr
     if (!offer) return NextResponse.json({ ok: false, error: "Offer nicht gefunden" }, { status: 404 })
 
     const offerBankCommissionAmount =
@@ -115,9 +138,16 @@ export async function POST(req: Request) {
         ? patch.bank_commission_amount
         : offerBankCommissionAmount) ?? null
 
+    if (Object.prototype.hasOwnProperty.call(patch, "bank_commission_amount") && !bankCommissionColumnAvailable) {
+      return NextResponse.json(
+        { ok: false, error: "DB-Spalte 'bank_commission_amount' fehlt. Bitte Migration ausfuehren." },
+        { status: 409 }
+      )
+    }
+
     const effectiveStatus = patch.status ?? offer.status
-    if (patch.bank_status && effectiveStatus !== "accepted") {
-      return NextResponse.json({ ok: false, error: "Bank-Status nur bei akzeptiertem Angebot" }, { status: 409 })
+    if (patch.bank_status && effectiveStatus !== "accepted" && effectiveStatus !== "sent") {
+      return NextResponse.json({ ok: false, error: "Bank-Status nur bei abgeschicktem oder akzeptiertem Angebot" }, { status: 409 })
     }
     if (patch.bank_status === "approved" && (effectiveBankCommissionAmount == null || Number(effectiveBankCommissionAmount) <= 0)) {
       return NextResponse.json(
@@ -205,6 +235,8 @@ export async function POST(req: Request) {
       const bankStatusBody =
         patch.bank_status === "approved"
           ? "\u{1F389} Die Bank hat das Angebot angenommen."
+          : patch.bank_status === "precheck"
+            ? "Die Bank befindet sich in der Vorpruefung."
           : patch.bank_status === "declined"
             ? "Die Bank hat das Angebot abgelehnt."
             : patch.bank_status === "documents"
@@ -220,13 +252,21 @@ export async function POST(req: Request) {
         body: bankStatusBody,
       })
 
-      if (patch.bank_status === "approved" || patch.bank_status === "declined" || patch.bank_status === "questions" || patch.bank_status === "documents") {
+      if (
+        patch.bank_status === "approved" ||
+        patch.bank_status === "declined" ||
+        patch.bank_status === "questions" ||
+        patch.bank_status === "documents" ||
+        patch.bank_status === "precheck"
+      ) {
         const meta = await getCaseMeta(offer.case_id)
         if (meta?.customer_email) {
           const advisorName = pickAdvisorName(meta)
           const subject =
             patch.bank_status === "approved"
               ? "\u{1F389} Bank hat das Angebot angenommen"
+              : patch.bank_status === "precheck"
+                ? "Bankstatus: Vorpruefung"
               : patch.bank_status === "declined"
                 ? "Bank hat das Angebot abgelehnt"
                 : patch.bank_status === "questions"
@@ -237,6 +277,8 @@ export async function POST(req: Request) {
             intro:
               patch.bank_status === "approved"
                 ? "\u{1F389} Gute Nachrichten: die Bank hat Ihr Angebot angenommen."
+                : patch.bank_status === "precheck"
+                  ? "Die Bank hat die Vorpruefung Ihres Angebots gestartet."
                 : patch.bank_status === "declined"
                   ? "Die Bank hat das Angebot leider abgelehnt."
                   : patch.bank_status === "questions"
@@ -248,6 +290,12 @@ export async function POST(req: Request) {
                     `Rueckfragen der Bank: ${patch.bank_feedback_note}`,
                     `Bitte kontaktieren Sie Ihren Kundenberater ${advisorName}.`,
                   ]
+                : patch.bank_status === "precheck"
+                  ? [
+                      "Die Bank befindet sich aktuell in der Vorpruefung.",
+                      "Aktuell ist keine Aktion von Ihnen erforderlich.",
+                      "Ihr Berater informiert Sie, sobald es Neuigkeiten gibt.",
+                    ]
                 : patch.bank_status === "documents"
                   ? [
                       "Bitte oeffnen Sie Ihren Fall im Kundenportal.",

@@ -6,7 +6,7 @@ import { applyReferralBankOutcomeAndCommission } from "@/lib/tippgeber/service"
 export const runtime = "nodejs"
 
 const ALLOWED_STATUSES = ["draft", "sent", "accepted", "rejected"] as const
-const ALLOWED_BANK_STATUS = ["submitted", "documents", "approved", "declined", "questions"] as const
+const ALLOWED_BANK_STATUS = ["submitted", "precheck", "documents", "approved", "declined", "questions"] as const
 
 function normalizeSiteUrl(raw: string | undefined) {
   const fallback = "https://www.sepana.de"
@@ -33,6 +33,14 @@ function parseOptionalMoneyInput(value: unknown) {
   if (!Number.isFinite(num)) return { ok: false as const, error: "invalid_commission_amount" as const }
   if (num < 0) return { ok: false as const, error: "invalid_commission_amount" as const }
   return { ok: true as const, value: Math.round((num + Number.EPSILON) * 100) / 100 }
+}
+
+function isMissingBankCommissionAmountColumnError(error: unknown) {
+  const anyError = error as { code?: string; message?: string } | null
+  if (!anyError) return false
+  if (anyError.code !== "42703") return false
+  const msg = String(anyError.message ?? "").toLowerCase()
+  return msg.includes("bank_commission_amount")
 }
 
 async function syncCaseOfferStatus(supabase: any, caseId: string) {
@@ -79,11 +87,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "bank_feedback_note_required" }, { status: 400 })
   }
 
-  const { data: offer } = await supabase
+  let bankCommissionColumnAvailable = true
+  let {
+    data: offer,
+    error: offerErr,
+  } = await supabase
     .from("case_offers")
     .select("id,case_id,status,bank_status,bank_commission_amount")
     .eq("id", offerId)
     .maybeSingle()
+  if (offerErr && isMissingBankCommissionAmountColumnError(offerErr)) {
+    bankCommissionColumnAvailable = false
+    const fallback = await supabase
+      .from("case_offers")
+      .select("id,case_id,status,bank_status")
+      .eq("id", offerId)
+      .maybeSingle()
+    offerErr = fallback.error ?? null
+    offer = fallback.data ? ({ ...fallback.data, bank_commission_amount: null } as any) : null
+  }
+  if (offerErr) return NextResponse.json({ ok: false, error: offerErr.message }, { status: 500 })
   if (!offer) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 })
 
   const { data: caseRow } = await supabase
@@ -101,8 +124,12 @@ export async function POST(req: Request) {
   const effectiveBankCommissionAmount =
     (hasBankCommissionAmount ? parsedBankCommissionAmount.value : offerBankCommissionAmount) ?? null
 
+  if (hasBankCommissionAmount && !bankCommissionColumnAvailable) {
+    return NextResponse.json({ ok: false, error: "bank_commission_amount_column_missing" }, { status: 409 })
+  }
+
   if (bankStatus) {
-    if (offer.status !== "accepted") {
+    if (offer.status !== "accepted" && offer.status !== "sent") {
       return NextResponse.json({ ok: false, error: "bank_status_not_allowed" }, { status: 409 })
     }
     if (bankStatus === "approved" && (effectiveBankCommissionAmount == null || Number(effectiveBankCommissionAmount) <= 0)) {
@@ -123,6 +150,8 @@ export async function POST(req: Request) {
     const bankStatusBody =
       bankStatus === "approved"
         ? "\u{1F389} Die Bank hat das Angebot angenommen."
+        : bankStatus === "precheck"
+          ? "Die Bank befindet sich in der Vorpruefung."
         : bankStatus === "declined"
           ? "Die Bank hat das Angebot abgelehnt."
           : bankStatus === "documents"
@@ -138,13 +167,21 @@ export async function POST(req: Request) {
       body: bankStatusBody,
     })
 
-    if (bankStatus === "approved" || bankStatus === "declined" || bankStatus === "questions" || bankStatus === "documents") {
+    if (
+      bankStatus === "approved" ||
+      bankStatus === "declined" ||
+      bankStatus === "questions" ||
+      bankStatus === "documents" ||
+      bankStatus === "precheck"
+    ) {
       const caseMeta = meta ?? (await getCaseMeta(offer.case_id))
       if (caseMeta?.customer_email) {
         const advisorName = pickAdvisorName(caseMeta)
         const subject =
           bankStatus === "approved"
             ? "\u{1F389} Bank hat das Angebot angenommen"
+            : bankStatus === "precheck"
+              ? "Bankstatus: Vorpruefung"
             : bankStatus === "declined"
               ? "Bank hat das Angebot abgelehnt"
               : bankStatus === "questions"
@@ -155,6 +192,8 @@ export async function POST(req: Request) {
           intro:
             bankStatus === "approved"
               ? "\u{1F389} Gute Nachrichten: die Bank hat Ihr Angebot angenommen."
+              : bankStatus === "precheck"
+                ? "Die Bank hat die Vorpruefung Ihres Angebots gestartet."
               : bankStatus === "declined"
                 ? "Die Bank hat das Angebot leider abgelehnt."
                 : bankStatus === "questions"
@@ -166,6 +205,12 @@ export async function POST(req: Request) {
                   `Rueckfragen der Bank: ${bankFeedbackNote}`,
                   `Bitte kontaktieren Sie Ihren Kundenberater ${advisorName}.`,
                 ]
+              : bankStatus === "precheck"
+                ? [
+                    "Die Bank befindet sich aktuell in der Vorpruefung.",
+                    "Aktuell ist keine Aktion von Ihnen erforderlich.",
+                    "Ihr Berater informiert Sie, sobald es Neuigkeiten gibt.",
+                  ]
               : bankStatus === "documents"
                 ? [
                     "Bitte oeffnen Sie Ihren Fall im Kundenportal.",

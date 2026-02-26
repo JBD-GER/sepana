@@ -382,6 +382,54 @@ export default function SignaturePanel({
     }
   }
 
+  async function deleteSignedDocument(docId: string) {
+    if (!canEdit) return
+    if (!confirm("Signiertes Dokument wirklich loeschen?")) return
+    setBusy(true)
+    setMsg(null)
+    try {
+      const res = await fetch("/api/app/documents/delete", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: docId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Loeschen fehlgeschlagen")
+      await refresh()
+    } catch (e: any) {
+      setMsg(e?.message ?? "Fehler")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function deleteSignatureRequest(requestId: string) {
+    if (!canEdit) return
+    if (
+      !confirm(
+        "Dokument komplett loeschen? Dadurch werden Original, signierte Versionen, Felder und Eingaben entfernt."
+      )
+    ) {
+      return
+    }
+    setBusy(true)
+    setMsg(null)
+    try {
+      const res = await fetch("/api/app/signatures", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: requestId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Loeschen fehlgeschlagen")
+      await refresh()
+    } catch (e: any) {
+      setMsg(e?.message ?? "Fehler")
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const visibleItems = canEdit
     ? items
     : items.filter((req) => {
@@ -461,6 +509,8 @@ export default function SignaturePanel({
             onSaveFields={saveFields}
             onUploadSigned={uploadSigned}
             onSubmitDigital={submitDigital}
+            onDeleteSignedDocument={deleteSignedDocument}
+            onDeleteRequest={deleteSignatureRequest}
           />
         ))}
 
@@ -481,6 +531,8 @@ function SignatureRequestCard({
   onSaveFields,
   onUploadSigned,
   onSubmitDigital,
+  onDeleteSignedDocument,
+  onDeleteRequest,
 }: {
   req: SignatureRequest
   canEdit: boolean
@@ -488,6 +540,8 @@ function SignatureRequestCard({
   onSaveFields: (id: string, fields: SignatureField[], opts?: SaveFieldsOptions) => Promise<void>
   onUploadSigned: (id: string, files: FileList) => Promise<void>
   onSubmitDigital: (id: string, values: Record<string, any>) => Promise<boolean>
+  onDeleteSignedDocument: (id: string) => Promise<void>
+  onDeleteRequest: (id: string) => Promise<void>
 }) {
   const [editorOpen, setEditorOpen] = useState(false)
   const [signOpen, setSignOpen] = useState(false)
@@ -549,27 +603,52 @@ function SignatureRequestCard({
                   </div>
                 </div>
                 {signedDownloadUrl ? (
-                  <a
-                    href={signedDownloadUrl}
-                    download
-                    className="inline-flex w-full items-center justify-center rounded-full border border-emerald-600 bg-emerald-600 px-3 py-2 text-[11px] font-semibold text-white shadow-sm sm:w-auto"
-                  >
-                    PDF herunterladen
-                  </a>
+                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                    <a
+                      href={signedDownloadUrl}
+                      download
+                      className="inline-flex w-full items-center justify-center rounded-full border border-emerald-600 bg-emerald-600 px-3 py-2 text-[11px] font-semibold text-white shadow-sm sm:w-auto"
+                    >
+                      PDF herunterladen
+                    </a>
+                    {canEdit ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (primarySigned) void onDeleteSignedDocument(primarySigned.id)
+                        }}
+                        disabled={busy}
+                        className="inline-flex w-full items-center justify-center rounded-full border border-rose-300 bg-white px-3 py-2 text-[11px] font-semibold text-rose-700 shadow-sm disabled:opacity-60 sm:w-auto"
+                      >
+                        Loeschen
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
               {docsSigned.length > 1 ? (
                 <div className="mt-2 space-y-1 text-[11px] text-emerald-700">
                   <div className="font-medium text-emerald-900">Weitere Versionen</div>
                   {docsSigned.slice(0, -1).map((d) => (
-                    <a
-                      key={d.id}
-                      href={fileUrl(d.file_path, { raw: true, download: true, filename: d.file_name })}
-                      download
-                      className="block hover:underline"
-                    >
-                      {d.file_name} · {shortIso(d.created_at)} · {formatBytes(d.size_bytes)}
-                    </a>
+                    <div key={d.id} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <a
+                        href={fileUrl(d.file_path, { raw: true, download: true, filename: d.file_name })}
+                        download
+                        className="block hover:underline"
+                      >
+                        {d.file_name} · {shortIso(d.created_at)} · {formatBytes(d.size_bytes)}
+                      </a>
+                      {canEdit ? (
+                        <button
+                          type="button"
+                          onClick={() => onDeleteSignedDocument(d.id)}
+                          disabled={busy}
+                          className="inline-flex items-center justify-center rounded-full border border-rose-300 bg-white px-2 py-1 text-[10px] font-semibold text-rose-700 disabled:opacity-60"
+                        >
+                          Loeschen
+                        </button>
+                      ) : null}
+                    </div>
                   ))}
                 </div>
               ) : null}
@@ -587,6 +666,16 @@ function SignatureRequestCard({
               className="w-full rounded-full border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 sm:w-auto sm:py-1"
             >
               Editor oeffnen
+            </button>
+          ) : null}
+          {canEdit ? (
+            <button
+              type="button"
+              onClick={() => onDeleteRequest(req.id)}
+              disabled={busy}
+              className="w-full rounded-full border border-rose-300 bg-white px-3 py-2 text-[11px] font-semibold text-rose-700 disabled:opacity-60 sm:w-auto sm:py-1"
+            >
+              Dokument komplett loeschen
             </button>
           ) : null}
           {finalDoc && signedDownloadUrl ? (

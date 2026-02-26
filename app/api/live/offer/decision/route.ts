@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   const readClient = user ? supabase : admin
   const { data: offer } = await readClient
     .from("case_offers")
-    .select("id,case_id,status")
+    .select("id,case_id,status,bank_status")
     .eq("id", offerId)
     .maybeSingle()
   if (!offer) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 })
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
 
   const client = user ? supabase : admin
   const patch: any = { status: nextStatus }
-  if (nextStatus === "accepted") {
+  if (nextStatus === "accepted" && !offer.bank_status) {
     patch.bank_status = "documents"
     patch.bank_confirmed_at = null
   }

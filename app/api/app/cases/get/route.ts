@@ -36,6 +36,14 @@ function isMissingAdvisorPrivateNoteColumnError(error: unknown) {
   return msg.includes("advisor_private_note") && (msg.includes("column") || msg.includes("exist"))
 }
 
+function isMissingBankCommissionAmountColumnError(error: unknown) {
+  const anyError = error as { code?: string; message?: string } | null
+  if (!anyError) return false
+  if (anyError.code !== "42703") return false
+  const msg = String(anyError.message ?? "").toLowerCase()
+  return msg.includes("bank_commission_amount")
+}
+
 export async function GET(req: Request) {
   const { supabase, user, role } = await getUserAndRole()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -71,12 +79,15 @@ export async function GET(req: Request) {
 
   const admin = supabaseAdmin()
   const readClient = admin
+  const offerSelectBase =
+    "id,case_id,provider_id,product_type,status,bank_status,bank_feedback_note,loan_amount,rate_monthly,interest_nominal,apr_effective,term_months,zinsbindung_years,special_repayment,created_at"
+  const offerSelect = role === "customer" ? offerSelectBase : `${offerSelectBase},bank_commission_amount`
 
   const [
     { data: details },
     { data: applicants },
     { data: previews },
-    { data: offers },
+    offersResult,
     { data: docs },
     { data: docRequests },
     { data: notes },
@@ -94,10 +105,6 @@ export async function GET(req: Request) {
         .order("created_at", { ascending: false })
         .limit(5),
       (() => {
-        const offerSelectBase =
-          "id,case_id,provider_id,product_type,status,bank_status,bank_feedback_note,loan_amount,rate_monthly,interest_nominal,apr_effective,term_months,zinsbindung_years,special_repayment,created_at"
-        const offerSelect =
-          role === "customer" ? offerSelectBase : `${offerSelectBase},bank_commission_amount`
         let query = readClient
           .from("case_offers")
           .select(offerSelect)
@@ -130,6 +137,26 @@ export async function GET(req: Request) {
       readClient.from("case_children").select("*").eq("case_id", id).order("created_at", { ascending: true }),
       getTippgeberBrandForCase(id),
     ])
+
+  let offers = offersResult?.data ?? []
+  if (offersResult?.error) {
+    if (isMissingBankCommissionAmountColumnError(offersResult.error)) {
+      let fallbackQuery = readClient
+        .from("case_offers")
+        .select(offerSelectBase)
+        .eq("case_id", id)
+        .order("created_at", { ascending: false })
+        .limit(50)
+      if (role === "customer") {
+        fallbackQuery = fallbackQuery.in("status", ["sent", "accepted", "rejected"])
+      }
+      const fallbackOffers = await fallbackQuery
+      offers = fallbackOffers.data ?? []
+      if (fallbackOffers.error) console.error("case offers fallback query failed", fallbackOffers.error)
+    } else {
+      console.error("case offers query failed", offersResult.error)
+    }
+  }
 
   // ✅ Provider Infos für Offers nachladen (optional, wenn Tabelle existiert)
   const previewProviderIds = (previews ?? [])
