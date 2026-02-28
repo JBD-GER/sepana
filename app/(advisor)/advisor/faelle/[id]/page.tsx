@@ -11,6 +11,7 @@ import SignaturePanel from "@/components/case/SignaturePanel"
 import LiveCasePanel from "@/components/live/LiveCasePanel"
 import ClearSignatureHash from "@/components/case/ClearSignatureHash"
 import RecommendedByCard from "@/components/case/RecommendedByCard"
+import ResendCustomerInviteButton from "@/components/case/ResendCustomerInviteButton"
 import AdvisorCaseRefEditor from "./ui/AdvisorCaseRefEditor"
 import AdvisorPrivateNoteEditor from "./ui/AdvisorPrivateNoteEditor"
 import AdvisorCaseStatusSelect from "../ui/AdvisorCaseStatusSelect"
@@ -214,9 +215,12 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200/70 bg-slate-50 px-4 py-3 text-sm">
-            <div className="text-xs text-slate-600">Fall-ID</div>
-            <div className="font-medium text-slate-900 break-all">{c.id}</div>
+          <div className="w-full max-w-sm sm:w-auto">
+            <div className="rounded-2xl border border-slate-200/70 bg-slate-50 px-4 py-3 text-sm">
+              <div className="text-xs text-slate-600">Fall-ID</div>
+              <div className="font-medium text-slate-900 break-all">{c.id}</div>
+            </div>
+            {c.customer_id ? <ResendCustomerInviteButton caseId={c.id} /> : null}
           </div>
         </div>
         <div className="mt-4">
