@@ -3,8 +3,17 @@ import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import AppointmentStatusButton from "../ui/AppointmentStatusButton"
 
+const ISO_WITH_TIME_RE = /^\d{4}-\d{2}-\d{2}T/
+const ISO_WITH_ZONE_RE = /(Z|[+-]\d{2}:\d{2})$/i
+
+function parseAppointmentDateTime(value: string) {
+  const raw = String(value ?? "").trim()
+  if (ISO_WITH_TIME_RE.test(raw) && !ISO_WITH_ZONE_RE.test(raw)) return new Date(`${raw}Z`)
+  return new Date(raw)
+}
+
 function dt(d: string) {
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(d))
+  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(parseAppointmentDateTime(d))
 }
 
 function buildName(row: any) {

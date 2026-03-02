@@ -9,6 +9,16 @@ function minutesDiff(a: Date, b: Date) {
   return Math.round((b.getTime() - a.getTime()) / 60000)
 }
 
+const ISO_WITH_TIME_RE = /^\d{4}-\d{2}-\d{2}T/
+const ISO_WITH_ZONE_RE = /(Z|[+-]\d{2}:\d{2})$/i
+
+function formatAppointmentForLog(value: string) {
+  const raw = String(value ?? "").trim()
+  const date =
+    ISO_WITH_TIME_RE.test(raw) && !ISO_WITH_ZONE_RE.test(raw) ? new Date(`${raw}Z`) : new Date(raw)
+  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Berlin" }).format(date)
+}
+
 export async function POST(req: Request) {
   const { user, role } = await getUserAndRole()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -82,7 +92,7 @@ export async function POST(req: Request) {
     actorRole: role ?? "customer",
     type: "appointment_booked",
     title: "Termin gebucht",
-    body: `Termin: ${new Date(startAt).toLocaleString("de-DE")}`,
+    body: `Termin: ${formatAppointmentForLog(startAt)}`,
     meta: { start_at: startAt, end_at: endAt, reason: reason || null },
   })
 

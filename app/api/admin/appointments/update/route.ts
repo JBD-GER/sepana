@@ -7,6 +7,15 @@ import { logCaseEvent } from "@/lib/notifications/notify"
 export const runtime = "nodejs"
 
 const ALLOWED_STATUS = ["booked", "cancelled"] as const
+const ISO_WITH_TIME_RE = /^\d{4}-\d{2}-\d{2}T/
+const ISO_WITH_ZONE_RE = /(Z|[+-]\d{2}:\d{2})$/i
+
+function formatAppointmentForLog(value: string) {
+  const raw = String(value ?? "").trim()
+  const date =
+    ISO_WITH_TIME_RE.test(raw) && !ISO_WITH_ZONE_RE.test(raw) ? new Date(`${raw}Z`) : new Date(raw)
+  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Berlin" }).format(date)
+}
 
 export async function POST(req: Request) {
   try {
@@ -44,7 +53,7 @@ export async function POST(req: Request) {
         actorRole: "admin",
         type: "appointment_cancelled",
         title: "Termin abgesagt",
-        body: `Termin am ${new Date(appt.start_at).toLocaleString("de-DE")} wurde abgesagt.`,
+        body: `Termin am ${formatAppointmentForLog(appt.start_at)} wurde abgesagt.`,
       })
     }
 

@@ -8,6 +8,7 @@ import {
   formatDate,
   formatTime,
   isSameDay,
+  parseAppointmentDateTime,
   toDateInputValue,
   type AppointmentLike,
   type AvailabilityDay,
@@ -132,7 +133,7 @@ export default function AdvisorTermine() {
   })
 
   const today = new Date()
-  const todayAppointments = appointments.filter((a) => isSameDay(new Date(a.start_at), today))
+  const todayAppointments = appointments.filter((a) => isSameDay(parseAppointmentDateTime(a.start_at), today))
   const waitingToday = todayAppointments.filter((a) => !!a.customer_waiting_at && a.status !== "cancelled").length
   const upcomingCount = appointments.filter((a) => a.status !== "cancelled").length
   const selectedCustomer = customers.find((c) => c.case_id === selectedCase) ?? null
@@ -499,8 +500,8 @@ export default function AdvisorTermine() {
         ) : (
           <div className="mt-3 space-y-3">
             {appointments.map((a) => {
-              const start = new Date(a.start_at)
-              const end = new Date(a.end_at)
+              const start = parseAppointmentDateTime(a.start_at)
+              const end = parseAppointmentDateTime(a.end_at)
               const isToday = isSameDay(start, new Date())
               const customerWaits = !!a.customer_waiting_at
               const isCancelled = a.status === "cancelled"

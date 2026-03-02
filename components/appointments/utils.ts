@@ -19,6 +19,9 @@ export type Slot = {
   label: string
 }
 
+const ISO_WITH_TIME_RE = /^\d{4}-\d{2}-\d{2}T/
+const ISO_WITH_ZONE_RE = /(Z|[+-]\d{2}:\d{2})$/i
+
 function parseTime(timeStr: string | null | undefined) {
   if (!timeStr) return null
   const parts = String(timeStr).split(":")
@@ -27,6 +30,16 @@ function parseTime(timeStr: string | null | undefined) {
   const m = Number(parts[1])
   if (!Number.isFinite(h) || !Number.isFinite(m)) return null
   return { h, m }
+}
+
+export function parseAppointmentDateTime(value: string | Date | null | undefined) {
+  if (value instanceof Date) return new Date(value.getTime())
+  const raw = String(value ?? "").trim()
+  if (!raw) return new Date(Number.NaN)
+  if (ISO_WITH_TIME_RE.test(raw) && !ISO_WITH_ZONE_RE.test(raw)) {
+    return new Date(`${raw}Z`)
+  }
+  return new Date(raw)
 }
 
 export function timeToDate(base: Date, timeStr?: string | null) {
@@ -62,8 +75,8 @@ export function buildSlots(opts: {
   const appts = appointments
     .filter((a) => a?.status !== "cancelled")
     .map((a) => ({
-      start: new Date(a.start_at),
-      end: new Date(a.end_at),
+      start: parseAppointmentDateTime(a.start_at),
+      end: parseAppointmentDateTime(a.end_at),
     }))
 
   const slots: Slot[] = []

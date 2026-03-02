@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { requireCustomer } from "@/lib/app/requireCustomer"
 import { authFetch } from "@/lib/app/authFetch"
+import { parseAppointmentDateTime } from "@/components/appointments/utils"
 import NotificationLog from "@/components/notifications/NotificationLog"
 
 const APPOINTMENT_LOG_TYPES = ["appointment_booked", "appointment_live_started", "appointment_cancelled"]
@@ -29,7 +30,7 @@ type MissingSummaryResp = {
 
 function formatDateTime(value?: string | null) {
   if (!value) return "—"
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
+  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(parseAppointmentDateTime(value))
 }
 
 export default async function CustomerDashboard() {
@@ -200,3 +201,4 @@ export default async function CustomerDashboard() {
     </div>
   )
 }
+

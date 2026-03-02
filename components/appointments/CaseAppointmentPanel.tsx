@@ -7,6 +7,7 @@ import {
   formatDate,
   formatTime,
   isSameDay,
+  parseAppointmentDateTime,
   toDateInputValue,
   type AppointmentLike,
   type AvailabilityDay,
@@ -219,8 +220,8 @@ export default function CaseAppointmentPanel({ caseId }: { caseId: string }) {
               <div className="text-sm font-semibold text-slate-900">Deine Termine</div>
               <div className="mt-2 space-y-2 text-xs text-slate-700">
                 {appointments.map((a) => {
-                  const start = new Date(a.start_at)
-                  const end = new Date(a.end_at)
+                  const start = parseAppointmentDateTime(a.start_at)
+                  const end = parseAppointmentDateTime(a.end_at)
                   const isToday = isSameDay(start, new Date())
                   return (
                     <div key={a.id} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">

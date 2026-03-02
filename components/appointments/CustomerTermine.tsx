@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
-import { formatDate, formatTime, isSameDay } from "@/components/appointments/utils"
+import { formatDate, formatTime, isSameDay, parseAppointmentDateTime } from "@/components/appointments/utils"
 
 type AppointmentItem = {
   id: string
@@ -25,7 +25,7 @@ type LiveQueueTicketRow = {
 }
 
 function sortByStart(a: AppointmentItem, b: AppointmentItem) {
-  return +new Date(a.start_at) - +new Date(b.start_at)
+  return +parseAppointmentDateTime(a.start_at) - +parseAppointmentDateTime(b.start_at)
 }
 
 export default function CustomerTermine() {
@@ -40,11 +40,11 @@ export default function CustomerTermine() {
   const [info, setInfo] = useState<string | null>(null)
 
   const todayAppointments = useMemo(
-    () => appointments.filter((a) => isSameDay(new Date(a.start_at), new Date())).sort(sortByStart),
+    () => appointments.filter((a) => isSameDay(parseAppointmentDateTime(a.start_at), new Date())).sort(sortByStart),
     [appointments]
   )
   const upcomingAppointments = useMemo(
-    () => appointments.filter((a) => !isSameDay(new Date(a.start_at), new Date())).sort(sortByStart),
+    () => appointments.filter((a) => !isSameDay(parseAppointmentDateTime(a.start_at), new Date())).sort(sortByStart),
     [appointments]
   )
 
@@ -199,8 +199,8 @@ export default function CustomerTermine() {
         ) : (
           <div className="space-y-3">
             {todayAppointments.map((a) => {
-              const start = new Date(a.start_at)
-              const end = new Date(a.end_at)
+              const start = parseAppointmentDateTime(a.start_at)
+              const end = parseAppointmentDateTime(a.end_at)
               const advisorReady = !!a.advisor_waiting_at
               const customerWaiting = !!a.customer_waiting_at
               const isCancelled = a.status === "cancelled"
@@ -273,8 +273,8 @@ export default function CustomerTermine() {
         ) : (
           <div className="space-y-3">
             {upcomingAppointments.map((a) => {
-              const start = new Date(a.start_at)
-              const end = new Date(a.end_at)
+              const start = parseAppointmentDateTime(a.start_at)
+              const end = parseAppointmentDateTime(a.end_at)
               return (
                 <div key={a.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="text-base font-semibold text-slate-900">

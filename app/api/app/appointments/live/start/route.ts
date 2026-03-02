@@ -5,6 +5,16 @@ import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { logCaseEvent } from "@/lib/notifications/notify"
 
+const ISO_WITH_TIME_RE = /^\d{4}-\d{2}-\d{2}T/
+const ISO_WITH_ZONE_RE = /(Z|[+-]\d{2}:\d{2})$/i
+
+function formatAppointmentForLog(value: string) {
+  const raw = String(value ?? "").trim()
+  const date =
+    ISO_WITH_TIME_RE.test(raw) && !ISO_WITH_ZONE_RE.test(raw) ? new Date(`${raw}Z`) : new Date(raw)
+  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Berlin" }).format(date)
+}
+
 export async function POST(req: Request) {
   const { user, role } = await getUserAndRole()
   if (!user) return NextResponse.json({ ok: false, error: "not_authenticated" }, { status: 401 })
@@ -100,7 +110,7 @@ export async function POST(req: Request) {
       actorRole: role ?? "advisor",
       type: "appointment_live_started",
       title: "Live-Termin gestartet",
-      body: `Termin gestartet (${new Date(appt.start_at).toLocaleString("de-DE")}).`,
+      body: `Termin gestartet (${formatAppointmentForLog(appt.start_at)}).`,
     })
 
     return NextResponse.json({ ok: true, ticket: updated })
@@ -133,7 +143,7 @@ export async function POST(req: Request) {
     actorRole: role ?? "advisor",
     type: "appointment_live_started",
     title: "Live-Termin gestartet",
-    body: `Termin gestartet (${new Date(appt.start_at).toLocaleString("de-DE")}).`,
+    body: `Termin gestartet (${formatAppointmentForLog(appt.start_at)}).`,
   })
 
   return NextResponse.json({ ok: true, ticket: { ...created, room_name: roomName } })

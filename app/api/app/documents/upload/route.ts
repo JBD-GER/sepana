@@ -10,6 +10,34 @@ function safeFileName(name: string) {
   return name.replace(/[^\w.-]+/g, "_").slice(0, 160)
 }
 
+const MIME_BY_EXT: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+  bmp: "image/bmp",
+  heic: "image/heic",
+  heif: "image/heif",
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+
+function fileExt(name: string) {
+  const raw = String(name || "")
+  const idx = raw.lastIndexOf(".")
+  if (idx < 0) return ""
+  return raw.slice(idx + 1).trim().toLowerCase()
+}
+
+function inferMimeType(file: File) {
+  const explicit = String(file.type || "").trim().toLowerCase()
+  if (explicit) return explicit
+  const byExt = MIME_BY_EXT[fileExt(file.name)]
+  return byExt || "application/octet-stream"
+}
+
 function resolveSiteOrigin(req: Request) {
   const configured = String(process.env.NEXT_PUBLIC_SITE_URL ?? "").trim()
   if (configured) {
@@ -52,8 +80,15 @@ export async function POST(req: Request) {
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin"
-    const safeName = safeFileName(file.name || `file.${ext}`)
-    const path = `${caseId}/${Date.now()}_${safeName}`
+    const fallbackName = `file.${ext || "bin"}`
+    const originalName = String(file.name || "").trim() || fallbackName
+    const safeName = safeFileName(originalName)
+    const path = `${caseId}/${Date.now()}_${crypto.randomUUID()}_${safeName}`
+    const mimeType = inferMimeType(file)
+    const fileBytes = new Uint8Array(await file.arrayBuffer())
+    if (!fileBytes.byteLength) {
+      return NextResponse.json({ error: "Leere Datei" }, { status: 400 })
+    }
 
     const admin = supabaseAdmin()
     let requestIdFinal = requestId
@@ -76,9 +111,10 @@ export async function POST(req: Request) {
         requestIdFinal = (requiredOpen[0] ?? open[0])?.id ?? null
       }
     }
-    const { error: upErr } = await admin.storage
-      .from("case_documents")
-      .upload(path, file, { upsert: true, contentType: file.type || "application/octet-stream" })
+    const { error: upErr } = await admin.storage.from("case_documents").upload(path, fileBytes, {
+      upsert: false,
+      contentType: mimeType,
+    })
     if (upErr) throw upErr
 
     const { error: docErr } = await admin.from("documents").insert({
@@ -86,8 +122,8 @@ export async function POST(req: Request) {
       request_id: requestIdFinal,
       uploaded_by: user.id,
       file_path: path,
-      file_name: file.name,
-      mime_type: file.type || null,
+      file_name: originalName,
+      mime_type: mimeType || null,
       size_bytes: file.size || null,
     })
     if (docErr) throw docErr
@@ -98,8 +134,8 @@ export async function POST(req: Request) {
       actorRole: role ?? "customer",
       type: "document_uploaded",
       title: "Dokument hochgeladen",
-      body: `Datei: ${file.name}`,
-      meta: { file_name: file.name, request_id: requestIdFinal },
+      body: `Datei: ${originalName}`,
+      meta: { file_name: originalName, request_id: requestIdFinal },
     })
 
     if (role === "customer") {
@@ -110,7 +146,7 @@ export async function POST(req: Request) {
         const html = buildEmailHtml({
           title: "Neues Dokument vom Kunden",
           intro: `Im Fall${caseLabel} wurde ein neues Dokument hochgeladen.`,
-          steps: [`Datei: ${file.name}`, "Bitte pruefen Sie das Dokument im Advisor-Dashboard."],
+          steps: [`Datei: ${originalName}`, "Bitte pruefen Sie das Dokument im Advisor-Dashboard."],
           ctaLabel: "Zum Advisor-Dashboard",
           ctaUrl: `${origin}/advisor`,
           eyebrow: "SEPANA - Dokumenten-Update",

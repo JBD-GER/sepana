@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react"
 
+const UPLOAD_ACCEPT = "image/*,.pdf,.doc,.docx"
+
 type DocRequest = {
   id: string
   case_id: string
@@ -272,6 +274,7 @@ export default function DocumentPanel({
                   <input
                     type="file"
                     multiple
+                    accept={UPLOAD_ACCEPT}
                     className="hidden"
                     onChange={(e) => {
                       const files = e.target.files
@@ -321,6 +324,7 @@ export default function DocumentPanel({
                 <input
                   type="file"
                   multiple
+                  accept={UPLOAD_ACCEPT}
                   className="hidden"
                   onChange={(e) => {
                     const files = e.target.files
