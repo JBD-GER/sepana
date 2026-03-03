@@ -363,6 +363,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
         caseId={c.id}
         requests={data.document_requests ?? []}
         documents={data.documents ?? []}
+        caseType={caseType}
         canCreateRequest={data.viewer_role === "advisor" || data.viewer_role === "admin"}
         caseCustomerId={c.customer_id ?? null}
         caseAdvisorId={c.assigned_advisor_id ?? null}

@@ -4,7 +4,9 @@ export const runtime = "nodejs"
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 
-async function canAccessCase(supabase: any, caseId: string, userId: string, role: string | null) {
+type SupabaseClient = Awaited<ReturnType<typeof getUserAndRole>>["supabase"]
+
+async function canAccessCase(supabase: SupabaseClient, caseId: string, userId: string, role: string | null) {
   const { data: c } = await supabase
     .from("cases")
     .select("id,customer_id,assigned_advisor_id")
@@ -30,13 +32,17 @@ export async function POST(req: Request) {
   const allowed = await canAccessCase(supabase, caseId, user.id, role)
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const { error } = await supabase.from("document_requests").insert({
-    case_id: caseId,
-    title,
-    required,
-    created_by: user.id,
-  })
+  const { data, error } = await supabase
+    .from("document_requests")
+    .insert({
+      case_id: caseId,
+      title,
+      required,
+      created_by: user.id,
+    })
+    .select("id")
+    .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, id: data?.id ?? null })
 }

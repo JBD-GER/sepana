@@ -1,8 +1,93 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 const UPLOAD_ACCEPT = "image/*,.pdf,.doc,.docx"
+const MOBILE_IMAGE_MAX_BYTES = 4 * 1024 * 1024
+const MOBILE_IMAGE_MAX_EDGE = 2200
+const MOBILE_IMAGE_QUALITY = 0.85
+
+type CanonicalRequestKey =
+  | "general_id_passport"
+  | "general_registration"
+  | "general_salary_slips_3"
+  | "general_bank_statements_salary_3m"
+  | "equity_proof"
+  | "object_expose"
+  | "object_purchase_contract"
+  | "object_land_register"
+  | "object_site_plan"
+
+const CANONICAL_TITLE_BY_KEY: Record<CanonicalRequestKey, string> = {
+  general_id_passport: "Personalausweis / Reisepass (Vorder- & Rueckseite)",
+  general_registration: "Meldebescheinigung",
+  general_salary_slips_3: "Letzte 3 Gehaltsabrechnungen",
+  general_bank_statements_salary_3m: "Kontoauszuege der letzten 3 Monate vom Gehaltskonto (Gehaltseingang sichtbar)",
+  equity_proof: "Eigenkapital-Nachweis (aktueller Kontoauszug)",
+  object_expose: "Expose / Objektbeschreibung",
+  object_purchase_contract: "Kaufvertragsentwurf (sobald vorhanden)",
+  object_land_register: "Grundbuchauszug (aktuell)",
+  object_site_plan: "Flurkarte / Lageplan",
+}
+
+const STANDARD_GENERAL_KEYS: CanonicalRequestKey[] = [
+  "general_id_passport",
+  "general_registration",
+  "general_salary_slips_3",
+  "general_bank_statements_salary_3m",
+]
+
+const BAUFI_GENERAL_EXTRA_KEYS: CanonicalRequestKey[] = ["equity_proof"]
+
+const BAUFI_OBJECT_KEYS: CanonicalRequestKey[] = [
+  "object_expose",
+  "object_purchase_contract",
+  "object_land_register",
+  "object_site_plan",
+]
+const BAUFI_ONLY_KEYS = new Set<CanonicalRequestKey>([...BAUFI_GENERAL_EXTRA_KEYS, ...BAUFI_OBJECT_KEYS])
+
+function normalizeTitle(value: string) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\u00e4/g, "ae")
+    .replace(/\u00f6/g, "oe")
+    .replace(/\u00fc/g, "ue")
+    .replace(/\u00df/g, "ss")
+    .replace(/&/g, " und ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+function classifyRequestTitle(rawTitle: string): CanonicalRequestKey | null {
+  const title = normalizeTitle(rawTitle)
+  if (!title) return null
+  const hasKontoauszug = title.includes("kontoauszug") || title.includes("kontoauszueg")
+
+  if (title.includes("personalausweis") || title.includes("reisepass")) return "general_id_passport"
+  if (title.includes("meldebescheinigung")) return "general_registration"
+  if (title.includes("gehaltsabrechnung")) return "general_salary_slips_3"
+  if (
+    hasKontoauszug &&
+    (
+      title.includes("gehaltseingang") ||
+      title.includes("gehaltskonto") ||
+      title.includes("3m") ||
+      title.includes("3 m") ||
+      title.includes("3 monate")
+    )
+  ) {
+    return "general_bank_statements_salary_3m"
+  }
+  if (title.includes("eigenkapital")) return "equity_proof"
+  if (title.includes("expose") || title.includes("objektbeschreibung")) return "object_expose"
+  if (title.includes("kaufvertrag")) return "object_purchase_contract"
+  if (title.includes("grundbuch")) return "object_land_register"
+  if (title.includes("flurkarte") || title.includes("lageplan")) return "object_site_plan"
+  return null
+}
 
 type DocRequest = {
   id: string
@@ -25,6 +110,17 @@ type DocumentRow = {
   case_id?: string | null
 }
 
+type RequestGroup = {
+  id: string
+  dedupeKey: string
+  title: string
+  required: boolean
+  created_at: string | null
+  requestIds: string[]
+  canonicalKey: CanonicalRequestKey | null
+  virtual: boolean
+}
+
 function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeZone: "Europe/Berlin" }).format(new Date(d))
 }
@@ -39,6 +135,80 @@ function formatBytes(n: number | null | undefined) {
     i += 1
   }
   return `${v.toFixed(v >= 10 || i === 0 ? 0 : 1)} ${units[i]}`
+}
+
+function getErrorMessage(error: unknown) {
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === "string" && message.trim()) return message
+  }
+  return "Fehler"
+}
+
+function replaceFileExtension(fileName: string, nextExt: string) {
+  const trimmed = String(fileName ?? "").trim()
+  if (!trimmed) return `upload.${nextExt}`
+  if (!trimmed.includes(".")) return `${trimmed}.${nextExt}`
+  return `${trimmed.slice(0, trimmed.lastIndexOf("."))}.${nextExt}`
+}
+
+function loadImageFromFile(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      resolve(img)
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error("Bild konnte nicht gelesen werden."))
+    }
+    img.src = url
+  })
+}
+
+async function optimizeImageForMobileUpload(file: File) {
+  const isImage = String(file.type ?? "").toLowerCase().startsWith("image/")
+  if (!isImage) return file
+
+  const looksLikeHeic = /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name)
+  if (file.size <= MOBILE_IMAGE_MAX_BYTES && !looksLikeHeic) return file
+
+  try {
+    const image = await loadImageFromFile(file)
+    const width = image.naturalWidth || image.width
+    const height = image.naturalHeight || image.height
+    if (!width || !height) return file
+
+    const maxEdge = Math.max(width, height)
+    const scale = maxEdge > MOBILE_IMAGE_MAX_EDGE ? MOBILE_IMAGE_MAX_EDGE / maxEdge : 1
+    const targetWidth = Math.max(1, Math.round(width * scale))
+    const targetHeight = Math.max(1, Math.round(height * scale))
+
+    const canvas = document.createElement("canvas")
+    canvas.width = targetWidth
+    canvas.height = targetHeight
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return file
+    ctx.drawImage(image, 0, 0, targetWidth, targetHeight)
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", MOBILE_IMAGE_QUALITY)
+    })
+    if (!blob || blob.size === 0) return file
+
+    const optimizedName = replaceFileExtension(file.name || "foto", "jpg")
+    const optimized = new File([blob], optimizedName, {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    })
+
+    if (looksLikeHeic) return optimized
+    return optimized.size < file.size ? optimized : file
+  } catch {
+    return file
+  }
 }
 
 function fileUrl(
@@ -57,6 +227,7 @@ export default function DocumentPanel({
   caseId,
   requests,
   documents,
+  caseType,
   canCreateRequest,
   caseCustomerId,
   caseAdvisorId,
@@ -64,6 +235,7 @@ export default function DocumentPanel({
   caseId: string
   requests: DocRequest[]
   documents: DocumentRow[]
+  caseType?: string | null
   canCreateRequest: boolean
   caseCustomerId?: string | null
   caseAdvisorId?: string | null
@@ -72,8 +244,13 @@ export default function DocumentPanel({
   const [required, setRequired] = useState(true)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  const [flash, setFlash] = useState<{ tone: "success" | "error"; text: string } | null>(null)
   const [freeOpen, setFreeOpen] = useState(false)
   const [imagePreview, setImagePreview] = useState<{ src: string; name: string } | null>(null)
+  const flashTimerRef = useRef<number | null>(null)
+  const reloadTimerRef = useRef<number | null>(null)
+  const normalizedCaseType = String(caseType ?? "").trim().toLowerCase()
+  const isBaufi = normalizedCaseType !== "konsum"
 
   const { docsByRequest, orphanDocs } = useMemo(() => {
     const map = new Map<string, DocumentRow[]>()
@@ -92,6 +269,142 @@ export default function DocumentPanel({
     }
     return { docsByRequest: map, orphanDocs: orphans }
   }, [documents, requests])
+
+  const generalKeys = useMemo(
+    () => (isBaufi ? [...STANDARD_GENERAL_KEYS, ...BAUFI_GENERAL_EXTRA_KEYS] : [...STANDARD_GENERAL_KEYS]),
+    [isBaufi]
+  )
+  const objectKeys = useMemo(() => (isBaufi ? [...BAUFI_OBJECT_KEYS] : []), [isBaufi])
+
+  function showFlash(tone: "success" | "error", text: string, autoHideMs = 2400) {
+    setFlash({ tone, text })
+    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
+    flashTimerRef.current = window.setTimeout(() => {
+      setFlash(null)
+      flashTimerRef.current = null
+    }, autoHideMs)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
+      if (reloadTimerRef.current) window.clearTimeout(reloadTimerRef.current)
+    }
+  }, [])
+
+  const { generalRequests, objectRequests, otherRequests } = useMemo(() => {
+    const general: RequestGroup[] = []
+    const object: RequestGroup[] = []
+    const other: RequestGroup[] = []
+    const byDedupeKey = new Map<string, RequestGroup>()
+    const nowIso = new Date().toISOString()
+    const generalKeySet = new Set<CanonicalRequestKey>(generalKeys)
+    const objectKeySet = new Set<CanonicalRequestKey>(objectKeys)
+    const generalIndex = new Map(generalKeys.map((key, index) => [key, index] as const))
+    const objectIndex = new Map(objectKeys.map((key, index) => [key, index] as const))
+
+    function addToBucket(
+      bucket: RequestGroup[],
+      dedupeKey: string,
+      request: DocRequest,
+      canonicalKey: CanonicalRequestKey | null,
+      titleOverride?: string
+    ) {
+      const existing = byDedupeKey.get(dedupeKey)
+      if (existing) {
+        existing.required = existing.required || request.required
+        if (!existing.requestIds.includes(request.id)) existing.requestIds.push(request.id)
+        return
+      }
+      const group: RequestGroup = {
+        id: request.id,
+        dedupeKey,
+        title: titleOverride ?? request.title,
+        required: request.required,
+        created_at: request.created_at,
+        requestIds: [request.id],
+        canonicalKey,
+        virtual: false,
+      }
+      bucket.push(group)
+      byDedupeKey.set(dedupeKey, group)
+    }
+
+    for (const request of requests ?? []) {
+      const canonicalKey = classifyRequestTitle(request.title)
+      if (!isBaufi && canonicalKey && BAUFI_ONLY_KEYS.has(canonicalKey)) {
+        continue
+      }
+      if (canonicalKey && generalKeySet.has(canonicalKey)) {
+        addToBucket(general, `general:${canonicalKey}`, request, canonicalKey, CANONICAL_TITLE_BY_KEY[canonicalKey])
+        continue
+      }
+      if (canonicalKey && objectKeySet.has(canonicalKey)) {
+        addToBucket(object, `object:${canonicalKey}`, request, canonicalKey, CANONICAL_TITLE_BY_KEY[canonicalKey])
+        continue
+      }
+      const otherKey = normalizeTitle(request.title) || request.id
+      addToBucket(other, `other:${otherKey}`, request, null)
+    }
+
+    for (const key of generalKeys) {
+      const dedupeKey = `general:${key}`
+      if (!byDedupeKey.has(dedupeKey)) {
+        const virtualGroup: RequestGroup = {
+          id: `virtual-${dedupeKey}`,
+          dedupeKey,
+          title: CANONICAL_TITLE_BY_KEY[key],
+          required: true,
+          created_at: null,
+          requestIds: [],
+          canonicalKey: key,
+          virtual: true,
+        }
+        general.push(virtualGroup)
+        byDedupeKey.set(dedupeKey, virtualGroup)
+      }
+    }
+
+    for (const key of objectKeys) {
+      const dedupeKey = `object:${key}`
+      if (!byDedupeKey.has(dedupeKey)) {
+        const virtualGroup: RequestGroup = {
+          id: `virtual-${dedupeKey}`,
+          dedupeKey,
+          title: CANONICAL_TITLE_BY_KEY[key],
+          required: true,
+          created_at: null,
+          requestIds: [],
+          canonicalKey: key,
+          virtual: true,
+        }
+        object.push(virtualGroup)
+        byDedupeKey.set(dedupeKey, virtualGroup)
+      }
+    }
+
+    general.sort((a, b) => {
+      const aKey = a.canonicalKey
+      const bKey = b.canonicalKey
+      return (aKey ? generalIndex.get(aKey) ?? 999 : 999) - (bKey ? generalIndex.get(bKey) ?? 999 : 999)
+    })
+    object.sort((a, b) => {
+      const aKey = a.canonicalKey
+      const bKey = b.canonicalKey
+      return (aKey ? objectIndex.get(aKey) ?? 999 : 999) - (bKey ? objectIndex.get(bKey) ?? 999 : 999)
+    })
+    other.sort((a, b) => {
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : new Date(nowIso).getTime()
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : new Date(nowIso).getTime()
+      return aTime - bTime
+    })
+
+    return {
+      generalRequests: general,
+      objectRequests: object,
+      otherRequests: other,
+    }
+  }, [generalKeys, isBaufi, objectKeys, requests])
 
   function uploaderLabel(d: DocumentRow) {
     if (!d.uploaded_by) return null
@@ -153,23 +466,92 @@ export default function DocumentPanel({
     )
   }
 
-  async function uploadFiles(files: FileList, requestId?: string | null) {
+  function renderRequestCard(r: RequestGroup) {
+    const list = r.requestIds.flatMap((requestId) => docsByRequest.get(requestId) ?? [])
+    const duplicateCount = Math.max(0, r.requestIds.length - 1)
+    const uploadRequestId = r.requestIds[0] ?? null
+    return (
+      <div key={r.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-semibold text-slate-900">{r.title}</div>
+            <div className="text-xs text-slate-500">
+              {r.required ? "Pflicht" : "Optional"}
+              {r.created_at ? ` - ${dt(r.created_at)}` : ""}
+            </div>
+            {duplicateCount > 0 ? (
+              <div className="mt-1 text-[11px] text-slate-500">Zusammengefasst aus {duplicateCount + 1} gleichartigen Anforderungen</div>
+            ) : null}
+            {r.virtual ? (
+              <div className="mt-1 text-[11px] text-slate-500">
+                Diese Anforderung wird beim ersten Upload automatisch angelegt.
+              </div>
+            ) : null}
+          </div>
+          <label className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm">
+            Upload
+            <input
+              type="file"
+              multiple
+              accept={UPLOAD_ACCEPT}
+              className="hidden"
+              onChange={(e) => {
+                const files = e.target.files
+                if (files?.length) uploadFiles(files, uploadRequestId, r.title)
+                e.currentTarget.value = ""
+              }}
+            />
+          </label>
+        </div>
+
+        {list.length ? renderDocGrid(list) : <div className="mt-2 text-xs text-slate-500">Noch nichts hochgeladen.</div>}
+      </div>
+    )
+  }
+
+  async function uploadFiles(files: FileList, requestId?: string | null, ensureTitle?: string | null) {
     if (!files.length) return
     setMsg(null)
     setBusy(true)
     try {
+      let requestIdFinal = requestId ?? null
+      if (!requestIdFinal && ensureTitle && canCreateRequest) {
+        const createRes = await fetch("/api/app/documents/requests", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ caseId, title: ensureTitle, required: true }),
+        })
+        const createJson = await createRes.json().catch(() => ({}))
+        if (!createRes.ok) throw new Error(createJson?.error || "Dokumentanforderung konnte nicht angelegt werden")
+        requestIdFinal = String(createJson?.id ?? "").trim() || null
+      }
+
+      let optimizedImages = 0
       for (const file of Array.from(files)) {
+        const preparedFile = await optimizeImageForMobileUpload(file)
+        if (preparedFile !== file) optimizedImages += 1
         const form = new FormData()
         form.append("caseId", caseId)
-        if (requestId) form.append("requestId", requestId)
-        form.append("file", file)
+        if (requestIdFinal) form.append("requestId", requestIdFinal)
+        form.append("file", preparedFile)
         const res = await fetch("/api/app/documents/upload", { method: "POST", body: form })
         const json = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(json?.error || "Upload fehlgeschlagen")
       }
-      window.location.reload()
-    } catch (e: any) {
-      setMsg(e?.message ?? "Fehler")
+      showFlash(
+        "success",
+        optimizedImages > 0
+          ? `Erfolgreich hochgeladen (${optimizedImages} Foto(s) automatisch optimiert).`
+          : "Erfolgreich hochgeladen."
+      )
+      if (reloadTimerRef.current) window.clearTimeout(reloadTimerRef.current)
+      reloadTimerRef.current = window.setTimeout(() => {
+        window.location.reload()
+      }, 1400)
+    } catch (error: unknown) {
+      const text = getErrorMessage(error)
+      setMsg(text)
+      showFlash("error", text, 3200)
     } finally {
       setBusy(false)
     }
@@ -187,8 +569,10 @@ export default function DocumentPanel({
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || "Loeschen fehlgeschlagen")
       window.location.reload()
-    } catch (e: any) {
-      setMsg(e?.message ?? "Fehler")
+    } catch (error: unknown) {
+      const text = getErrorMessage(error)
+      setMsg(text)
+      showFlash("error", text, 3200)
     } finally {
       setBusy(false)
     }
@@ -210,8 +594,10 @@ export default function DocumentPanel({
       setTitle("")
       setRequired(true)
       window.location.reload()
-    } catch (e: any) {
-      setMsg(e?.message ?? "Fehler")
+    } catch (error: unknown) {
+      const text = getErrorMessage(error)
+      setMsg(text)
+      showFlash("error", text, 3200)
     } finally {
       setBusy(false)
     }
@@ -219,6 +605,11 @@ export default function DocumentPanel({
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      {flash ? (
+        <div className="fixed right-4 top-4 z-[70] max-w-sm rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-xl">
+          <div className={flash.tone === "error" ? "text-rose-700" : "text-emerald-700"}>{flash.text}</div>
+        </div>
+      ) : null}
       <div className="flex items-center justify-between gap-3">
         <div className="text-sm font-medium text-slate-900">Dokumente</div>
         {canCreateRequest ? (
@@ -257,40 +648,28 @@ export default function DocumentPanel({
 
       {msg ? <div className="mt-2 text-xs text-slate-600">{msg}</div> : null}
 
-      <div className="mt-4 space-y-3">
-        {(requests ?? []).map((r) => {
-          const list = docsByRequest.get(r.id) ?? []
-          return (
-            <div key={r.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-semibold text-slate-900">{r.title}</div>
-                  <div className="text-xs text-slate-500">
-                    {r.required ? "Pflicht" : "Optional"} - {dt(r.created_at)}
-                  </div>
-                </div>
-                <label className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm">
-                  Upload
-                  <input
-                    type="file"
-                    multiple
-                    accept={UPLOAD_ACCEPT}
-                    className="hidden"
-                    onChange={(e) => {
-                      const files = e.target.files
-                      if (files?.length) uploadFiles(files, r.id)
-                      e.currentTarget.value = ""
-                    }}
-                  />
-                </label>
-              </div>
+      <div className="mt-4 space-y-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="text-xs font-semibold uppercase tracking-widest text-slate-600">Allgemeine Unterlagen</div>
+          {generalRequests.length ? <div className="mt-2 space-y-3">{generalRequests.map((r) => renderRequestCard(r))}</div> : null}
+        </div>
 
-              {list.length ? renderDocGrid(list) : <div className="mt-2 text-xs text-slate-500">Noch nichts hochgeladen.</div>}
-            </div>
-          )
-        })}
+        {isBaufi ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-600">Objektunterlagen</div>
+            <div className="mt-1 text-xs text-slate-500">Nur bei Baufinanzierung.</div>
+            {objectRequests.length ? <div className="mt-2 space-y-3">{objectRequests.map((r) => renderRequestCard(r))}</div> : null}
+          </div>
+        ) : null}
 
-        {(requests ?? []).length === 0 ? (
+        {otherRequests.length ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-600">Weitere Unterlagen</div>
+            <div className="mt-3 space-y-3">{otherRequests.map((r) => renderRequestCard(r))}</div>
+          </div>
+        ) : null}
+
+        {generalRequests.length === 0 && objectRequests.length === 0 && otherRequests.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
             Noch keine Dokumente angefordert.
           </div>
@@ -370,3 +749,5 @@ export default function DocumentPanel({
     </div>
   )
 }
+
+

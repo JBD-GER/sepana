@@ -221,6 +221,7 @@ export default async function AdminCaseDetailPage({ params }: { params: Promise<
         caseId={c.id}
         requests={data.document_requests ?? []}
         documents={data.documents ?? []}
+        caseType={caseType}
         canCreateRequest
         caseCustomerId={c.customer_id ?? null}
         caseAdvisorId={c.assigned_advisor_id ?? null}
