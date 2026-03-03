@@ -33,6 +33,20 @@ function fileExt(name: string) {
   return raw.slice(idx + 1).trim().toLowerCase()
 }
 
+function normalizeRequestTitle(value: string) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\u00e4/g, "ae")
+    .replace(/\u00f6/g, "oe")
+    .replace(/\u00fc/g, "ue")
+    .replace(/\u00df/g, "ss")
+    .replace(/&/g, " und ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 function inferMimeType(file: File) {
   const explicit = String(file.type || "").trim().toLowerCase()
   if (explicit) return explicit
@@ -90,6 +104,29 @@ type CaseAccessRow = {
   assigned_advisor_id?: string | null
 }
 
+type RequestRow = {
+  id?: string | null
+  title?: string | null
+  required?: boolean | null
+}
+
+function extractRequestIds(rows: RequestRow[]) {
+  return rows.map((r) => r.id ?? null).filter((id): id is string => Boolean(id))
+}
+
+async function findOpenRequestId(admin: ReturnType<typeof supabaseAdmin>, rows: RequestRow[]) {
+  const reqIds = extractRequestIds(rows)
+  if (!reqIds.length) return null
+
+  const { data: existingDocs } = await admin.from("documents").select("request_id").in("request_id", reqIds)
+  const existingRows = (existingDocs as Array<{ request_id?: string | null }> | null) ?? []
+  const haveDocs = new Set(existingRows.map((d) => d.request_id ?? null).filter((id): id is string => Boolean(id)))
+
+  const open = rows.filter((r) => (r.id ? !haveDocs.has(r.id) : false))
+  const requiredOpen = open.filter((r) => r.required)
+  return (requiredOpen[0] ?? open[0])?.id ?? null
+}
+
 async function canAccessCase(supabase: unknown, caseId: string, userId: string, role: string | null) {
   const client = supabase as MinimalCaseAccessClient
   const { data } = await client
@@ -112,7 +149,9 @@ export async function POST(req: Request) {
 
     const form = await req.formData()
     const caseId = String(form.get("caseId") || "")
-    const requestId = String(form.get("requestId") || "") || null
+    const requestId = String(form.get("requestId") || "").trim() || null
+    const requestTitle = String(form.get("requestTitle") || "").trim()
+    const keepUnassigned = String(form.get("keepUnassigned") || "").trim() === "1"
     const file = form.get("file")
     if (!caseId || !(file instanceof File)) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 })
@@ -145,25 +184,48 @@ export async function POST(req: Request) {
 
     const admin = supabaseAdmin()
     let requestIdFinal = requestId
-    if (!requestIdFinal) {
-      const { data: reqs } = await admin
+    let requestRows: RequestRow[] = []
+    let requestRowsLoaded = false
+    async function loadRequestRows() {
+      if (requestRowsLoaded) return requestRows
+      const { data } = await admin
         .from("document_requests")
-        .select("id,required,created_at")
+        .select("id,title,required,created_at")
         .eq("case_id", caseId)
         .order("created_at", { ascending: false })
+      requestRows = (data as RequestRow[] | null) ?? []
+      requestRowsLoaded = true
+      return requestRows
+    }
 
-      if (reqs?.length) {
-        const requestRows = (reqs as Array<{ id?: string | null; required?: boolean | null }>).filter(Boolean)
-        const reqIds = requestRows.map((r) => r.id ?? null).filter((id): id is string => Boolean(id))
-        const { data: existingDocs } = reqIds.length
-          ? await admin.from("documents").select("request_id").in("request_id", reqIds)
-          : { data: [] as Array<{ request_id?: string | null }> }
+    if (!requestIdFinal && requestTitle) {
+      const target = normalizeRequestTitle(requestTitle)
+      const rows = await loadRequestRows()
+      const titleMatches = rows.filter((row) => normalizeRequestTitle(String(row.title ?? "")) === target)
 
-        const existingRows = (existingDocs as Array<{ request_id?: string | null }> | null) ?? []
-        const haveDocs = new Set(existingRows.map((d) => d.request_id ?? null).filter((id): id is string => Boolean(id)))
-        const open = requestRows.filter((r) => (r.id ? !haveDocs.has(r.id) : false))
-        const requiredOpen = open.filter((r) => r.required)
-        requestIdFinal = (requiredOpen[0] ?? open[0])?.id ?? null
+      if (titleMatches.length) {
+        requestIdFinal = (await findOpenRequestId(admin, titleMatches)) ?? titleMatches[0]?.id ?? null
+      } else {
+        const { data: createdReq, error: createReqErr } = await admin
+          .from("document_requests")
+          .insert({
+            case_id: caseId,
+            title: requestTitle,
+            required: true,
+            created_by: user.id,
+          })
+          .select("id")
+          .single()
+        if (!createReqErr) {
+          requestIdFinal = (createdReq as { id?: string | null } | null)?.id ?? null
+        }
+      }
+    }
+
+    if (!requestIdFinal && !keepUnassigned) {
+      const rows = await loadRequestRows()
+      if (rows.length) {
+        requestIdFinal = await findOpenRequestId(admin, rows)
       }
     }
     const { error: upErr } = await admin.storage.from("case_documents").upload(path, file, {

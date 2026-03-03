@@ -153,6 +153,21 @@ type RequestGroup = {
   virtual: boolean
 }
 
+type UploadPhase = "preparing" | "uploading" | "retrying"
+
+type UploadProgressState = {
+  current: number
+  total: number
+  fileName: string
+  phase: UploadPhase
+}
+
+type UploadOptions = {
+  requestId?: string | null
+  requestTitle?: string | null
+  keepUnassigned?: boolean
+}
+
 function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeZone: "Europe/Berlin" }).format(new Date(d))
 }
@@ -202,6 +217,12 @@ function isMobileDevice() {
   const byViewport = window.matchMedia("(max-width: 768px)").matches
   const byUa = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent)
   return byViewport || byUa
+}
+
+function uploadPhaseLabel(phase: UploadPhase) {
+  if (phase === "preparing") return "Bereite Datei vor"
+  if (phase === "retrying") return "Wiederhole Upload"
+  return "Upload laeuft"
 }
 
 function replaceFileExtension(fileName: string, nextExt: string) {
@@ -306,6 +327,7 @@ export default function DocumentPanel({
   const [flash, setFlash] = useState<{ tone: "success" | "error"; text: string } | null>(null)
   const [freeOpen, setFreeOpen] = useState(false)
   const [imagePreview, setImagePreview] = useState<{ src: string; name: string } | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<UploadProgressState | null>(null)
   const flashTimerRef = useRef<number | null>(null)
   const reloadTimerRef = useRef<number | null>(null)
   const normalizedCaseType = String(caseType ?? "").trim().toLowerCase()
@@ -547,16 +569,24 @@ export default function DocumentPanel({
               </div>
             ) : null}
           </div>
-          <label className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm">
+          <label
+            className={`rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm ${busy ? "cursor-not-allowed opacity-60" : ""}`}
+          >
             Upload
             <input
               type="file"
               multiple
               accept={UPLOAD_ACCEPT}
               className="hidden"
+              disabled={busy}
               onChange={(e) => {
                 const files = e.target.files
-                if (files?.length) uploadFiles(files, uploadRequestId, r.title)
+                if (files?.length) {
+                  uploadFiles(files, {
+                    requestId: uploadRequestId,
+                    requestTitle: r.title,
+                  })
+                }
                 e.currentTarget.value = ""
               }}
             />
@@ -568,13 +598,25 @@ export default function DocumentPanel({
     )
   }
 
-  async function uploadSingleFileWithRetry(file: File, requestId?: string | null) {
+  async function uploadSingleFileWithRetry(
+    file: File,
+    options: UploadOptions,
+    progress: { current: number; total: number; displayName: string }
+  ) {
     const maxAttempts = 2
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
+        setUploadProgress({
+          current: progress.current,
+          total: progress.total,
+          fileName: progress.displayName,
+          phase: attempt > 1 ? "retrying" : "uploading",
+        })
         const form = new FormData()
         form.append("caseId", caseId)
-        if (requestId) form.append("requestId", requestId)
+        if (options.requestId) form.append("requestId", options.requestId)
+        if (options.requestTitle) form.append("requestTitle", options.requestTitle)
+        if (options.keepUnassigned) form.append("keepUnassigned", "1")
         form.append("file", file)
 
         const res = await fetch("/api/app/documents/upload", { method: "POST", body: form })
@@ -602,12 +644,13 @@ export default function DocumentPanel({
     }
   }
 
-  async function uploadFiles(files: FileList, requestId?: string | null, ensureTitle?: string | null) {
+  async function uploadFiles(files: FileList, options?: UploadOptions) {
     if (!files.length) return
     setMsg(null)
     setBusy(true)
     try {
       const selectedFiles = Array.from(files)
+      const uploadOptions = options ?? {}
       for (const file of selectedFiles) {
         if (!isAllowedUploadFile(file)) {
           throw new Error(`"${file.name}" wird nicht unterstuetzt. Erlaubt sind PDF, DOC, DOCX und Bilder.`)
@@ -617,12 +660,12 @@ export default function DocumentPanel({
         }
       }
 
-      let requestIdFinal = requestId ?? null
-      if (!requestIdFinal && ensureTitle && canCreateRequest) {
+      let requestIdFinal = uploadOptions.requestId ?? null
+      if (!requestIdFinal && uploadOptions.requestTitle && canCreateRequest) {
         const createRes = await fetch("/api/app/documents/requests", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ caseId, title: ensureTitle, required: true }),
+          body: JSON.stringify({ caseId, title: uploadOptions.requestTitle, required: true }),
         })
         const createJson = await createRes.json().catch(() => ({}))
         if (!createRes.ok) throw new Error(createJson?.error || "Dokumentanforderung konnte nicht angelegt werden")
@@ -630,11 +673,29 @@ export default function DocumentPanel({
       }
 
       let optimizedImages = 0
-      for (const file of selectedFiles) {
+      const uploadIntent: UploadOptions = {
+        requestId: requestIdFinal,
+        requestTitle: uploadOptions.requestTitle,
+        keepUnassigned: uploadOptions.keepUnassigned,
+      }
+      for (let index = 0; index < selectedFiles.length; index += 1) {
+        const file = selectedFiles[index]
+        setUploadProgress({
+          current: index + 1,
+          total: selectedFiles.length,
+          fileName: file.name,
+          phase: "preparing",
+        })
         const preparedFile = await optimizeImageForMobileUpload(file)
         if (preparedFile !== file) optimizedImages += 1
-        await uploadSingleFileWithRetry(preparedFile, requestIdFinal)
+        await uploadSingleFileWithRetry(preparedFile, uploadIntent, {
+          current: index + 1,
+          total: selectedFiles.length,
+          displayName: file.name,
+        })
       }
+      setUploadProgress(null)
+      setMsg(`${selectedFiles.length} Datei(en) hochgeladen.`)
       if (isMobileDevice()) {
         showFlash(
           "success",
@@ -649,6 +710,7 @@ export default function DocumentPanel({
       }, 1400)
     } catch (error: unknown) {
       const text = getErrorMessage(error)
+      setUploadProgress(null)
       setMsg(text)
       showFlash("error", text, 3200)
     } finally {
@@ -747,6 +809,11 @@ export default function DocumentPanel({
       ) : null}
 
       {msg ? <div className="mt-2 text-xs text-slate-600">{msg}</div> : null}
+      {uploadProgress ? (
+        <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+          {uploadPhaseLabel(uploadProgress.phase)} ({uploadProgress.current}/{uploadProgress.total}): {uploadProgress.fileName}
+        </div>
+      ) : null}
 
       <div className="mt-4 space-y-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -805,9 +872,10 @@ export default function DocumentPanel({
                   multiple
                   accept={UPLOAD_ACCEPT}
                   className="hidden"
+                  disabled={busy}
                   onChange={(e) => {
                     const files = e.target.files
-                    if (files?.length) uploadFiles(files, null)
+                    if (files?.length) uploadFiles(files, { keepUnassigned: true })
                     e.currentTarget.value = ""
                   }}
                 />
