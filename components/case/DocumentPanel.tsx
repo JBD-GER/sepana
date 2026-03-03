@@ -6,6 +6,34 @@ const UPLOAD_ACCEPT = "image/*,.pdf,.doc,.docx"
 const MOBILE_IMAGE_MAX_BYTES = 4 * 1024 * 1024
 const MOBILE_IMAGE_MAX_EDGE = 2200
 const MOBILE_IMAGE_QUALITY = 0.85
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+const UPLOAD_RETRY_DELAY_MS = 600
+const ALLOWED_UPLOAD_EXTENSIONS = new Set([
+  "pdf",
+  "doc",
+  "docx",
+  "jpg",
+  "jpeg",
+  "png",
+  "webp",
+  "gif",
+  "bmp",
+  "heic",
+  "heif",
+])
+
+const ALLOWED_UPLOAD_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/bmp",
+  "image/heic",
+  "image/heif",
+])
 
 type CanonicalRequestKey =
   | "general_id_passport"
@@ -16,6 +44,7 @@ type CanonicalRequestKey =
   | "object_expose"
   | "object_purchase_contract"
   | "object_land_register"
+  | "object_energy_certificate"
   | "object_site_plan"
 
 const CANONICAL_TITLE_BY_KEY: Record<CanonicalRequestKey, string> = {
@@ -27,6 +56,7 @@ const CANONICAL_TITLE_BY_KEY: Record<CanonicalRequestKey, string> = {
   object_expose: "Expose / Objektbeschreibung",
   object_purchase_contract: "Kaufvertragsentwurf (sobald vorhanden)",
   object_land_register: "Grundbuchauszug (aktuell)",
+  object_energy_certificate: "Energieausweis",
   object_site_plan: "Flurkarte / Lageplan",
 }
 
@@ -43,6 +73,7 @@ const BAUFI_OBJECT_KEYS: CanonicalRequestKey[] = [
   "object_expose",
   "object_purchase_contract",
   "object_land_register",
+  "object_energy_certificate",
   "object_site_plan",
 ]
 const BAUFI_ONLY_KEYS = new Set<CanonicalRequestKey>([...BAUFI_GENERAL_EXTRA_KEYS, ...BAUFI_OBJECT_KEYS])
@@ -85,6 +116,7 @@ function classifyRequestTitle(rawTitle: string): CanonicalRequestKey | null {
   if (title.includes("expose") || title.includes("objektbeschreibung")) return "object_expose"
   if (title.includes("kaufvertrag")) return "object_purchase_contract"
   if (title.includes("grundbuch")) return "object_land_register"
+  if (title.includes("energieausweis") || title.includes("energiepass")) return "object_energy_certificate"
   if (title.includes("flurkarte") || title.includes("lageplan")) return "object_site_plan"
   return null
 }
@@ -143,6 +175,33 @@ function getErrorMessage(error: unknown) {
     if (typeof message === "string" && message.trim()) return message
   }
   return "Fehler"
+}
+
+function fileExt(name: string) {
+  const raw = String(name ?? "")
+  const dot = raw.lastIndexOf(".")
+  if (dot < 0) return ""
+  return raw.slice(dot + 1).trim().toLowerCase()
+}
+
+function isAllowedUploadFile(file: File) {
+  const mime = String(file.type ?? "").trim().toLowerCase()
+  if (mime.startsWith("image/")) return true
+  if (mime && ALLOWED_UPLOAD_MIME_TYPES.has(mime)) return true
+  return ALLOWED_UPLOAD_EXTENSIONS.has(fileExt(file.name))
+}
+
+function isRetryableUploadError(status: number, message: string) {
+  if (status === 408 || status === 429) return true
+  if (status >= 500) return true
+  return /timeout|tempor|network|fetch failed|failed to fetch/i.test(String(message ?? ""))
+}
+
+function isMobileDevice() {
+  if (typeof window === "undefined") return false
+  const byViewport = window.matchMedia("(max-width: 768px)").matches
+  const byUa = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent)
+  return byViewport || byUa
 }
 
 function replaceFileExtension(fileName: string, nextExt: string) {
@@ -509,11 +568,55 @@ export default function DocumentPanel({
     )
   }
 
+  async function uploadSingleFileWithRetry(file: File, requestId?: string | null) {
+    const maxAttempts = 2
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const form = new FormData()
+        form.append("caseId", caseId)
+        if (requestId) form.append("requestId", requestId)
+        form.append("file", file)
+
+        const res = await fetch("/api/app/documents/upload", { method: "POST", body: form })
+        const json = await res.json().catch(() => ({}))
+        if (res.ok) return
+
+        const message = String(json?.error ?? "Upload fehlgeschlagen")
+        if (attempt < maxAttempts && isRetryableUploadError(res.status, message)) {
+          await new Promise<void>((resolve) => {
+            window.setTimeout(resolve, UPLOAD_RETRY_DELAY_MS)
+          })
+          continue
+        }
+        throw new Error(message)
+      } catch (error: unknown) {
+        const message = getErrorMessage(error)
+        if (attempt < maxAttempts && isRetryableUploadError(0, message)) {
+          await new Promise<void>((resolve) => {
+            window.setTimeout(resolve, UPLOAD_RETRY_DELAY_MS)
+          })
+          continue
+        }
+        throw error
+      }
+    }
+  }
+
   async function uploadFiles(files: FileList, requestId?: string | null, ensureTitle?: string | null) {
     if (!files.length) return
     setMsg(null)
     setBusy(true)
     try {
+      const selectedFiles = Array.from(files)
+      for (const file of selectedFiles) {
+        if (!isAllowedUploadFile(file)) {
+          throw new Error(`"${file.name}" wird nicht unterstuetzt. Erlaubt sind PDF, DOC, DOCX und Bilder.`)
+        }
+        if (file.size > MAX_UPLOAD_BYTES) {
+          throw new Error(`"${file.name}" ist zu gross. Maximal ${formatBytes(MAX_UPLOAD_BYTES)} pro Datei.`)
+        }
+      }
+
       let requestIdFinal = requestId ?? null
       if (!requestIdFinal && ensureTitle && canCreateRequest) {
         const createRes = await fetch("/api/app/documents/requests", {
@@ -527,23 +630,19 @@ export default function DocumentPanel({
       }
 
       let optimizedImages = 0
-      for (const file of Array.from(files)) {
+      for (const file of selectedFiles) {
         const preparedFile = await optimizeImageForMobileUpload(file)
         if (preparedFile !== file) optimizedImages += 1
-        const form = new FormData()
-        form.append("caseId", caseId)
-        if (requestIdFinal) form.append("requestId", requestIdFinal)
-        form.append("file", preparedFile)
-        const res = await fetch("/api/app/documents/upload", { method: "POST", body: form })
-        const json = await res.json().catch(() => ({}))
-        if (!res.ok) throw new Error(json?.error || "Upload fehlgeschlagen")
+        await uploadSingleFileWithRetry(preparedFile, requestIdFinal)
       }
-      showFlash(
-        "success",
-        optimizedImages > 0
-          ? `Erfolgreich hochgeladen (${optimizedImages} Foto(s) automatisch optimiert).`
-          : "Erfolgreich hochgeladen."
-      )
+      if (isMobileDevice()) {
+        showFlash(
+          "success",
+          optimizedImages > 0
+            ? `Erfolgreich hochgeladen (${optimizedImages} Foto(s) automatisch optimiert).`
+            : "Erfolgreich hochgeladen."
+        )
+      }
       if (reloadTimerRef.current) window.clearTimeout(reloadTimerRef.current)
       reloadTimerRef.current = window.setTimeout(() => {
         window.location.reload()
@@ -618,6 +717,7 @@ export default function DocumentPanel({
           <div className="text-xs text-slate-500">Upload moeglich</div>
         )}
       </div>
+      <div className="mt-1 text-[11px] text-slate-500">PDF, DOC, DOCX oder Bilder bis {formatBytes(MAX_UPLOAD_BYTES)} pro Datei.</div>
 
       {canCreateRequest ? (
         <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[1fr_140px_120px]">

@@ -11,6 +11,10 @@ type ExposeMeta = {
   size_bytes: number | null
 }
 
+const MAX_EXPOSE_UPLOAD_BYTES = 20 * 1024 * 1024
+const EXPOSE_UPLOAD_RETRY_DELAY_MS = 600
+const EXPOSE_ALLOWED_EXTENSIONS = new Set(["pdf", "jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif"])
+
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ")
 }
@@ -22,6 +26,26 @@ function errorMessage(error: unknown, fallback: string) {
 
 function randomId() {
   return Math.random().toString(36).slice(2)
+}
+
+function fileExt(name: string) {
+  const raw = String(name ?? "")
+  const dot = raw.lastIndexOf(".")
+  if (dot < 0) return ""
+  return raw.slice(dot + 1).trim().toLowerCase()
+}
+
+function isSupportedExposeFile(file: File) {
+  const mime = String(file.type ?? "").trim().toLowerCase()
+  if (mime === "application/pdf") return true
+  if (mime.startsWith("image/")) return true
+  return EXPOSE_ALLOWED_EXTENSIONS.has(fileExt(file.name))
+}
+
+function isRetryableUpload(status: number, message: string) {
+  if (status === 408 || status === 429) return true
+  if (status >= 500) return true
+  return /timeout|tempor|network|fetch failed|failed to fetch/i.test(message)
 }
 
 function parsePositiveMoney(value: string) {
@@ -68,22 +92,55 @@ export default function TippgeberReferralForm({ companyName, tippgeberKind }: { 
   async function uploadExpose(file: File) {
     if (isPrivateCredit) return
     setMessage(null)
+    if (!isSupportedExposeFile(file)) {
+      setMessage("Erlaubt sind nur PDF oder Bilddateien.")
+      return
+    }
+    if (file.size > MAX_EXPOSE_UPLOAD_BYTES) {
+      setMessage(`Datei zu gross. Maximal ${Math.round(MAX_EXPOSE_UPLOAD_BYTES / (1024 * 1024))} MB erlaubt.`)
+      return
+    }
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append("file", file)
-      const res = await fetch(`/api/tippgeber/referrals/upload-expose?tempId=${encodeURIComponent(tempId)}`, {
-        method: "POST",
-        body: formData,
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok || !json?.ok) throw new Error(json?.error || "Upload fehlgeschlagen")
-      setExpose({
-        path: String(json.path ?? ""),
-        file_name: String(json.file_name ?? file.name ?? "Expose"),
-        mime_type: json.mime_type ? String(json.mime_type) : null,
-        size_bytes: json.size_bytes == null ? null : Number(json.size_bytes),
-      })
+      const maxAttempts = 2
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+          const formData = new FormData()
+          formData.append("file", file)
+          const res = await fetch(`/api/tippgeber/referrals/upload-expose?tempId=${encodeURIComponent(tempId)}`, {
+            method: "POST",
+            body: formData,
+          })
+          const json = await res.json().catch(() => ({}))
+          if (!res.ok || !json?.ok) {
+            const text = String(json?.error ?? "Upload fehlgeschlagen")
+            if (attempt < maxAttempts && isRetryableUpload(res.status, text)) {
+              await new Promise<void>((resolve) => {
+                window.setTimeout(resolve, EXPOSE_UPLOAD_RETRY_DELAY_MS)
+              })
+              continue
+            }
+            throw new Error(text)
+          }
+
+          setExpose({
+            path: String(json.path ?? ""),
+            file_name: String(json.file_name ?? file.name ?? "Expose"),
+            mime_type: json.mime_type ? String(json.mime_type) : null,
+            size_bytes: json.size_bytes == null ? null : Number(json.size_bytes),
+          })
+          return
+        } catch (error: unknown) {
+          const text = errorMessage(error, "Upload fehlgeschlagen")
+          if (attempt < maxAttempts && isRetryableUpload(0, text)) {
+            await new Promise<void>((resolve) => {
+              window.setTimeout(resolve, EXPOSE_UPLOAD_RETRY_DELAY_MS)
+            })
+            continue
+          }
+          throw error
+        }
+      }
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Upload fehlgeschlagen"))
     } finally {

@@ -10,6 +10,8 @@ function safeFileName(name: string) {
   return name.replace(/[^\w.-]+/g, "_").slice(0, 160)
 }
 
+const MAX_DOCUMENT_UPLOAD_BYTES = 20 * 1024 * 1024
+
 const MIME_BY_EXT: Record<string, string> = {
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
@@ -38,6 +40,27 @@ function inferMimeType(file: File) {
   return byExt || "application/octet-stream"
 }
 
+const ALLOWED_DOCUMENT_EXTENSIONS = new Set(Object.keys(MIME_BY_EXT))
+const ALLOWED_DOCUMENT_MIME_TYPES = new Set(Object.values(MIME_BY_EXT))
+
+function isSupportedDocument(file: File, mimeType: string) {
+  const normalizedMime = String(mimeType ?? "").trim().toLowerCase()
+  if (normalizedMime.startsWith("image/")) return true
+  if (normalizedMime && ALLOWED_DOCUMENT_MIME_TYPES.has(normalizedMime)) return true
+  return ALLOWED_DOCUMENT_EXTENSIONS.has(fileExt(file.name))
+}
+
+function classifyUploadError(message: string) {
+  const normalized = String(message ?? "").toLowerCase()
+  if (/payload too large|request entity too large|entity too large|file too large|too large/.test(normalized)) {
+    return { status: 413, text: `Datei zu gross. Maximal ${Math.round(MAX_DOCUMENT_UPLOAD_BYTES / (1024 * 1024))} MB erlaubt.` }
+  }
+  if (/mime|content.?type|unsupported|invalid file type|not supported/.test(normalized)) {
+    return { status: 415, text: "Dateityp nicht unterstuetzt. Erlaubt sind PDF, DOC, DOCX und Bilder." }
+  }
+  return { status: 500, text: message || "Serverfehler" }
+}
+
 function resolveSiteOrigin(req: Request) {
   const configured = String(process.env.NEXT_PUBLIC_SITE_URL ?? "").trim()
   if (configured) {
@@ -50,12 +73,31 @@ function resolveSiteOrigin(req: Request) {
   return new URL(req.url).origin
 }
 
-async function canAccessCase(supabase: any, caseId: string, userId: string, role: string | null) {
-  const { data: c } = await supabase
+type MinimalCaseAccessClient = {
+  from: (
+    table: string
+  ) => {
+    select: (columns: string) => {
+      eq: (column: string, value: string) => {
+        maybeSingle: () => Promise<{ data: unknown }>
+      }
+    }
+  }
+}
+
+type CaseAccessRow = {
+  customer_id?: string | null
+  assigned_advisor_id?: string | null
+}
+
+async function canAccessCase(supabase: unknown, caseId: string, userId: string, role: string | null) {
+  const client = supabase as MinimalCaseAccessClient
+  const { data } = await client
     .from("cases")
     .select("id,customer_id,assigned_advisor_id")
     .eq("id", caseId)
     .maybeSingle()
+  const c = (data as CaseAccessRow | null) ?? null
   if (!c) return false
   if (role === "admin") return true
   if (role === "customer") return c.customer_id === userId
@@ -75,6 +117,15 @@ export async function POST(req: Request) {
     if (!caseId || !(file instanceof File)) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 })
     }
+    if (!file.size) {
+      return NextResponse.json({ error: "Leere Datei" }, { status: 400 })
+    }
+    if (file.size > MAX_DOCUMENT_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: `Datei zu gross. Maximal ${Math.round(MAX_DOCUMENT_UPLOAD_BYTES / (1024 * 1024))} MB erlaubt.` },
+        { status: 413 }
+      )
+    }
 
     const allowed = await canAccessCase(supabase, caseId, user.id, role)
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -85,9 +136,11 @@ export async function POST(req: Request) {
     const safeName = safeFileName(originalName)
     const path = `${caseId}/${Date.now()}_${crypto.randomUUID()}_${safeName}`
     const mimeType = inferMimeType(file)
-    const fileBytes = new Uint8Array(await file.arrayBuffer())
-    if (!fileBytes.byteLength) {
-      return NextResponse.json({ error: "Leere Datei" }, { status: 400 })
+    if (!isSupportedDocument(file, mimeType)) {
+      return NextResponse.json(
+        { error: "Dateityp nicht unterstuetzt. Erlaubt sind PDF, DOC, DOCX und Bilder." },
+        { status: 415 }
+      )
     }
 
     const admin = supabaseAdmin()
@@ -100,18 +153,20 @@ export async function POST(req: Request) {
         .order("created_at", { ascending: false })
 
       if (reqs?.length) {
-        const reqIds = reqs.map((r: any) => r.id).filter(Boolean)
+        const requestRows = (reqs as Array<{ id?: string | null; required?: boolean | null }>).filter(Boolean)
+        const reqIds = requestRows.map((r) => r.id ?? null).filter((id): id is string => Boolean(id))
         const { data: existingDocs } = reqIds.length
           ? await admin.from("documents").select("request_id").in("request_id", reqIds)
-          : { data: [] as any[] }
+          : { data: [] as Array<{ request_id?: string | null }> }
 
-        const haveDocs = new Set((existingDocs ?? []).map((d: any) => d.request_id).filter(Boolean))
-        const open = (reqs ?? []).filter((r: any) => !haveDocs.has(r.id))
-        const requiredOpen = open.filter((r: any) => r.required)
+        const existingRows = (existingDocs as Array<{ request_id?: string | null }> | null) ?? []
+        const haveDocs = new Set(existingRows.map((d) => d.request_id ?? null).filter((id): id is string => Boolean(id)))
+        const open = requestRows.filter((r) => (r.id ? !haveDocs.has(r.id) : false))
+        const requiredOpen = open.filter((r) => r.required)
         requestIdFinal = (requiredOpen[0] ?? open[0])?.id ?? null
       }
     }
-    const { error: upErr } = await admin.storage.from("case_documents").upload(path, fileBytes, {
+    const { error: upErr } = await admin.storage.from("case_documents").upload(path, file, {
       upsert: false,
       contentType: mimeType,
     })
@@ -152,16 +207,18 @@ export async function POST(req: Request) {
           eyebrow: "SEPANA - Dokumenten-Update",
           preheader: "Ein Kunde hat ein neues Dokument hochgeladen.",
         })
-        await sendEmail({
+        void sendEmail({
           to: caseMeta.advisor_email,
           subject: "Neues Dokument im Kundenfall",
           html,
-        })
+        }).catch(() => null)
       }
     }
 
     return NextResponse.json({ ok: true, path, request_id: requestIdFinal })
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Serverfehler" }, { status: 500 })
+  } catch (e: unknown) {
+    const raw = e instanceof Error ? e.message : String(e ?? "")
+    const classified = classifyUploadError(raw)
+    return NextResponse.json({ error: classified.text }, { status: classified.status })
   }
 }
