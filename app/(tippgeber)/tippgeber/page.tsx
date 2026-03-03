@@ -132,6 +132,17 @@ export default async function TippgeberDashboardPage() {
         </div>
       </section>
 
+      <section className="rounded-2xl border border-emerald-200/80 bg-emerald-50/70 px-4 py-3 sm:px-5">
+        <div className="flex flex-wrap items-start gap-2 text-sm">
+          <span className="inline-flex rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-800">
+            Hinweis
+          </span>
+          <p className="text-emerald-900">
+            Wir stellen 35 % inkl. MwSt. von der ausgezahlten Provision aus.
+          </p>
+        </div>
+      </section>
+
       <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex items-start gap-4">
