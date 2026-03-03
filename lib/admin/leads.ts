@@ -34,6 +34,12 @@ export type LeadRow = {
   notes: string | null
 }
 
+export type InviteRecommendationContact = {
+  companyName: string
+  phone?: string | null
+  logoPath?: string | null
+}
+
 export function isEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
 }
@@ -66,6 +72,15 @@ export function resolveInviteRedirect(req: Request) {
   return `${new URL(base).origin}/einladung?mode=invite`
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
 function trimOrNull(value: string | null | undefined) {
   const trimmed = String(value ?? "").trim()
   return trimmed ? trimmed : null
@@ -79,6 +94,56 @@ function numberOrNull(value: number | string | null | undefined) {
 
 function caseRefPrefix(caseType: CaseType) {
   return caseType === "konsum" ? "PK" : "BF"
+}
+
+function buildRecommendationCardHtml(
+  recommendedBy: InviteRecommendationContact | null | undefined,
+  siteOrigin: string
+) {
+  const companyName = String(recommendedBy?.companyName ?? "").trim()
+  if (!companyName) return ""
+
+  const phone = String(recommendedBy?.phone ?? "").trim()
+  const logoPath = String(recommendedBy?.logoPath ?? "").trim()
+  const logoUrl = logoPath
+    ? `${siteOrigin}/api/baufi/logo?bucket=tipgeber_logos&width=192&height=192&resize=contain&path=${encodeURIComponent(logoPath)}`
+    : null
+
+  const phoneRow = phone
+    ? `<div style="margin-top:6px; font-size:13px; line-height:20px; color:#334155;"><strong style="color:#0f172a;">Telefon:</strong> ${escapeHtml(phone)}</div>`
+    : ""
+
+  return `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 2px 0;">
+      <tr>
+        <td style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; padding:14px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+            <tr>
+              <td valign="top" width="72" style="padding-right:12px;">
+                ${
+                  logoUrl
+                    ? `<img
+                        src="${escapeHtml(logoUrl)}"
+                        alt=""
+                        width="60"
+                        height="60"
+                        style="display:block; width:60px; height:60px; border-radius:12px; object-fit:contain; border:1px solid #e2e8f0; background:#ffffff; padding:6px;"
+                      />`
+                    : `<div style="display:grid; place-items:center; width:60px; height:60px; border-radius:12px; border:1px solid #e2e8f0; background:#ffffff; font-size:10px; color:#94a3b8;">Logo</div>`
+                }
+              </td>
+              <td valign="top">
+                <div style="font-size:12px; color:#64748b; letter-spacing:.08em; text-transform:uppercase;">Empfohlen durch</div>
+                <div style="margin-top:3px; font-size:18px; line-height:24px; font-weight:700; color:#0f172a;">${escapeHtml(companyName)}</div>
+                <div style="margin-top:4px; font-size:13px; line-height:20px; color:#334155;">Ansprechpartner fuer die Immobilie</div>
+                ${phoneRow}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  `
 }
 
 export async function nextCaseRef(admin: ReturnType<typeof supabaseAdmin>, caseType: CaseType = "baufi") {
@@ -178,13 +243,29 @@ async function generatePasswordActionLink(
   return null
 }
 
-function buildPasswordInviteEmailHtml(actionLink: string, firstName?: string | null) {
+function buildPasswordInviteEmailHtml(
+  actionLink: string,
+  firstName?: string | null,
+  recommendedBy?: InviteRecommendationContact | null,
+  siteOrigin?: string
+) {
   const safeName = String(firstName ?? "").trim()
+  const fallbackOrigin = String(process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.sepana.de").trim()
+  const resolvedSiteOrigin = (() => {
+    try {
+      return new URL(siteOrigin || fallbackOrigin || "https://www.sepana.de").origin
+    } catch {
+      return "https://www.sepana.de"
+    }
+  })()
+  const recommendationCard = buildRecommendationCardHtml(recommendedBy, resolvedSiteOrigin)
+
   return buildEmailHtml({
     title: "Passwort fuer Ihr SEPANA-Konto festlegen",
     intro: safeName
       ? `Hallo ${safeName}, bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschliessen.`
       : "Bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschliessen.",
+    bodyHtml: recommendationCard || undefined,
     steps: [
       "Klicken Sie auf den Button und vergeben Sie ein sicheres Passwort.",
       "Danach koennen Sie sich direkt im Kundenportal anmelden.",
@@ -202,12 +283,20 @@ export async function ensureCustomerAccount(opts: {
   email: string
   firstName?: string | null
   lastName?: string | null
+  recommendedBy?: InviteRecommendationContact | null
 }) {
   const { admin, req, firstName, lastName } = opts
   const email = opts.email.trim().toLowerCase()
   if (!isEmail(email)) throw new Error("Lead hat keine gueltige E-Mail.")
 
   const redirectTo = resolveInviteRedirect(req)
+  const siteOrigin = (() => {
+    try {
+      return new URL(redirectTo).origin
+    } catch {
+      return "https://www.sepana.de"
+    }
+  })()
 
   let userId = await findUserIdByEmail(admin, email)
   let existingAccount = !!userId
@@ -267,7 +356,7 @@ export async function ensureCustomerAccount(opts: {
   if (needsPasswordSetup) {
     const actionLink = await generatePasswordActionLink(admin, email, redirectTo)
     if (actionLink) {
-      const inviteHtml = buildPasswordInviteEmailHtml(actionLink, firstName)
+      const inviteHtml = buildPasswordInviteEmailHtml(actionLink, firstName, opts.recommendedBy, siteOrigin)
       const mail = await sendEmail({
         to: email,
         subject: "Passwort fuer Ihren SEPANA-Zugang festlegen",
@@ -391,7 +480,8 @@ export async function createCaseFromLead(opts: {
   }
 
   if ((templates ?? []).length > 0) {
-    const rows = (templates ?? []).map((t: any) => ({
+    const templateRows = (templates ?? []) as Array<{ title: string | null; required: boolean | null }>
+    const rows = templateRows.map((t) => ({
       case_id: caseId,
       title: t.title,
       required: !!t.required,

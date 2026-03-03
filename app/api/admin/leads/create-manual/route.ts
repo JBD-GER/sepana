@@ -139,10 +139,11 @@ export async function POST(req: Request) {
     }
 
     let tippgeberCompanyName: string | null = null
+    let recommendationContact: { companyName: string; phone: string | null; logoPath: string | null } | null = null
     if (tippgeberUserId) {
       const { data: tippgeberProfile } = await admin
         .from("tippgeber_profiles")
-        .select("user_id,company_name,is_active")
+        .select("user_id,company_name,phone,logo_path,is_active")
         .eq("user_id", tippgeberUserId)
         .maybeSingle()
 
@@ -151,8 +152,15 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, error: "Tippgeber nicht gefunden oder inaktiv." }, { status: 400 })
       }
 
-      tippgeberCompanyName =
-        String((tippgeberProfile as { company_name?: string | null }).company_name ?? "").trim() || "Tippgeber"
+      const profileCompanyName = String((tippgeberProfile as { company_name?: string | null }).company_name ?? "").trim()
+      tippgeberCompanyName = profileCompanyName || "Tippgeber"
+      if (profileCompanyName) {
+        recommendationContact = {
+          companyName: profileCompanyName,
+          phone: String((tippgeberProfile as { phone?: string | null }).phone ?? "").trim() || null,
+          logoPath: String((tippgeberProfile as { logo_path?: string | null }).logo_path ?? "").trim() || null,
+        }
+      }
     }
 
     const now = new Date().toISOString()
@@ -217,6 +225,7 @@ export async function POST(req: Request) {
       email: lead.email ?? email,
       firstName: lead.first_name ?? firstName,
       lastName: lead.last_name ?? lastName,
+      recommendedBy: recommendationContact,
     })
 
     const created = await createCaseFromLead({

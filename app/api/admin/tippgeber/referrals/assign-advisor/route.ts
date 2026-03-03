@@ -207,6 +207,14 @@ export async function POST(req: Request) {
     if (!caseId) {
       const tippgeberProfile = await getTippgeberProfileByUserId(referral.tippgeber_user_id)
       const companyName = tippgeberProfile?.company_name ?? "Tippgeber"
+      const recommendationCompanyName = String(tippgeberProfile?.company_name ?? "").trim()
+      const recommendationContact = recommendationCompanyName
+        ? {
+            companyName: recommendationCompanyName,
+            phone: tippgeberProfile?.phone ?? null,
+            logoPath: tippgeberProfile?.logo_path ?? null,
+          }
+        : null
       const now = new Date().toISOString()
 
       const leadInsertBase = {
@@ -259,6 +267,7 @@ export async function POST(req: Request) {
         email: referral.customer_email,
         firstName: referral.customer_first_name,
         lastName: referral.customer_last_name,
+        recommendedBy: recommendationContact,
       })
       invited = customer.invited
       existingAccount = customer.existingAccount
