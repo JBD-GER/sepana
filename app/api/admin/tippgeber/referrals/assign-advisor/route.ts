@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import {
@@ -14,6 +14,7 @@ import {
   type LeadRow,
 } from "@/lib/admin/leads"
 import { getTippgeberProfileByUserId, isEmail, type TippgeberReferralRow } from "@/lib/tippgeber/service"
+import { normalizeTippgeberKind, tippgeberKindLabel } from "@/lib/tippgeber/kinds"
 
 export const runtime = "nodejs"
 
@@ -25,7 +26,19 @@ function nextExternalLeadId() {
   return Date.now() * 100 + Math.floor(Math.random() * 100)
 }
 
-async function insertLeadWithRetry(admin: ReturnType<typeof supabaseAdmin>, rowBase: Record<string, unknown>) {
+type LeadInsertResult = {
+  data: { id: string; external_lead_id: number } | null
+  error: Error | null
+}
+
+function toErrorLike(error: unknown) {
+  return error as { code?: string; message?: string } | null
+}
+
+async function insertLeadWithRetry(
+  admin: ReturnType<typeof supabaseAdmin>,
+  rowBase: Record<string, unknown>
+): Promise<LeadInsertResult> {
   for (let attempt = 0; attempt < 4; attempt++) {
     const externalLeadId = nextExternalLeadId()
     const first = await admin
@@ -33,33 +46,79 @@ async function insertLeadWithRetry(admin: ReturnType<typeof supabaseAdmin>, rowB
       .insert({ ...rowBase, external_lead_id: externalLeadId })
       .select("id,external_lead_id")
       .single()
-    if (!first.error) return first
+    if (!first.error) {
+      return {
+        data: {
+          id: String(first.data?.id ?? ""),
+          external_lead_id: Number(first.data?.external_lead_id ?? externalLeadId),
+        },
+        error: null,
+      }
+    }
 
-    const isDuplicate = String((first.error as any)?.code ?? "") === "23505"
-    const missingLeadCaseType = String((first.error as any)?.code ?? "") === "42703"
-      || String((first.error as any)?.message ?? "").toLowerCase().includes("lead_case_type")
+    const firstError = toErrorLike(first.error)
+    const isDuplicate = String(firstError?.code ?? "") === "23505"
+    const missingLeadCaseType = String(firstError?.code ?? "") === "42703"
+      || String(firstError?.message ?? "").toLowerCase().includes("lead_case_type")
 
     if (missingLeadCaseType) {
-      const fallbackPayload = { ...rowBase, external_lead_id: externalLeadId }
-      delete (fallbackPayload as any).lead_case_type
+      const fallbackPayload: Record<string, unknown> = { ...rowBase, external_lead_id: externalLeadId }
+      delete fallbackPayload.lead_case_type
       const second = await admin.from("webhook_leads").insert(fallbackPayload).select("id,external_lead_id").single()
-      if (!second.error) return second
-      if (String((second.error as any)?.code ?? "") !== "23505") return second
+      if (!second.error) {
+        return {
+          data: {
+            id: String(second.data?.id ?? ""),
+            external_lead_id: Number(second.data?.external_lead_id ?? externalLeadId),
+          },
+          error: null,
+        }
+      }
+      const secondError = toErrorLike(second.error)
+      if (String(secondError?.code ?? "") !== "23505") {
+        return {
+          data: null,
+          error: new Error(secondError?.message ?? "lead_insert_failed"),
+        }
+      }
       continue
     }
 
-    if (!isDuplicate) return first
+    if (!isDuplicate) {
+      return {
+        data: null,
+        error: new Error(firstError?.message ?? "lead_insert_failed"),
+      }
+    }
   }
-  return { data: null, error: new Error("duplicate_external_lead_id") } as any
+  return { data: null, error: new Error("duplicate_external_lead_id") }
 }
 
-function buildLeadFromReferral(referral: TippgeberReferralRow): LeadRow {
+function productLabel(caseType: CaseType) {
+  return caseType === "konsum" ? "Privatkredit" : "Baufinanzierung"
+}
+
+function caseTypeFromReferral(referral: TippgeberReferralRow): CaseType {
+  return normalizeTippgeberKind(referral.referral_kind) === "private_credit" ? "konsum" : "baufi"
+}
+
+function amountFromReferral(referral: TippgeberReferralRow, caseType: CaseType) {
+  return caseType === "konsum" ? referral.private_credit_volume : referral.manual_purchase_price
+}
+
+function leadPurpose(caseType: CaseType) {
+  return caseType === "konsum" ? "Tippgeber Privat-Empfehlung" : "Tippgeber-Empfehlung"
+}
+
+function buildLeadFromReferral(referral: TippgeberReferralRow, caseType: CaseType): LeadRow {
+  const requestedAmount = amountFromReferral(referral, caseType)
+
   return {
     id: "",
     linked_case_id: null,
     external_lead_id: 0,
     assigned_advisor_id: null,
-    lead_case_type: "baufi",
+    lead_case_type: caseType,
     first_name: referral.customer_first_name,
     last_name: referral.customer_last_name,
     email: referral.customer_email,
@@ -74,20 +133,16 @@ function buildLeadFromReferral(referral: TippgeberReferralRow): LeadRow {
     address_street: null,
     address_zip: null,
     address_city: null,
-    product_name: "Baufinanzierung",
-    product_price: referral.manual_purchase_price,
-    loan_purpose: "Tippgeber-Empfehlung",
-    loan_amount_total: null,
-    property_zip: referral.property_zip,
-    property_city: referral.property_city,
+    product_name: productLabel(caseType),
+    product_price: requestedAmount,
+    loan_purpose: leadPurpose(caseType),
+    loan_amount_total: caseType === "konsum" ? requestedAmount : null,
+    property_zip: caseType === "baufi" ? referral.property_zip : null,
+    property_city: caseType === "baufi" ? referral.property_city : null,
     property_type: null,
-    property_purchase_price: referral.manual_purchase_price,
-    notes: "Lead aus Tippgeber-Bereich",
+    property_purchase_price: caseType === "baufi" ? referral.manual_purchase_price : null,
+    notes: caseType === "konsum" ? "Lead aus Tippgeber-Privat-Bereich" : "Lead aus Tippgeber-Bereich",
   }
-}
-
-function productLabel(caseType: CaseType) {
-  return caseType === "konsum" ? "Privatkredit" : "Baufinanzierung"
 }
 
 export async function POST(req: Request) {
@@ -123,7 +178,18 @@ export async function POST(req: Request) {
     }
 
     if (!isEmail(referral.customer_email)) {
-      return NextResponse.json({ ok: false, error: "Kunden-E-Mail ist ungültig." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Kunden-E-Mail ist ungueltig." }, { status: 400 })
+    }
+
+    const caseType = caseTypeFromReferral(referral)
+    const referralKind = normalizeTippgeberKind(referral.referral_kind)
+    const requestedAmount = amountFromReferral(referral, caseType)
+
+    if (caseType === "konsum" && (!requestedAmount || requestedAmount <= 0)) {
+      return NextResponse.json(
+        { ok: false, error: "Kreditvolumen fehlt oder ist ungueltig." },
+        { status: 400 }
+      )
     }
 
     const previousAdvisorId = referral.assigned_advisor_id ?? null
@@ -154,27 +220,30 @@ export async function POST(req: Request) {
         email: referral.customer_email,
         phone: referral.customer_phone,
         phone_mobile: referral.customer_phone,
-        product_name: "Baufinanzierung",
-        product_price: referral.manual_purchase_price,
-        lead_case_type: "baufi",
-        loan_purpose: "Tippgeber-Empfehlung",
-        loan_amount_total: null,
-        property_zip: referral.property_zip,
-        property_city: referral.property_city,
+        product_name: productLabel(caseType),
+        product_price: requestedAmount,
+        lead_case_type: caseType,
+        loan_purpose: leadPurpose(caseType),
+        loan_amount_total: caseType === "konsum" ? requestedAmount : null,
+        property_zip: caseType === "baufi" ? referral.property_zip : null,
+        property_city: caseType === "baufi" ? referral.property_city : null,
         property_type: null,
-        property_purchase_price: referral.manual_purchase_price,
-        notes: `Tippgeber-Empfehlung von ${companyName}`,
+        property_purchase_price: caseType === "baufi" ? referral.manual_purchase_price : null,
+        notes: `${leadPurpose(caseType)} von ${companyName}`,
         additional: {
           origin: "tippgeber",
           referral_id: referral.id,
+          referral_kind: referralKind,
+          product: productLabel(caseType),
           tippgeber_user_id: referral.tippgeber_user_id,
-          expose_uploaded: Boolean(referral.expose_file_path),
+          expose_uploaded: caseType === "baufi" ? Boolean(referral.expose_file_path) : false,
+          private_credit_volume: caseType === "konsum" ? requestedAmount : null,
           manual_broker_commission_percent: referral.manual_broker_commission_percent,
           property_address: {
-            street: referral.property_street,
-            house_number: referral.property_house_number,
-            zip: referral.property_zip,
-            city: referral.property_city,
+            street: caseType === "baufi" ? referral.property_street : null,
+            house_number: caseType === "baufi" ? referral.property_house_number : null,
+            zip: caseType === "baufi" ? referral.property_zip : null,
+            city: caseType === "baufi" ? referral.property_city : null,
           },
         },
       }
@@ -195,7 +264,7 @@ export async function POST(req: Request) {
       existingAccount = customer.existingAccount
       passwordInviteSent = customer.passwordInviteSent
 
-      const leadForCase = buildLeadFromReferral(referral)
+      const leadForCase = buildLeadFromReferral(referral, caseType)
       if (leadId) leadForCase.id = String(leadId)
       if (externalLeadId) leadForCase.external_lead_id = externalLeadId
       leadForCase.assigned_advisor_id = advisorId
@@ -205,7 +274,7 @@ export async function POST(req: Request) {
         lead: leadForCase,
         customerId: customer.userId,
         advisorId,
-        caseType: "baufi",
+        caseType,
         entryChannel: "tippgeber_referral",
       })
 
@@ -219,23 +288,23 @@ export async function POST(req: Request) {
             linked_case_id: caseId,
             assigned_advisor_id: advisorId,
             assigned_at: now,
-            lead_case_type: "baufi",
+            lead_case_type: caseType,
           })
           .eq("id", String(leadId))
       }
 
       const nextStepsHtml = buildEmailHtml({
-        title: `Nächste Schritte zu Ihrem ${productLabel("baufi")}`,
-        intro: "Vielen Dank. Ihre Anfrage wurde übernommen und wird nun durch einen Berater bearbeitet.",
+        title: `Naechste Schritte zu Ihrem ${productLabel(caseType)}`,
+        intro: "Vielen Dank. Ihre Anfrage wurde uebernommen und wird nun durch einen Berater bearbeitet.",
         steps: [
           "Ihr Berater meldet sich zeitnah bei Ihnen.",
-          "Sie können Unterlagen später direkt im Kundenportal hochladen.",
-          "Bei Rückfragen sind wir telefonisch und per E-Mail erreichbar.",
+          "Sie koennen Unterlagen spaeter direkt im Kundenportal hochladen.",
+          "Bei Rueckfragen sind wir telefonisch und per E-Mail erreichbar.",
         ],
       })
       const nextStepsMail = await sendEmail({
         to: referral.customer_email,
-        subject: `Nächste Schritte zur ${productLabel("baufi")}`,
+        subject: `Naechste Schritte zur ${productLabel(caseType)}`,
         html: nextStepsHtml,
       })
       nextStepsMailSent = !!nextStepsMail.ok
@@ -245,8 +314,8 @@ export async function POST(req: Request) {
           caseId,
           actorRole: "admin",
           type: "tippgeber_referral_linked",
-          title: "Tippgeber-Empfehlung verknüpft",
-          body: `Empfohlen von ${companyName}.`,
+          title: "Tippgeber-Empfehlung verknuepft",
+          body: `Empfohlen von ${companyName} (${tippgeberKindLabel(referralKind)}).`,
         })
       }
     }
@@ -263,6 +332,7 @@ export async function POST(req: Request) {
           assigned_advisor_id: advisorId,
           assigned_at: new Date().toISOString(),
           linked_case_id: caseId,
+          lead_case_type: caseType,
         })
         .eq("id", String(leadId))
     }
@@ -292,6 +362,7 @@ export async function POST(req: Request) {
       referralId,
       caseId,
       leadId,
+      caseType,
       caseCreated,
       invited,
       existingAccount,
@@ -299,7 +370,9 @@ export async function POST(req: Request) {
       nextStepsMailSent,
       advisorMailSent,
     })
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
+  } catch (e: unknown) {
+    const message = e instanceof Error && e.message ? e.message : "Serverfehler"
+    return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
+

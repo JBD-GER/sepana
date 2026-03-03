@@ -1,7 +1,8 @@
-"use client"
+﻿"use client"
 
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import type { TippgeberKind } from "@/lib/tippgeber/kinds"
 
 type ExposeMeta = {
   path: string
@@ -23,12 +24,25 @@ function randomId() {
   return Math.random().toString(36).slice(2)
 }
 
-export default function TippgeberReferralForm({ companyName }: { companyName: string }) {
+function parsePositiveMoney(value: string) {
+  const cleaned = String(value ?? "").trim().replace(/[^\d,.-]/g, "")
+  if (!cleaned) return null
+  const normalized = cleaned.includes(",") ? cleaned.replace(/\./g, "").replace(",", ".") : cleaned.replace(/\./g, "")
+  const num = Number(normalized)
+  if (!Number.isFinite(num) || num <= 0) return null
+  return num
+}
+
+export default function TippgeberReferralForm({ companyName, tippgeberKind }: { companyName: string; tippgeberKind: TippgeberKind }) {
   const router = useRouter()
+  const isPrivateCredit = tippgeberKind === "private_credit"
+
   const [customerFirstName, setCustomerFirstName] = useState("")
   const [customerLastName, setCustomerLastName] = useState("")
   const [customerEmail, setCustomerEmail] = useState("")
   const [customerPhone, setCustomerPhone] = useState("")
+
+  const [privateCreditVolume, setPrivateCreditVolume] = useState("")
 
   const [purchasePrice, setPurchasePrice] = useState("")
   const [brokerCommissionPercent, setBrokerCommissionPercent] = useState("0")
@@ -52,6 +66,7 @@ export default function TippgeberReferralForm({ companyName }: { companyName: st
   )
 
   async function uploadExpose(file: File) {
+    if (isPrivateCredit) return
     setMessage(null)
     setUploading(true)
     try {
@@ -82,8 +97,15 @@ export default function TippgeberReferralForm({ companyName }: { companyName: st
       setMessage("Bitte alle Kontaktdaten des Kunden angeben.")
       return
     }
-    if (!expose && !hasManualData) {
-      setMessage("Bitte Exposé hochladen oder Objektdaten manuell eintragen.")
+
+    if (isPrivateCredit) {
+      const parsedVolume = parsePositiveMoney(privateCreditVolume)
+      if (!parsedVolume) {
+        setMessage("Bitte ein gueltiges Kreditvolumen angeben.")
+        return
+      }
+    } else if (!expose && !hasManualData) {
+      setMessage("Bitte Expose hochladen oder Objektdaten manuell eintragen.")
       return
     }
 
@@ -97,15 +119,18 @@ export default function TippgeberReferralForm({ companyName }: { companyName: st
           customerLastName,
           customerEmail,
           customerPhone,
-          expose,
-          manual: {
-            purchasePrice,
-            brokerCommissionPercent,
-            street,
-            houseNumber,
-            zip,
-            city,
-          },
+          privateCreditVolume: isPrivateCredit ? privateCreditVolume : null,
+          expose: isPrivateCredit ? null : expose,
+          manual: isPrivateCredit
+            ? null
+            : {
+                purchasePrice,
+                brokerCommissionPercent,
+                street,
+                houseNumber,
+                zip,
+                city,
+              },
         }),
       })
       const json = await res.json().catch(() => ({}))
@@ -115,6 +140,7 @@ export default function TippgeberReferralForm({ companyName }: { companyName: st
       setCustomerLastName("")
       setCustomerEmail("")
       setCustomerPhone("")
+      setPrivateCreditVolume("")
       setPurchasePrice("")
       setBrokerCommissionPercent("0")
       setStreet("")
@@ -136,13 +162,15 @@ export default function TippgeberReferralForm({ companyName }: { companyName: st
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Neuer Tipp</div>
-          <h2 className="mt-1 text-lg font-semibold text-slate-900">Kundenanfrage einreichen</h2>
+          <h2 className="mt-1 text-lg font-semibold text-slate-900">
+            {isPrivateCredit ? "Privatkredit-Anfrage einreichen" : "Kundenanfrage einreichen"}
+          </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Für {companyName}: Kontaktdaten erfassen und Exposé hochladen oder Objektdaten manuell eintragen.
+            Fuer {companyName}: {isPrivateCredit ? "Kontaktdaten und Kreditvolumen erfassen." : "Kontaktdaten erfassen und Expose hochladen oder Objektdaten manuell eintragen."}
           </p>
         </div>
         <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
-          Service im Dashboard
+          {isPrivateCredit ? "Tippgeber Privat" : "Tippgeber"}
         </div>
       </div>
 
@@ -170,73 +198,96 @@ export default function TippgeberReferralForm({ companyName }: { companyName: st
             </label>
           </div>
 
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-4">
-            <div className="text-sm font-medium text-slate-900">Exposé hochladen (optional, empfohlen)</div>
-            <p className="mt-1 text-xs text-slate-600">PDF oder Bilddatei. Alternativ können unten Objektdaten manuell eingetragen werden.</p>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <label className="inline-flex cursor-pointer items-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm">
-                {uploading ? "Upload läuft..." : "Datei wählen"}
-                <input
-                  type="file"
-                  accept=".pdf,image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) void uploadExpose(file)
-                  }}
-                />
-              </label>
-              {expose ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                  {expose.file_name}
-                </div>
-              ) : (
-                <div className="text-xs text-slate-500">Noch keine Datei hochgeladen</div>
-              )}
+          {!isPrivateCredit ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-4">
+              <div className="text-sm font-medium text-slate-900">Expose hochladen (optional, empfohlen)</div>
+              <p className="mt-1 text-xs text-slate-600">PDF oder Bilddatei. Alternativ koennen unten Objektdaten manuell eingetragen werden.</p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <label className="inline-flex cursor-pointer items-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm">
+                  {uploading ? "Upload laeuft..." : "Datei waehlen"}
+                  <input
+                    type="file"
+                    accept=".pdf,image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) void uploadExpose(file)
+                    }}
+                  />
+                </label>
+                {expose ? (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                    {expose.file_name}
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-500">Noch keine Datei hochgeladen</div>
+                )}
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-          <div className="text-sm font-medium text-slate-900">Objektdaten manuell (optional)</div>
-          <p className="mt-1 text-xs text-slate-600">
-            Sinnvoll, wenn kein Exposé vorliegt. Maklerprovision ist standardmäßig auf 0 % gesetzt.
-          </p>
+          {isPrivateCredit ? (
+            <>
+              <div className="text-sm font-medium text-slate-900">Privatkredit-Daten</div>
+              <p className="mt-1 text-xs text-slate-600">Nur Kreditvolumen und Kontaktdaten sind erforderlich.</p>
 
-          <div className="mt-4 grid gap-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="grid gap-1.5">
-                <span className="text-xs text-slate-600">Kaufpreis</span>
-                <input className={inputClass} value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} placeholder="z. B. 420000" />
-              </label>
-              <label className="grid gap-1.5">
-                <span className="text-xs text-slate-600">Maklerprovision %</span>
-                <input className={inputClass} value={brokerCommissionPercent} onChange={(e) => setBrokerCommissionPercent(e.target.value)} />
-              </label>
-            </div>
+              <div className="mt-4 grid gap-3">
+                <label className="grid gap-1.5">
+                  <span className="text-xs text-slate-600">Kreditvolumen *</span>
+                  <input
+                    className={inputClass}
+                    value={privateCreditVolume}
+                    onChange={(e) => setPrivateCreditVolume(e.target.value)}
+                    placeholder="z. B. 25000"
+                  />
+                </label>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-sm font-medium text-slate-900">Objektdaten manuell (optional)</div>
+              <p className="mt-1 text-xs text-slate-600">
+                Sinnvoll, wenn kein Expose vorliegt. Maklerprovision ist standardmaessig auf 0 % gesetzt.
+              </p>
 
-            <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
-              <label className="grid gap-1.5">
-                <span className="text-xs text-slate-600">Straße</span>
-                <input className={inputClass} value={street} onChange={(e) => setStreet(e.target.value)} />
-              </label>
-              <label className="grid gap-1.5">
-                <span className="text-xs text-slate-600">Hausnummer</span>
-                <input className={inputClass} value={houseNumber} onChange={(e) => setHouseNumber(e.target.value)} />
-              </label>
-            </div>
+              <div className="mt-4 grid gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1.5">
+                    <span className="text-xs text-slate-600">Kaufpreis</span>
+                    <input className={inputClass} value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} placeholder="z. B. 420000" />
+                  </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs text-slate-600">Maklerprovision %</span>
+                    <input className={inputClass} value={brokerCommissionPercent} onChange={(e) => setBrokerCommissionPercent(e.target.value)} />
+                  </label>
+                </div>
 
-            <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
-              <label className="grid gap-1.5">
-                <span className="text-xs text-slate-600">PLZ</span>
-                <input className={inputClass} value={zip} onChange={(e) => setZip(e.target.value)} />
-              </label>
-              <label className="grid gap-1.5">
-                <span className="text-xs text-slate-600">Ort</span>
-                <input className={inputClass} value={city} onChange={(e) => setCity(e.target.value)} />
-              </label>
-            </div>
-          </div>
+                <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+                  <label className="grid gap-1.5">
+                    <span className="text-xs text-slate-600">Strasse</span>
+                    <input className={inputClass} value={street} onChange={(e) => setStreet(e.target.value)} />
+                  </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs text-slate-600">Hausnummer</span>
+                    <input className={inputClass} value={houseNumber} onChange={(e) => setHouseNumber(e.target.value)} />
+                  </label>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
+                  <label className="grid gap-1.5">
+                    <span className="text-xs text-slate-600">PLZ</span>
+                    <input className={inputClass} value={zip} onChange={(e) => setZip(e.target.value)} />
+                  </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs text-slate-600">Ort</span>
+                    <input className={inputClass} value={city} onChange={(e) => setCity(e.target.value)} />
+                  </label>
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="mt-5 flex flex-wrap items-center gap-3">
             <button
@@ -250,7 +301,11 @@ export default function TippgeberReferralForm({ companyName }: { companyName: st
             >
               {loading ? "Sende..." : "Tipp einreichen"}
             </button>
-            <div className="text-xs text-slate-500">Pflicht: Kundenkontakt + Exposé oder manuelle Objektdaten</div>
+            <div className="text-xs text-slate-500">
+              {isPrivateCredit
+                ? "Pflicht: Kundenkontakt + Kreditvolumen"
+                : "Pflicht: Kundenkontakt + Expose oder manuelle Objektdaten"}
+            </div>
           </div>
           {message ? <div className="mt-3 text-sm text-slate-700">{message}</div> : null}
         </div>
@@ -258,3 +313,4 @@ export default function TippgeberReferralForm({ companyName }: { companyName: st
     </section>
   )
 }
+

@@ -1,7 +1,11 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import { notFound } from "next/navigation"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
+import {
+  normalizeTippgeberKind,
+  tippgeberKindLabel,
+} from "@/lib/tippgeber/kinds"
 import EditTippgeberForm from "./ui/EditTippgeberForm"
 
 function dt(value: string | null | undefined) {
@@ -31,7 +35,7 @@ export default async function AdminTippgeberEditPage({
       .maybeSingle(),
     admin
       .from("tippgeber_referrals")
-      .select("id,created_at,commission_status,commission_gross_amount")
+      .select("*")
       .eq("tippgeber_user_id", userId)
       .order("created_at", { ascending: false })
       .limit(50),
@@ -46,13 +50,15 @@ export default async function AdminTippgeberEditPage({
     .filter((r) => String((r as { commission_status?: string | null }).commission_status ?? "") === "paid")
     .reduce((sum, r) => sum + Number((r as { commission_gross_amount?: number | null }).commission_gross_amount ?? 0), 0)
 
+  const tippgeberKind = normalizeTippgeberKind(profile.tippgeber_kind)
+
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <Link href="/admin/tippgeber" className="text-sm font-medium text-slate-900 underline underline-offset-4">
-              {"<-"} Zurück zu Tippgeber
+              {"<-"} Zurueck zu Tippgeber
             </Link>
             <h1 className="mt-3 text-2xl font-semibold text-slate-900">{String(profile.company_name ?? "Tippgeber")}</h1>
             <div className="mt-1 text-sm text-slate-600">
@@ -62,6 +68,7 @@ export default async function AdminTippgeberEditPage({
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
             <div className="text-xs text-slate-600">Status</div>
             <div className="font-medium text-slate-900">{profile.is_active === false ? "Deaktiviert" : "Aktiv"}</div>
+            <div className="mt-1 text-xs text-slate-600">Bereich: {tippgeberKindLabel(tippgeberKind)}</div>
           </div>
         </div>
       </div>
@@ -70,7 +77,7 @@ export default async function AdminTippgeberEditPage({
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Tipps</div>
           <div className="mt-2 text-3xl font-semibold text-slate-900">{(referrals ?? []).length}</div>
-          <div className="mt-2 text-sm text-slate-600">Letzte 50 Tipps in dieser Übersicht.</div>
+          <div className="mt-2 text-sm text-slate-600">Letzte 50 Tipps in dieser Uebersicht.</div>
         </div>
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Offene Provision</div>
@@ -87,6 +94,7 @@ export default async function AdminTippgeberEditPage({
       <EditTippgeberForm
         userId={userId}
         initial={{
+          tippgeberKind,
           companyName: String(profile.company_name ?? ""),
           street: String(profile.address_street ?? ""),
           houseNumber: String(profile.address_house_number ?? ""),
@@ -107,6 +115,7 @@ export default async function AdminTippgeberEditPage({
               <tr className="border-b border-slate-200/70">
                 <th className="px-4 py-3 font-medium text-slate-700">Tipp</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Eingang</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Produkt</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Provisionsstatus</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Provision brutto</th>
               </tr>
@@ -118,11 +127,20 @@ export default async function AdminTippgeberEditPage({
                   created_at: string | null
                   commission_status: string | null
                   commission_gross_amount: number | null
+                  referral_kind?: string | null
+                  private_credit_volume?: number | null
                 }
+                const referralKind = normalizeTippgeberKind(row.referral_kind)
                 return (
                   <tr key={row.id} className="border-b border-slate-200/60 last:border-0">
                     <td className="px-4 py-3 text-slate-900">{row.id.slice(0, 8)}</td>
                     <td className="px-4 py-3 text-slate-700">{dt(row.created_at)}</td>
+                    <td className="px-4 py-3 text-slate-700">
+                      <div>{tippgeberKindLabel(referralKind)}</div>
+                      {referralKind === "private_credit" ? (
+                        <div className="text-xs text-slate-500">Kreditvolumen: {eur(row.private_credit_volume ?? null)}</div>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-3 text-slate-700">{row.commission_status || "-"}</td>
                     <td className="px-4 py-3 text-slate-700">{eur(row.commission_gross_amount)}</td>
                   </tr>
@@ -130,7 +148,7 @@ export default async function AdminTippgeberEditPage({
               })}
               {(referrals ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+                  <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
                     Noch keine Tipps vorhanden.
                   </td>
                 </tr>
@@ -142,3 +160,4 @@ export default async function AdminTippgeberEditPage({
     </div>
   )
 }
+

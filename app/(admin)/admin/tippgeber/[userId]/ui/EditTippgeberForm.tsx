@@ -15,6 +15,7 @@ function errorMessage(error: unknown, fallback: string) {
 type Props = {
   userId: string
   initial: {
+    tippgeberKind: "classic" | "private_credit"
     companyName: string
     street: string
     houseNumber: string
@@ -29,6 +30,7 @@ type Props = {
 
 export default function EditTippgeberForm({ userId, initial }: Props) {
   const router = useRouter()
+  const [tippgeberKind, setTippgeberKind] = useState<"classic" | "private_credit">(initial.tippgeberKind)
   const [companyName, setCompanyName] = useState(initial.companyName)
   const [street, setStreet] = useState(initial.street)
   const [houseNumber, setHouseNumber] = useState(initial.houseNumber)
@@ -79,6 +81,7 @@ export default function EditTippgeberForm({ userId, initial }: Props) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           userId,
+          tippgeberKind,
           companyName,
           street,
           houseNumber,
@@ -126,9 +129,19 @@ export default function EditTippgeberForm({ userId, initial }: Props) {
         <div className="grid gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-1.5">
+              <span className="text-xs text-slate-600">Bereich</span>
+              <select className={inputBase} value={tippgeberKind} onChange={(e) => setTippgeberKind(e.target.value as "classic" | "private_credit")}>
+                <option value="classic">Baufinanzierung</option>
+                <option value="private_credit">Privatkredit</option>
+              </select>
+            </label>
+            <label className="grid gap-1.5">
               <span className="text-xs text-slate-600">Firmenname</span>
               <input className={inputBase} value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
             </label>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-1">
             <label className="grid gap-1.5">
               <span className="text-xs text-slate-600">Kontakt-E-Mail</span>
               <input className={inputBase} value={email} onChange={(e) => setEmail(e.target.value)} />

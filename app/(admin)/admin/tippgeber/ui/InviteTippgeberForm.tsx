@@ -14,6 +14,7 @@ function errorMessage(error: unknown, fallback: string) {
 
 export default function InviteTippgeberForm() {
   const router = useRouter()
+  const [tippgeberKind, setTippgeberKind] = useState<"classic" | "private_credit">("classic")
   const [companyName, setCompanyName] = useState("")
   const [street, setStreet] = useState("")
   const [houseNumber, setHouseNumber] = useState("")
@@ -66,6 +67,7 @@ export default function InviteTippgeberForm() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          tippgeberKind,
           companyName,
           street,
           houseNumber,
@@ -80,6 +82,7 @@ export default function InviteTippgeberForm() {
       if (!res.ok || !json?.ok) throw new Error(json?.error || "Einladung fehlgeschlagen")
 
       setCompanyName("")
+      setTippgeberKind("classic")
       setStreet("")
       setHouseNumber("")
       setZip("")
@@ -113,9 +116,19 @@ export default function InviteTippgeberForm() {
         <div className="grid gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-1.5">
+              <span className="text-xs text-slate-600">Bereich</span>
+              <select className={inputBase} value={tippgeberKind} onChange={(e) => setTippgeberKind(e.target.value as "classic" | "private_credit")}>
+                <option value="classic">Baufinanzierung</option>
+                <option value="private_credit">Privatkredit</option>
+              </select>
+            </label>
+            <label className="grid gap-1.5">
               <span className="text-xs text-slate-600">Firmenname</span>
               <input className={inputBase} value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
             </label>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-1">
             <label className="grid gap-1.5">
               <span className="text-xs text-slate-600">E-Mail</span>
               <input className={inputBase} value={email} onChange={(e) => setEmail(e.target.value)} />

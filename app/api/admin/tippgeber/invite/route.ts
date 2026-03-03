@@ -2,11 +2,20 @@ import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { isEmail } from "@/lib/tippgeber/service"
+import { normalizeTippgeberKind } from "@/lib/tippgeber/kinds"
 
 export const runtime = "nodejs"
 
 function trim(value: unknown) {
   return String(value ?? "").trim()
+}
+
+function isMissingTippgeberKindColumnError(error: unknown) {
+  const anyError = error as { code?: string; message?: string } | null
+  if (!anyError) return false
+  if (anyError.code === "42703") return true
+  const msg = String(anyError.message ?? "").toLowerCase()
+  return msg.includes("tippgeber_kind") && (msg.includes("column") || msg.includes("exist"))
 }
 
 export async function POST(req: Request) {
@@ -23,6 +32,7 @@ export async function POST(req: Request) {
     const email = trim(body?.email).toLowerCase()
     const phone = trim(body?.phone) || null
     const logoPath = trim(body?.logoPath) || null
+    const tippgeberKind = normalizeTippgeberKind(body?.tippgeberKind)
 
     if (!companyName || !street || !houseNumber || !zip || !city) {
       return NextResponse.json({ ok: false, error: "Bitte Firmendaten vollständig angeben." }, { status: 400 })
@@ -72,26 +82,33 @@ export async function POST(req: Request) {
     if (profileErr) throw profileErr
 
     const now = new Date().toISOString()
-    const { error: tgErr } = await admin.from("tippgeber_profiles").upsert(
-      {
-        user_id: userId,
-        company_name: companyName,
-        address_street: street,
-        address_house_number: houseNumber,
-        address_zip: zip,
-        address_city: city,
-        phone,
-        email,
-        logo_path: logoPath,
-        is_active: true,
-        updated_at: now,
-      },
-      { onConflict: "user_id" }
-    )
-    if (tgErr) throw tgErr
+    const tippgeberPayload: Record<string, unknown> = {
+      user_id: userId,
+      company_name: companyName,
+      address_street: street,
+      address_house_number: houseNumber,
+      address_zip: zip,
+      address_city: city,
+      phone,
+      email,
+      logo_path: logoPath,
+      tippgeber_kind: tippgeberKind,
+      is_active: true,
+      updated_at: now,
+    }
+
+    const tgInsert = await admin.from("tippgeber_profiles").upsert(tippgeberPayload, { onConflict: "user_id" })
+    if (tgInsert.error && isMissingTippgeberKindColumnError(tgInsert.error)) {
+      delete tippgeberPayload.tippgeber_kind
+      const fallbackInsert = await admin.from("tippgeber_profiles").upsert(tippgeberPayload, { onConflict: "user_id" })
+      if (fallbackInsert.error) throw fallbackInsert.error
+    } else if (tgInsert.error) {
+      throw tgInsert.error
+    }
 
     return NextResponse.json({ ok: true, user_id: userId, link: inviteLink })
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
+  } catch (e: unknown) {
+    const message = e instanceof Error && e.message ? e.message : "Serverfehler"
+    return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }

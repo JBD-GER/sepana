@@ -1,4 +1,4 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import { requireTippgeber } from "@/lib/tippgeber/requireTippgeber"
 import {
   computeTippgeberYtdMetrics,
@@ -7,6 +7,11 @@ import {
   type TippgeberReferralRow,
 } from "@/lib/tippgeber/service"
 import { formatEuro } from "@/lib/tippgeber/commission"
+import {
+  normalizeTippgeberKind,
+  tippgeberKindLabel,
+  type TippgeberKind,
+} from "@/lib/tippgeber/kinds"
 import TippgeberReferralForm from "./ui/TippgeberReferralForm"
 
 function dt(value: string | null | undefined) {
@@ -75,6 +80,12 @@ function companyInitials(name: string) {
   return value || "TG"
 }
 
+function productBadgeClass(kind: TippgeberKind) {
+  return kind === "private_credit"
+    ? "border-cyan-200 bg-cyan-50 text-cyan-800"
+    : "border-slate-200 bg-slate-50 text-slate-700"
+}
+
 export default async function TippgeberDashboardPage() {
   const { user, role } = await requireTippgeber()
 
@@ -84,7 +95,7 @@ export default async function TippgeberDashboardPage() {
         <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
           <h1 className="text-xl font-semibold text-slate-900">Tippgeber-Dashboard</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Als Admin bitte den Bereich <Link href="/admin/tippgeber" className="font-medium text-slate-900 underline underline-offset-4">Admin → Tippgeber</Link> verwenden.
+            Als Admin bitte den Bereich <Link href="/admin/tippgeber" className="font-medium text-slate-900 underline underline-offset-4">Admin -&gt; Tippgeber</Link> verwenden.
           </p>
         </div>
       </div>
@@ -95,6 +106,9 @@ export default async function TippgeberDashboardPage() {
     getTippgeberProfileByUserId(user.id),
     listTippgeberReferralsForUser(user.id),
   ])
+
+  const tippgeberKind = normalizeTippgeberKind(profile?.tippgeber_kind)
+  const isPrivateCredit = tippgeberKind === "private_credit"
 
   const metrics = computeTippgeberYtdMetrics(referrals)
   const companyName = profile?.company_name ?? "Tippgeber"
@@ -108,10 +122,14 @@ export default async function TippgeberDashboardPage() {
         <div className="pointer-events-none absolute -bottom-16 right-0 h-48 w-48 rounded-full bg-cyan-300/20 blur-3xl" />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-200/80">Tippgeber-Dashboard</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-200/80">
+              {isPrivateCredit ? "Tippgeber Privat-Dashboard" : "Tippgeber-Dashboard"}
+            </div>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{companyName}</h1>
             <p className="mt-2 max-w-3xl text-sm text-slate-200/90">
-              Tipps einreichen, Status verfolgen und Provisionen transparent einsehen.
+              {isPrivateCredit
+                ? "Privatkredit-Tipps einreichen, Status verfolgen und Provisionen transparent einsehen."
+                : "Tipps einreichen, Status verfolgen und Provisionen transparent einsehen."}
             </p>
           </div>
 
@@ -127,6 +145,9 @@ export default async function TippgeberDashboardPage() {
               <div className="font-semibold text-white">Ihr Profil</div>
               <div>{profile?.email ?? user.email ?? "-"}</div>
               <div>{[profile?.address_zip, profile?.address_city].filter(Boolean).join(" ") || "-"}</div>
+              <div className="mt-1 inline-flex rounded-full border border-white/20 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em]">
+                {tippgeberKindLabel(tippgeberKind)}
+              </div>
             </div>
           </div>
         </div>
@@ -157,10 +178,12 @@ export default async function TippgeberDashboardPage() {
             <div className="min-w-0">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Willkommen</div>
               <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
-                Schön, dass Sie da sind, {companyName}.
+                Schoen, dass Sie da sind, {companyName}.
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                In Ihrem Tippgeber-Bereich können Sie neue Tipps einreichen, den Bearbeitungsstand verfolgen und Ihre Provisionen transparent einsehen.
+                {isPrivateCredit
+                  ? "In Ihrem Tippgeber-Privat-Bereich koennen Sie neue Privatkredit-Tipps einreichen, den Bearbeitungsstand verfolgen und Provisionen transparent einsehen."
+                  : "In Ihrem Tippgeber-Bereich koennen Sie neue Tipps einreichen, den Bearbeitungsstand verfolgen und Ihre Provisionen transparent einsehen."}
               </p>
             </div>
           </div>
@@ -171,13 +194,15 @@ export default async function TippgeberDashboardPage() {
           <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">So legen Sie los</h2>
           <div className="mt-4 space-y-2">
             <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700">
-              1. Neuen Tipp erfassen und Kontaktdaten vollständig eintragen
+              1. Neuen Tipp erfassen und Kontaktdaten vollstaendig eintragen
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700">
-              2. Status in der Übersicht verfolgen (Berater, Fall, Provision)
+              2. Status in der Uebersicht verfolgen (Berater, Fall, Provision)
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700">
-              3. Exposé/Gutschriften später direkt pro Tipp herunterladen
+              {isPrivateCredit
+                ? "3. Kreditvolumen pro Tipp sauber erfassen und Verlauf verfolgen"
+                : "3. Expose/Gutschriften spaeter direkt pro Tipp herunterladen"}
             </div>
           </div>
         </div>
@@ -201,17 +226,19 @@ export default async function TippgeberDashboardPage() {
         </div>
       </section>
 
-      <TippgeberReferralForm companyName={companyName} />
+      <TippgeberReferralForm companyName={companyName} tippgeberKind={tippgeberKind} />
 
       <section className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Übersicht</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Uebersicht</div>
             <h2 className="mt-1 text-lg font-semibold text-slate-900">Meine Tipps</h2>
-            <p className="mt-1 text-sm text-slate-600">Status, Fallzuordnung, Exposé und Provisionsstand pro Tipp.</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Status, Produkttyp, Fallzuordnung und Provisionsstand pro Tipp.
+            </p>
           </div>
           <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600">
-            {referrals.length} Einträge
+            {referrals.length} Eintraege
           </div>
         </div>
 
@@ -229,8 +256,9 @@ export default async function TippgeberDashboardPage() {
             <tbody>
               {referrals.map((r) => {
                 const customerName = `${r.customer_first_name} ${r.customer_last_name}`.trim()
+                const referralKind = normalizeTippgeberKind(r.referral_kind)
                 const location = [r.property_zip, r.property_city].filter(Boolean).join(" ")
-                const hasExpose = Boolean(r.expose_file_path)
+                const hasExpose = referralKind === "classic" && Boolean(r.expose_file_path)
                 const hasCreditNote = Boolean(r.payout_credit_note_path)
                 const reasonLabel = commissionReasonLabel(r.commission_reason)
                 return (
@@ -238,6 +266,11 @@ export default async function TippgeberDashboardPage() {
                     <td className="px-4 py-3">
                       <div className="font-medium text-slate-900">{r.id.slice(0, 8)}</div>
                       <div className="text-xs text-slate-500">Eingang: {dt(r.created_at)}</div>
+                      <div className="mt-1">
+                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${productBadgeClass(referralKind)}`}>
+                          {tippgeberKindLabel(referralKind)}
+                        </span>
+                      </div>
                       {r.linked_case_id ? (
                         <div className="mt-1 text-xs text-slate-600">Fall: {r.linked_case_id.slice(0, 8)}</div>
                       ) : null}
@@ -246,7 +279,11 @@ export default async function TippgeberDashboardPage() {
                       <div className="font-medium text-slate-900">{customerName || "-"}</div>
                       <div className="text-xs text-slate-600">{r.customer_email}</div>
                       <div className="text-xs text-slate-600">{r.customer_phone}</div>
-                      {location ? <div className="mt-1 text-xs text-slate-500">{location}</div> : null}
+                      {referralKind === "private_credit" ? (
+                        <div className="mt-1 text-xs text-slate-500">Kreditvolumen: {formatEuro(r.private_credit_volume)}</div>
+                      ) : location ? (
+                        <div className="mt-1 text-xs text-slate-500">{location}</div>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${statusBadgeClass(r)}`}>
@@ -274,10 +311,12 @@ export default async function TippgeberDashboardPage() {
                             href={`/api/tippgeber/files?referralId=${encodeURIComponent(r.id)}&kind=expose&download=1`}
                             className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300"
                           >
-                            Exposé herunterladen
+                            Expose herunterladen
                           </a>
                         ) : (
-                          <span className="text-xs text-slate-500">Kein Exposé</span>
+                          <span className="text-xs text-slate-500">
+                            {referralKind === "private_credit" ? "Kein Expose erforderlich" : "Kein Expose"}
+                          </span>
                         )}
                         {hasCreditNote ? (
                           <a
@@ -307,3 +346,4 @@ export default async function TippgeberDashboardPage() {
     </div>
   )
 }
+

@@ -1,4 +1,4 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import {
@@ -6,6 +6,10 @@ import {
   listAllTippgeberReferrals,
 } from "@/lib/tippgeber/service"
 import { formatEuro } from "@/lib/tippgeber/commission"
+import {
+  normalizeTippgeberKind,
+  tippgeberKindLabel,
+} from "@/lib/tippgeber/kinds"
 import InviteTippgeberForm from "./ui/InviteTippgeberForm"
 import TippgeberReferralsAdminTable, {
   type AdminTippgeberReferralRow,
@@ -14,6 +18,7 @@ import TippgeberReferralsAdminTable, {
 type TippgeberProfileMini = {
   user_id: string
   company_name: string
+  tippgeber_kind: string | null
   email: string | null
   phone: string | null
   logo_path: string | null
@@ -52,7 +57,7 @@ export default async function AdminTippgeberPage() {
     listAllTippgeberReferrals(500),
     admin
       .from("tippgeber_profiles")
-      .select("user_id,company_name,email,phone,logo_path,is_active,address_zip,address_city")
+      .select("*")
       .order("created_at", { ascending: false }),
     admin.from("profiles").select("user_id").eq("role", "advisor"),
   ])
@@ -63,6 +68,7 @@ export default async function AdminTippgeberPage() {
       p.user_id,
       {
         company_name: p.company_name,
+        tippgeber_kind: normalizeTippgeberKind(p.tippgeber_kind),
         email: p.email,
         phone: p.phone,
         logo_path: p.logo_path,
@@ -75,6 +81,7 @@ export default async function AdminTippgeberPage() {
     string,
     {
       company_name: string
+      tippgeber_kind: "classic" | "private_credit"
       email: string | null
       phone: string | null
       logo_path: string | null
@@ -123,12 +130,16 @@ export default async function AdminTippgeberPage() {
   const openCommissionCount = referrals.filter((r) => String(r.commission_status ?? "") === "open").length
   const paidCommissionCount = referrals.filter((r) => String(r.commission_status ?? "") === "paid").length
 
+  const privateTippgeberCount = tippgeberProfiles.filter((p) => normalizeTippgeberKind(p.tippgeber_kind) === "private_credit").length
+  const classicTippgeberCount = tippgeberProfiles.length - privateTippgeberCount
+
   const enrichedReferrals = referrals.map((r) => {
     const company = tippgeberByUserId[r.tippgeber_user_id]
     const c = r.linked_case_id ? caseById[r.linked_case_id] : null
     return {
       ...r,
       tippgeber_company_name: company?.company_name ?? "Tippgeber",
+      tippgeber_kind: company?.tippgeber_kind ?? "classic",
       tippgeber_logo_path: company?.logo_path ?? null,
       tippgeber_email: company?.email ?? null,
       tippgeber_phone: company?.phone ?? null,
@@ -152,7 +163,7 @@ export default async function AdminTippgeberPage() {
             href="/admin/faelle"
             className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:border-slate-300"
           >
-            Zu den Fällen
+            Zu den Faellen
           </Link>
         </div>
       </div>
@@ -161,7 +172,7 @@ export default async function AdminTippgeberPage() {
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Tippgeber</div>
           <div className="mt-2 text-3xl font-semibold text-slate-900">{tippgeberProfiles.length}</div>
-          <div className="mt-2 text-sm text-slate-600">Aktive Einladungen und registrierte Partner.</div>
+          <div className="mt-2 text-sm text-slate-600">{classicTippgeberCount} Baufinanzierung, {privateTippgeberCount} Privatkredit.</div>
         </div>
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Tipps (YTD)</div>
@@ -194,6 +205,7 @@ export default async function AdminTippgeberPage() {
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {tippgeberProfiles.map((p) => {
             const logoUrl = tippgeberLogoUrl(p.logo_path)
+            const kind = normalizeTippgeberKind(p.tippgeber_kind)
             return (
               <div key={p.user_id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                 <div className="flex items-start gap-3">
@@ -209,6 +221,13 @@ export default async function AdminTippgeberPage() {
                     <div className="text-xs text-slate-600">{p.email || "-"}</div>
                     <div className="text-xs text-slate-600">{p.phone || "-"}</div>
                     <div className="text-xs text-slate-500">{[p.address_zip, p.address_city].filter(Boolean).join(" ")}</div>
+                    <div className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] ${
+                      kind === "private_credit"
+                        ? "border-cyan-200 bg-cyan-50 text-cyan-800"
+                        : "border-slate-200 bg-slate-50 text-slate-700"
+                    }`}>
+                      {tippgeberKindLabel(kind)}
+                    </div>
                   </div>
                 </div>
                 <div className="mt-3">
@@ -245,3 +264,4 @@ export default async function AdminTippgeberPage() {
     </div>
   )
 }
+

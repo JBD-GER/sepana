@@ -6,10 +6,12 @@ import {
   toMoney,
   type TippgeberBankOutcome,
 } from "@/lib/tippgeber/commission"
+import type { TippgeberKind } from "@/lib/tippgeber/kinds"
 
 export type TippgeberProfileRow = {
   user_id: string
   company_name: string
+  tippgeber_kind: TippgeberKind | null
   address_street: string
   address_house_number: string
   address_zip: string
@@ -25,6 +27,7 @@ export type TippgeberProfileRow = {
 export type TippgeberReferralRow = {
   id: string
   tippgeber_user_id: string
+  referral_kind: TippgeberKind | null
   status: string
   customer_first_name: string
   customer_last_name: string
@@ -35,6 +38,7 @@ export type TippgeberReferralRow = {
   expose_mime_type: string | null
   expose_size_bytes: number | null
   manual_purchase_price: number | null
+  private_credit_volume: number | null
   manual_broker_commission_percent: number | null
   property_street: string | null
   property_house_number: string | null
@@ -66,6 +70,11 @@ export type TippgeberReferralRow = {
   admin_internal_note: string | null
   created_at: string
   updated_at: string
+}
+
+type TippgeberBrandProfile = {
+  company_name?: string | null
+  logo_path?: string | null
 }
 
 function normalizeSiteUrl(raw: string | undefined) {
@@ -125,10 +134,11 @@ export async function getTippgeberBrandForCase(caseId: string) {
     .maybeSingle()
 
   if (!profile) return null
+  const brand = profile as TippgeberBrandProfile
   return {
     referral_id: String(referral.id),
-    company_name: String((profile as any).company_name ?? "").trim() || "Tippgeber",
-    logo_path: trimOrNull((profile as any).logo_path),
+    company_name: String(brand.company_name ?? "").trim() || "Tippgeber",
+    logo_path: trimOrNull(brand.logo_path),
   }
 }
 

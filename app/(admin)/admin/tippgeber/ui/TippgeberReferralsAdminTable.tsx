@@ -1,18 +1,24 @@
-"use client"
+﻿"use client"
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useMemo, useState } from "react"
+import {
+  normalizeTippgeberKind,
+  tippgeberKindLabel,
+} from "@/lib/tippgeber/kinds"
 
 type AdvisorOption = { id: string; label: string }
 
 type ReferralRow = {
   id: string
+  referral_kind: string | null
   status: string
   created_at: string
   updated_at: string
   tippgeber_user_id: string
   tippgeber_company_name: string
+  tippgeber_kind?: string | null
   tippgeber_logo_path: string | null
   tippgeber_email: string | null
   tippgeber_phone: string | null
@@ -22,6 +28,7 @@ type ReferralRow = {
   customer_phone: string
   expose_file_path: string | null
   manual_purchase_price: number | null
+  private_credit_volume: number | null
   manual_broker_commission_percent: number | null
   property_street: string | null
   property_house_number: string | null
@@ -74,6 +81,10 @@ function statusLabel(value: string | null | undefined) {
       return "Provision offen"
     case "paid":
       return "Ausgezahlt"
+    case "bank_approved":
+      return "Bank angenommen"
+    case "bank_declined":
+      return "Bank abgelehnt"
     default:
       return v || "-"
   }
@@ -113,11 +124,12 @@ export default function TippgeberReferralsAdminTable({
     Object.fromEntries(referrals.map((r) => [r.id, r.assigned_advisor_id ?? ""]))
   )
   const [busyKey, setBusyKey] = useState<string | null>(null)
-  const [filter, setFilter] = useState<"all" | "new" | "open" | "paid">("all")
+  const [filter, setFilter] = useState<"all" | "new" | "private" | "open" | "paid">("all")
 
   const filteredReferrals = useMemo(() => {
     if (filter === "all") return referrals
     if (filter === "new") return referrals.filter((r) => String(r.status ?? "").toLowerCase() === "new")
+    if (filter === "private") return referrals.filter((r) => normalizeTippgeberKind(r.referral_kind) === "private_credit")
     if (filter === "open") return referrals.filter((r) => String(r.commission_status ?? "").toLowerCase() === "open")
     if (filter === "paid") return referrals.filter((r) => String(r.commission_status ?? "").toLowerCase() === "paid")
     return referrals
@@ -130,7 +142,7 @@ export default function TippgeberReferralsAdminTable({
   async function assignAdvisor(referralId: string) {
     const advisorId = String(assignValues[referralId] ?? "").trim()
     if (!advisorId) {
-      setRowMessage(referralId, "Bitte Berater auswählen.")
+      setRowMessage(referralId, "Bitte Berater auswaehlen.")
       return
     }
     setBusyKey(`assign:${referralId}`)
@@ -196,6 +208,7 @@ export default function TippgeberReferralsAdminTable({
   const counts = {
     all: referrals.length,
     new: referrals.filter((r) => String(r.status ?? "").toLowerCase() === "new").length,
+    private: referrals.filter((r) => normalizeTippgeberKind(r.referral_kind) === "private_credit").length,
     open: referrals.filter((r) => String(r.commission_status ?? "").toLowerCase() === "open").length,
     paid: referrals.filter((r) => String(r.commission_status ?? "").toLowerCase() === "paid").length,
   }
@@ -216,6 +229,7 @@ export default function TippgeberReferralsAdminTable({
             [
               ["all", `Alle (${counts.all})`],
               ["new", `Neu (${counts.new})`],
+              ["private", `Privatkredit (${counts.private})`],
               ["open", `Provision offen (${counts.open})`],
               ["paid", `Ausgezahlt (${counts.paid})`],
             ] as const
@@ -242,7 +256,7 @@ export default function TippgeberReferralsAdminTable({
           <thead className="bg-white">
             <tr className="border-b border-slate-200/70">
               <th className="px-4 py-3 font-medium text-slate-700">Tipp / Tippgeber</th>
-              <th className="px-4 py-3 font-medium text-slate-700">Kunde / Objekt</th>
+              <th className="px-4 py-3 font-medium text-slate-700">Kunde / Anfrage</th>
               <th className="px-4 py-3 font-medium text-slate-700">Zuweisung / Fall</th>
               <th className="px-4 py-3 font-medium text-slate-700">Provision</th>
               <th className="px-4 py-3 font-medium text-slate-700">Aktionen</th>
@@ -251,6 +265,9 @@ export default function TippgeberReferralsAdminTable({
           <tbody>
             {filteredReferrals.map((r) => {
               const customerName = `${r.customer_first_name} ${r.customer_last_name}`.trim()
+              const referralKind = normalizeTippgeberKind(r.referral_kind)
+              const isPrivateCredit = referralKind === "private_credit"
+
               const propertyLine = [
                 [r.property_street, r.property_house_number].filter(Boolean).join(" "),
                 [r.property_zip, r.property_city].filter(Boolean).join(" "),
@@ -287,12 +304,25 @@ export default function TippgeberReferralsAdminTable({
                     <div className="font-medium text-slate-900">{customerName}</div>
                     <div className="text-xs text-slate-600">{r.customer_email}</div>
                     <div className="text-xs text-slate-600">{r.customer_phone}</div>
-                    {propertyLine ? <div className="mt-1 text-xs text-slate-500">{propertyLine}</div> : null}
-                    {r.manual_purchase_price != null ? (
-                      <div className="text-xs text-slate-500">
-                        Kaufpreis: {eur(r.manual_purchase_price)} · Maklerprov.: {Number(r.manual_broker_commission_percent ?? 0).toFixed(2)} %
-                      </div>
-                    ) : null}
+                    <div className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${
+                      isPrivateCredit
+                        ? "border-cyan-200 bg-cyan-50 text-cyan-800"
+                        : "border-slate-200 bg-slate-50 text-slate-700"
+                    }`}>
+                      {tippgeberKindLabel(referralKind)}
+                    </div>
+                    {isPrivateCredit ? (
+                      <div className="mt-1 text-xs text-slate-500">Kreditvolumen: {eur(r.private_credit_volume)}</div>
+                    ) : (
+                      <>
+                        {propertyLine ? <div className="mt-1 text-xs text-slate-500">{propertyLine}</div> : null}
+                        {r.manual_purchase_price != null ? (
+                          <div className="text-xs text-slate-500">
+                            Kaufpreis: {eur(r.manual_purchase_price)} - Maklerprov.: {Number(r.manual_broker_commission_percent ?? 0).toFixed(2)} %
+                          </div>
+                        ) : null}
+                      </>
+                    )}
                     <div className="mt-2">
                       <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${statusClass(r)}`}>
                         {statusLabel(r.status)}
@@ -314,7 +344,7 @@ export default function TippgeberReferralsAdminTable({
                         onChange={(e) => setAssignValues((prev) => ({ ...prev, [r.id]: e.target.value }))}
                         className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm outline-none focus:border-slate-900"
                       >
-                        <option value="">Berater wählen...</option>
+                        <option value="">Berater waehlen...</option>
                         {advisorOptions.map((a) => (
                           <option key={a.id} value={a.id}>
                             {a.label}
@@ -327,7 +357,7 @@ export default function TippgeberReferralsAdminTable({
                         disabled={rowBusy}
                         className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {r.linked_case_id ? "Berater/Fall aktualisieren" : "Berater zuweisen + Fall anlegen"}
+                        {r.linked_case_id ? "Berater/Fall aktualisieren" : `Berater zuweisen + ${tippgeberKindLabel(referralKind)}-Fall anlegen`}
                       </button>
                     </div>
 
@@ -363,16 +393,16 @@ export default function TippgeberReferralsAdminTable({
 
                   <td className="px-4 py-3">
                     <div className="grid gap-2">
-                      {r.expose_file_path ? (
+                      {!isPrivateCredit && r.expose_file_path ? (
                         <a
                           href={`/api/tippgeber/files?referralId=${encodeURIComponent(r.id)}&kind=expose&download=1`}
                           className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:border-slate-300"
                         >
-                          Exposé herunterladen
+                          Expose herunterladen
                         </a>
                       ) : (
                         <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                          Kein Exposé
+                          {isPrivateCredit ? "Kein Expose erforderlich" : "Kein Expose"}
                         </div>
                       )}
 
@@ -396,7 +426,7 @@ export default function TippgeberReferralsAdminTable({
                           href={`/api/tippgeber/files?referralId=${encodeURIComponent(r.id)}&kind=credit_note&download=1`}
                           className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 shadow-sm hover:border-emerald-300"
                         >
-                          Gutschrift öffnen
+                          Gutschrift oeffnen
                         </a>
                       ) : null}
 
@@ -434,3 +464,4 @@ export default function TippgeberReferralsAdminTable({
     </section>
   )
 }
+

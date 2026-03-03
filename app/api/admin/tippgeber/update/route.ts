@@ -2,11 +2,20 @@ import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { isEmail } from "@/lib/tippgeber/service"
+import { normalizeTippgeberKind } from "@/lib/tippgeber/kinds"
 
 export const runtime = "nodejs"
 
 function trim(value: unknown) {
   return String(value ?? "").trim()
+}
+
+function isMissingTippgeberKindColumnError(error: unknown) {
+  const anyError = error as { code?: string; message?: string } | null
+  if (!anyError) return false
+  if (anyError.code === "42703") return true
+  const msg = String(anyError.message ?? "").toLowerCase()
+  return msg.includes("tippgeber_kind") && (msg.includes("column") || msg.includes("exist"))
 }
 
 type UpdateBody = {
@@ -19,6 +28,7 @@ type UpdateBody = {
   email?: string | null
   phone?: string | null
   logoPath?: string | null
+  tippgeberKind?: string | null
   isActive?: boolean
 }
 
@@ -38,6 +48,7 @@ async function handle(req: Request) {
     const email = emailRaw ? emailRaw.toLowerCase() : null
     const phone = trim(body?.phone ?? "") || null
     const logoPath = trim(body?.logoPath ?? "") || null
+    const tippgeberKind = normalizeTippgeberKind(body?.tippgeberKind)
     const isActive = typeof body?.isActive === "boolean" ? body.isActive : true
 
     if (!userId) {
@@ -60,22 +71,34 @@ async function handle(req: Request) {
     }
 
     const now = new Date().toISOString()
-    const { error } = await admin
+    const updatePayload: Record<string, unknown> = {
+      company_name: companyName,
+      address_street: street,
+      address_house_number: houseNumber,
+      address_zip: zip,
+      address_city: city,
+      email,
+      phone,
+      logo_path: logoPath,
+      tippgeber_kind: tippgeberKind,
+      is_active: isActive,
+      updated_at: now,
+    }
+
+    const updateQuery = await admin
       .from("tippgeber_profiles")
-      .update({
-        company_name: companyName,
-        address_street: street,
-        address_house_number: houseNumber,
-        address_zip: zip,
-        address_city: city,
-        email,
-        phone,
-        logo_path: logoPath,
-        is_active: isActive,
-        updated_at: now,
-      })
+      .update(updatePayload)
       .eq("user_id", userId)
-    if (error) throw error
+    if (updateQuery.error && isMissingTippgeberKindColumnError(updateQuery.error)) {
+      delete updatePayload.tippgeber_kind
+      const fallbackQuery = await admin
+        .from("tippgeber_profiles")
+        .update(updatePayload)
+        .eq("user_id", userId)
+      if (fallbackQuery.error) throw fallbackQuery.error
+    } else if (updateQuery.error) {
+      throw updateQuery.error
+    }
 
     return NextResponse.json({ ok: true })
   } catch (e: unknown) {
