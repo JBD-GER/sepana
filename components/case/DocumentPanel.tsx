@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 
 const UPLOAD_ACCEPT = "image/*,.pdf,.doc,.docx"
 const MOBILE_IMAGE_MAX_BYTES = 4 * 1024 * 1024
@@ -166,6 +167,15 @@ type UploadOptions = {
   requestId?: string | null
   requestTitle?: string | null
   keepUnassigned?: boolean
+}
+
+type DirectUploadInitResult = {
+  path: string
+  token: string
+  request_id: string | null
+  file_name: string
+  mime_type: string | null
+  size_bytes: number | null
 }
 
 function dt(d: string) {
@@ -598,12 +608,80 @@ export default function DocumentPanel({
     )
   }
 
+  async function initDirectUpload(file: File, options: UploadOptions) {
+    const res = await fetch("/api/app/documents/upload/direct", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "init",
+        caseId,
+        requestId: options.requestId ?? null,
+        requestTitle: options.requestTitle ?? null,
+        keepUnassigned: Boolean(options.keepUnassigned),
+        fileName: file.name || "upload",
+        fileType: file.type || null,
+        fileSize: Number(file.size || 0),
+      }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok || !json?.ok) throw new Error(String(json?.error ?? "Upload konnte nicht vorbereitet werden."))
+    const payload = json as Partial<DirectUploadInitResult>
+    const path = String(payload.path ?? "").trim()
+    const token = String(payload.token ?? "").trim()
+    if (!path || !token) throw new Error("Upload konnte nicht vorbereitet werden.")
+    return {
+      path,
+      token,
+      request_id: payload.request_id ? String(payload.request_id) : null,
+      file_name: String(payload.file_name ?? file.name ?? "upload"),
+      mime_type: payload.mime_type ? String(payload.mime_type) : null,
+      size_bytes: payload.size_bytes == null ? null : Number(payload.size_bytes),
+    } as DirectUploadInitResult
+  }
+
+  async function completeDirectUpload(init: DirectUploadInitResult) {
+    const res = await fetch("/api/app/documents/upload/direct", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "complete",
+        caseId,
+        requestId: init.request_id ?? null,
+        path: init.path,
+        fileName: init.file_name,
+        mimeType: init.mime_type ?? null,
+        sizeBytes: init.size_bytes ?? null,
+      }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok || !json?.ok) throw new Error(String(json?.error ?? "Upload konnte nicht abgeschlossen werden."))
+    return String(json?.request_id ?? init.request_id ?? "").trim() || null
+  }
+
+  async function uploadViaServerRoute(file: File, options: UploadOptions) {
+    const form = new FormData()
+    form.set("caseId", caseId)
+    if (options.requestId) form.set("requestId", options.requestId)
+    if (options.requestTitle) form.set("requestTitle", options.requestTitle)
+    if (options.keepUnassigned) form.set("keepUnassigned", "1")
+    form.set("file", file)
+
+    const res = await fetch("/api/app/documents/upload", {
+      method: "POST",
+      body: form,
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok || !json?.ok) throw new Error(String(json?.error ?? "Upload fehlgeschlagen"))
+    return String(json?.request_id ?? options.requestId ?? "").trim() || null
+  }
+
   async function uploadSingleFileWithRetry(
     file: File,
     options: UploadOptions,
     progress: { current: number; total: number; displayName: string }
   ) {
     const maxAttempts = 2
+    let signedUploadError: unknown = null
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
         setUploadProgress({
@@ -612,26 +690,27 @@ export default function DocumentPanel({
           fileName: progress.displayName,
           phase: attempt > 1 ? "retrying" : "uploading",
         })
-        const form = new FormData()
-        form.append("caseId", caseId)
-        if (options.requestId) form.append("requestId", options.requestId)
-        if (options.requestTitle) form.append("requestTitle", options.requestTitle)
-        if (options.keepUnassigned) form.append("keepUnassigned", "1")
-        form.append("file", file)
-
-        const res = await fetch("/api/app/documents/upload", { method: "POST", body: form })
-        const json = await res.json().catch(() => ({}))
-        if (res.ok) return
-
-        const message = String(json?.error ?? "Upload fehlgeschlagen")
-        if (attempt < maxAttempts && isRetryableUploadError(res.status, message)) {
-          await new Promise<void>((resolve) => {
-            window.setTimeout(resolve, UPLOAD_RETRY_DELAY_MS)
-          })
-          continue
+        const init = await initDirectUpload(file, options)
+        const supabase = createBrowserSupabaseClient()
+        const contentType = init.mime_type || file.type || "application/octet-stream"
+        const { error: storageErr } = await supabase.storage
+          .from("case_documents")
+          .uploadToSignedUrl(init.path, init.token, file, { contentType, upsert: false })
+        if (storageErr) {
+          const message = String(storageErr.message || "Upload fehlgeschlagen")
+          if (attempt < maxAttempts && isRetryableUploadError(0, message)) {
+            await new Promise<void>((resolve) => {
+              window.setTimeout(resolve, UPLOAD_RETRY_DELAY_MS)
+            })
+            continue
+          }
+          throw new Error(message)
         }
-        throw new Error(message)
+
+        const completedRequestId = await completeDirectUpload(init)
+        return completedRequestId
       } catch (error: unknown) {
+        signedUploadError = error
         const message = getErrorMessage(error)
         if (attempt < maxAttempts && isRetryableUploadError(0, message)) {
           await new Promise<void>((resolve) => {
@@ -639,8 +718,18 @@ export default function DocumentPanel({
           })
           continue
         }
-        throw error
+        break
       }
+    }
+
+    try {
+      return await uploadViaServerRoute(file, options)
+    } catch (fallbackError: unknown) {
+      const fallbackMessage = getErrorMessage(fallbackError)
+      if (signedUploadError && (!fallbackMessage || fallbackMessage === "Fehler" || /upload fehlgeschlagen/i.test(fallbackMessage))) {
+        throw signedUploadError
+      }
+      throw fallbackError
     }
   }
 
@@ -673,8 +762,9 @@ export default function DocumentPanel({
       }
 
       let optimizedImages = 0
+      let resolvedRequestId = requestIdFinal
       const uploadIntent: UploadOptions = {
-        requestId: requestIdFinal,
+        requestId: resolvedRequestId,
         requestTitle: uploadOptions.requestTitle,
         keepUnassigned: uploadOptions.keepUnassigned,
       }
@@ -688,11 +778,14 @@ export default function DocumentPanel({
         })
         const preparedFile = await optimizeImageForMobileUpload(file)
         if (preparedFile !== file) optimizedImages += 1
-        await uploadSingleFileWithRetry(preparedFile, uploadIntent, {
+        const resolved = await uploadSingleFileWithRetry(preparedFile, { ...uploadIntent, requestId: resolvedRequestId }, {
           current: index + 1,
           total: selectedFiles.length,
           displayName: file.name,
         })
+        if (!resolvedRequestId && resolved) {
+          resolvedRequestId = resolved
+        }
       }
       setUploadProgress(null)
       setMsg(`${selectedFiles.length} Datei(en) hochgeladen.`)
