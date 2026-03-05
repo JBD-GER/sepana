@@ -113,6 +113,12 @@ export default function PvQuickStartForm() {
         Hinterlassen Sie E-Mail oder Telefonnummer. Wir melden uns in der Regel innerhalb von 24 Stunden mit der
         passenden nächsten Aktion für Ihre PV-Finanzierung.
       </p>
+      <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+        Alternativ direkt anrufen:{" "}
+        <a href="tel:050353169996" className="font-semibold underline underline-offset-2">
+          05035 3169996
+        </a>
+      </div>
 
       <form onSubmit={submit} className="mt-5 grid gap-3">
         <label className="block">

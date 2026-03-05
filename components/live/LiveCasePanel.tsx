@@ -90,6 +90,7 @@ const KONSUM_PURPOSE_OPTIONS = [
   { value: "freie_verwendung", label: "Freie Verwendung" },
   { value: "umschuldung", label: "Umschuldung" },
   { value: "auto", label: "Auto" },
+  { value: "pv_anlage", label: "PV-Anlage" },
   { value: "modernisierung", label: "Modernisierung" },
   { value: "sonstiges", label: "Sonstiges" },
 ]
