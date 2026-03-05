@@ -35,7 +35,19 @@ type LiveHeaderStatus = {
 
 const NAV: NavItem[] = [
   { href: "/baufinanzierung", label: "Baufinanzierung" },
-  { href: "/privatkredit", label: "Privatkredit" },
+]
+
+const PRIVATEKREDIT_NAV: PortalNavItem[] = [
+  {
+    href: "/privatkredit",
+    label: "Allgemeine Kreditwünsche",
+    description: "Übersicht und Anfragewege",
+  },
+  {
+    href: "/privatkredit/kredit-pv-anlage",
+    label: "Kredit PV Anlage",
+    description: "PV-Anlage 100 % finanzieren",
+  },
 ]
 
 const PORTAL_NAV: PortalNavItem[] = [
@@ -53,6 +65,13 @@ function cn(...classes: Array<string | false | null | undefined>) {
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/"
   return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+function activeHrefForGroup(pathname: string, items: Array<{ href: string }>) {
+  const matches = items
+    .filter((item) => isActive(pathname, item.href))
+    .sort((a, b) => b.href.length - a.href.length)
+  return matches[0]?.href ?? null
 }
 
 function formatReviewScore(value: number | null) {
@@ -231,7 +250,10 @@ export default function Header({ reviewStats = null }: HeaderProps) {
   }, [])
 
   const authLink = isAuthed ? { href: PORTAL_HREF, label: "Portal" } : { href: "/login", label: "Login" }
-  const portalActive = PORTAL_NAV.some((item) => isActive(pathname, item.href))
+  const portalActiveHref = activeHrefForGroup(pathname, PORTAL_NAV)
+  const portalActive = Boolean(portalActiveHref)
+  const privatkreditActiveHref = activeHrefForGroup(pathname, PRIVATEKREDIT_NAV)
+  const privatkreditActive = Boolean(privatkreditActiveHref)
   const liveActive = isActive(pathname, "/live-beratung")
   const liveOnline = (liveHeaderStatus?.onlineCount ?? 0) > 0
   const liveAvailable = (liveHeaderStatus?.availableCount ?? 0) > 0
@@ -294,6 +316,46 @@ export default function Header({ reviewStats = null }: HeaderProps) {
               type="button"
               className={cn(
                 "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition",
+                privatkreditActive
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+              )}
+              aria-haspopup="menu"
+              aria-expanded={privatkreditActive || undefined}
+            >
+              <span>Privatkredit</span>
+              <IconChevronDown className="h-4 w-4 opacity-80 transition group-hover:rotate-180 group-focus-within:rotate-180" />
+            </button>
+
+            <div className="pointer-events-none invisible absolute left-0 top-full z-50 w-[320px] translate-y-1 pt-2 opacity-0 transition duration-150 group-hover:pointer-events-auto group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
+              <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                {PRIVATEKREDIT_NAV.map((item) => {
+                  const active = item.href === privatkreditActiveHref
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "block rounded-xl border px-3 py-3 transition",
+                        active
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-50"
+                      )}
+                    >
+                      <div className="text-sm font-semibold">{item.label}</div>
+                      <div className={cn("mt-0.5 text-xs", active ? "text-slate-200" : "text-slate-500")}>{item.description}</div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="relative group">
+            <button
+              type="button"
+              className={cn(
+                "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition",
                 portalActive
                   ? "bg-slate-900 text-white"
                   : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
@@ -308,7 +370,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
             <div className="pointer-events-none invisible absolute left-0 top-full z-50 w-[320px] translate-y-1 pt-2 opacity-0 transition duration-150 group-hover:pointer-events-auto group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
               <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
                 {PORTAL_NAV.map((item) => {
-                  const active = isActive(pathname, item.href)
+                  const active = item.href === portalActiveHref
                   return (
                     <Link
                       key={item.href}
@@ -415,6 +477,29 @@ export default function Header({ reviewStats = null }: HeaderProps) {
             )
           })}
 
+          <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Privatkredit</div>
+            <div className="mt-2 grid gap-2">
+              {PRIVATEKREDIT_NAV.map((item) => {
+                const active = item.href === privatkreditActiveHref
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMenuOpen(false)}
+                    className={cn(
+                      "rounded-xl px-3 py-3 text-sm transition",
+                      active ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-800 hover:bg-slate-100"
+                    )}
+                  >
+                    <div className="font-medium">{item.label}</div>
+                    <div className={cn("mt-0.5 text-xs", active ? "text-slate-200" : "text-slate-500")}>{item.description}</div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+
           <Link
             href="/live-beratung"
             onClick={() => setMenuOpen(false)}
@@ -437,7 +522,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Vergleichsportal</div>
             <div className="mt-2 grid gap-2">
               {PORTAL_NAV.map((item) => {
-                const active = isActive(pathname, item.href)
+                const active = item.href === portalActiveHref
                 return (
                   <Link
                     key={item.href}

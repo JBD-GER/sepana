@@ -20,6 +20,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/baufinanzierung/anfrage",
     "/privatkredit",
     "/privatkredit/anfrage",
+    "/privatkredit/kredit-pv-anlage",
     "/bewertungen",
     "/agb",
     "/roadmap",

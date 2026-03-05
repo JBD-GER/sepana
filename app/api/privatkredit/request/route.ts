@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
-import { createCaseFromLead, findUserIdByEmail, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
+import { createCaseFromLead, ensureCustomerAccount, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
 
 export const runtime = "nodejs"
 
@@ -12,11 +12,12 @@ const DEFAULT_ADMIN_RECIPIENT = "info@sepana.de"
 const DEFAULT_PAGE_PATH = "/privatkredit"
 const MAX_PAGE_PATH_LENGTH = 180
 
-type RequestType = "contact" | "callback"
+type RequestType = "contact" | "callback" | "quick_start"
 type MailSendResult = { ok?: boolean; error?: unknown } | null | undefined
 
 function normalizeRequestType(value: unknown): RequestType {
   const v = String(value ?? "").trim().toLowerCase()
+  if (v === "quick_start" || v === "quickstart" || v === "quick") return "quick_start"
   if (v === "callback") return "callback"
   return "contact"
 }
@@ -61,6 +62,10 @@ function parseAmount(value: unknown) {
 
 function purposeLabel(value: string | null) {
   const v = String(value ?? "").toLowerCase().trim()
+  if (v === "pv_anlage") return "PV-Anlage Finanzierung"
+  if (v === "pv") return "PV-Anlage Finanzierung"
+  if (v === "photovoltaik") return "PV-Anlage Finanzierung"
+  if (v === "solaranlage") return "PV-Anlage Finanzierung"
   if (v === "freie_verwendung") return "Freie Verwendung"
   if (v === "umschuldung") return "Umschuldung"
   if (v === "auto") return "Auto"
@@ -73,7 +78,21 @@ function purposeLabel(value: string | null) {
 }
 
 function requestTypeLabel(value: RequestType) {
+  if (value === "quick_start") return "Schnellstart-Anfrage"
   return value === "callback" ? "Rueckruf-Anfrage" : "Privatkredit-Anfrage"
+}
+
+function requestTypeKey(value: RequestType) {
+  if (value === "quick_start") return "privatkredit_quick_start"
+  return value === "callback" ? "privatkredit_callback" : "privatkredit_contact"
+}
+
+function productNameForPurpose(purpose: string) {
+  const normalized = purpose.toLowerCase()
+  if (normalized.includes("pv") || normalized.includes("photovoltaik") || normalized.includes("solar")) {
+    return "Privatkredit PV-Anlage"
+  }
+  return "Privatkredit"
 }
 
 function formatAmount(value: number | null) {
@@ -252,8 +271,11 @@ async function sendAdminNotification(opts: {
   const siteUrl = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL)
   const adminUrl = `${siteUrl}/admin/leads`
   const bodyHtml = requestSummaryHtml(opts)
-  const subject =
-    opts.requestType === "callback" ? "Neue Rueckruf-Anfrage (Privatkredit)" : "Neue Privatkredit-Anfrage"
+  const subject = (() => {
+    if (opts.requestType === "callback") return "Neue Rueckruf-Anfrage (Privatkredit)"
+    if (opts.requestType === "quick_start") return "Neue Schnellstart-Anfrage (Privatkredit)"
+    return "Neue Privatkredit-Anfrage"
+  })()
 
   const html = buildEmailHtml({
     title: subject,
@@ -295,22 +317,34 @@ async function sendCustomerConfirmation(opts: {
   }
 
   const salutation = opts.firstName ? `Hallo ${opts.firstName},` : "Hallo,"
-  const subject =
-    opts.requestType === "callback" ? "Ihre Rueckruf-Anfrage ist eingegangen" : "Ihre Privatkredit-Anfrage ist eingegangen"
-  const steps =
-    opts.requestType === "callback"
-      ? [
-          "Wir pruefen Ihre Rueckruf-Anfrage kurzfristig.",
-          opts.callbackTime
-            ? `Wir orientieren uns an Ihrer Wunschzeit: ${opts.callbackTime}.`
-            : "Wir melden uns in der Regel zeitnah telefonisch bei Ihnen.",
-          "Bei Rueckfragen erreichen Sie uns auch direkt unter 05035 3169996.",
-        ]
-      : [
-          "Wir pruefen Ihre Angaben und melden uns mit einer klaren Einschaetzung.",
-          "Auf Wunsch pruefen wir Ihre Anfrage direkt live und beantragen ohne Umwege.",
-          "Bei Rueckfragen erreichen Sie uns unter 05035 3169996.",
-        ]
+  const subject = (() => {
+    if (opts.requestType === "callback") return "Ihre Rueckruf-Anfrage ist eingegangen"
+    if (opts.requestType === "quick_start") return "Ihre Schnellstart-Anfrage ist eingegangen"
+    return "Ihre Privatkredit-Anfrage ist eingegangen"
+  })()
+  const steps = (() => {
+    if (opts.requestType === "callback") {
+      return [
+        "Wir pruefen Ihre Rueckruf-Anfrage kurzfristig.",
+        opts.callbackTime
+          ? `Wir orientieren uns an Ihrer Wunschzeit: ${opts.callbackTime}.`
+          : "Wir melden uns in der Regel zeitnah telefonisch bei Ihnen.",
+        "Bei Rueckfragen erreichen Sie uns auch direkt unter 05035 3169996.",
+      ]
+    }
+    if (opts.requestType === "quick_start") {
+      return [
+        "Wir sichten Ihre Schnellstart-Anfrage und melden uns in der Regel innerhalb von 24 Stunden.",
+        "Falls eine Telefonnummer vorliegt, stimmen wir die naechsten Schritte gern direkt telefonisch ab.",
+        "Bei Rueckfragen erreichen Sie uns unter 05035 3169996.",
+      ]
+    }
+    return [
+      "Wir pruefen Ihre Angaben und melden uns mit einer klaren Einschaetzung.",
+      "Auf Wunsch pruefen wir Ihre Anfrage direkt live und beantragen ohne Umwege.",
+      "Bei Rueckfragen erreichen Sie uns unter 05035 3169996.",
+    ]
+  })()
 
   const html = buildEmailHtml({
     title: subject,
@@ -354,22 +388,39 @@ export async function POST(req: Request) {
     const callbackTime = trimOrNull(body?.callbackTime)
     const message = trimOrNull(body?.message)
 
-    if (!phone) {
-      return NextResponse.json({ ok: false, error: "Bitte Telefonnummer angeben." }, { status: 400 })
-    }
-    if (!isPhone(phone)) {
-      return NextResponse.json({ ok: false, error: "Telefonnummer ist ungueltig." }, { status: 400 })
-    }
-
     if (requestType === "contact") {
+      if (!phone) {
+        return NextResponse.json({ ok: false, error: "Bitte Telefonnummer angeben." }, { status: 400 })
+      }
+      if (!isPhone(phone)) {
+        return NextResponse.json({ ok: false, error: "Telefonnummer ist ungültig." }, { status: 400 })
+      }
       if (!firstName || !lastName || !email) {
-        return NextResponse.json({ ok: false, error: "Bitte Pflichtfelder ausfuellen." }, { status: 400 })
+        return NextResponse.json({ ok: false, error: "Bitte Pflichtfelder ausfüllen." }, { status: 400 })
       }
       if (!isEmail(email)) {
-        return NextResponse.json({ ok: false, error: "E-Mail ist ungueltig." }, { status: 400 })
+        return NextResponse.json({ ok: false, error: "E-Mail ist ungültig." }, { status: 400 })
       }
-    } else if (email && !isEmail(email)) {
-      return NextResponse.json({ ok: false, error: "E-Mail ist ungueltig." }, { status: 400 })
+    } else if (requestType === "callback") {
+      if (!phone) {
+        return NextResponse.json({ ok: false, error: "Bitte Telefonnummer angeben." }, { status: 400 })
+      }
+      if (!isPhone(phone)) {
+        return NextResponse.json({ ok: false, error: "Telefonnummer ist ungültig." }, { status: 400 })
+      }
+      if (email && !isEmail(email)) {
+        return NextResponse.json({ ok: false, error: "E-Mail ist ungültig." }, { status: 400 })
+      }
+    } else {
+      if (!email && !phone) {
+        return NextResponse.json({ ok: false, error: "Bitte E-Mail oder Telefonnummer angeben." }, { status: 400 })
+      }
+      if (email && !isEmail(email)) {
+        return NextResponse.json({ ok: false, error: "E-Mail ist ungültig." }, { status: 400 })
+      }
+      if (phone && !isPhone(phone)) {
+        return NextResponse.json({ ok: false, error: "Telefonnummer ist ungültig." }, { status: 400 })
+      }
     }
 
     if (message && message.length > MAX_MESSAGE_LENGTH) {
@@ -389,6 +440,7 @@ export async function POST(req: Request) {
     const notes = [callbackTime ? `Beste Erreichbarkeit: ${callbackTime}` : null, message].filter(Boolean).join("\n\n") || null
     const fullNameResolved = [firstName, lastName].filter(Boolean).join(" ").trim() || null
     const purpose = purposeLabel(purposeRaw)
+    const productName = productNameForPurpose(purpose)
 
     const admin = supabaseAdmin()
     const rowBase = {
@@ -402,7 +454,7 @@ export async function POST(req: Request) {
       email,
       phone,
       phone_mobile: phone,
-      product_name: "Privatkredit",
+      product_name: productName,
       lead_case_type: "konsum",
       product_price: loanAmount,
       loan_purpose: purpose,
@@ -412,7 +464,7 @@ export async function POST(req: Request) {
         origin: "website",
         page: pagePath,
         callback_time: callbackTime,
-        request_type: requestType === "callback" ? "privatkredit_callback" : "privatkredit_contact",
+        request_type: requestTypeKey(requestType),
       },
     }
 
@@ -451,81 +503,73 @@ export async function POST(req: Request) {
       }),
     ])
 
-    if (leadId && email) {
+    if (leadId && email && requestType === "contact") {
       try {
-        const userId = await findUserIdByEmail(admin, email)
-        if (userId) {
-          const { data: profile } = await admin
-            .from("profiles")
-            .select("role")
-            .eq("user_id", userId)
-            .maybeSingle()
+        const account = await ensureCustomerAccount({
+          admin,
+          req,
+          email,
+          firstName,
+          lastName,
+        })
+        existingAccount = account.existingAccount
 
-          const role = String((profile as { role?: string } | null)?.role ?? "").trim().toLowerCase()
-          if (!role || role === "customer") {
-            existingAccount = true
-            if (!role) {
-              await admin.from("profiles").upsert({ user_id: userId, role: "customer" }, { onConflict: "user_id" })
-            }
-
-            const stickyAdvisorId = await pickStickyAdvisorId(admin, userId)
-            const safeExternalLeadId = Number.isFinite(Number(externalLeadId)) ? Number(externalLeadId) : 0
-            const leadForCase: LeadRow = {
-              id: String(leadId),
-              linked_case_id: null,
-              external_lead_id: safeExternalLeadId,
-              assigned_advisor_id: stickyAdvisorId,
-              lead_case_type: "konsum",
-              first_name: firstName,
-              last_name: lastName,
-              email,
-              phone,
-              phone_mobile: phone,
-              phone_work: null,
-              birth_date: null,
-              marital_status: null,
-              employment_status: null,
-              employment_type: null,
-              net_income_monthly: null,
-              address_street: null,
-              address_zip: null,
-              address_city: null,
-              product_name: "Privatkredit",
-              product_price: loanAmount,
-              loan_purpose: purpose,
-              loan_amount_total: loanAmount,
-              property_zip: null,
-              property_city: null,
-              property_type: null,
-              property_purchase_price: null,
-              notes,
-            }
-
-            const created = await createCaseFromLead({
-              admin,
-              lead: leadForCase,
-              customerId: userId,
-              advisorId: stickyAdvisorId,
-              caseType: "konsum",
-              entryChannel: "website_privatkredit",
-            })
-            linkedCaseId = created.caseId
-
-            const updatePayload: Record<string, unknown> = {
-              linked_case_id: created.caseId,
-              assigned_advisor_id: stickyAdvisorId,
-              assigned_at: stickyAdvisorId ? now : null,
-              lead_case_type: "konsum",
-            }
-            const updateQuery = await admin.from("webhook_leads").update(updatePayload).eq("id", String(leadId))
-            if (updateQuery.error && isMissingLeadCaseTypeColumnError(updateQuery.error) && "lead_case_type" in updatePayload) {
-              delete updatePayload.lead_case_type
-              await admin.from("webhook_leads").update(updatePayload).eq("id", String(leadId))
-            }
-          }
+        const stickyAdvisorId = await pickStickyAdvisorId(admin, account.userId)
+        const safeExternalLeadId = Number.isFinite(Number(externalLeadId)) ? Number(externalLeadId) : 0
+        const leadForCase: LeadRow = {
+          id: String(leadId),
+          linked_case_id: null,
+          external_lead_id: safeExternalLeadId,
+          assigned_advisor_id: stickyAdvisorId,
+          lead_case_type: "konsum",
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          phone,
+          phone_mobile: phone,
+          phone_work: null,
+          birth_date: null,
+          marital_status: null,
+          employment_status: null,
+          employment_type: null,
+          net_income_monthly: null,
+          address_street: null,
+          address_zip: null,
+          address_city: null,
+          product_name: productName,
+          product_price: loanAmount,
+          loan_purpose: purpose,
+          loan_amount_total: loanAmount,
+          property_zip: null,
+          property_city: null,
+          property_type: null,
+          property_purchase_price: null,
+          notes,
         }
-      } catch (existingAccountError) {
-        console.error("[privatkredit-request] existing account linking failed", existingAccountError)
+
+        const created = await createCaseFromLead({
+          admin,
+          lead: leadForCase,
+          customerId: account.userId,
+          advisorId: stickyAdvisorId,
+          caseType: "konsum",
+          entryChannel: "website_privatkredit",
+        })
+        linkedCaseId = created.caseId
+
+        const updatePayload: Record<string, unknown> = {
+          linked_case_id: created.caseId,
+          assigned_advisor_id: stickyAdvisorId,
+          assigned_at: stickyAdvisorId ? now : null,
+          lead_case_type: "konsum",
+        }
+        const updateQuery = await admin.from("webhook_leads").update(updatePayload).eq("id", String(leadId))
+        if (updateQuery.error && isMissingLeadCaseTypeColumnError(updateQuery.error) && "lead_case_type" in updatePayload) {
+          delete updatePayload.lead_case_type
+          await admin.from("webhook_leads").update(updatePayload).eq("id", String(leadId))
+        }
+      } catch (accountOrCaseError) {
+        console.error("[privatkredit-request] account/case linking failed", accountOrCaseError)
       }
     }
 
