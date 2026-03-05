@@ -42,6 +42,24 @@ const FACT_CARDS = [
   },
 ]
 
+const CREDIT_STEPS = [
+  {
+    step: "01",
+    title: "Anfrage starten",
+    text: "Sie senden uns Ihre Eckdaten zur PV-Finanzierung über Schnellstart oder den PV Kredit Rechner.",
+  },
+  {
+    step: "02",
+    title: "Antrag mit Unterlagen",
+    text: "Wir stellen gemeinsam den Antrag und prüfen die Unterlagen: Gehaltsnachweis, Ausweis und Kontoauszüge.",
+  },
+  {
+    step: "03",
+    title: "Bewilligung & Auszahlung",
+    text: "Nach erfolgreicher Prüfung wird der Antrag bewilligt, inklusive möglicher KfW-Förderung, und die Finanzierung umgesetzt.",
+  },
+]
+
 const SEO_TEXT_BLOCKS = [
   {
     title: "Kredit für PV-Anlage strukturiert planen",
@@ -346,6 +364,27 @@ export default async function PvKreditLandingPage() {
         title="Direkt bewertete Finanzierungsberatung"
         description="Transparenter Einblick in unsere veröffentlichten Bewertungen aus Baufinanzierung und Privatkredit."
       />
+
+      <section className="rounded-[30px] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
+        <div className="mb-5">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Voraussetzungen & Schritte</div>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+            So läuft Ihr PV-Kredit ab
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">
+            Klarer Ablauf vom Erstkontakt bis zur Bewilligung, inklusive Prüfung einer möglichen KfW-Förderung.
+          </p>
+        </div>
+        <div className="grid gap-3 lg:grid-cols-3">
+          {CREDIT_STEPS.map((item) => (
+            <article key={item.step} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Schritt {item.step}</div>
+              <h3 className="mt-2 text-base font-semibold text-slate-900">{item.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-700">{item.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <section className="rounded-[30px] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
         <div className="mb-5">
