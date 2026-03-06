@@ -17,6 +17,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/scheidung-kredit",
     "/tippgeber-baufinanzierung",
     "/baufinanzierung",
+    "/baufinanzierung/anschlussfinanzierung",
     "/baufinanzierung/anfrage",
     "/privatkredit",
     "/privatkredit/anfrage",

@@ -63,6 +63,7 @@ export default function BaufinanzierungPage() {
               <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Kauf</span>
               <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Neubau</span>
               <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Anschlussfinanzierung</span>
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Forward-Darlehen</span>
               <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Persönliche Begleitung</span>
             </div>
 
@@ -135,6 +136,48 @@ export default function BaufinanzierungPage() {
         text="Die Baufinanzierung startet über dieselbe Kreditanfrage wie alle anderen Wege. Dort wählen Sie Ihr Produkt und werden klar durch die Antragsstrecke geführt."
         points={BAUFI_STEPS}
       />
+
+      <section className="rounded-[30px] border border-slate-200/70 bg-white/90 p-5 shadow-sm sm:p-7">
+        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Unterpunkt Baufinanzierung</div>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+              Anschlussfinanzierung und Forward-Darlehen
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
+              Ihre Zinsbindung läuft aus? Unsere neue Landingpage zeigt den Ablauf für Anschlussfinanzierung, erklärt das
+              Forward-Darlehen und führt Sie direkt in die Anfrage.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-600">
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">Restschuld planen</span>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">Zinsen früh sichern</span>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">Timing klar steuern</span>
+            </div>
+          </div>
+
+          <div className="rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#07162f_0%,#0b1f5e_58%,#0f3b80_100%)] p-5 text-white shadow-sm">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200">Neue Unterseite</div>
+            <h3 className="mt-2 text-xl font-semibold tracking-tight">Zur Landingpage Anschlussfinanzierung</h3>
+            <p className="mt-2 text-sm leading-relaxed text-slate-200/90">
+              Alle Infos zu Umschuldung, Forward Darlehen sowie die direkte Möglichkeit zur Kontaktaufnahme.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                href="/baufinanzierung/anschlussfinanzierung"
+                className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+              >
+                Seite ansehen
+              </Link>
+              <Link
+                href="/kreditanfrage"
+                className="inline-flex items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
+              >
+                Anfrage starten
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section className="rounded-[30px] border border-slate-200/70 bg-white/90 p-5 shadow-sm sm:p-7">
         <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
