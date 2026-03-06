@@ -152,7 +152,7 @@ export default async function AnschlussfinanzierungPage() {
         <div className="relative grid gap-6 xl:grid-cols-[1.06fr_0.94fr] xl:items-center">
           <div>
             <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-100">
-              Baufinanzierung Unterpunkt
+              Baufinanzierung - Anschlussfinanzierung
             </div>
             <h1 className="mt-4 text-2xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-[42px]">
               Anschlussfinanzierung mit Plan: heute vorbereiten, morgen entspannt verlängern.
