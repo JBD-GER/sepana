@@ -47,6 +47,9 @@ export default function Footer() {
             <Link className="text-slate-300/90 transition hover:text-white" href="/tippgeber-baufinanzierung">
               Tippgeber Baufinanzierung
             </Link>
+            <Link className="text-slate-300/90 transition hover:text-white" href="/tippgeber-privatkredit">
+              Tippgeber Privatkredit
+            </Link>
           </div>
         </div>
 
