@@ -2,7 +2,9 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { FormEvent, useState } from "react"
+import { GOOGLE_ADS_BAUFINANZIERUNG_LEAD_SEND_TO } from "@/lib/ads/googleAds"
 
 type FormState = {
   email: string
@@ -24,16 +26,15 @@ function isPhone(value: string) {
 }
 
 export default function AnschlussKurzanfrageForm() {
+  const router = useRouter()
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
   const [consentAccepted, setConsentAccepted] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
-    setSuccess(false)
 
     const email = form.email.trim().toLowerCase()
     const phone = form.phone.trim()
@@ -68,15 +69,25 @@ export default function AnschlussKurzanfrageForm() {
         }),
       })
 
-      const json = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null
+      const json = (await response.json().catch(() => null)) as
+        | { ok?: boolean; error?: string; leadId?: string | number; externalLeadId?: string | number; existingAccount?: boolean }
+        | null
       if (!response.ok || !json?.ok) {
         setError(json?.error || "Kurzanfrage konnte nicht gesendet werden.")
         return
       }
 
-      setSuccess(true)
       setForm(INITIAL_FORM)
       setConsentAccepted(false)
+      const params = new URLSearchParams({
+        source: "baufi",
+        conversion: GOOGLE_ADS_BAUFINANZIERUNG_LEAD_SEND_TO,
+      })
+      if (json?.leadId) params.set("leadId", String(json.leadId))
+      if (json?.externalLeadId) params.set("externalLeadId", String(json.externalLeadId))
+      if (json?.existingAccount) params.set("existing", "1")
+      router.push(`/erfolgreich?${params.toString()}`)
+      return
     } catch {
       setError("Kurzanfrage konnte nicht gesendet werden.")
     } finally {
@@ -142,12 +153,6 @@ export default function AnschlussKurzanfrageForm() {
             {error ? (
               <div className="sm:col-span-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
                 {error}
-              </div>
-            ) : null}
-
-            {success ? (
-              <div className="sm:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                Danke, Ihre Kurzanfrage ist eingegangen. Wir melden uns zeitnah.
               </div>
             ) : null}
 
