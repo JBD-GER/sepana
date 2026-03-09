@@ -120,6 +120,6 @@ export async function proxy(req: NextRequest) {
 // Falls du wirklich Next middleware matcher nutzt: lass das hier drin:
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|apple-touch-icon.png|icon.png|site.webmanifest|robots.txt|sitemap.xml).*)',
+    '/((?!_next/static|_next/image|favicon.ico|apple-touch-icon.png|icon.png|site.webmanifest|robots.txt|sitemap.xml|sitemap-index.xml).*)',
   ],
 }
