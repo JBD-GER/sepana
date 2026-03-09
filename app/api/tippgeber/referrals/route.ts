@@ -100,7 +100,7 @@ async function notifyAdminNewReferral(opts: {
   referralId: string
   referralKind: ReferralKind
   privateCreditVolume: number | null
-  hasExposé: boolean
+  hasExpose: boolean
 }) {
   const recipients = parseRecipients()
   if (!recipients.length) return
@@ -143,7 +143,7 @@ async function notifyTippgeberReferralConfirmation(opts: {
   referralId: string
   referralKind: ReferralKind
   privateCreditVolume: number | null
-  hasExposé: boolean
+  hasExpose: boolean
 }) {
   const to = String(opts.toEmail ?? "").trim().toLowerCase()
   if (!isEmail(to)) return
