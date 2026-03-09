@@ -321,7 +321,7 @@ export default function LiveBeratungStart() {
                 <ProductButton
                   selected={product === "konsum"}
                   title="Privatkredit"
-                  subtitle="Live-Einstieg für Privatkredit"
+                  subtitle="Kredit, Umschuldung, PV-Anlage"
                   onClick={() => setProduct("konsum")}
                 />
               </div>
