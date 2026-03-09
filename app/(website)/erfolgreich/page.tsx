@@ -24,8 +24,23 @@ function parseExisting(value: string | string[] | undefined) {
 function parseSource(value: string | string[] | undefined): SourceType {
   const raw = Array.isArray(value) ? value[0] : value
   const normalized = String(raw ?? "").trim().toLowerCase()
-  if (normalized === "baufi" || normalized === "baufinanzierung") return "baufi"
-  if (normalized === "privatkredit" || normalized === "konsum") return "privatkredit"
+  if (!normalized) return null
+  if (
+    normalized === "baufi" ||
+    normalized === "baufinanzierung" ||
+    normalized.startsWith("baufi") ||
+    normalized.includes("immobilie")
+  ) {
+    return "baufi"
+  }
+  if (
+    normalized === "privatkredit" ||
+    normalized === "konsum" ||
+    normalized.startsWith("privatkredit") ||
+    normalized.includes("scheidung-kredit-privat")
+  ) {
+    return "privatkredit"
+  }
   return null
 }
 

@@ -68,8 +68,14 @@ export default function PrivatkreditPage() {
 
             <div className="mt-7 flex flex-wrap gap-3">
               <Link
-                href="/kreditanfrage"
+                href="/privatkredit/umschulden"
                 className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100"
+              >
+                Rate reduzieren
+              </Link>
+              <Link
+                href="/kreditanfrage"
+                className="inline-flex items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15"
               >
                 Kreditanfrage starten
               </Link>
@@ -126,6 +132,29 @@ export default function PrivatkreditPage() {
         description="Die Antragsstrecke ist klar aufgebaut, damit der Start schnell gelingt. Die Qualität entsteht in der Struktur und in der anschließenden Begleitung."
         items={PRIVAT_VALUES}
       />
+
+      <section className="rounded-[30px] border border-slate-200/70 bg-white/90 p-5 shadow-sm sm:p-7">
+        <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Umschuldung</div>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+              Bestehende Rate neu sortieren?
+            </h2>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600 sm:text-base">
+              Für laufende Kredite gibt es jetzt eine eigene Unterseite. Dort startet die Anfrage direkt mit dem Zweck
+              Umschuldung und dem klaren CTA zur Ratenreduzierung.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 lg:justify-end">
+            <Link
+              href="/privatkredit/umschulden"
+              className="inline-flex items-center justify-center rounded-2xl bg-[#0b1f5e] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-95"
+            >
+              Rate reduzieren
+            </Link>
+          </div>
+        </div>
+      </section>
 
       <ImageFeatureBlock
         imageSrc="/familie_kueche.jpg"

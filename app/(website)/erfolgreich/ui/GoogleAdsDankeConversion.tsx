@@ -22,8 +22,22 @@ function normalizeTrackingRef(value: string | null) {
 }
 
 function fallbackSendTo(source: string | null) {
-  if (source === "privatkredit") return GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO
-  if (source === "baufi") return GOOGLE_ADS_BAUFINANZIERUNG_LEAD_SEND_TO
+  const normalized = String(source ?? "").trim().toLowerCase()
+  if (
+    normalized === "privatkredit" ||
+    normalized.startsWith("privatkredit") ||
+    normalized.includes("scheidung-kredit-privat")
+  ) {
+    return GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO
+  }
+  if (
+    normalized === "baufi" ||
+    normalized === "baufinanzierung" ||
+    normalized.startsWith("baufi") ||
+    normalized.includes("immobilie")
+  ) {
+    return GOOGLE_ADS_BAUFINANZIERUNG_LEAD_SEND_TO
+  }
   return null
 }
 

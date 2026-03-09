@@ -1,5 +1,6 @@
-﻿import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
+import { createCaseFromLead, ensureCustomerAccount, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const runtime = "nodejs"
@@ -267,11 +268,83 @@ export async function POST(req: Request) {
 
     const leadId = data?.id ?? null
     const externalLeadId = data?.external_lead_id ?? null
+    let linkedCaseId: string | null = null
+    let existingAccount = false
 
     const [adminMail, customerMail] = await Promise.all([
       sendAdminNotification({ email, phone, leadId, externalLeadId, calculationSummary }),
       sendCustomerConfirmation(email),
     ])
+
+    if (leadId && email) {
+      try {
+        const account = await ensureCustomerAccount({
+          admin,
+          req,
+          email,
+        })
+        existingAccount = account.existingAccount
+
+        const stickyAdvisorId = await pickStickyAdvisorId(admin, account.userId)
+        const safeExternalLeadId = Number.isFinite(Number(externalLeadId)) ? Number(externalLeadId) : 0
+        const leadForCase: LeadRow = {
+          id: String(leadId),
+          linked_case_id: null,
+          external_lead_id: safeExternalLeadId,
+          assigned_advisor_id: stickyAdvisorId,
+          lead_case_type: "baufi",
+          first_name: null,
+          last_name: null,
+          email,
+          phone,
+          phone_mobile: phone,
+          phone_work: null,
+          birth_date: null,
+          marital_status: null,
+          employment_status: null,
+          employment_type: null,
+          net_income_monthly: null,
+          address_street: null,
+          address_zip: null,
+          address_city: null,
+          product_name: "Baufinanzierung Anschlussfinanzierung",
+          product_price: null,
+          loan_purpose: "Anschlussfinanzierung",
+          loan_amount_total: null,
+          property_zip: null,
+          property_city: null,
+          property_type: null,
+          property_purchase_price: null,
+          notes: calculationSummary
+            ? `Kurzanfrage über Landingpage Anschlussfinanzierung\n\n${calculationSummary}`
+            : "Kurzanfrage über Landingpage Anschlussfinanzierung",
+        }
+
+        const created = await createCaseFromLead({
+          admin,
+          lead: leadForCase,
+          customerId: account.userId,
+          advisorId: stickyAdvisorId,
+          caseType: "baufi",
+          entryChannel: "website_baufi_quick_request",
+        })
+        linkedCaseId = created.caseId
+
+        const updatePayload: Record<string, unknown> = {
+          linked_case_id: created.caseId,
+          assigned_advisor_id: stickyAdvisorId,
+          assigned_at: stickyAdvisorId ? now : null,
+          lead_case_type: "baufi",
+        }
+        const updateQuery = await admin.from("webhook_leads").update(updatePayload).eq("id", String(leadId))
+        if (updateQuery.error && isMissingLeadCaseTypeColumnError(updateQuery.error) && "lead_case_type" in updatePayload) {
+          delete updatePayload.lead_case_type
+          await admin.from("webhook_leads").update(updatePayload).eq("id", String(leadId))
+        }
+      } catch (accountOrCaseError) {
+        console.error("[baufi-quick-request] account/case linking failed", accountOrCaseError)
+      }
+    }
 
     if (adminMail.successCount === 0 && adminMail.error) {
       console.error("[baufi-quick-request] admin mail failed", adminMail.error)
@@ -284,6 +357,8 @@ export async function POST(req: Request) {
       ok: true,
       leadId,
       externalLeadId,
+      linkedCaseId,
+      existingAccount,
       message: "Kurzanfrage gespeichert",
       mail: {
         adminAttempted: adminMail.attempted,
@@ -296,4 +371,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
-

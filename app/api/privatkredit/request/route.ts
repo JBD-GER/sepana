@@ -503,7 +503,7 @@ export async function POST(req: Request) {
       }),
     ])
 
-    if (leadId && email && requestType === "contact") {
+    if (leadId && email) {
       try {
         const account = await ensureCustomerAccount({
           admin,
@@ -553,7 +553,7 @@ export async function POST(req: Request) {
           customerId: account.userId,
           advisorId: stickyAdvisorId,
           caseType: "konsum",
-          entryChannel: "website_privatkredit",
+          entryChannel: `website_${requestTypeKey(requestType)}`,
         })
         linkedCaseId = created.caseId
 

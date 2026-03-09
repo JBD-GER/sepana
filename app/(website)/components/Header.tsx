@@ -51,6 +51,11 @@ const PRIVATEKREDIT_NAV: PortalNavItem[] = [
     label: "Kredit PV Anlage",
     description: "PV-Anlage 100 % finanzieren",
   },
+  {
+    href: "/privatkredit/umschulden",
+    label: "Umschulden",
+    description: "Rate reduzieren und Kredite neu ordnen",
+  },
 ]
 
 const PORTAL_NAV: PortalNavItem[] = [

@@ -1,5 +1,6 @@
-﻿import Image from "next/image"
+import Image from "next/image"
 import Link from "next/link"
+import TeamLiveCta from "./TeamLiveCta"
 
 export const BRAND_SLOGAN = "Ihr Finanzpartner für klare Kreditentscheidungen."
 export const BRAND_SUBLINE =
@@ -114,11 +115,13 @@ export function TeamSection({
   title = "Ihre Kreditexperten bei SEPANA",
   description = "Keine anonyme Strecke: Unser Team begleitet Ihre Anfrage strukturiert und persönlich bis zur nächsten klaren Entscheidung.",
   className,
+  liveCtaLabel,
 }: {
   eyebrow?: string
   title?: string
   description?: string
   className?: string
+  liveCtaLabel?: string
 }) {
   return (
     <section
@@ -138,6 +141,8 @@ export function TeamSection({
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">{title}</h2>
           <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">{description}</p>
         </div>
+
+        {liveCtaLabel ? <TeamLiveCta buttonLabel={liveCtaLabel} /> : null}
 
         <div className="mt-6 grid gap-4 lg:grid-cols-3">
           {TEAM_MEMBERS.map((member) => (
@@ -354,6 +359,3 @@ export function ImageFeatureBlock({
     </section>
   )
 }
-
-
-

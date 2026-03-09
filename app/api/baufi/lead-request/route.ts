@@ -1,7 +1,7 @@
 ﻿import { NextResponse } from "next/server"
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
-import { createCaseFromLead, findUserIdByEmail, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
+import { createCaseFromLead, ensureCustomerAccount, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
 
 export const runtime = "nodejs"
 
@@ -449,79 +449,71 @@ export async function POST(req: Request) {
 
     if (leadId && email) {
       try {
-        const userId = await findUserIdByEmail(admin, email)
-        if (userId) {
-          const { data: profile } = await admin
-            .from("profiles")
-            .select("role")
-            .eq("user_id", userId)
-            .maybeSingle()
+        const account = await ensureCustomerAccount({
+          admin,
+          req,
+          email,
+          firstName,
+          lastName,
+        })
+        existingAccount = account.existingAccount
 
-          const role = String((profile as { role?: string } | null)?.role ?? "").trim().toLowerCase()
-          if (!role || role === "customer") {
-            existingAccount = true
-            if (!role) {
-              await admin.from("profiles").upsert({ user_id: userId, role: "customer" }, { onConflict: "user_id" })
-            }
-
-            const stickyAdvisorId = await pickStickyAdvisorId(admin, userId)
-            const safeExternalLeadId = Number.isFinite(Number(externalLeadId)) ? Number(externalLeadId) : 0
-            const leadForCase: LeadRow = {
-              id: String(leadId),
-              linked_case_id: null,
-              external_lead_id: safeExternalLeadId,
-              assigned_advisor_id: stickyAdvisorId,
-              lead_case_type: "baufi",
-              first_name: firstName,
-              last_name: lastName,
-              email,
-              phone,
-              phone_mobile: phone,
-              phone_work: null,
-              birth_date: null,
-              marital_status: null,
-              employment_status: null,
-              employment_type: null,
-              net_income_monthly: null,
-              address_street: null,
-              address_zip: null,
-              address_city: null,
-              product_name: "Baufinanzierung",
-              product_price: financingNeed,
-              loan_purpose: PURPOSE_LABELS[purpose],
-              loan_amount_total: financingNeed,
-              property_zip: null,
-              property_city: null,
-              property_type: PROPERTY_TYPE_LABELS[propertyType],
-              property_purchase_price: null,
-              notes: "Anfrage über Baufinanzierungs-Lead-Funnel",
-            }
-
-            const created = await createCaseFromLead({
-              admin,
-              lead: leadForCase,
-              customerId: userId,
-              advisorId: stickyAdvisorId,
-              caseType: "baufi",
-              entryChannel: "website_baufi_lead",
-            })
-            linkedCaseId = created.caseId
-
-            const updatePayload: Record<string, unknown> = {
-              linked_case_id: created.caseId,
-              assigned_advisor_id: stickyAdvisorId,
-              assigned_at: stickyAdvisorId ? now : null,
-              lead_case_type: "baufi",
-            }
-            const updateQuery = await admin.from("webhook_leads").update(updatePayload).eq("id", String(leadId))
-            if (updateQuery.error && isMissingLeadCaseTypeColumnError(updateQuery.error) && "lead_case_type" in updatePayload) {
-              delete updatePayload.lead_case_type
-              await admin.from("webhook_leads").update(updatePayload).eq("id", String(leadId))
-            }
-          }
+        const stickyAdvisorId = await pickStickyAdvisorId(admin, account.userId)
+        const safeExternalLeadId = Number.isFinite(Number(externalLeadId)) ? Number(externalLeadId) : 0
+        const leadForCase: LeadRow = {
+          id: String(leadId),
+          linked_case_id: null,
+          external_lead_id: safeExternalLeadId,
+          assigned_advisor_id: stickyAdvisorId,
+          lead_case_type: "baufi",
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          phone,
+          phone_mobile: phone,
+          phone_work: null,
+          birth_date: null,
+          marital_status: null,
+          employment_status: null,
+          employment_type: null,
+          net_income_monthly: null,
+          address_street: null,
+          address_zip: null,
+          address_city: null,
+          product_name: "Baufinanzierung",
+          product_price: financingNeed,
+          loan_purpose: PURPOSE_LABELS[purpose],
+          loan_amount_total: financingNeed,
+          property_zip: null,
+          property_city: null,
+          property_type: PROPERTY_TYPE_LABELS[propertyType],
+          property_purchase_price: null,
+          notes: "Anfrage über Baufinanzierungs-Lead-Funnel",
         }
-      } catch (existingAccountError) {
-        console.error("[baufi-lead-request] existing account linking failed", existingAccountError)
+
+        const created = await createCaseFromLead({
+          admin,
+          lead: leadForCase,
+          customerId: account.userId,
+          advisorId: stickyAdvisorId,
+          caseType: "baufi",
+          entryChannel: "website_baufi_lead",
+        })
+        linkedCaseId = created.caseId
+
+        const updatePayload: Record<string, unknown> = {
+          linked_case_id: created.caseId,
+          assigned_advisor_id: stickyAdvisorId,
+          assigned_at: stickyAdvisorId ? now : null,
+          lead_case_type: "baufi",
+        }
+        const updateQuery = await admin.from("webhook_leads").update(updatePayload).eq("id", String(leadId))
+        if (updateQuery.error && isMissingLeadCaseTypeColumnError(updateQuery.error) && "lead_case_type" in updatePayload) {
+          delete updatePayload.lead_case_type
+          await admin.from("webhook_leads").update(updatePayload).eq("id", String(leadId))
+        }
+      } catch (accountOrCaseError) {
+        console.error("[baufi-lead-request] account/case linking failed", accountOrCaseError)
       }
     }
 

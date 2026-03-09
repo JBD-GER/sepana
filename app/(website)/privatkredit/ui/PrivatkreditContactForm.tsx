@@ -16,7 +16,7 @@ type FormState = {
   privacyAccepted: boolean
 }
 
-const INITIAL_STATE: FormState = {
+const DEFAULT_FORM_STATE: FormState = {
   firstName: "",
   lastName: "",
   email: "",
@@ -28,13 +28,41 @@ const INITIAL_STATE: FormState = {
   privacyAccepted: false,
 }
 
+type PrivatkreditContactFormProps = {
+  eyebrow?: string
+  title?: string
+  description?: string
+  submitLabel?: string
+  initialPurpose?: string
+  lockPurpose?: boolean
+  successSource?: string
+  pagePath?: string
+}
+
 function isEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
 }
 
-export default function PrivatkreditContactForm() {
+function createInitialState(initialPurpose: string): FormState {
+  return {
+    ...DEFAULT_FORM_STATE,
+    purpose: initialPurpose || DEFAULT_FORM_STATE.purpose,
+  }
+}
+
+export default function PrivatkreditContactForm({
+  eyebrow = "Sichere Anfrage",
+  title = "Persönliche Kreditanfrage starten",
+  description = "Senden Sie Ihre Eckdaten in weniger als zwei Minuten. Wir melden uns mit einer klaren Einschätzung und den passenden nächsten Schritten.",
+  submitLabel = "Anfrage senden",
+  initialPurpose = "freie_verwendung",
+  lockPurpose = false,
+  successSource = "privatkredit",
+  pagePath = "/privatkredit/anfrage",
+}: PrivatkreditContactFormProps) {
   const router = useRouter()
-  const [form, setForm] = useState<FormState>(INITIAL_STATE)
+  const initialState = useMemo(() => createInitialState(initialPurpose), [initialPurpose])
+  const [form, setForm] = useState<FormState>(initialState)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -85,6 +113,7 @@ export default function PrivatkreditContactForm() {
           purpose: form.purpose,
           callbackTime: form.callbackTime,
           message: form.message,
+          pagePath,
         }),
       })
       const json = await res.json().catch(() => ({}))
@@ -92,9 +121,9 @@ export default function PrivatkreditContactForm() {
         setError(String(json?.error || "Anfrage konnte nicht gesendet werden."))
         return
       }
-      setForm(INITIAL_STATE)
+      setForm(initialState)
       const params = new URLSearchParams({
-        source: "privatkredit",
+        source: successSource,
         conversion: GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO,
       })
       if (json?.leadId) params.set("leadId", String(json.leadId))
@@ -114,13 +143,10 @@ export default function PrivatkreditContactForm() {
 
       <div className="relative">
         <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
-          Sichere Anfrage
+          {eyebrow}
         </div>
-        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">Persönliche Kreditanfrage starten</h2>
-        <p className="mt-2 max-w-3xl text-sm text-slate-600 sm:text-base">
-          Senden Sie Ihre Eckdaten in weniger als zwei Minuten. Wir melden uns mit einer klaren Einschätzung und den
-          passenden nächsten Schritten.
-        </p>
+        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">{title}</h2>
+        <p className="mt-2 max-w-3xl text-sm text-slate-600 sm:text-base">{description}</p>
 
         <form onSubmit={submit} className="mt-6 grid gap-3 sm:grid-cols-2">
         <label className="block">
@@ -182,20 +208,29 @@ export default function PrivatkreditContactForm() {
           ) : null}
         </label>
 
-        <label className="block">
-          <div className="mb-1 text-xs font-medium text-slate-700">Verwendungszweck</div>
-          <select
-            value={form.purpose}
-            onChange={(e) => patch("purpose", e.target.value)}
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:text-sm"
-          >
-            <option value="freie_verwendung">Freie Verwendung</option>
-            <option value="umschuldung">Umschuldung</option>
-            <option value="auto">Auto</option>
-            <option value="modernisierung">Modernisierung</option>
-            <option value="sonstiges">Sonstiges</option>
-          </select>
-        </label>
+        {lockPurpose ? (
+          <div className="block">
+            <div className="mb-1 text-xs font-medium text-slate-700">Verwendungszweck</div>
+            <div className="flex h-12 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-800">
+              Umschuldung
+            </div>
+          </div>
+        ) : (
+          <label className="block">
+            <div className="mb-1 text-xs font-medium text-slate-700">Verwendungszweck</div>
+            <select
+              value={form.purpose}
+              onChange={(e) => patch("purpose", e.target.value)}
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:text-sm"
+            >
+              <option value="freie_verwendung">Freie Verwendung</option>
+              <option value="umschuldung">Umschuldung</option>
+              <option value="auto">Auto</option>
+              <option value="modernisierung">Modernisierung</option>
+              <option value="sonstiges">Sonstiges</option>
+            </select>
+          </label>
+        )}
 
         <label className="block sm:col-span-2">
           <div className="mb-1 text-xs font-medium text-slate-700">Beste Erreichbarkeit</div>
@@ -241,7 +276,7 @@ export default function PrivatkreditContactForm() {
             disabled={busy}
             className="h-12 rounded-2xl bg-gradient-to-r from-slate-900 to-cyan-900 px-5 text-sm font-semibold text-white transition hover:from-slate-800 hover:to-cyan-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {busy ? "Sende Anfrage..." : "Anfrage senden"}
+            {busy ? "Sende Anfrage..." : submitLabel}
           </button>
         </div>
         </form>
