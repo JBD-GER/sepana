@@ -1,4 +1,4 @@
-// app/(website)/baufinanzierung/ui/BaufiStart.tsx
+﻿// app/(website)/baufinanzierung/ui/BaufiStart.tsx
 "use client"
 
 import Link from "next/link"
@@ -151,11 +151,11 @@ export default function BaufiStart() {
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
               <div className="lg:col-span-2">
                 <h2 className="text-balance text-[22px] font-semibold leading-tight text-slate-900 sm:text-[30px]">
-                  Finden Sie die passende Baufinanzierung –{" "}
+                  Finden Sie die passende Baufinanzierung -{" "}
                   <span style={{ color: PRIMARY }}>mit Best-Zins-Check</span>
                 </h2>
                 <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-slate-600 sm:text-[15px]">
-                  Starten Sie mit 3 Eckdaten. Danach ergänzen Sie Haushaltswerte und ggf. weitere Kreditnehmer –
+                  Starten Sie mit 3 Eckdaten. Danach ergänzen Sie Haushaltswerte und ggf. weitere Kreditnehmer -
                   auf Wunsch mit Expertenberatung.
                 </p>
 
@@ -198,7 +198,7 @@ export default function BaufiStart() {
                       Hinweis: Die Auszahlung erfolgt erst, wenn der Antrag von der Bank bewilligt wurde und eine Auszahlungsgenehmigung vorliegt. Mindestdarlehenssumme: 250.000 €.
                     </div>
                     <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                      Tipp: Starten Sie jetzt – dauert wirklich nur kurz.
+                      Tipp: Starten Sie jetzt - dauert wirklich nur kurz.
                     </div>
                   </div>
 
@@ -261,7 +261,7 @@ export default function BaufiStart() {
                   </div>
                 ) : (
                   <div className="text-xs text-slate-700">
-                    ✅ <span className="font-semibold" style={{ color: PRIMARY }}>350 € Bonus</span> bei erfolgreichem Abschluss
+                    OK <span className="font-semibold" style={{ color: PRIMARY }}>350 € Bonus</span> bei erfolgreichem Abschluss
                   </div>
                 )}
 
@@ -301,3 +301,6 @@ export default function BaufiStart() {
     </div>
   )
 }
+
+
+

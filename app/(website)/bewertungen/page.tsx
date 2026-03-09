@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import WebsiteReviewsSection from "../components/WebsiteReviewsSection"
 
 export const metadata: Metadata = {
@@ -23,3 +23,5 @@ export default function BewertungenPage() {
     </div>
   )
 }
+
+

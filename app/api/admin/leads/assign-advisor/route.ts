@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { buildEmailHtml, logCaseEvent, sendAdvisorAssignedEmail, sendEmail } from "@/lib/notifications/notify"
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
 
       if (!lead.email || !isEmail(lead.email)) {
         return NextResponse.json(
-          { ok: false, error: "Lead hat keine gueltige E-Mail. Konto/Einladung nicht moeglich." },
+          { ok: false, error: "Lead hat keine gültige E-Mail. Konto/Einladung nicht möglich." },
           { status: 400 }
         )
       }
@@ -147,17 +147,17 @@ export async function POST(req: Request) {
       caseCreated = true
 
       const nextStepsHtml = buildEmailHtml({
-        title: `Naechste Schritte zu Ihrem ${productLabel(caseType)}`,
-        intro: "Vielen Dank. Ihre Anfrage wurde uebernommen und wir starten jetzt mit der Bearbeitung.",
+        title: `Nächste Schritte zu Ihrem ${productLabel(caseType)}`,
+        intro: "Vielen Dank. Ihre Anfrage wurde übernommen und wir starten jetzt mit der Bearbeitung.",
         steps: [
           "Ihr Berater meldet sich zeitnah bei Ihnen.",
-          "Sie koennen Unterlagen direkt im Kundenportal hochladen.",
-          "Bei Rueckfragen erreichen Sie uns jederzeit per E-Mail oder Telefon.",
+          "Sie können Unterlagen direkt im Kundenportal hochladen.",
+          "Bei Rückfragen erreichen Sie uns jederzeit per E-Mail oder Telefon.",
         ],
       })
       const nextStepsMail = await sendEmail({
         to: customer.email,
-        subject: `Naechste Schritte zum ${productLabel(caseType)}`,
+        subject: `Nächste Schritte zum ${productLabel(caseType)}`,
         html: nextStepsHtml,
       })
       nextStepsMailSent = !!nextStepsMail.ok
@@ -229,3 +229,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
 }
+
+

@@ -1,4 +1,4 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import { requireAdvisor } from "@/lib/advisor/requireAdvisor"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
@@ -124,7 +124,7 @@ export default async function AdvisorLeadsPage({
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">Leads</h1>
             <p className="mt-1 text-sm text-slate-600">
-              Zugewiesene Leads aus {productLabel(product)}. Verknuepfte Faelle koennen direkt geoeffnet werden.
+              Zugewiesene Leads aus {productLabel(product)}. Verknüpfte Fälle können direkt geöffnet werden.
             </p>
           </div>
           <div className="rounded-full border border-slate-200/70 bg-white px-3 py-1 text-xs text-slate-600">
@@ -217,7 +217,7 @@ export default async function AdvisorLeadsPage({
                           {caseMeta?.status ? <div className="text-xs text-slate-500">{caseMeta.status}</div> : null}
                         </div>
                       ) : (
-                        <span className="text-xs text-amber-700">Noch kein Fall verknuepft</span>
+                        <span className="text-xs text-amber-700">Noch kein Fall verknüpft</span>
                       )}
                     </td>
                   </tr>
@@ -238,3 +238,5 @@ export default async function AdvisorLeadsPage({
     </div>
   )
 }
+
+

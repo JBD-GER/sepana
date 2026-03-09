@@ -69,7 +69,7 @@ export default async function AdminDashboard() {
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Uebersicht</div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Übersicht</div>
             <h1 className="mt-1 text-2xl font-semibold text-slate-900">Admin Dashboard</h1>
             <p className="mt-1 text-sm text-slate-600">
               Eingeloggt als: <span className="font-medium text-slate-900">{user.email}</span>
@@ -98,7 +98,7 @@ export default async function AdminDashboard() {
               href="/admin/faelle"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
             >
-              Faelle & Unterlagen
+              Fälle & Unterlagen
             </Link>
           </div>
         </div>
@@ -107,7 +107,7 @@ export default async function AdminDashboard() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard label="Angebotsvolumen" value={eur(offerVolume)} hint="Summe gesendet + akzeptiert" />
         <MetricCard label="Abgeschlossenes Volumen" value={eur(closedVolume)} hint="Nur akzeptierte Angebote" />
-        <MetricCard label="Faelle" value={`${openCases} offen`} hint={`${totalCases} gesamt`} />
+        <MetricCard label="Fälle" value={`${openCases} offen`} hint={`${totalCases} gesamt`} />
         <MetricCard label="Unterlagen" value={`${docsCount} Dateien`} hint={`${Math.round(docsSize / 1024 / 1024)} MB`} />
       </div>
 
@@ -115,7 +115,7 @@ export default async function AdminDashboard() {
         <MetricCard
           label="Kommende Termine"
           value={`${upcomingAppointments ?? 0}`}
-          hint="Alle zukuenftigen Buchungen"
+          hint="Alle zukünftigen Buchungen"
         />
         <MetricCard
           label="Logs (7 Tage)"
@@ -144,7 +144,7 @@ export default async function AdminDashboard() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="text-sm font-medium text-slate-900">Faelle nach Typ</div>
+          <div className="text-sm font-medium text-slate-900">Fälle nach Typ</div>
           <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
               <div className="text-xs text-slate-500">Baufi</div>
@@ -182,7 +182,7 @@ export default async function AdminDashboard() {
               href="/admin/faelle"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
             >
-              Faelle zuteilen
+              Fälle zuteilen
             </Link>
             <Link
               href="/admin/termine"
@@ -194,7 +194,7 @@ export default async function AdminDashboard() {
               href="/admin/logs"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
             >
-              Logs oeffnen
+              Logs öffnen
             </Link>
           </div>
         </div>
@@ -202,7 +202,7 @@ export default async function AdminDashboard() {
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between gap-3">
-          <div className="text-sm font-medium text-slate-900">Neueste Faelle</div>
+          <div className="text-sm font-medium text-slate-900">Neueste Fälle</div>
           <Link href="/admin/faelle" className="text-xs font-semibold text-slate-700 hover:underline">
             Alle anzeigen
           </Link>
@@ -230,7 +230,7 @@ export default async function AdminDashboard() {
               {(recentCases ?? []).length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-slate-500" colSpan={4}>
-                    Keine Faelle gefunden.
+                    Keine Fälle gefunden.
                   </td>
                 </tr>
               ) : null}
@@ -241,3 +241,5 @@ export default async function AdminDashboard() {
     </div>
   )
 }
+
+

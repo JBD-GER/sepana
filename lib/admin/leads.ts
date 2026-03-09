@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
+﻿import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { buildEmailHtml, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
 
 export type CaseType = "baufi" | "konsum"
@@ -135,7 +135,7 @@ function buildRecommendationCardHtml(
               <td valign="top">
                 <div style="font-size:12px; color:#64748b; letter-spacing:.08em; text-transform:uppercase;">Empfohlen durch</div>
                 <div style="margin-top:3px; font-size:18px; line-height:24px; font-weight:700; color:#0f172a;">${escapeHtml(companyName)}</div>
-                <div style="margin-top:4px; font-size:13px; line-height:20px; color:#334155;">Ansprechpartner fuer die Immobilie</div>
+                <div style="margin-top:4px; font-size:13px; line-height:20px; color:#334155;">Ansprechpartner für die Immobilie</div>
                 ${phoneRow}
               </td>
             </tr>
@@ -261,14 +261,14 @@ function buildPasswordInviteEmailHtml(
   const recommendationCard = buildRecommendationCardHtml(recommendedBy, resolvedSiteOrigin)
 
   return buildEmailHtml({
-    title: "Passwort fuer Ihr SEPANA-Konto festlegen",
+    title: "Passwort für Ihr SEPANA-Konto festlegen",
     intro: safeName
       ? `Hallo ${safeName}, bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschliessen.`
       : "Bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschliessen.",
     bodyHtml: recommendationCard || undefined,
     steps: [
       "Klicken Sie auf den Button und vergeben Sie ein sicheres Passwort.",
-      "Danach koennen Sie sich direkt im Kundenportal anmelden.",
+      "Danach können Sie sich direkt im Kundenportal anmelden.",
     ],
     ctaLabel: "Passwort festlegen",
     ctaUrl: actionLink,
@@ -287,7 +287,7 @@ export async function ensureCustomerAccount(opts: {
 }) {
   const { admin, req, firstName, lastName } = opts
   const email = opts.email.trim().toLowerCase()
-  if (!isEmail(email)) throw new Error("Lead hat keine gueltige E-Mail.")
+  if (!isEmail(email)) throw new Error("Lead hat keine gültige E-Mail.")
 
   const redirectTo = resolveInviteRedirect(req)
   const siteOrigin = (() => {
@@ -329,7 +329,7 @@ export async function ensureCustomerAccount(opts: {
     }
   }
 
-  if (!userId) throw new Error("User konnte nicht aufgeloest werden.")
+  if (!userId) throw new Error("User konnte nicht aufgelöst werden.")
 
   const { data: existingProfile } = await admin
     .from("profiles")
@@ -339,7 +339,7 @@ export async function ensureCustomerAccount(opts: {
 
   const existingRole = String((existingProfile as { role?: string } | null)?.role ?? "").trim()
   if (existingRole && existingRole !== "customer") {
-    throw new Error(`E-Mail gehoert bereits zu einer ${existingRole}-Rolle.`)
+    throw new Error(`E-Mail gehört bereits zu einer ${existingRole}-Rolle.`)
   }
 
   const { error: upsertError } = await admin.from("profiles").upsert(
@@ -359,7 +359,7 @@ export async function ensureCustomerAccount(opts: {
       const inviteHtml = buildPasswordInviteEmailHtml(actionLink, firstName, opts.recommendedBy, siteOrigin)
       const mail = await sendEmail({
         to: email,
-        subject: "Passwort fuer Ihren SEPANA-Zugang festlegen",
+        subject: "Passwort für Ihren SEPANA-Zugang festlegen",
         html: inviteHtml,
       })
       passwordInviteSent = !!mail.ok
@@ -496,9 +496,11 @@ export async function createCaseFromLead(opts: {
     caseId,
     actorRole: "admin",
     type: "lead_imported",
-    title: "Lead uebernommen",
-    body: `Lead #${lead.external_lead_id} wurde als ${productLabel}-Fall uebernommen.`,
+    title: "Lead übernommen",
+    body: `Lead #${lead.external_lead_id} wurde als ${productLabel}-Fall übernommen.`,
   })
 
   return { caseId, caseRef }
 }
+
+

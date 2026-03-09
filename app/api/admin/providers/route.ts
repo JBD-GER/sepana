@@ -1,4 +1,4 @@
-export const runtime = "nodejs"
+﻿export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     const slug = slugify(asString(body.slug) || name)
 
     if (!name) return NextResponse.json({ ok: false, error: "Name fehlt" }, { status: 400 })
-    if (!slug) return NextResponse.json({ ok: false, error: "Slug ungueltig" }, { status: 400 })
+    if (!slug) return NextResponse.json({ ok: false, error: "Slug ungültig" }, { status: 400 })
 
     const preferredLogoVariant = body.preferred_logo_variant === "icon" ? "icon" : "horizontal"
     const websiteUrl = asNullableString(body.website_url)
@@ -114,3 +114,4 @@ export async function POST(req: Request) {
     )
   }
 }
+

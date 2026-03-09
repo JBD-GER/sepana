@@ -1,4 +1,4 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import AssignLeadAdvisorButton from "./ui/AssignLeadAdvisorButton"
@@ -306,7 +306,7 @@ export default async function AdminLeadsPage({
                           {linkedCase?.status ? <span className="ml-1 text-slate-500">({linkedCase.status})</span> : null}
                         </div>
                       ) : (
-                        <div className="mt-2 text-xs text-amber-700">Noch kein Fall verknuepft</div>
+                        <div className="mt-2 text-xs text-amber-700">Noch kein Fall verknüpft</div>
                       )}
                     </td>
 
@@ -360,7 +360,7 @@ export default async function AdminLeadsPage({
                             href={`/admin/faelle/${linkedCase.id}`}
                             className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm"
                           >
-                            Fall oeffnen
+                            Fall öffnen
                           </Link>
                           {linkedCase.case_type === "baufi" ? (
                             <CreateLeadStartOfferButton leadId={lead.id} providerOptions={startOfferProviders} />
@@ -386,3 +386,4 @@ export default async function AdminLeadsPage({
     </div>
   )
 }
+

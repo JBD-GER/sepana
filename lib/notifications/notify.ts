@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
+﻿import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 type NotificationInput = {
   recipient_id: string
@@ -495,16 +495,16 @@ export async function sendAdvisorAssignedEmail(opts: { caseId: string }) {
   const html = buildEmailHtml({
     title: "Ihr Ansprechpartner wurde zugewiesen",
     intro: caseMeta.case_ref
-      ? `Fuer Ihren Fall ${caseMeta.case_ref} steht jetzt ein fester Ansprechpartner bereit.`
-      : "Fuer Ihren Fall steht jetzt ein fester Ansprechpartner bereit.",
+      ? `Für Ihren Fall ${caseMeta.case_ref} steht jetzt ein fester Ansprechpartner bereit.`
+      : "Für Ihren Fall steht jetzt ein fester Ansprechpartner bereit.",
     bodyHtml: cardHtml,
     steps: [
-      "Sie koennen Unterlagen direkt im Portal hochladen.",
-      "Bei Rueckfragen erreichen Sie Ihren Ansprechpartner ueber die angegebenen Kontaktdaten.",
+      "Sie können Unterlagen direkt im Portal hochladen.",
+      "Bei Rückfragen erreichen Sie Ihren Ansprechpartner über die angegebenen Kontaktdaten.",
     ],
     ctaLabel: "Zum Kundenportal",
     ctaUrl: portalUrl,
-    preheader: "Ihr persoenlicher Ansprechpartner bei SEPANA ist jetzt verfuegbar.",
+    preheader: "Ihr persönlicher Ansprechpartner bei SEPANA ist jetzt verfügbar.",
     eyebrow: "SEPANA - Ansprechpartner",
   })
 
@@ -544,3 +544,5 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
   }
   return { ok: true }
 }
+
+

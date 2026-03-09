@@ -163,7 +163,7 @@ export default async function AdminTippgeberPage() {
             href="/admin/faelle"
             className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:border-slate-300"
           >
-            Zu den Faellen
+            Zu den Fällen
           </Link>
         </div>
       </div>
@@ -264,4 +264,5 @@ export default async function AdminTippgeberPage() {
     </div>
   )
 }
+
 

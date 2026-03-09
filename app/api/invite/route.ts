@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
@@ -15,7 +15,7 @@ function siteUrlFromReq(req: Request) {
   return u.origin
 }
 
-// ✅ A) Auth-Guard über eingeloggten User (admin/advisor)
+// OK A) Auth-Guard über eingeloggten User (admin/advisor)
 async function allowByRole(allowed: Role[]) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -33,7 +33,7 @@ async function allowByRole(allowed: Role[]) {
   return { ok: true as const, actorUserId: user.id, actorRole: role }
 }
 
-// ✅ B) System-Guard über Secret Header (optional)
+// OK B) System-Guard über Secret Header (optional)
 function allowBySecret(req: Request) {
   const secret = process.env.INVITE_API_SECRET
   if (!secret) return false
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
   const siteUrl = siteUrlFromReq(req)
 
   try {
-    // ✅ Invite Link -> /einladung?mode=invite (Client verarbeitet Hash)
+    // OK Invite Link -> /einladung?mode=invite (Client verarbeitet Hash)
     const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
       redirectTo: `${siteUrl}/einladung?mode=invite`,
       data: {
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
 
     const invitedUserId = data.user?.id ?? null
 
-    // ✅ Rolle in profiles upserten (sehr wichtig für deine Middleware role checks / rpc get_my_role)
+    // OK Rolle in profiles upserten (sehr wichtig für deine Middleware role checks / rpc get_my_role)
     if (invitedUserId) {
       const { data: existingProfile } = await admin
         .from("profiles")
@@ -95,3 +95,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: e?.message ?? "invite_failed" }, { status: 500 })
   }
 }
+
+
+

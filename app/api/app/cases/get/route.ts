@@ -1,4 +1,4 @@
-// app/api/app/cases/get/route.ts
+﻿// app/api/app/cases/get/route.ts
 export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
@@ -159,7 +159,7 @@ export async function GET(req: Request) {
     }
   }
 
-  // ✅ Provider Infos für Offers nachladen (optional, wenn Tabelle existiert)
+  // OK Provider Infos für Offers nachladen (optional, wenn Tabelle existiert)
   const previewProviderIds = (previews ?? [])
     .map((p: any) => p?.provider_id)
     .filter(Boolean)
@@ -276,3 +276,5 @@ export async function GET(req: Request) {
     viewer_role: role ?? null,
   })
 }
+
+

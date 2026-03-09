@@ -1,4 +1,4 @@
-export type ProductType = "baufi" | "privatkredit"
+﻿export type ProductType = "baufi" | "privatkredit"
 export type CoApplicantChoice = "yes" | "no"
 export type PropertyUse = "self" | "rent"
 export type ObjectSelectionState = "yes" | "searching"
@@ -169,7 +169,7 @@ export const FAMILY_STATUS_OPTIONS = [
 export const EMPLOYMENT_OPTIONS = [
   { value: "angestellt_unbefristet", label: "Angestellt (unbefristet)" },
   { value: "angestellt_befristet", label: "Angestellt (befristet)" },
-  { value: "selbststaendig", label: "Selbstständig" },
+  { value: "selbstständig", label: "Selbstständig" },
   { value: "beamter", label: "Beamter" },
   { value: "rentner", label: "Rentner" },
   { value: "student", label: "Student / Ausbildung" },
@@ -209,4 +209,6 @@ export function buildFlow(productType: ProductType | null): StepId[] {
   }
   return ["product"]
 }
+
+
 

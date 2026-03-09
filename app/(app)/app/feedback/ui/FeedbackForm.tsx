@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 
@@ -25,7 +25,7 @@ export default function FeedbackForm({
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error || "Feedback konnte nicht gesendet werden.")
-      setMsg("Danke! Feedback wurde gesendet ✅")
+      setMsg("Danke! Feedback wurde gesendet OK")
       setMessage("")
     } catch (e: any) {
       setMsg(e.message ?? "Fehler")
@@ -72,3 +72,5 @@ export default function FeedbackForm({
     </div>
   )
 }
+
+

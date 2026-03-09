@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { logCaseEvent, buildEmailHtml, sendEmail, getCaseMeta } from "@/lib/notifications/notify"
@@ -108,13 +108,13 @@ export async function POST(req: Request) {
     if (caseMeta?.customer_email) {
       const html = buildEmailHtml({
         title: "Bitte Unterlagen hochladen",
-        intro: "Ihr finales Angebot wurde angenommen. Bitte laden Sie nun alle benoetigten Unterlagen hoch.",
+        intro: "Ihr finales Angebot wurde angenommen. Bitte laden Sie nun alle benötigten Unterlagen hoch.",
         steps: [
-          "Oeffnen Sie den Bereich Dokumente in Ihrem Fall.",
-          "Laden Sie dort alle benoetigten Unterlagen vollstaendig hoch.",
+          "Öffnen Sie den Bereich Dokumente in Ihrem Fall.",
+          "Laden Sie dort alle benötigten Unterlagen vollständig hoch.",
         ],
       })
-      await sendEmail({ to: caseMeta.customer_email, subject: "Unterlagen fuer Ihre Finanzierung hochladen", html })
+      await sendEmail({ to: caseMeta.customer_email, subject: "Unterlagen für Ihre Finanzierung hochladen", html })
     }
   } else {
     await syncCaseOfferStatus(offer.case_id, admin)
@@ -130,3 +130,4 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true })
 }
+

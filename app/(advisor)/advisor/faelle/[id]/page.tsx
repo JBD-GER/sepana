@@ -1,4 +1,4 @@
-// app/(app)/advisor/faelle/[id]/page.tsx
+﻿// app/(app)/advisor/faelle/[id]/page.tsx
 import Link from "next/link"
 import { requireAdvisor } from "@/lib/advisor/requireAdvisor"
 import { authFetch } from "@/lib/app/authFetch"
@@ -105,11 +105,11 @@ function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(d))
 }
 function formatEUR(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return "—"
+  if (n == null || Number.isNaN(Number(n))) return "-"
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n))
 }
 function formatPct(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return "—"
+  if (n == null || Number.isNaN(Number(n))) return "-"
   return `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(Number(n))} %`
 }
 
@@ -140,9 +140,9 @@ function logoSrc(pathLike?: unknown) {
   return `/api/baufi/logo?bucket=logo_banken&path=${encodeURIComponent(path)}`
 }
 
-// ✅ Status-Übersetzung (Case)
+// OK Status-Übersetzung (Case)
 
-// ✅ Status-Übersetzung (Offer)
+// OK Status-Übersetzung (Offer)
 
 export default async function CaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { user } = await requireAdvisor()
@@ -186,7 +186,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   })()
 
   const previewProviderName =
-    previewRow?.provider_name ?? previewPayload?.provider?.name ?? "—"
+    previewRow?.provider_name ?? previewPayload?.provider?.name ?? "-"
   const previewProviderLogoPath = normalizeLogoPath(
     previewRow?.provider_logo_path ??
       previewPayload?.provider?.logo_path ??
@@ -206,7 +206,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <Link href="/advisor/faelle" className="text-sm font-medium text-slate-900 underline underline-offset-4">
-              ← Zurück zu Fälle
+              {"<-"} Zurück zu Fälle
             </Link>
             <h1 className="mt-3 text-2xl font-semibold text-slate-900">Fall {c.case_ref || c.id.slice(0, 8)}</h1>
             <div className="mt-1 text-sm text-slate-600">
@@ -235,7 +235,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           <div>
             <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Status</div>
             <div className="mt-1 text-sm text-slate-600">
-              Setzen Sie den internen Beratungsstatus fuer diesen Fall.
+              Setzen Sie den internen Beratungsstatus für diesen Fall.
             </div>
           </div>
           <div className="w-full max-w-xs">
@@ -355,7 +355,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
       <OfferEditor caseId={c.id} caseType={caseType} />
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="text-sm font-medium text-slate-900">Finale Angebote</div>
-        <p className="mt-1 text-xs text-slate-600">Diese Angebote werden spaeter vom Berater erstellt und freigegeben.</p>
+        <p className="mt-1 text-xs text-slate-600">Diese Angebote werden später vom Berater erstellt und freigegeben.</p>
         <OfferList offers={data.offers ?? []} canManage caseType={caseType} />
       </div>
 
@@ -377,6 +377,9 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     </div>
   )
 }
+
+
+
 
 
 

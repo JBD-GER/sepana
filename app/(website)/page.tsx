@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import { headers } from "next/headers"
 import FinanzpartnerLanding, { type BankPartnerLogo } from "./components/marketing/FinanzpartnerLanding"
 
@@ -70,3 +70,5 @@ export default async function HomePage() {
   const bankPartnerLogos = await fetchHomeBankPartnerLogos()
   return <FinanzpartnerLanding bankPartnerLogos={bankPartnerLogos} />
 }
+
+

@@ -83,12 +83,12 @@ export async function POST(req: Request) {
     const notes = pickString(body?.notes)
 
     if (!advisorId) {
-      return NextResponse.json({ ok: false, error: "Bitte Berater auswaehlen." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Bitte Berater auswählen." }, { status: 400 })
     }
 
     if (tippgeberUserId && caseType !== "baufi") {
       return NextResponse.json(
-        { ok: false, error: "Tippgeber-Zuweisung ist aktuell nur fuer Baufinanzierung verfuegbar." },
+        { ok: false, error: "Tippgeber-Zuweisung ist aktuell nur für Baufinanzierung verfügbar." },
         { status: 400 }
       )
     }
@@ -118,13 +118,13 @@ export async function POST(req: Request) {
 
     if (missingCommonFields || missingBaufiOnly) {
       return NextResponse.json(
-        { ok: false, error: "Bitte alle Pflichtfelder ausfuellen." },
+        { ok: false, error: "Bitte alle Pflichtfelder ausfüllen." },
         { status: 400 }
       )
     }
 
     if (!isEmail(email)) {
-      return NextResponse.json({ ok: false, error: "E-Mail ist ungueltig." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "E-Mail ist ungültig." }, { status: 400 })
     }
 
     const { data: advisorProfile } = await admin
@@ -240,17 +240,17 @@ export async function POST(req: Request) {
     const caseId = created.caseId
 
     const nextStepsHtml = buildEmailHtml({
-      title: `Naechste Schritte zu Ihrem ${productLabel(caseType)}`,
-      intro: "Vielen Dank. Ihre Anfrage wurde uebernommen und wir starten jetzt mit der Bearbeitung.",
+      title: `Nächste Schritte zu Ihrem ${productLabel(caseType)}`,
+      intro: "Vielen Dank. Ihre Anfrage wurde übernommen und wir starten jetzt mit der Bearbeitung.",
       steps: [
         "Ihr Berater meldet sich zeitnah bei Ihnen.",
-        "Sie koennen Unterlagen direkt im Kundenportal hochladen.",
-        "Bei Rueckfragen erreichen Sie uns jederzeit per E-Mail oder Telefon.",
+        "Sie können Unterlagen direkt im Kundenportal hochladen.",
+        "Bei Rückfragen erreichen Sie uns jederzeit per E-Mail oder Telefon.",
       ],
     })
     const nextStepsMail = await sendEmail({
       to: customer.email,
-      subject: `Naechste Schritte zum ${productLabel(caseType)}`,
+      subject: `Nächste Schritte zum ${productLabel(caseType)}`,
       html: nextStepsHtml,
     })
 
@@ -288,14 +288,14 @@ export async function POST(req: Request) {
 
       if (referralInsert.error) throw referralInsert.error
       const createdReferralId = referralInsert.data?.id ? String(referralInsert.data.id) : null
-      if (!createdReferralId) throw new Error("Tippgeber-Verknuepfung konnte nicht erstellt werden.")
+      if (!createdReferralId) throw new Error("Tippgeber-Verknüpfung konnte nicht erstellt werden.")
       tippgeberReferralId = createdReferralId
 
       await logCaseEvent({
         caseId,
         actorRole: "admin",
         type: "tippgeber_referral_linked",
-        title: "Tippgeber verknuepft",
+        title: "Tippgeber verknüpft",
         body: `${tippgeberCompanyName ?? "Tippgeber"} wurde dem Fall zugeordnet.`,
       })
     }
@@ -321,7 +321,7 @@ export async function POST(req: Request) {
       nextStepsMailSent: !!nextStepsMail.ok,
       advisorMailSent: !!advisorMail.ok,
       tippgeberReferralId,
-      message: `Lead angelegt, ${productLabel(caseType)}-Fall erstellt${tippgeberReferralId ? " und Tippgeber verknuepft" : ""} und Einladung versendet.`,
+      message: `Lead angelegt, ${productLabel(caseType)}-Fall erstellt${tippgeberReferralId ? " und Tippgeber verknüpft" : ""} und Einladung versendet.`,
     })
   } catch (e: unknown) {
     return NextResponse.json(
@@ -330,3 +330,5 @@ export async function POST(req: Request) {
     )
   }
 }
+
+

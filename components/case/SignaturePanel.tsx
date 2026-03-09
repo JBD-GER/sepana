@@ -384,7 +384,7 @@ export default function SignaturePanel({
 
   async function deleteSignedDocument(docId: string) {
     if (!canEdit) return
-    if (!confirm("Signiertes Dokument wirklich loeschen?")) return
+    if (!confirm("Signiertes Dokument wirklich löschen?")) return
     setBusy(true)
     setMsg(null)
     try {
@@ -394,7 +394,7 @@ export default function SignaturePanel({
         body: JSON.stringify({ id: docId }),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok || !json?.ok) throw new Error(json?.error || "Loeschen fehlgeschlagen")
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Löschen fehlgeschlagen")
       await refresh()
     } catch (e: any) {
       setMsg(e?.message ?? "Fehler")
@@ -407,7 +407,7 @@ export default function SignaturePanel({
     if (!canEdit) return
     if (
       !confirm(
-        "Dokument komplett loeschen? Dadurch werden Original, signierte Versionen, Felder und Eingaben entfernt."
+        "Dokument komplett löschen? Dadurch werden Original, signierte Versionen, Felder und Eingaben entfernt."
       )
     ) {
       return
@@ -421,7 +421,7 @@ export default function SignaturePanel({
         body: JSON.stringify({ id: requestId }),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok || !json?.ok) throw new Error(json?.error || "Loeschen fehlgeschlagen")
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Löschen fehlgeschlagen")
       await refresh()
     } catch (e: any) {
       setMsg(e?.message ?? "Fehler")
@@ -458,7 +458,7 @@ export default function SignaturePanel({
             onChange={(e) => setProviderId(e.target.value)}
             className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
           >
-            <option value="">Bank waehlen</option>
+            <option value="">Bank wählen</option>
             {providers.map((p) => (
               <option key={p.provider.id} value={p.provider.id}>
                 {p.provider.name}
@@ -475,7 +475,7 @@ export default function SignaturePanel({
             Original noetig
           </label>
           <label className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm">
-            Datei waehlen
+            Datei wählen
             <input
               type="file"
               className="hidden"
@@ -620,7 +620,7 @@ function SignatureRequestCard({
                         disabled={busy}
                         className="inline-flex w-full items-center justify-center rounded-full border border-rose-300 bg-white px-3 py-2 text-[11px] font-semibold text-rose-700 shadow-sm disabled:opacity-60 sm:w-auto"
                       >
-                        Loeschen
+                        Löschen
                       </button>
                     ) : null}
                   </div>
@@ -645,7 +645,7 @@ function SignatureRequestCard({
                           disabled={busy}
                           className="inline-flex items-center justify-center rounded-full border border-rose-300 bg-white px-2 py-1 text-[10px] font-semibold text-rose-700 disabled:opacity-60"
                         >
-                          Loeschen
+                          Löschen
                         </button>
                       ) : null}
                     </div>
@@ -665,7 +665,7 @@ function SignatureRequestCard({
               onClick={() => setEditorOpen(true)}
               className="w-full rounded-full border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 sm:w-auto sm:py-1"
             >
-              Editor oeffnen
+              Editor öffnen
             </button>
           ) : null}
           {canEdit ? (
@@ -675,7 +675,7 @@ function SignatureRequestCard({
               disabled={busy}
               className="w-full rounded-full border border-rose-300 bg-white px-3 py-2 text-[11px] font-semibold text-rose-700 disabled:opacity-60 sm:w-auto sm:py-1"
             >
-              Dokument komplett loeschen
+              Dokument komplett löschen
             </button>
           ) : null}
           {finalDoc && signedDownloadUrl ? (
@@ -1022,7 +1022,7 @@ function SignatureEditorModal({
 
             {canReopenCustomerSignature ? (
               <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                Nachtraegliche Felder sind aktiv. Mit dem Spezial-Button unten wird die Kundensignatur zurueckgesetzt
+                Nachträgliche Felder sind aktiv. Mit dem Spezial-Button unten wird die Kundensignatur zurueckgesetzt
                 und der Kunde per E-Mail erneut zur Unterschrift aufgefordert.
               </div>
             ) : null}
@@ -1112,7 +1112,7 @@ function SignatureEditorModal({
             {originalDoc ? (
               <div className="mt-2 text-xs text-slate-500">
                 <a className="hover:underline" href={fileUrl(originalDoc.file_path)} target="_blank">
-                  Dokument in neuem Tab oeffnen
+                  Dokument in neuem Tab öffnen
                 </a>
               </div>
             ) : null}
@@ -1142,7 +1142,7 @@ function SignatureEditorModal({
             ) : null}
             {originalDoc?.mime_type?.includes("pdf") && pdfError === "load_failed" ? (
               <div className="mt-2 text-xs text-rose-600">
-                PDF konnte nicht geladen werden. Bitte Datei pruefen.
+                PDF konnte nicht geladen werden. Bitte Datei prüfen.
                 {pdfErrorDetail ? <div className="mt-1 text-[11px] text-rose-500">{pdfErrorDetail}</div> : null}
               </div>
             ) : null}
@@ -1211,8 +1211,8 @@ function SignatureEditorModal({
                           }
                           type="number"
                           min={1}
-                          placeholder="Hoehe"
-                          aria-label="Hoehe"
+                          placeholder="Höhe"
+                          aria-label="Höhe"
                           className="rounded border border-slate-200 px-2 py-1 text-[11px]"
                         />
                         <button
@@ -1492,7 +1492,7 @@ function SignatureSignModal({
             {originalDoc ? (
               <div className="mt-2 text-xs text-slate-500">
                 <a className="hover:underline" href={fileUrl(originalDoc.file_path)} target="_blank">
-                  Dokument in neuem Tab oeffnen
+                  Dokument in neuem Tab öffnen
                 </a>
               </div>
             ) : null}
@@ -1522,7 +1522,7 @@ function SignatureSignModal({
             ) : null}
             {originalDoc?.mime_type?.includes("pdf") && pdfError === "load_failed" ? (
               <div className="mt-2 text-xs text-rose-600">
-                PDF konnte nicht geladen werden. Bitte Datei pruefen.
+                PDF konnte nicht geladen werden. Bitte Datei prüfen.
                 {pdfErrorDetail ? <div className="mt-1 text-[11px] text-rose-500">{pdfErrorDetail}</div> : null}
               </div>
             ) : null}
@@ -1904,3 +1904,5 @@ function ImagePage({
     />
   )
 }
+
+

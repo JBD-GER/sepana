@@ -1,4 +1,4 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import type { Metadata } from "next"
 import { headers } from "next/headers"
 import SuccessConfetti from "./ui/SuccessConfetti"
@@ -15,7 +15,7 @@ import {
 } from "@/lib/baufi/calc"
 
 export const metadata: Metadata = {
-  title: "Abschluss starten – Baufinanzierung",
+  title: "Abschluss starten - Baufinanzierung",
   robots: { index: false, follow: false },
 }
 
@@ -72,7 +72,7 @@ async function postJson<T>(path: string, body: any): Promise<T | null> {
   }
 }
 
-// ✅ nur Baufi-Dokumente
+// OK nur Baufi-Dokumente
 const BAUFI_DOCS: Array<{ title: string; required: boolean; sort: number }> = [
   { title: "Personalausweis (Vorder- & Rückseite)", required: true, sort: 10 },
   { title: "Letzte 3 Gehaltsabrechnungen", required: true, sort: 20 },
@@ -155,7 +155,7 @@ export default async function Page({
   const provider: Provider =
     selected?.provider || {
       id: "",
-      name: providerSlug || "—",
+      name: providerSlug || "-",
       slug: providerSlug,
       logo_horizontal_path: null,
       logo_icon_path: null,
@@ -176,7 +176,7 @@ export default async function Page({
 
   const zbind =
     term?.zinsbindung_min_years || term?.zinsbindung_max_years
-      ? `${term.zinsbindung_min_years ?? "—"}–${term.zinsbindung_max_years ?? "—"} Jahre`
+      ? `${term.zinsbindung_min_years ?? "-"}-${term.zinsbindung_max_years ?? "-"} Jahre`
       : "objektabhängig"
 
   const statusPill = product?.is_available_online ? "Online-Abschluss möglich" : "Abschluss mit Beratung"
@@ -189,11 +189,11 @@ export default async function Page({
     years: String(yearsNum),
   })
 
-  // ✅ WICHTIG: richtiges Next nach Login -> /app/faelle/[caseId]
+  // OK WICHTIG: richtiges Next nach Login -> /app/faelle/[caseId]
   const nextAfterLogin = caseId ? `/app/faelle/${encodeURIComponent(caseId)}` : "/app/faelle"
   const loginHref = buildHref("/login", { next: nextAfterLogin })
 
-  // ✅ Temp-Angebot Snapshot speichern (für Berater)
+  // OK Temp-Angebot Snapshot speichern (für Berater)
   if (caseId && provider?.id) {
     await postJson("/api/baufi/offer-preview", {
       caseId,
@@ -263,10 +263,10 @@ export default async function Page({
               </div>
               <div className="min-w-0">
                 <h1 className="text-2xl font-semibold leading-tight text-slate-900 sm:text-3xl">
-                  Super – Sie haben Ihre Bank ausgewählt.
+                  Super - Sie haben Ihre Bank ausgewählt.
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm text-slate-600 sm:text-base">
-                  Sie haben eine <span className="font-medium text-slate-900">E-Mail</span> erhalten – darüber legen Sie
+                  Sie haben eine <span className="font-medium text-slate-900">E-Mail</span> erhalten - darüber legen Sie
                   einmalig Ihr Konto an. Danach loggen Sie sich ein und laden die Unterlagen hoch. Anschließend prüfen
                   wir alles vor und melden uns innerhalb von{" "}
                   <span className="font-medium text-slate-900">24 Stunden telefonisch</span>.
@@ -334,7 +334,7 @@ export default async function Page({
             <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white/60 px-3 py-2">
               <div className="text-[11px] text-slate-600">Fall</div>
               <div className="mt-0.5 text-xs text-slate-700 break-all">
-                Case-ID: {caseId || "—"} · Fall-Ref: {metricsRes?.caseRef || caseRef || "—"}
+                Case-ID: {caseId || "-"} · Fall-Ref: {metricsRes?.caseRef || caseRef || "-"}
               </div>
             </div>
           </div>
@@ -342,7 +342,7 @@ export default async function Page({
 
         <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
           <div className="rounded-3xl border border-white/60 bg-white/55 p-4 shadow-sm backdrop-blur-xl">
-            <div className="text-sm font-medium text-slate-900">So geht’s jetzt weiter</div>
+            <div className="text-sm font-medium text-slate-900">So geht's jetzt weiter</div>
 
             <ol className="mt-3 space-y-3 text-sm text-slate-700">
               <li className="flex gap-3">
@@ -350,7 +350,7 @@ export default async function Page({
                   1
                 </span>
                 <span>
-                  Sie haben eine <span className="font-medium text-slate-900">E-Mail</span> erhalten – dort legen Sie Ihr Konto an (einmalig).
+                  Sie haben eine <span className="font-medium text-slate-900">E-Mail</span> erhalten - dort legen Sie Ihr Konto an (einmalig).
                 </span>
               </li>
 
@@ -394,7 +394,7 @@ export default async function Page({
           <div className="rounded-3xl border border-white/60 bg-white/55 p-4 shadow-sm backdrop-blur-xl">
             <div className="text-sm font-medium text-slate-900">Benötigte Dokumente (Baufinanzierung)</div>
             <p className="mt-1 text-xs text-slate-600">
-              Bitte laden Sie die Unterlagen nach dem Login hoch – das beschleunigt die Prüfung deutlich.
+              Bitte laden Sie die Unterlagen nach dem Login hoch - das beschleunigt die Prüfung deutlich.
             </p>
 
             <ul className="mt-3 space-y-2">
@@ -422,3 +422,6 @@ export default async function Page({
     </div>
   )
 }
+
+
+

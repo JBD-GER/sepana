@@ -1,4 +1,4 @@
-// lib/baufi/calc.ts
+﻿// lib/baufi/calc.ts
 export function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
 }
@@ -22,7 +22,7 @@ export function formatPct(n: number, digits = 2) {
 
 /**
  * Pick APR aus Term-Daten.
- * Für Baufinanzierung sind viele Felder null → fallback sauber.
+ * Für Baufinanzierung sind viele Felder null -> fallback sauber.
  */
 export function pickAprPercent(term: any) {
   const from = toNumber(term?.apr_from)
@@ -47,7 +47,7 @@ export function personalizeApr(baseApr: number, surplusRatio: number) {
   return clamp(baseApr + delta, 0.5, 12)
 }
 
-/** deterministischer Hash → gleiche Bank = gleiche Variation */
+/** deterministischer Hash -> gleiche Bank = gleiche Variation */
 function hash01(s: string) {
   let h = 2166136261
   for (let i = 0; i < s.length; i++) {
@@ -105,3 +105,6 @@ export function monthlyFromAprAndTilgung(opts: { principal: number; aprPercent: 
     tilgungPctEff,
   }
 }
+
+
+

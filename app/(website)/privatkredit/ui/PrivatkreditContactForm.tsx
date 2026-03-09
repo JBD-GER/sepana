@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useMemo, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
@@ -249,3 +249,4 @@ export default function PrivatkreditContactForm() {
     </section>
   )
 }
+

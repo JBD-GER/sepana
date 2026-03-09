@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
@@ -180,7 +180,7 @@ export default function SelectionSummaryEditor({
         >
           {open ? "Bearbeitung schliessen" : "Daten bearbeiten"}
         </button>
-        <div className="text-xs text-slate-500">Smart Gate: Aendern nur mit Fall-Referenz-Bestaetigung.</div>
+        <div className="text-xs text-slate-500">Smart Gate: Ändern nur mit Fall-Referenz-Bestätigung.</div>
       </div>
 
       {open ? (
@@ -267,7 +267,7 @@ export default function SelectionSummaryEditor({
 
               <div className="text-xs text-slate-500">
                 Hinweis: Diese Werte aktualisieren die Vergleichslogik sofort. Angaben zu weiteren Kreditnehmern bleiben
-                unveraendert.
+                unverändert.
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -277,7 +277,7 @@ export default function SelectionSummaryEditor({
                   disabled={busy}
                   className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {busy ? "Speichere..." : "Aenderungen speichern"}
+                  {busy ? "Speichere..." : "Änderungen speichern"}
                 </button>
                 {error ? <div className="text-xs text-rose-700">{error}</div> : null}
                 {okMsg ? <div className="text-xs text-emerald-700">{okMsg}</div> : null}
@@ -291,3 +291,5 @@ export default function SelectionSummaryEditor({
     </div>
   )
 }
+
+

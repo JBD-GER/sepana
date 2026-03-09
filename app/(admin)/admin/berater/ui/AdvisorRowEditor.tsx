@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -70,7 +70,7 @@ export default function AdvisorRowEditor({
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error || "Speichern fehlgeschlagen")
-      setMsg("Gespeichert ✅")
+      setMsg("Gespeichert OK")
       setEdit(false)
     } catch (e: any) {
       setMsg(e?.message ?? "Fehler")
@@ -203,11 +203,11 @@ export default function AdvisorRowEditor({
         {!edit ? (
           <div className="rounded-2xl border border-slate-300 bg-white p-4">
             <div className="text-xs text-slate-500">Name</div>
-            <div className="text-sm font-semibold text-slate-900">{name || "—"}</div>
+            <div className="text-sm font-semibold text-slate-900">{name || "-"}</div>
             <div className="mt-2 text-xs text-slate-500">Telefon</div>
-            <div className="text-sm text-slate-700">{phone || "—"}</div>
+            <div className="text-sm text-slate-700">{phone || "-"}</div>
             <div className="mt-2 text-xs text-slate-500">Text</div>
-            <div className="text-sm text-slate-700">{bio || "—"}</div>
+            <div className="text-sm text-slate-700">{bio || "-"}</div>
           </div>
         ) : (
           <div className="grid gap-3">
@@ -285,7 +285,7 @@ export default function AdvisorRowEditor({
             className="rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-md disabled:opacity-60"
             style={{ background: `linear-gradient(135deg, ${ACCENT}, #142a57)` }}
           >
-            {busy ? "…" : "Speichern"}
+            {busy ? "..." : "Speichern"}
           </button>
           <button
             onClick={() => setConfirmDelete(true)}
@@ -320,3 +320,5 @@ export default function AdvisorRowEditor({
     </div>
   )
 }
+
+

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useMemo, useState } from "react"
 import { getCountryOptions } from "@/lib/countries"
@@ -46,7 +46,7 @@ type ChildRow = {
 
 const PROPERTY_ADDRESS_OPTIONS = [
   { value: "property", label: "Immobilienadresse" },
-  { value: "plot", label: "Grundstuecksadresse" },
+  { value: "plot", label: "Grundstücksadresse" },
 ]
 
 const SALARY_PAYMENTS_OPTIONS = ["12", "12.5", "13", "13.5", "14", "14.5"]
@@ -146,7 +146,7 @@ export default function ExtraDataForm({ caseId, caseRef }: { caseId: string; cas
     <div className="mt-6 rounded-3xl border border-white/60 bg-white/70 p-5 shadow-sm backdrop-blur-xl">
       <div className="text-sm font-semibold text-slate-900">100% digitaler Abschluss</div>
       <p className="mt-1 text-xs text-slate-600">
-        Bitte ergaenzen Sie die folgenden Daten. Damit kann Ihr Berater den digitalen Abschluss starten.
+        Bitte ergänzen Sie die folgenden Daten. Damit kann Ihr Berater den digitalen Abschluss starten.
       </p>
 
       <div className="mt-4 grid grid-cols-1 gap-4">
@@ -175,7 +175,7 @@ export default function ExtraDataForm({ caseId, caseRef }: { caseId: string; cas
         </div>
 
         <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4">
-          <div className="text-xs font-semibold text-slate-700">Immobilien- / Grundstuecksadresse</div>
+          <div className="text-xs font-semibold text-slate-700">Immobilien- / Grundstücksadresse</div>
           <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-3">
             <label className="text-xs text-slate-600">
               Adressart
@@ -184,7 +184,7 @@ export default function ExtraDataForm({ caseId, caseRef }: { caseId: string; cas
                 onChange={(e) => updateAdditional("property_address_type", e.target.value)}
                 className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
               >
-                <option value="">Bitte waehlen</option>
+                <option value="">Bitte wählen</option>
                 {PROPERTY_ADDRESS_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
@@ -225,7 +225,7 @@ export default function ExtraDataForm({ caseId, caseRef }: { caseId: string; cas
               />
             </label>
             <label className="text-xs text-slate-600">
-              Grundstuecksgroesse
+              Grundstücksgröße
               <input
                 value={toInput(additional.property_plot_size)}
                 onChange={(e) => updateAdditional("property_plot_size", e.target.value)}
@@ -240,13 +240,13 @@ export default function ExtraDataForm({ caseId, caseRef }: { caseId: string; cas
           <div className="text-xs font-semibold text-slate-700">Legitimation</div>
           <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-3">
             <label className="text-xs text-slate-600">
-              Staatsangehoerigkeit
+              Staatsangehörigkeit
               <select
                 value={toInput(primary.nationality)}
                 onChange={(e) => updatePrimary("nationality", e.target.value)}
                 className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
               >
-                <option value="">Bitte waehlen</option>
+                <option value="">Bitte wählen</option>
                 {countryOptions.map((country) => (
                   <option key={country.code} value={country.code}>
                     {country.label}
@@ -311,7 +311,7 @@ export default function ExtraDataForm({ caseId, caseRef }: { caseId: string; cas
                 onChange={(e) => updateAdditional("current_warm_rent_none", e.target.checked)}
                 className="h-4 w-4 rounded border-slate-300 text-slate-900"
               />
-              Entfaellt
+              Entfällt
             </label>
             <label className="text-xs text-slate-600">
               Geburtsort
@@ -349,13 +349,13 @@ export default function ExtraDataForm({ caseId, caseRef }: { caseId: string; cas
               />
             </label>
             <label className="text-xs text-slate-600">
-              Anzahl Gehaelter
+              Anzahl Gehälter
               <select
                 value={toInput(additional.salary_payments_per_year)}
                 onChange={(e) => updateAdditional("salary_payments_per_year", e.target.value)}
                 className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
               >
-                <option value="">Bitte waehlen</option>
+                <option value="">Bitte wählen</option>
                 {SALARY_PAYMENTS_OPTIONS.map((o) => (
                   <option key={o} value={o}>
                     {o}
@@ -364,7 +364,7 @@ export default function ExtraDataForm({ caseId, caseRef }: { caseId: string; cas
               </select>
             </label>
             <label className="text-xs text-slate-600">
-              Haushaltsgroesse
+              Haushaltsgröße
               <input
                 value={toInput(additional.household_persons)}
                 onChange={(e) => updateAdditional("household_persons", e.target.value)}
@@ -508,3 +508,6 @@ export default function ExtraDataForm({ caseId, caseRef }: { caseId: string; cas
     </div>
   )
 }
+
+
+

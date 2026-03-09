@@ -96,14 +96,14 @@ export default async function AdvisorConfirmedCasesPage({
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">Bestaetigte Faelle</h1>
+            <h1 className="text-2xl font-semibold text-slate-900">Bestätigte Fälle</h1>
             <p className="mt-1 text-sm text-slate-600">
-              Bereich: {productLabel}. Diese Faelle wurden von der Bank bestaetigt. Provisionsmodell: 30 % der intern
-              erfassten Provision (nicht vom bestaetigten Volumen).
+              Bereich: {productLabel}. Diese Fälle wurden von der Bank bestätigt. Provisionsmodell: 30 % der intern
+              erfassten Provision (nicht vom bestätigten Volumen).
             </p>
             {missingCommissionCount > 0 ? (
               <p className="mt-2 text-xs text-amber-700">
-                Hinweis: {missingCommissionCount} bestaetigte(r) Fall/Faelle ohne erfasste interne Provision (werden aktuell mit 0 EUR gerechnet).
+                Hinweis: {missingCommissionCount} bestätigte(r) Fall/Fälle ohne erfasste interne Provision (werden aktuell mit 0 EUR gerechnet).
               </p>
             ) : null}
           </div>
@@ -111,7 +111,7 @@ export default async function AdvisorConfirmedCasesPage({
             href={`/advisor/faelle?product=${product}`}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
           >
-            Aktive Faelle
+            Aktive Fälle
           </Link>
         </div>
       </div>
@@ -143,7 +143,7 @@ export default async function AdvisorConfirmedCasesPage({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
-          <div className="text-xs text-slate-500">Bestaetigte Faelle</div>
+          <div className="text-xs text-slate-500">Bestätigte Fälle</div>
           <div className="text-lg font-semibold text-slate-900">{confirmedCases}</div>
         </div>
         <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
@@ -177,7 +177,7 @@ export default async function AdvisorConfirmedCasesPage({
               className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm hover:bg-slate-50/40"
             >
               <div className="text-sm font-semibold text-slate-900">Fall {row.case_ref || row.id.slice(0, 8)}</div>
-              <div className="mt-1 text-xs text-slate-500">Bank bestaetigt: {formatDateTime(row.confirmed_at)}</div>
+              <div className="mt-1 text-xs text-slate-500">Bank bestätigt: {formatDateTime(row.confirmed_at)}</div>
               <div className="mt-2 text-xs text-slate-600">Bank: {providerName}</div>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <div className="rounded-xl border border-slate-200/70 bg-slate-50 px-3 py-2">
@@ -196,13 +196,13 @@ export default async function AdvisorConfirmedCasesPage({
       </div>
 
       <div className="hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm lg:block">
-        <div className="text-sm font-medium text-slate-900">Uebersicht bestaetigter Faelle</div>
+        <div className="text-sm font-medium text-slate-900">Übersicht bestätigter Fälle</div>
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70">
           <table className="w-full text-left text-sm">
             <thead className="bg-white/80 backdrop-blur">
               <tr className="border-b border-slate-200/70">
                 <th className="px-4 py-3 font-medium text-slate-700">Fall</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Bestaetigt am</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Bestätigt am</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Bank</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Volumen</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Anteil 30 %</th>
@@ -237,7 +237,7 @@ export default async function AdvisorConfirmedCasesPage({
               {cases.length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-slate-500" colSpan={5}>
-                    Noch keine bestaetigten Faelle vorhanden.
+                    Noch keine bestätigten Fälle vorhanden.
                   </td>
                 </tr>
               ) : null}
@@ -248,3 +248,5 @@ export default async function AdvisorConfirmedCasesPage({
     </div>
   )
 }
+
+

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import Link from "next/link"
 import Image from "next/image"
@@ -12,9 +12,9 @@ function cn(...classes: Array<string | false | null | undefined>) {
 
 const NAV = [
   { href: "/advisor", label: "Dashboard" },
-  { href: "/advisor/faelle", label: "Faelle" },
+  { href: "/advisor/faelle", label: "Fälle" },
   { href: "/advisor/leads", label: "Leads" },
-  { href: "/advisor/faelle/bestaetigt", label: "Bestaetigt" },
+  { href: "/advisor/faelle/bestaetigt", label: "Bestätigt" },
   { href: "/advisor/termine", label: "Termine" },
 ]
 
@@ -102,7 +102,7 @@ export default function AdvisorHeader() {
           ref={btnRef}
           type="button"
           aria-expanded={open}
-          aria-label={open ? "Menue schliessen" : "Menue oeffnen"}
+          aria-label={open ? "Menü schliessen" : "Menü öffnen"}
           onClick={() => setOpen((v) => !v)}
           className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200/80 bg-white text-slate-900 shadow-sm transition hover:bg-slate-50 md:hidden"
         >
@@ -144,3 +144,5 @@ export default function AdvisorHeader() {
     </header>
   )
 }
+
+

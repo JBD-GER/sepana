@@ -226,7 +226,7 @@ export async function POST(req: Request) {
                 fields: Array.isArray(reqFull.fields) ? reqFull.fields : [],
                 values: valuesByRole,
                 events: (events ?? []) as any,
-                auditTitle: `${reqFull.title} Â· ${reqFull.case_id}`,
+                auditTitle: `${reqFull.title} · ${reqFull.case_id}`,
               })
             } catch {
               finalBytes = null
@@ -259,3 +259,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
 }
+

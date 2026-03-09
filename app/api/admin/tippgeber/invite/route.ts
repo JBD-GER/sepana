@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { isEmail } from "@/lib/tippgeber/service"
@@ -112,3 +112,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
+

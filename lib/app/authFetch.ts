@@ -1,4 +1,4 @@
-// lib/app/authFetch.ts
+﻿// lib/app/authFetch.ts
 import { cookies, headers } from "next/headers"
 
 function serializeCookies(all: Array<{ name: string; value: string }>) {
@@ -41,3 +41,4 @@ export async function authFetch(path: string, init?: RequestInit) {
     cache: "no-store",
   })
 }
+

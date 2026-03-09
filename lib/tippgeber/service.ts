@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
+﻿import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { buildEmailHtml, getCaseMeta, sendEmail } from "@/lib/notifications/notify"
 import {
   calculateTippgeberCommission,
@@ -430,3 +430,5 @@ export function buildTippgeberCreditNoteDownloadUrl(opts: { referralId: string }
   const base = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL)
   return `${base}/api/tippgeber/files?referralId=${encodeURIComponent(opts.referralId)}&kind=credit_note&download=1`
 }
+
+

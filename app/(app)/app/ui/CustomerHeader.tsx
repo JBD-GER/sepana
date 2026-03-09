@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import Link from "next/link"
 import Image from "next/image"
@@ -183,7 +183,7 @@ export default function CustomerHeader({ initialEmail }: { initialEmail?: string
             </button>
 
             <p className="pt-2 text-xs text-slate-500">
-              Alles mobil optimiert – klar und übersichtlich.
+              Alles mobil optimiert - klar und übersichtlich.
             </p>
           </div>
         </div>
@@ -191,3 +191,4 @@ export default function CustomerHeader({ initialEmail }: { initialEmail?: string
     </header>
   )
 }
+

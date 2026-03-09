@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -567,7 +567,7 @@ export default function ProviderRowEditor({ initial }: { initial: ProviderAdminI
                       />
                     </div>
                     <div className="grid gap-1 xl:col-span-1">
-                      <label className="text-xs text-slate-600">Hinweis Ratenaenderung</label>
+                      <label className="text-xs text-slate-600">Hinweis Ratenänderung</label>
                       <textarea
                         value={p.term.repayment_change_note}
                         onChange={(e) => updateTerm(productType, "repayment_change_note", e.target.value)}
@@ -590,3 +590,4 @@ export default function ProviderRowEditor({ initial }: { initial: ProviderAdminI
     </div>
   )
 }
+

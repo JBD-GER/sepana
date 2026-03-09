@@ -1,4 +1,4 @@
-import Image from "next/image"
+﻿import Image from "next/image"
 import Link from "next/link"
 import WebsiteReviewsOverviewCard from "../WebsiteReviewsOverviewCard"
 import {
@@ -24,7 +24,7 @@ type FinanzpartnerLandingProps = {
 const VALUE_ITEMS = [
   {
     title: "Finanzpartner statt Formularflut",
-    text: "SEPANA denkt Ihren Fall mit – von der Produktauswahl bis zur strukturierten Weitergabe in die richtigen nächsten Schritte.",
+    text: "SEPANA denkt Ihren Fall mit - von der Produktauswahl bis zur strukturierten Weitergabe in die richtigen nächsten Schritte.",
   },
   {
     title: "Klarer Start in die Kreditanfrage",
@@ -32,7 +32,7 @@ const VALUE_ITEMS = [
   },
   {
     title: "Beratung, Struktur und Ergebnis im Fokus",
-    text: "Digitale Prozesse unterstützen die Anfrage – im Vordergrund stehen Orientierung, Klarheit und persönliche Begleitung.",
+    text: "Digitale Prozesse unterstützen die Anfrage - im Vordergrund stehen Orientierung, Klarheit und persönliche Begleitung.",
   },
 ]
 
@@ -205,3 +205,5 @@ export default function FinanzpartnerLanding({ bankPartnerLogos = [] }: Finanzpa
     </div>
   )
 }
+
+

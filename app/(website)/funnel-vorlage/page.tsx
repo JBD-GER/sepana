@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import Link from "next/link"
 import BaufiLeadFunnel from "../baufinanzierung/anfrage/ui/BaufiLeadFunnel"
 import WebsiteReviewsOverviewCard from "../components/WebsiteReviewsOverviewCard"
@@ -7,12 +7,12 @@ import { getPublishedWebsiteReviewSummarySet } from "@/lib/websiteReviews"
 export const metadata: Metadata = {
   title: "Finanzierungsanfrage | SEPANA",
   description:
-    "Offizielle Finanzierungsanfrage fuer Baufinanzierung: Bedarf erfassen, Kontaktdaten senden und direkte Rueckmeldung erhalten.",
+    "Offizielle Finanzierungsanfrage für Baufinanzierung: Bedarf erfassen, Kontaktdaten senden und direkte Rückmeldung erhalten.",
   alternates: { canonical: "/funnel-vorlage" },
   openGraph: {
     title: "Finanzierungsanfrage | SEPANA",
     description:
-      "Finanzierungsbedarf direkt anfragen, Daten absenden und die naechsten Schritte mit SEPANA abstimmen.",
+      "Finanzierungsbedarf direkt anfragen, Daten absenden und die nächsten Schritte mit SEPANA abstimmen.",
     url: "/funnel-vorlage",
     type: "website",
   },
@@ -41,19 +41,19 @@ const PROCESS_STEPS = [
     text: "Mit wenigen Pflichtfeldern senden Sie Ihre Anfrage. Kein langes Formular, kein Dokumentenupload im ersten Schritt.",
   },
   {
-    title: "3. Rueckmeldung erhalten",
-    text: "Sie erhalten eine Bestaetigung per E-Mail. Anschliessend meldet sich SEPANA mit einer ersten Einschaetzung.",
+    title: "3. Rückmeldung erhalten",
+    text: "Sie erhalten eine Bestätigung per E-Mail. Anschließend meldet sich SEPANA mit einer ersten Einschätzung.",
   },
   {
-    title: "4. Naechste Schritte klaeren",
+    title: "4. Nächste Schritte klären",
     text: "Wenn es passt, gehen wir in den Vergleich und begleiten die Umsetzung bis zum Abschluss.",
   },
 ] as const
 
 const TRUST_POINTS = [
   "Datenschutz-Einwilligung direkt im Formular integriert.",
-  "Nach Absenden Weiterleitung auf die Danke-Seite fuer Conversion-Tracking.",
-  "Bestaetigungs-E-Mail an Kundinnen und Kunden sowie Benachrichtigung an SEPANA.",
+  "Nach Absenden Weiterleitung auf die Danke-Seite für Conversion-Tracking.",
+  "Bestätigungs-E-Mail an Kundinnen und Kunden sowie Benachrichtigung an SEPANA.",
 ] as const
 
 type SearchParams = Record<string, string | string[] | undefined>
@@ -136,7 +136,7 @@ export default async function FunnelVorlagePage({
                   </li>
                   <li className="flex gap-2">
                     <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-900" />
-                    <span>Persoenliche Rueckmeldung statt Standardstrecke</span>
+                    <span>Persönliche Rückmeldung statt Standardstrecke</span>
                   </li>
                 </ul>
               </div>
@@ -170,7 +170,7 @@ export default async function FunnelVorlagePage({
       <section className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
         <div className="mb-5">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Ablauf</div>
-          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">So laeuft die Anfrage ab</h2>
+          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">So läuft die Anfrage ab</h2>
         </div>
 
         <div className="grid gap-3 lg:grid-cols-2">
@@ -187,7 +187,7 @@ export default async function FunnelVorlagePage({
         <WebsiteReviewsOverviewCard
           eyebrow="Bewertung"
           title="So bewerten uns Kundinnen und Kunden"
-          description="Zusammenfassung der veroeffentlichten Bewertungen auf SEPANA in einer kompakten Uebersicht."
+          description="Zusammenfassung der veröffentlichten Bewertungen auf SEPANA in einer kompakten Übersicht."
           ctaHref="/bewertungen"
           ctaLabel="Bewertungen ansehen"
           summary={reviewSummary}
@@ -197,7 +197,7 @@ export default async function FunnelVorlagePage({
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Bewertung</div>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Bewertungen</h2>
           <p className="mt-3 text-sm leading-relaxed text-slate-600">
-            Bewertungsdaten werden hier angezeigt, sobald veroeffentlichte Stimmen geladen werden koennen.
+            Bewertungsdaten werden hier angezeigt, sobald veröffentlichte Stimmen geladen werden können.
           </p>
         </section>
       )}
@@ -206,12 +206,12 @@ export default async function FunnelVorlagePage({
         <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Ueber uns</div>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">SEPANA begleitet die Finanzierung strukturiert und persoenlich</h2>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">SEPANA begleitet die Finanzierung strukturiert und persönlich</h2>
             <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-              Wir kombinieren digitale Anfrageprozesse mit persoenlicher Rueckmeldung. So erhalten Sie schnell eine erste Orientierung und im Anschluss einen klaren naechsten Schritt statt eines anonymen Standardformulars.
+              Wir kombinieren digitale Anfrageprozesse mit persönlicher Rückmeldung. So erhalten Sie schnell eine erste Orientierung und im Anschluss einen klaren nächsten Schritt statt eines anonymen Standardformulars.
             </p>
             <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-              Ziel dieser Seite ist eine saubere Erstaufnahme: kurz genug fuer eine hohe Conversion und zugleich strukturiert genug, damit wir Ihre Anfrage direkt sinnvoll einordnen koennen.
+              Ziel dieser Seite ist eine saubere Erstaufnahme: kurz genug für eine hohe Conversion und zugleich strukturiert genug, damit wir Ihre Anfrage direkt sinnvoll einordnen können.
             </p>
           </div>
 
@@ -222,11 +222,11 @@ export default async function FunnelVorlagePage({
             </article>
             <article className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Lead-Prozess</div>
-              <p className="mt-2 text-sm text-slate-700">Anfrage wird als Lead gespeichert und fuer das Admin-Team sichtbar eingespielt.</p>
+              <p className="mt-2 text-sm text-slate-700">Anfrage wird als Lead gespeichert und für das Admin-Team sichtbar eingespielt.</p>
             </article>
             <article className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Kommunikation</div>
-              <p className="mt-2 text-sm text-slate-700">Bestaetigung an Kunden plus Benachrichtigung intern; danach Weiterleitung auf die Danke-Seite.</p>
+              <p className="mt-2 text-sm text-slate-700">Bestätigung an Kunden plus Benachrichtigung intern; danach Weiterleitung auf die Danke-Seite.</p>
             </article>
           </div>
         </div>
@@ -234,3 +234,5 @@ export default async function FunnelVorlagePage({
     </div>
   )
 }
+
+

@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 
 export const metadata: Metadata = {
   title: "AGB",
@@ -90,3 +90,5 @@ export default function AgbPage() {
     </div>
   )
 }
+
+

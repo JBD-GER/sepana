@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import SystemStatusBoard from "../components/SystemStatusBoard"
 
 export const metadata: Metadata = {
@@ -27,3 +27,5 @@ export default function StatusPage() {
     </div>
   )
 }
+
+

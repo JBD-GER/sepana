@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -67,13 +67,13 @@ export default function OfferEditor({
       const latest = (offers[0]?.status ?? null) as OfferStatus
       setStatus(latest)
       if (latest === "accepted") {
-        setStatusNote("Angebot wurde angenommen. Kein weiteres Angebot moeglich.")
+        setStatusNote("Angebot wurde angenommen. Kein weiteres Angebot möglich.")
       } else if (latest === "draft") {
         setStatusNote("Angebot wurde als Entwurf erstellt. Erst nach Status 'Abgeschickt' sieht es der Kunde.")
       } else if (latest === "sent") {
         setStatusNote("Angebot ist gesendet. Warte auf Feedback vom Kunden.")
       } else if (latest === "rejected") {
-        setStatusNote("Angebot wurde abgelehnt. Neues Angebot moeglich.")
+        setStatusNote("Angebot wurde abgelehnt. Neues Angebot möglich.")
       } else {
         setStatusNote(null)
       }
@@ -82,7 +82,7 @@ export default function OfferEditor({
 
   async function submit() {
     if (!providerId) {
-      setMsg("Bitte Bank auswaehlen.")
+      setMsg("Bitte Bank auswählen.")
       return
     }
     setMsg(null)
@@ -124,7 +124,7 @@ export default function OfferEditor({
     <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
       <div className="text-sm font-medium text-slate-900">Finales Angebot erstellen</div>
       <p className="mt-1 text-xs text-slate-600">
-        Du kannst mehrere finale Angebote anlegen. Sichtbar fuer den Kunden erst mit Status &quot;Abgeschickt&quot;.
+        Du kannst mehrere finale Angebote anlegen. Sichtbar für den Kunden erst mit Status &quot;Abgeschickt&quot;.
       </p>
 
       {statusNote ? <div className="mt-2 text-xs text-slate-600">{statusNote}</div> : null}
@@ -139,7 +139,7 @@ export default function OfferEditor({
             disabled={busy || blocked}
             className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
           >
-            <option value="">Bitte auswaehlen</option>
+            <option value="">Bitte auswählen</option>
             {providers.map((p) => (
               <option key={p.provider.id} value={p.provider.id}>
                 {p.provider.name}
@@ -269,3 +269,4 @@ export default function OfferEditor({
     </div>
   )
 }
+

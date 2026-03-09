@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -19,31 +19,31 @@ type LiveQueueUpdate = {
 }
 
 const BAUFI_FACTS = [
-  "Eine laengere Zinsbindung gibt mehr Planungssicherheit, ist aber meist etwas teurer.",
-  "Schon 0,2 % Zinsunterschied koennen ueber die Laufzeit viele tausend Euro ausmachen.",
+  "Eine längere Zinsbindung gibt mehr Planungssicherheit, ist aber meist etwas teurer.",
+  "Schon 0,2 % Zinsunterschied können über die Laufzeit viele tausend Euro ausmachen.",
   "Mehr Eigenkapital verbessert in der Regel die Konditionen deutlich.",
-  "Die Haushaltsrechnung ist fuer Banken oft wichtiger als Einzelwerte im Formular.",
-  "Sondertilgungen geben Flexibilitaet bei Gehaltserhoehungen oder Boni.",
-  "Ein realistischer Puffer fuer Nebenkosten hilft gegen spaetere Engpaesse.",
-  "Bereitstellungszinsen koennen bei Bauprojekten relevant werden.",
-  "Forward-Darlehen sichern fruehzeitig heutige Konditionen fuer die Zukunft.",
-  "Der Effektivzins ist meist aussagekraeftiger als nur der Sollzins.",
-  "Region, Objektart und Bonitaet beeinflussen die Bankenbewertung stark.",
-  "Eine solide Anschlussfinanzierungsstrategie spart spaeter oft viel Geld.",
-  "Auch kleine bestehende Kredite beeinflussen die Gesamttragfaehigkeit.",
+  "Die Haushaltsrechnung ist für Banken oft wichtiger als Einzelwerte im Formular.",
+  "Sondertilgungen geben Flexibilität bei Gehaltserhöhungen oder Boni.",
+  "Ein realistischer Puffer für Nebenkosten hilft gegen spätere Engpässe.",
+  "Bereitstellungszinsen können bei Bauprojekten relevant werden.",
+  "Forward-Darlehen sichern frühzeitig heutige Konditionen für die Zukunft.",
+  "Der Effektivzins ist meist aussagekräftiger als nur der Sollzins.",
+  "Region, Objektart und Bonität beeinflussen die Bankenbewertung stark.",
+  "Eine solide Anschlussfinanzierungsstrategie spart später oft viel Geld.",
+  "Auch kleine bestehende Kredite beeinflussen die Gesamttragfähigkeit.",
   "Ein sauberer, aktueller Unterlagenstand beschleunigt den Entscheidungsprozess.",
-  "Nicht nur der Preis, auch die Vertragsflexibilitaet ist wichtig.",
-  "Tilgungswechsel kann bei veraendertem Einkommen hilfreich sein.",
+  "Nicht nur der Preis, auch die Vertragsflexibilität ist wichtig.",
+  "Tilgungswechsel kann bei verändertem Einkommen hilfreich sein.",
   "Familienplanung sollte bei Laufzeit und Rate mitbedacht werden.",
-  "KfW-Programme koennen je nach Vorhaben interessante Bausteine sein.",
-  "Eine zu knappe Rate kann spaeter zu Nachfinanzierungsdruck fuehren.",
-  "Banken schauen auf Stabilitaet von Einkommen und Beschaeftigung.",
-  "Auch kleine Schufa-Themen koennen den Zinssatz beeinflussen.",
+  "KfW-Programme können je nach Vorhaben interessante Bausteine sein.",
+  "Eine zu knappe Rate kann später zu Nachfinanzierungsdruck fuehren.",
+  "Banken schauen auf Stabilität von Einkommen und Beschäftigung.",
+  "Auch kleine Schufa-Themen können den Zinssatz beeinflussen.",
   "Bei Neubau sind Zeitplanung und Abrufstrategie besonders wichtig.",
   "Nebenkosten wie Notar, Steuer und Makler sollten voll eingeplant sein.",
   "Ein realistischer Beleihungsauslauf verbessert oft den Zinssatz.",
   "Vergleichbar wird ein Angebot erst mit denselben Laufzeit- und Tilgungsparametern.",
-  "Fragen zur Bankrueckmeldung am besten sofort mit dem Berater klaeren.",
+  "Fragen zur Bankrückmeldung am besten sofort mit dem Berater klären.",
 ] as const
 
 export default function CustomerQueue({
@@ -273,7 +273,7 @@ export default function CustomerQueue({
       <div className="space-y-3 text-sm text-slate-700">
         <div>Die Live-Beratung wurde beendet.</div>
         <a href={backHref} className="text-sm font-medium text-slate-900 underline underline-offset-4">
-          {backLabel || "Zurueck zur Auswahl"}
+          {backLabel || "Zurück zur Auswahl"}
         </a>
       </div>
     )
@@ -294,7 +294,7 @@ export default function CustomerQueue({
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
         <div className="font-semibold text-slate-900">Wichtiger Hinweis</div>
         <div className="mt-1">
-          Bitte verlassen Sie dieses Fenster nicht. In wenigen Minuten geht es los - Ihr Berater ist aktuell noch im aktiven Gespraech.
+          Bitte verlassen Sie dieses Fenster nicht. In wenigen Minuten geht es los - Ihr Berater ist aktuell noch im aktiven Gespräch.
         </div>
         <div className="mt-2 text-xs text-slate-600">
           Sobald der Berater frei ist, starten wir die Live-Beratung automatisch.
@@ -321,3 +321,5 @@ export default function CustomerQueue({
     </div>
   )
 }
+
+

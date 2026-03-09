@@ -40,7 +40,7 @@ export default function AdvisorCaseRefEditor({
         <div>
           <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Vorgangsnummer</div>
           <div className="mt-1 text-sm text-slate-600">
-            Fuegt eine externe Vorgangsnummer hinzu, um den Fall spaeter sicher zuzuordnen.
+            Fuegt eine externe Vorgangsnummer hinzu, um den Fall später sicher zuzuordnen.
           </div>
         </div>
         <div className="flex w-full max-w-md gap-2">
@@ -78,3 +78,4 @@ export default function AdvisorCaseRefEditor({
     </div>
   )
 }
+

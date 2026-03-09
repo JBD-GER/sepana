@@ -30,7 +30,7 @@ export default async function Page({
     caseRef
   )}${existing ? "&existing=1" : ""}`
   const backHref = isLanding ? "/baufinanzierung" : backToAuswahl
-  const backLabel = isLanding ? "Zurueck zur Startseite" : undefined
+  const backLabel = isLanding ? "Zurück zur Startseite" : undefined
   const backActionLabel = isLanding ? "Warteschlange verlassen und zur Startseite" : undefined
 
   return (
@@ -44,7 +44,7 @@ export default async function Page({
 
         <h1 className="mt-3 text-2xl font-semibold leading-tight text-slate-900 sm:text-3xl">Live-Beratung</h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 sm:text-base">
-          Sie werden in die Warteschlange aufgenommen. Bitte lassen Sie das Fenster geoeffnet. Sobald ein Berater annimmt,
+          Sie werden in die Warteschlange aufgenommen. Bitte lassen Sie das Fenster geöffnet. Sobald ein Berater annimmt,
           startet die Live-Beratung automatisch.
         </p>
         {existing ? (
@@ -66,3 +66,4 @@ export default async function Page({
     </div>
   )
 }
+

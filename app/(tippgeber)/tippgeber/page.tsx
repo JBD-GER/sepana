@@ -182,8 +182,8 @@ export default async function TippgeberDashboardPage() {
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
                 {isPrivateCredit
-                  ? "In Ihrem Tippgeber-Privat-Bereich koennen Sie neue Privatkredit-Tipps einreichen, den Bearbeitungsstand verfolgen und Provisionen transparent einsehen."
-                  : "In Ihrem Tippgeber-Bereich koennen Sie neue Tipps einreichen, den Bearbeitungsstand verfolgen und Ihre Provisionen transparent einsehen."}
+                  ? "In Ihrem Tippgeber-Privat-Bereich können Sie neue Privatkredit-Tipps einreichen, den Bearbeitungsstand verfolgen und Provisionen transparent einsehen."
+                  : "In Ihrem Tippgeber-Bereich können Sie neue Tipps einreichen, den Bearbeitungsstand verfolgen und Ihre Provisionen transparent einsehen."}
               </p>
             </div>
           </div>
@@ -194,15 +194,15 @@ export default async function TippgeberDashboardPage() {
           <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">So legen Sie los</h2>
           <div className="mt-4 space-y-2">
             <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700">
-              1. Neuen Tipp erfassen und Kontaktdaten vollstaendig eintragen
+              1. Neuen Tipp erfassen und Kontaktdaten vollständig eintragen
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700">
-              2. Status in der Uebersicht verfolgen (Berater, Fall, Provision)
+              2. Status in der Übersicht verfolgen (Berater, Fall, Provision)
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700">
               {isPrivateCredit
                 ? "3. Kreditvolumen pro Tipp sauber erfassen und Verlauf verfolgen"
-                : "3. Expose/Gutschriften spaeter direkt pro Tipp herunterladen"}
+                : "3. Exposé/Gutschriften später direkt pro Tipp herunterladen"}
             </div>
           </div>
         </div>
@@ -231,7 +231,7 @@ export default async function TippgeberDashboardPage() {
       <section className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Uebersicht</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Übersicht</div>
             <h2 className="mt-1 text-lg font-semibold text-slate-900">Meine Tipps</h2>
             <p className="mt-1 text-sm text-slate-600">
               Status, Produkttyp, Fallzuordnung und Provisionsstand pro Tipp.
@@ -311,11 +311,11 @@ export default async function TippgeberDashboardPage() {
                             href={`/api/tippgeber/files?referralId=${encodeURIComponent(r.id)}&kind=expose&download=1`}
                             className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300"
                           >
-                            Expose herunterladen
+                            Exposé herunterladen
                           </a>
                         ) : (
                           <span className="text-xs text-slate-500">
-                            {referralKind === "private_credit" ? "Kein Expose erforderlich" : "Kein Expose"}
+                            {referralKind === "private_credit" ? "Kein Exposé erforderlich" : "Kein Exposé"}
                           </span>
                         )}
                         {hasCreditNote ? (
@@ -346,4 +346,6 @@ export default async function TippgeberDashboardPage() {
     </div>
   )
 }
+
+
 

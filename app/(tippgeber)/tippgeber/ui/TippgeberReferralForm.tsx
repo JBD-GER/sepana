@@ -125,7 +125,7 @@ export default function TippgeberReferralForm({ companyName, tippgeberKind }: { 
 
           setExpose({
             path: String(json.path ?? ""),
-            file_name: String(json.file_name ?? file.name ?? "Expose"),
+            file_name: String(json.file_name ?? file.name ?? "Exposé"),
             mime_type: json.mime_type ? String(json.mime_type) : null,
             size_bytes: json.size_bytes == null ? null : Number(json.size_bytes),
           })
@@ -158,11 +158,11 @@ export default function TippgeberReferralForm({ companyName, tippgeberKind }: { 
     if (isPrivateCredit) {
       const parsedVolume = parsePositiveMoney(privateCreditVolume)
       if (!parsedVolume) {
-        setMessage("Bitte ein gueltiges Kreditvolumen angeben.")
+        setMessage("Bitte ein gültiges Kreditvolumen angeben.")
         return
       }
     } else if (!expose && !hasManualData) {
-      setMessage("Bitte Expose hochladen oder Objektdaten manuell eintragen.")
+      setMessage("Bitte Exposé hochladen oder Objektdaten manuell eintragen.")
       return
     }
 
@@ -205,7 +205,7 @@ export default function TippgeberReferralForm({ companyName, tippgeberKind }: { 
       setZip("")
       setCity("")
       setExpose(null)
-      setMessage("Tipp erfolgreich eingereicht. Sie und SEPANA erhalten eine Bestaetigung per E-Mail.")
+      setMessage("Tipp erfolgreich eingereicht. Sie und SEPANA erhalten eine Bestätigung per E-Mail.")
       router.refresh()
     } catch (e: unknown) {
       setMessage(errorMessage(e, "Fehler beim Speichern"))
@@ -223,7 +223,7 @@ export default function TippgeberReferralForm({ companyName, tippgeberKind }: { 
             {isPrivateCredit ? "Privatkredit-Anfrage einreichen" : "Kundenanfrage einreichen"}
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Fuer {companyName}: {isPrivateCredit ? "Kontaktdaten und Kreditvolumen erfassen." : "Kontaktdaten erfassen und Expose hochladen oder Objektdaten manuell eintragen."}
+            Für {companyName}: {isPrivateCredit ? "Kontaktdaten und Kreditvolumen erfassen." : "Kontaktdaten erfassen und Exposé hochladen oder Objektdaten manuell eintragen."}
           </p>
         </div>
         <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
@@ -257,11 +257,11 @@ export default function TippgeberReferralForm({ companyName, tippgeberKind }: { 
 
           {!isPrivateCredit ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-4">
-              <div className="text-sm font-medium text-slate-900">Expose hochladen (optional, empfohlen)</div>
-              <p className="mt-1 text-xs text-slate-600">PDF oder Bilddatei. Alternativ koennen unten Objektdaten manuell eingetragen werden.</p>
+              <div className="text-sm font-medium text-slate-900">Exposé hochladen (optional, empfohlen)</div>
+              <p className="mt-1 text-xs text-slate-600">PDF oder Bilddatei. Alternativ können unten Objektdaten manuell eingetragen werden.</p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <label className="inline-flex cursor-pointer items-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm">
-                  {uploading ? "Upload laeuft..." : "Datei waehlen"}
+                  {uploading ? "Upload läuft..." : "Datei wählen"}
                   <input
                     type="file"
                     accept=".pdf,image/*"
@@ -306,7 +306,7 @@ export default function TippgeberReferralForm({ companyName, tippgeberKind }: { 
             <>
               <div className="text-sm font-medium text-slate-900">Objektdaten manuell (optional)</div>
               <p className="mt-1 text-xs text-slate-600">
-                Sinnvoll, wenn kein Expose vorliegt. Maklerprovision ist standardmaessig auf 0 % gesetzt.
+                Sinnvoll, wenn kein Exposé vorliegt. Maklerprovision ist standardmäßig auf 0 % gesetzt.
               </p>
 
               <div className="mt-4 grid gap-3">
@@ -361,7 +361,7 @@ export default function TippgeberReferralForm({ companyName, tippgeberKind }: { 
             <div className="text-xs text-slate-500">
               {isPrivateCredit
                 ? "Pflicht: Kundenkontakt + Kreditvolumen"
-                : "Pflicht: Kundenkontakt + Expose oder manuelle Objektdaten"}
+                : "Pflicht: Kundenkontakt + Exposé oder manuelle Objektdaten"}
             </div>
           </div>
           {message ? <div className="mt-3 text-sm text-slate-700">{message}</div> : null}
@@ -370,4 +370,6 @@ export default function TippgeberReferralForm({ companyName, tippgeberKind }: { 
     </section>
   )
 }
+
+
 

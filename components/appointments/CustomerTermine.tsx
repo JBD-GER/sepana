@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -191,7 +191,7 @@ export default function CustomerTermine() {
         </div>
 
         {loading ? (
-          <div className="text-sm text-slate-500">Lade Termine…</div>
+          <div className="text-sm text-slate-500">Lade Termine...</div>
         ) : todayAppointments.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600">
             Für heute sind keine Termine geplant.
@@ -211,10 +211,10 @@ export default function CustomerTermine() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="text-base font-semibold text-slate-900">
-                        Fall {a.case_ref || "—"} · {a.advisor_name || "Berater"}
+                        Fall {a.case_ref || "-"} · {a.advisor_name || "Berater"}
                       </div>
                       <div className="mt-1 text-xs text-slate-600">
-                        {formatDate(start)} · {formatTime(start)} – {formatTime(end)}
+                        {formatDate(start)} · {formatTime(start)} - {formatTime(end)}
                       </div>
                       <div className="mt-1 text-sm text-slate-700">{a.reason || "Beratungstermin"}</div>
                     </div>
@@ -240,7 +240,7 @@ export default function CustomerTermine() {
                       {isCancelled
                         ? "Abgesagt"
                         : busy
-                          ? "Bitte warten…"
+                          ? "Bitte warten..."
                           : customerWaiting
                             ? "Warteraum verlassen"
                             : "Warteraum öffnen"}
@@ -265,7 +265,7 @@ export default function CustomerTermine() {
         </div>
 
         {loading ? (
-          <div className="text-sm text-slate-500">Lade Termine…</div>
+          <div className="text-sm text-slate-500">Lade Termine...</div>
         ) : upcomingAppointments.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600">
             Keine weiteren Termine vorhanden.
@@ -278,10 +278,10 @@ export default function CustomerTermine() {
               return (
                 <div key={a.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="text-base font-semibold text-slate-900">
-                    Fall {a.case_ref || "—"} · {a.advisor_name || "Berater"}
+                    Fall {a.case_ref || "-"} · {a.advisor_name || "Berater"}
                   </div>
                   <div className="mt-1 text-xs text-slate-600">
-                    {formatDate(start)} · {formatTime(start)} – {formatTime(end)}
+                    {formatDate(start)} · {formatTime(start)} - {formatTime(end)}
                   </div>
                   <div className="mt-1 text-sm text-slate-700">{a.reason || "Beratungstermin"}</div>
                   <div className="mt-3 text-[11px] text-slate-500">Der Warteraum wird am Termin-Tag automatisch freigeschaltet.</div>
@@ -294,3 +294,6 @@ export default function CustomerTermine() {
     </div>
   )
 }
+
+
+

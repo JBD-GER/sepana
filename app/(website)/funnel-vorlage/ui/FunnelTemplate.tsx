@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import Image from "next/image"
 import { startTransition, useMemo, useState } from "react"
@@ -24,7 +24,7 @@ import {
 
 function formatCurrency(value: string) {
   const n = Number(value.replace(",", "."))
-  if (!Number.isFinite(n) || n <= 0) return "—"
+  if (!Number.isFinite(n) || n <= 0) return "-"
   return new Intl.NumberFormat("de-DE", {
     style: "currency",
     currency: "EUR",
@@ -123,7 +123,7 @@ export default function FunnelTemplate({
   heading = "Multi-Step Funnel mit Icons",
   description = "Vorlage für Baufinanzierung und Privatkredit mit bedingten Schritten. Fokus: einfache Bedienung, klare Struktur und moderne Darstellung.",
   heroImageSrc = null,
-  heroImageAlt = "Familie in der Kueche",
+  heroImageAlt = "Familie in der Küche",
 }: FunnelTemplateProps = {}) {
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
   const [stepIndex, setStepIndex] = useState(0)
@@ -170,7 +170,7 @@ export default function FunnelTemplate({
   }
 
   function selectedLabel(options: Array<{ value: string; label: string }>, value: string | null) {
-    return options.find((item) => item.value === value)?.label ?? "—"
+    return options.find((item) => item.value === value)?.label ?? "-"
   }
 
   function validateCurrent(): string | null {
@@ -265,7 +265,7 @@ export default function FunnelTemplate({
     if (v) return setError(v)
 
     if (!form.productType) {
-      return setError("Bitte waehlen Sie zuerst ein Produkt.")
+      return setError("Bitte wählen Sie zuerst ein Produkt.")
     }
 
     const pagePath = "/kreditanfrage"
@@ -281,12 +281,12 @@ export default function FunnelTemplate({
       if (form.productType === "baufi") {
         const financingNeed = buildBaufiFinancingNeed()
         if (financingNeed === null || !Number.isFinite(financingNeed) || financingNeed <= 0) {
-          setError("Finanzierungsbedarf konnte nicht berechnet werden. Bitte Angaben pruefen.")
+          setError("Finanzierungsbedarf konnte nicht berechnet werden. Bitte Angaben prüfen.")
           return
         }
 
         if (!form.objectType || !form.purpose) {
-          setError("Bitte vervollstaendigen Sie die Baufinanzierungsdaten.")
+          setError("Bitte vervollständigen Sie die Baufinanzierungsdaten.")
           return
         }
 
@@ -525,7 +525,7 @@ export default function FunnelTemplate({
                     Schnell starten, stark vergleichen, sauber abgeschlossen.
                   </h3>
                   <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                    Der Antrag bleibt schlank. Wir strukturieren die Anfrage fuer eine schnelle Weitergabe an passende Banken.
+                    Der Antrag bleibt schlank. Wir strukturieren die Anfrage für eine schnelle Weitergabe an passende Banken.
                   </p>
 
                   <div className="mt-4 grid gap-3">
@@ -551,7 +551,7 @@ export default function FunnelTemplate({
                         <div>
                           <div className="text-sm font-semibold text-slate-900">Bankenanfrage in ca. 48 Stunden vorbereitet</div>
                           <div className="mt-1 text-xs leading-relaxed text-slate-600">
-                            Vollstaendige Angaben helfen dabei, Ihre Anfrage schneller in die naechsten Schritte zu bringen.
+                            Vollständige Angaben helfen dabei, Ihre Anfrage schneller in die nächsten Schritte zu bringen.
                           </div>
                         </div>
                       </div>
@@ -565,7 +565,7 @@ export default function FunnelTemplate({
                         <div>
                           <div className="text-sm font-semibold text-slate-900">Eine Anfrage, mehrere passende Optionen</div>
                           <div className="mt-1 text-xs leading-relaxed text-slate-600">
-                            Klare Datenerfassung reduziert Rueckfragen und verbessert die Vergleichbarkeit der Angebote.
+                            Klare Datenerfassung reduziert Rückfragen und verbessert die Vergleichbarkeit der Angebote.
                           </div>
                         </div>
                       </div>
@@ -597,7 +597,7 @@ export default function FunnelTemplate({
                   <div className="rounded-[22px] border border-white/90 bg-white/90 p-4 shadow-sm ring-1 ring-slate-200/70 backdrop-blur sm:p-5">
                     <div className="text-sm font-semibold text-slate-900">Schneller Start ohne lange Vorbereitung</div>
                     <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                      Waehlen Sie zuerst das Produkt und fuehren Sie die Anfrage Schritt fuer Schritt weiter.
+                      Wählen Sie zuerst das Produkt und fuehren Sie die Anfrage Schritt für Schritt weiter.
                     </p>
                   </div>
                 )}
@@ -731,7 +731,7 @@ export default function FunnelTemplate({
             <div className="mt-3 grid gap-2 text-sm">
               <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Produkt</div>
-                <div className="mt-1 font-semibold text-slate-900">{form.productType === "baufi" ? "Baufinanzierung" : form.productType === "privatkredit" ? "Privatkredit" : "—"}</div>
+                <div className="mt-1 font-semibold text-slate-900">{form.productType === "baufi" ? "Baufinanzierung" : form.productType === "privatkredit" ? "Privatkredit" : "-"}</div>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Vorhaben</div>
@@ -746,17 +746,17 @@ export default function FunnelTemplate({
               ) : form.productType === "privatkredit" ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3 text-slate-700">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">Kredit Snapshot</div>
-                  <div className="mt-1 text-sm">Bedarf {formatCurrency(form.loanAmount)} · Laufzeit {form.desiredTermMonths ? `${form.desiredTermMonths} Monate` : "—"}</div>
+                  <div className="mt-1 text-sm">Bedarf {formatCurrency(form.loanAmount)} · Laufzeit {form.desiredTermMonths ? `${form.desiredTermMonths} Monate` : "-"}</div>
                 </div>
               ) : null}
               <div className="grid gap-2 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Kontakt</div>
-                  <div className="mt-1 font-semibold text-slate-900">{[form.firstName, form.lastName].filter(Boolean).join(" ") || "—"}</div>
+                  <div className="mt-1 font-semibold text-slate-900">{[form.firstName, form.lastName].filter(Boolean).join(" ") || "-"}</div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Mit 2. Person</div>
-                  <div className="mt-1 font-semibold text-slate-900">{form.coApplicant === "yes" ? "Ja" : form.coApplicant === "no" ? "Nein" : "—"}</div>
+                  <div className="mt-1 font-semibold text-slate-900">{form.coApplicant === "yes" ? "Ja" : form.coApplicant === "no" ? "Nein" : "-"}</div>
                 </div>
               </div>
             </div>
@@ -777,3 +777,6 @@ export default function FunnelTemplate({
     </div>
   )
 }
+
+
+

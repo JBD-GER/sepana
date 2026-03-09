@@ -1,4 +1,4 @@
-export const runtime = "nodejs"
+﻿export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
@@ -105,3 +105,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true })
 }
+
+

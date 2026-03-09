@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { logCaseEvent } from "@/lib/notifications/notify"
@@ -39,11 +39,11 @@ export async function POST(req: Request) {
       .eq("id", lead.linked_case_id)
       .maybeSingle()
     if (!caseRow) {
-      return NextResponse.json({ ok: false, error: "Verknuepfter Fall nicht gefunden." }, { status: 404 })
+      return NextResponse.json({ ok: false, error: "Verknüpfter Fall nicht gefunden." }, { status: 404 })
     }
     if (caseRow.case_type !== "baufi") {
       return NextResponse.json(
-        { ok: false, error: "Startschuss wird aktuell nur fuer Baufi-Faelle unterstuetzt." },
+        { ok: false, error: "Startschuss wird aktuell nur für Baufi-Fälle unterstützt." },
         { status: 400 }
       )
     }
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
       actorRole: "admin",
       type: "startschuss_created",
       title: "Startschuss-Angebot erstellt",
-      body: `Startschuss fuer Anbieter ${provider.name ?? provider.id} wurde gesetzt.`,
+      body: `Startschuss für Anbieter ${provider.name ?? provider.id} wurde gesetzt.`,
     })
 
     return NextResponse.json({
@@ -115,3 +115,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
 }
+
+

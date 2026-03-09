@@ -1,4 +1,4 @@
-export const runtime = "nodejs"
+﻿export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
@@ -92,7 +92,7 @@ function classifyUploadError(message: string) {
     return { status: 413, text: `Datei zu gross. Maximal ${Math.round(MAX_DOCUMENT_UPLOAD_BYTES / (1024 * 1024))} MB erlaubt.` }
   }
   if (/mime|content.?type|unsupported|invalid file type|not supported/.test(normalized)) {
-    return { status: 415, text: "Dateityp nicht unterstuetzt. Erlaubt sind PDF, DOC, DOCX und Bilder." }
+    return { status: 415, text: "Dateityp nicht unterstützt. Erlaubt sind PDF, DOC, DOCX und Bilder." }
   }
   return { status: 500, text: message || "Serverfehler" }
 }
@@ -169,7 +169,7 @@ async function notifyAdvisorAboutCustomerUpload(opts: {
   const html = buildEmailHtml({
     title: "Neues Dokument vom Kunden",
     intro: `Im Fall${caseLabel} wurde ein neues Dokument hochgeladen.`,
-    steps: [`Datei: ${opts.originalName}`, "Bitte pruefen Sie das Dokument im Advisor-Dashboard."],
+    steps: [`Datei: ${opts.originalName}`, "Bitte prüfen Sie das Dokument im Advisor-Dashboard."],
     ctaLabel: "Zum Advisor-Dashboard",
     ctaUrl: `${origin}/advisor`,
     eyebrow: "SEPANA - Dokumenten-Update",
@@ -219,7 +219,7 @@ export async function POST(req: Request) {
       const mimeType = inferMimeTypeFromMeta(originalName, fileTypeRaw)
       if (!isSupportedDocument(originalName, mimeType)) {
         return NextResponse.json(
-          { error: "Dateityp nicht unterstuetzt. Erlaubt sind PDF, DOC, DOCX und Bilder." },
+          { error: "Dateityp nicht unterstützt. Erlaubt sind PDF, DOC, DOCX und Bilder." },
           { status: 415 }
         )
       }
@@ -300,7 +300,7 @@ export async function POST(req: Request) {
 
       if (!caseId || !path || !fileName) return NextResponse.json({ error: "Missing fields" }, { status: 400 })
       if (!path.startsWith(`${caseId}/`)) {
-        return NextResponse.json({ error: "Ungueltiger Upload-Pfad." }, { status: 400 })
+        return NextResponse.json({ error: "Ungültiger Upload-Pfad." }, { status: 400 })
       }
 
       const allowed = await canAccessCase(supabase, caseId, user.id, role)
@@ -366,4 +366,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: classified.text }, { status: classified.status })
   }
 }
+
 

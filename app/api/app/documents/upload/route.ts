@@ -1,4 +1,4 @@
-// app/api/app/documents/upload/route.ts
+﻿// app/api/app/documents/upload/route.ts
 export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
@@ -70,7 +70,7 @@ function classifyUploadError(message: string) {
     return { status: 413, text: `Datei zu gross. Maximal ${Math.round(MAX_DOCUMENT_UPLOAD_BYTES / (1024 * 1024))} MB erlaubt.` }
   }
   if (/mime|content.?type|unsupported|invalid file type|not supported/.test(normalized)) {
-    return { status: 415, text: "Dateityp nicht unterstuetzt. Erlaubt sind PDF, DOC, DOCX und Bilder." }
+    return { status: 415, text: "Dateityp nicht unterstützt. Erlaubt sind PDF, DOC, DOCX und Bilder." }
   }
   return { status: 500, text: message || "Serverfehler" }
 }
@@ -177,7 +177,7 @@ export async function POST(req: Request) {
     const mimeType = inferMimeType(file)
     if (!isSupportedDocument(file, mimeType)) {
       return NextResponse.json(
-        { error: "Dateityp nicht unterstuetzt. Erlaubt sind PDF, DOC, DOCX und Bilder." },
+        { error: "Dateityp nicht unterstützt. Erlaubt sind PDF, DOC, DOCX und Bilder." },
         { status: 415 }
       )
     }
@@ -263,7 +263,7 @@ export async function POST(req: Request) {
         const html = buildEmailHtml({
           title: "Neues Dokument vom Kunden",
           intro: `Im Fall${caseLabel} wurde ein neues Dokument hochgeladen.`,
-          steps: [`Datei: ${originalName}`, "Bitte pruefen Sie das Dokument im Advisor-Dashboard."],
+          steps: [`Datei: ${originalName}`, "Bitte prüfen Sie das Dokument im Advisor-Dashboard."],
           ctaLabel: "Zum Advisor-Dashboard",
           ctaUrl: `${origin}/advisor`,
           eyebrow: "SEPANA - Dokumenten-Update",
@@ -284,3 +284,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: classified.text }, { status: classified.status })
   }
 }
+

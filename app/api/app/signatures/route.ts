@@ -1,4 +1,4 @@
-export const runtime = "nodejs"
+﻿export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
@@ -320,7 +320,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json(
         {
           error:
-            "Dokument wurde bereits unterschrieben. Bitte den Button fuer nachtraegliche Felder verwenden, damit Signaturen korrekt neu angefordert werden.",
+            "Dokument wurde bereits unterschrieben. Bitte den Button für nachträgliche Felder verwenden, damit Signaturen korrekt neu angefordert werden.",
         },
         { status: 409 }
       )
@@ -365,23 +365,23 @@ export async function PATCH(req: Request) {
         const html = buildEmailHtml({
           title: isReopen ? "Weitere Unterschrift erforderlich" : "Unterschrift angefordert",
           intro: isReopen
-            ? "Zu einem bereits unterschriebenen Dokument wurde ein weiteres Unterschriftsfeld ergaenzt."
+            ? "Zu einem bereits unterschriebenen Dokument wurde ein weiteres Unterschriftsfeld ergänzt."
             : "Ein Dokument wartet auf Ihre digitale Unterschrift.",
           steps: isReopen
             ? [
-                "Loggen Sie sich ins Portal ein und oeffnen Sie den Fall.",
-                "Pruefen Sie das Dokument und unterschreiben Sie das neu hinzugefuegte Feld.",
+                "Loggen Sie sich ins Portal ein und öffnen Sie den Fall.",
+                "Prüfen Sie das Dokument und unterschreiben Sie das neu hinzugefügte Feld.",
                 "Bereits vorhandene Eingaben bleiben erhalten.",
               ]
             : [
-                "Loggen Sie sich ins Portal ein und oeffnen Sie den Fall.",
+                "Loggen Sie sich ins Portal ein und öffnen Sie den Fall.",
                 "Unterzeichnen Sie das Dokument direkt online.",
-                "Wir informieren Sie nach Abschluss ueber die naechsten Schritte.",
+                "Wir informieren Sie nach Abschluss über die nächsten Schritte.",
               ],
           ctaLabel: "Dokument unterzeichnen",
           ctaUrl,
           preheader: isReopen
-            ? "Es ist eine weitere Unterschrift fuer ein bereits unterschriebenes Dokument erforderlich."
+            ? "Es ist eine weitere Unterschrift für ein bereits unterschriebenes Dokument erforderlich."
             : "Ein Dokument wartet auf Ihre Unterschrift. Jetzt direkt online unterschreiben.",
         })
         await sendEmail({
@@ -403,7 +403,7 @@ export async function PATCH(req: Request) {
         type: "signature_requested",
         title: shouldSendReopenCustomerMail ? "Weitere Unterschrift angefordert" : "Unterschrift angefordert",
         body: shouldSendReopenCustomerMail
-          ? `Nachtraegliches Unterschriftsfeld fuer ${reqRow.title || "Dokument"} angefordert`
+          ? `Nachträgliches Unterschriftsfeld für ${reqRow.title || "Dokument"} angefordert`
           : `Dokument: ${reqRow.title || "Dokument"}`,
         meta: {
           request_id: id,
@@ -471,8 +471,8 @@ export async function DELETE(req: Request) {
       actorId: user.id,
       actorRole: role ?? "advisor",
       type: "signature_deleted",
-      title: "Unterschriftsdokument geloescht",
-      body: reqRow.title ? `Dokument: ${reqRow.title}` : "Unterschriftsdokument wurde geloescht",
+      title: "Unterschriftsdokument gelöscht",
+      body: reqRow.title ? `Dokument: ${reqRow.title}` : "Unterschriftsdokument wurde gelöscht",
       meta: { request_id: id },
       notifyCustomer: false,
     }).catch(() => null)
@@ -482,3 +482,5 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
 }
+
+

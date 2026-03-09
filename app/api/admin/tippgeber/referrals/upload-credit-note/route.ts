@@ -1,4 +1,4 @@
-export const runtime = "nodejs"
+﻿export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     const commissionStatus = String(referral.commission_status ?? "")
     if (commissionStatus !== "open" && commissionStatus !== "paid") {
       return NextResponse.json(
-        { ok: false, error: "Gutschrift-Upload nur fuer Provisionen nach Bankzusage." },
+        { ok: false, error: "Gutschrift-Upload nur für Provisionen nach Bankzusage." },
         { status: 409 }
       )
     }
@@ -76,3 +76,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
 }
+

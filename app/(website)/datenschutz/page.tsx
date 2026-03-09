@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 
 export const metadata: Metadata = {
   title: "Datenschutzerklärung",
@@ -50,7 +50,7 @@ export default function DatenschutzPage() {
         <p>
           Rechtsgrundlagen sind insbesondere Art. 6 Abs. 1 lit. b DSGVO (Vertrag/vertragsähnliche Maßnahmen),
           Art. 6 Abs. 1 lit. c DSGVO (rechtliche Verpflichtung), Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse)
-          sowie – bei optionalen Cookies/Tracking – Art. 6 Abs. 1 lit. a DSGVO (Einwilligung).
+          sowie - bei optionalen Cookies/Tracking - Art. 6 Abs. 1 lit. a DSGVO (Einwilligung).
         </p>
       </Section>
 
@@ -70,7 +70,7 @@ export default function DatenschutzPage() {
 
       <Section title="6. Cookies und Consent Mode v2">
         <p>
-          Wir verwenden technisch notwendige Cookies sowie – nach Ihrer ausdrücklichen Entscheidung im Consent-Banner –
+          Wir verwenden technisch notwendige Cookies sowie - nach Ihrer ausdrücklichen Entscheidung im Consent-Banner -
           optionale Cookies für Analyse, Marketing und Personalisierung.
         </p>
         <p>
@@ -98,3 +98,5 @@ export default function DatenschutzPage() {
     </div>
   )
 }
+
+

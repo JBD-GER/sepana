@@ -105,7 +105,7 @@ export default function CreateManualLeadForm({
           <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Manueller Lead</div>
           <h2 className="mt-1 text-xl font-semibold text-slate-900">Lead direkt anlegen</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Pflichtfelder ausfuellen. Danach wird der Fall erstellt und die Einladung versendet.
+            Pflichtfelder ausfüllen. Danach wird der Fall erstellt und die Einladung versendet.
           </p>
         </div>
       </div>
@@ -187,16 +187,16 @@ export default function CreateManualLeadForm({
             />
           </div>
 
-          <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Beschaeftigung</div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Beschäftigung</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <select
               value={form.employmentType}
               onChange={(e) => updateField("employmentType", e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
             >
-              <option value="">Anstellungsart waehlen</option>
+              <option value="">Anstellungsart wählen</option>
               <option value="employed">Angestellt</option>
-              <option value="self_employed">Selbststaendig</option>
+              <option value="self_employed">Selbstständig</option>
               <option value="civil_servant">Beamter</option>
               <option value="student">Student</option>
               <option value="retired">Rentner</option>
@@ -220,7 +220,7 @@ export default function CreateManualLeadForm({
               onChange={(e) => updateField("loanPurpose", e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm sm:col-span-2"
             >
-              <option value="">Art des Darlehens waehlen</option>
+              <option value="">Art des Darlehens wählen</option>
               {form.productType === "konsum" ? (
                 <>
                   <option value="freie_verwendung">Freie Verwendung</option>
@@ -231,7 +231,7 @@ export default function CreateManualLeadForm({
                 </>
               ) : (
                 <>
-                  <option value="buy">Kauf Immobilie / Grundstueck</option>
+                  <option value="buy">Kauf Immobilie / Grundstück</option>
                   <option value="build">Eigenes Bauvorhaben</option>
                   <option value="refi">Anschlussfinanzierung / Umschuldung</option>
                   <option value="modernize">Umbau / Modernisierung</option>
@@ -268,12 +268,12 @@ export default function CreateManualLeadForm({
                   onChange={(e) => updateField("propertyType", e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
                 >
-                  <option value="">Art der Immobilie waehlen</option>
+                  <option value="">Art der Immobilie wählen</option>
                   <option value="condo">Eigentumswohnung</option>
                   <option value="house">Einfamilienhaus</option>
                   <option value="two_family">Zweifamilienhaus</option>
                   <option value="multi">Mehrfamilienhaus</option>
-                  <option value="land">Grundstueck</option>
+                  <option value="land">Grundstück</option>
                   <option value="other">Sonstiges</option>
                 </select>
                 <input
@@ -302,7 +302,7 @@ export default function CreateManualLeadForm({
                 ))}
               </select>
               <div className="text-xs text-slate-500">
-                Wenn gesetzt, wird beim Anlegen direkt ein verknuepfter Tippgeber-Eintrag erstellt.
+                Wenn gesetzt, wird beim Anlegen direkt ein verknüpfter Tippgeber-Eintrag erstellt.
               </div>
             </>
           ) : null}
@@ -313,7 +313,7 @@ export default function CreateManualLeadForm({
             onChange={(e) => updateField("advisorId", e.target.value)}
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
           >
-            <option value="">- Berater auswaehlen -</option>
+            <option value="">- Berater auswählen -</option>
             {advisorOptions.map((opt) => (
               <option key={opt.id} value={opt.id}>
                 {opt.label}
@@ -345,3 +345,5 @@ export default function CreateManualLeadForm({
     </div>
   )
 }
+
+

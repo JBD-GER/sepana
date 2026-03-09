@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -38,7 +38,7 @@ export default function ProviderCreateForm() {
 
     const finalSlug = slugify(slug || trimmedName)
     if (!finalSlug) {
-      setMsg("Slug ist ungueltig.")
+      setMsg("Slug ist ungültig.")
       return
     }
 
@@ -160,3 +160,4 @@ export default function ProviderCreateForm() {
     </div>
   )
 }
+

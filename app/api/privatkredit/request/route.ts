@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { createCaseFromLead, ensureCustomerAccount, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
@@ -79,7 +79,7 @@ function purposeLabel(value: string | null) {
 
 function requestTypeLabel(value: RequestType) {
   if (value === "quick_start") return "Schnellstart-Anfrage"
-  return value === "callback" ? "Rueckruf-Anfrage" : "Privatkredit-Anfrage"
+  return value === "callback" ? "Rückruf-Anfrage" : "Privatkredit-Anfrage"
 }
 
 function requestTypeKey(value: RequestType) {
@@ -272,14 +272,14 @@ async function sendAdminNotification(opts: {
   const adminUrl = `${siteUrl}/admin/leads`
   const bodyHtml = requestSummaryHtml(opts)
   const subject = (() => {
-    if (opts.requestType === "callback") return "Neue Rueckruf-Anfrage (Privatkredit)"
+    if (opts.requestType === "callback") return "Neue Rückruf-Anfrage (Privatkredit)"
     if (opts.requestType === "quick_start") return "Neue Schnellstart-Anfrage (Privatkredit)"
     return "Neue Privatkredit-Anfrage"
   })()
 
   const html = buildEmailHtml({
     title: subject,
-    intro: "Es wurde eine neue Anfrage ueber die Privatkredit-Landingpage eingereicht.",
+    intro: "Es wurde eine neue Anfrage über die Privatkredit-Landingpage eingereicht.",
     bodyHtml,
     ctaLabel: "Zu den Leads",
     ctaUrl: adminUrl,
@@ -318,40 +318,40 @@ async function sendCustomerConfirmation(opts: {
 
   const salutation = opts.firstName ? `Hallo ${opts.firstName},` : "Hallo,"
   const subject = (() => {
-    if (opts.requestType === "callback") return "Ihre Rueckruf-Anfrage ist eingegangen"
+    if (opts.requestType === "callback") return "Ihre Rückruf-Anfrage ist eingegangen"
     if (opts.requestType === "quick_start") return "Ihre Schnellstart-Anfrage ist eingegangen"
     return "Ihre Privatkredit-Anfrage ist eingegangen"
   })()
   const steps = (() => {
     if (opts.requestType === "callback") {
       return [
-        "Wir pruefen Ihre Rueckruf-Anfrage kurzfristig.",
+        "Wir prüfen Ihre Rückruf-Anfrage kurzfristig.",
         opts.callbackTime
           ? `Wir orientieren uns an Ihrer Wunschzeit: ${opts.callbackTime}.`
           : "Wir melden uns in der Regel zeitnah telefonisch bei Ihnen.",
-        "Bei Rueckfragen erreichen Sie uns auch direkt unter 05035 3169996.",
+        "Bei Rückfragen erreichen Sie uns auch direkt unter 05035 3169996.",
       ]
     }
     if (opts.requestType === "quick_start") {
       return [
         "Wir sichten Ihre Schnellstart-Anfrage und melden uns in der Regel innerhalb von 24 Stunden.",
-        "Falls eine Telefonnummer vorliegt, stimmen wir die naechsten Schritte gern direkt telefonisch ab.",
-        "Bei Rueckfragen erreichen Sie uns unter 05035 3169996.",
+        "Falls eine Telefonnummer vorliegt, stimmen wir die nächsten Schritte gern direkt telefonisch ab.",
+        "Bei Rückfragen erreichen Sie uns unter 05035 3169996.",
       ]
     }
     return [
-      "Wir pruefen Ihre Angaben und melden uns mit einer klaren Einschaetzung.",
-      "Auf Wunsch pruefen wir Ihre Anfrage direkt live und beantragen ohne Umwege.",
-      "Bei Rueckfragen erreichen Sie uns unter 05035 3169996.",
+      "Wir prüfen Ihre Angaben und melden uns mit einer klaren Einschätzung.",
+      "Auf Wunsch prüfen wir Ihre Anfrage direkt live und beantragen ohne Umwege.",
+      "Bei Rückfragen erreichen Sie uns unter 05035 3169996.",
     ]
   })()
 
   const html = buildEmailHtml({
     title: subject,
-    intro: `${salutation} vielen Dank fuer Ihre Anfrage bei SEPANA.`,
+    intro: `${salutation} vielen Dank für Ihre Anfrage bei SEPANA.`,
     steps,
     preheader: subject,
-    eyebrow: "SEPANA - Bestaetigung",
+    eyebrow: "SEPANA - Bestätigung",
   })
 
   const result = await sendEmail({
@@ -599,3 +599,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
+
+

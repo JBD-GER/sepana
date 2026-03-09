@@ -100,7 +100,7 @@ async function notifyAdminNewReferral(opts: {
   referralId: string
   referralKind: ReferralKind
   privateCreditVolume: number | null
-  hasExpose: boolean
+  hasExposé: boolean
 }) {
   const recipients = parseRecipients()
   if (!recipients.length) return
@@ -110,11 +110,11 @@ async function notifyAdminNewReferral(opts: {
   const detailsHtml =
     opts.referralKind === "private_credit"
       ? `<div><strong style="color:#0f172a;">Kreditvolumen:</strong> ${formatEuroAmount(opts.privateCreditVolume)}</div>`
-      : `<div><strong style="color:#0f172a;">Expose:</strong> ${opts.hasExpose ? "Ja" : "Nein"}</div>`
+      : `<div><strong style="color:#0f172a;">Exposé:</strong> ${opts.hasExpose ? "Ja" : "Nein"}</div>`
 
   const html = buildEmailHtml({
     title: "Neuer Tippgeber-Tipp eingegangen",
-    intro: "Ein neuer Tipp wurde ueber das Tippgeber-Dashboard eingereicht.",
+    intro: "Ein neuer Tipp wurde über das Tippgeber-Dashboard eingereicht.",
     bodyHtml: `
       <div style="font-size:13px; line-height:22px; color:#334155;">
         <div><strong style="color:#0f172a;">Tipp-ID:</strong> ${opts.referralId}</div>
@@ -143,7 +143,7 @@ async function notifyTippgeberReferralConfirmation(opts: {
   referralId: string
   referralKind: ReferralKind
   privateCreditVolume: number | null
-  hasExpose: boolean
+  hasExposé: boolean
 }) {
   const to = String(opts.toEmail ?? "").trim().toLowerCase()
   if (!isEmail(to)) return
@@ -154,15 +154,15 @@ async function notifyTippgeberReferralConfirmation(opts: {
   const detailsHtml =
     opts.referralKind === "private_credit"
       ? `<div><strong style="color:#0f172a;">Kreditvolumen:</strong> ${formatEuroAmount(opts.privateCreditVolume)}</div>`
-      : `<div><strong style="color:#0f172a;">Expose hochgeladen:</strong> ${opts.hasExpose ? "Ja" : "Nein"}</div>`
+      : `<div><strong style="color:#0f172a;">Exposé hochgeladen:</strong> ${opts.hasExpose ? "Ja" : "Nein"}</div>`
 
   const html = buildEmailHtml({
-    title: "Bestaetigung: Kundenanfrage eingereicht",
+    title: "Bestätigung: Kundenanfrage eingereicht",
     intro: "Ihre Kundenanfrage wurde erfolgreich im Tippgeber-Dashboard eingereicht.",
     steps: [
       "SEPANA wurde automatisch informiert.",
-      "Sie sehen den Eintrag ab sofort in Ihrer Tipp-Uebersicht im Dashboard.",
-      "Status-Aenderungen erhalten Sie zusaetzlich per E-Mail.",
+      "Sie sehen den Eintrag ab sofort in Ihrer Tipp-Übersicht im Dashboard.",
+      "Status-Änderungen erhalten Sie zusätzlich per E-Mail.",
     ],
     bodyHtml: `
       <div style="font-size:13px; line-height:22px; color:#334155;">
@@ -178,7 +178,7 @@ async function notifyTippgeberReferralConfirmation(opts: {
     eyebrow: "SEPANA - Tippgeber",
   })
 
-  await sendEmail({ to, subject: "Bestaetigung Ihrer Kundenanfrage", html }).catch(() => null)
+  await sendEmail({ to, subject: "Bestätigung Ihrer Kundenanfrage", html }).catch(() => null)
 }
 
 export async function POST(req: Request) {
@@ -207,7 +207,7 @@ export async function POST(req: Request) {
     const referralKind = normalizeTippgeberKind(profile.tippgeber_kind)
 
     const body = (await req.json().catch(() => null)) as RequestBody | null
-    if (!body) return NextResponse.json({ ok: false, error: "Ungueltige Anfrage." }, { status: 400 })
+    if (!body) return NextResponse.json({ ok: false, error: "Ungültige Anfrage." }, { status: 400 })
 
     const customerFirstName = trimOrNull(body.customerFirstName)
     const customerLastName = trimOrNull(body.customerLastName)
@@ -231,19 +231,19 @@ export async function POST(req: Request) {
     const propertyCity = trimOrNull(body.manual?.city)
 
     if (!customerFirstName || !customerLastName || !customerEmail || !customerPhone) {
-      return NextResponse.json({ ok: false, error: "Bitte Kontaktdaten vollstaendig angeben." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Bitte Kontaktdaten vollständig angeben." }, { status: 400 })
     }
     if (!isEmail(customerEmail)) {
-      return NextResponse.json({ ok: false, error: "Ungueltige E-Mail." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Ungültige E-Mail." }, { status: 400 })
     }
     if (!isPhone(customerPhone)) {
-      return NextResponse.json({ ok: false, error: "Ungueltige Telefonnummer." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Ungültige Telefonnummer." }, { status: 400 })
     }
 
     if (referralKind === "private_credit") {
       if (!privateCreditVolume || privateCreditVolume <= 0) {
         return NextResponse.json(
-          { ok: false, error: "Bitte Kreditvolumen fuer den Privatkredit angeben." },
+          { ok: false, error: "Bitte Kreditvolumen für den Privatkredit angeben." },
           { status: 400 }
         )
       }
@@ -251,7 +251,7 @@ export async function POST(req: Request) {
       const hasManual = Boolean(manualPurchasePrice || propertyStreet || propertyZip || propertyCity)
       if (!exposePath && !hasManual) {
         return NextResponse.json(
-          { ok: false, error: "Bitte Expose hochladen oder manuelle Objektdaten eingeben." },
+          { ok: false, error: "Bitte Exposé hochladen oder manuelle Objektdaten eingeben." },
           { status: 400 }
         )
       }
@@ -291,7 +291,7 @@ export async function POST(req: Request) {
     if (primaryInsert.error && isMissingPrivateReferralColumnsError(primaryInsert.error)) {
       if (referralKind === "private_credit") {
         return NextResponse.json(
-          { ok: false, error: "DB-Update fuer Tippgeber Privat fehlt. Bitte Migration ausfuehren." },
+          { ok: false, error: "DB-Update für Tippgeber Privat fehlt. Bitte Migration ausführen." },
           { status: 409 }
         )
       }
@@ -345,4 +345,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
+
+
+
 

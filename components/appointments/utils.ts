@@ -1,4 +1,4 @@
-export type AvailabilityDay = {
+﻿export type AvailabilityDay = {
   day_of_week: number
   is_active: boolean
   start_time?: string | null
@@ -95,7 +95,7 @@ export function buildSlots(opts: {
       slots.push({
         start: slotStart,
         end: slotEnd,
-        label: `${formatTime(slotStart)} – ${formatTime(slotEnd)}`,
+        label: `${formatTime(slotStart)} - ${formatTime(slotEnd)}`,
       })
     }
 
@@ -115,3 +115,4 @@ export function toDateInputValue(d: Date) {
 export function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
+

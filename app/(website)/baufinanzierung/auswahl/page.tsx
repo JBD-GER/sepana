@@ -1,4 +1,4 @@
-// app/(website)/baufinanzierung/auswahl/page.tsx
+﻿// app/(website)/baufinanzierung/auswahl/page.tsx
 import Link from "next/link"
 import type { Metadata } from "next"
 import { headers } from "next/headers"
@@ -43,7 +43,7 @@ function BonusBox({ amount }: { amount: number }) {
           style={{ background: ACCENT }}
           aria-hidden="true"
         >
-          🎁
+          ðŸŽ
         </div>
 
         <div className="min-w-0">
@@ -60,13 +60,13 @@ function BonusBox({ amount }: { amount: number }) {
 
           <div className="mt-3">
             <div className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/70 px-3 py-1 text-xs text-slate-900 shadow-sm ring-1 ring-inset ring-white/40 backdrop-blur-xl">
-              Tipp: Starten Sie jetzt – dauert wirklich nur kurz.
+              Tipp: Starten Sie jetzt - dauert wirklich nur kurz.
             </div>
           </div>
         </div>
       </div>
 
-      {/* ✅ entfernt: "350€ Bonus ist im Prozess dauerhaft sichtbar." */}
+      {/* OK entfernt: "350€ Bonus ist im Prozess dauerhaft sichtbar." */}
     </div>
   )
 }
@@ -247,7 +247,7 @@ export default async function Page({
 
         const zbind =
           term?.zinsbindung_min_years || term?.zinsbindung_max_years
-            ? `${term.zinsbindung_min_years ?? "—"}–${term.zinsbindung_max_years ?? "—"} Jahre`
+            ? `${term.zinsbindung_min_years ?? "-"}-${term.zinsbindung_max_years ?? "-"} Jahre`
             : "objektabhängig"
 
         const nextHref = buildHref("/baufinanzierung/auswahl/abschluss", {
@@ -315,7 +315,7 @@ export default async function Page({
   })
   const showLiveEntry = Boolean(caseId && liveStatus?.ok && liveStatus.onlineCount > 0)
 
-  // ✅ Startschuss: sobald der Kunde auf /auswahl ist, Snapshot zum Top-Angebot speichern
+  // OK Startschuss: sobald der Kunde auf /auswahl ist, Snapshot zum Top-Angebot speichern
   const startschuss = sorted[0]
   if (caseId && startschuss?.provider?.id) {
     await postJson("/api/baufi/offer-preview", {
@@ -371,7 +371,7 @@ export default async function Page({
       </div>
 
       <h1 className="text-2xl font-semibold leading-tight text-slate-900 sm:text-3xl">
-        Wählen Sie jetzt Ihre Bank –<br className="hidden sm:block" />
+        Wählen Sie jetzt Ihre Bank -<br className="hidden sm:block" />
         dann starten Sie den Abschluss.
       </h1>
 
@@ -385,7 +385,7 @@ export default async function Page({
       <BonusBox amount={activeBonusEUR} />
     </div>
 
-    {/* ✅ BOTTOM: volle Breite über beide Spalten */}
+    {/* OK BOTTOM: volle Breite über beide Spalten */}
     <div className="space-y-3 lg:col-span-2">
       <SelectionSummaryEditor
         caseId={caseId}
@@ -419,7 +419,7 @@ export default async function Page({
 </div>
 
 
-      {/* ✅ SORT BAR – volle Breite */}
+      {/* OK SORT BAR - volle Breite */}
       <div className="w-full rounded-3xl border border-white/60 bg-white/65 p-3 shadow-sm backdrop-blur-xl">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm font-medium text-slate-900">
@@ -642,13 +642,16 @@ export default async function Page({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             Fall-Referenz:{" "}
-            <span className="font-medium text-slate-900">{metricsRes?.caseRef || caseRef || "—"}</span>
+            <span className="font-medium text-slate-900">{metricsRes?.caseRef || caseRef || "-"}</span>
           </div>
           <Link href="/login" className="text-sm font-medium text-slate-900 underline underline-offset-4">
-            Ich habe schon ein Konto → anmelden
+            Ich habe schon ein Konto {"->"} anmelden
           </Link>
         </div>
       </div>
     </div>
   )
 }
+
+
+

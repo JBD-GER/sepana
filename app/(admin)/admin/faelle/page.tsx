@@ -68,9 +68,9 @@ export default async function AdminCasesPage({
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Faelle & Unterlagen</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">Fälle & Unterlagen</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Bereich: {productLabel}. Berater zuweisen, Vorgaenge/Status bearbeiten, Unterlagen einsehen.
+          Bereich: {productLabel}. Berater zuweisen, Vorgänge/Status bearbeiten, Unterlagen einsehen.
         </p>
       </div>
 
@@ -100,7 +100,7 @@ export default async function AdminCasesPage({
       </div>
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
-        <div className="text-sm font-medium text-slate-900">Faelle (letzte 200)</div>
+        <div className="text-sm font-medium text-slate-900">Fälle (letzte 200)</div>
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70">
           <table className="w-full text-left text-sm">
@@ -165,7 +165,7 @@ export default async function AdminCasesPage({
               {(cases ?? []).length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-slate-500" colSpan={6}>
-                    Keine Faelle gefunden.
+                    Keine Fälle gefunden.
                   </td>
                 </tr>
               ) : null}
@@ -187,7 +187,7 @@ export default async function AdminCasesPage({
                 <th className="px-4 py-3 font-medium text-slate-700">Datei</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Case</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Typ</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Groesse</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Größe</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Zeit</th>
               </tr>
             </thead>
@@ -219,4 +219,7 @@ export default async function AdminCasesPage({
     </div>
   )
 }
+
+
+
 

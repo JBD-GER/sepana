@@ -1,4 +1,4 @@
-export const runtime = "nodejs"
+﻿export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       const typedProfile = profile as TippgeberProfileKind
       if (normalizeTippgeberKind(typedProfile.tippgeber_kind) === "private_credit") {
         return NextResponse.json(
-          { ok: false, error: "Expose-Upload ist im Bereich Tippgeber Privat nicht vorgesehen." },
+          { ok: false, error: "Exposé-Upload ist im Bereich Tippgeber Privat nicht vorgesehen." },
           { status: 409 }
         )
       }
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       path,
-      file_name: file.name || "Expose",
+      file_name: file.name || "Exposé",
       mime_type: mimeType || null,
       size_bytes: Number(file.size || 0) || null,
     })
@@ -120,3 +120,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
+

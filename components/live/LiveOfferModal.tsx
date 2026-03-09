@@ -23,12 +23,12 @@ type ProviderItem = { provider: { id: string; name: string } }
 type CaseType = "baufi" | "konsum"
 
 function formatEUR(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return "â€”"
+  if (n == null || Number.isNaN(Number(n))) return "-"
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n))
 }
 
 function formatPct(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return "â€”"
+  if (n == null || Number.isNaN(Number(n))) return "-"
   return `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(Number(n))} %`
 }
 
@@ -208,4 +208,5 @@ export default function LiveOfferModal({
     </>
   )
 }
+
 

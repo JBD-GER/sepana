@@ -75,7 +75,7 @@ export default async function AdvisorDashboard() {
             <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-200/80">Beraterbereich</div>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Steuerzentrale</h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-200/90">
-              Verwalten Sie Faelle, Termine und Live-Anfragen in einer Oberflaeche - schnell, klar und mobil optimiert.
+              Verwalten Sie Fälle, Termine und Live-Anfragen in einer Oberflaeche - schnell, klar und mobil optimiert.
             </p>
             <div className="mt-3 text-sm text-slate-200/90">{user.email}</div>
           </div>
@@ -85,7 +85,7 @@ export default async function AdvisorDashboard() {
               href="/advisor/faelle"
               className="inline-flex items-center rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
             >
-              Faelle
+              Fälle
             </Link>
             <Link
               href="/advisor/termine"
@@ -103,11 +103,11 @@ export default async function AdvisorDashboard() {
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Aktive Faelle</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Aktive Fälle</div>
           <div className="mt-2 text-3xl font-semibold text-slate-900">{activeCaseCount}</div>
         </div>
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Bank bestaetigt</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Bank bestätigt</div>
           <div className="mt-2 text-3xl font-semibold text-slate-900">{confirmedCaseCount}</div>
         </div>
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
@@ -115,7 +115,7 @@ export default async function AdvisorDashboard() {
           <div className="mt-2 text-lg font-semibold text-slate-900">{profile?.is_online ? "Online" : "Offline"}</div>
         </div>
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Im Gespraech</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Im Gespräch</div>
           <div className="mt-2 text-3xl font-semibold text-slate-900">{activeCount}</div>
         </div>
       </section>
@@ -149,16 +149,16 @@ export default async function AdvisorDashboard() {
               href="/advisor/termine"
               className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-sm transition hover:border-slate-300"
             >
-              Terminplan oeffnen
+              Terminplan öffnen
             </Link>
             <Link
               href="/advisor/faelle"
               className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-sm transition hover:border-slate-300"
             >
-              Faelle pruefen
+              Fälle prüfen
             </Link>
             <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-xs text-slate-600">
-              Tipp: Oeffnen Sie den Live-Status fruehzeitig, um neue Kunden ohne Wartezeit anzunehmen.
+              Tipp: Öffnen Sie den Live-Status frühzeitig, um neue Kunden ohne Wartezeit anzunehmen.
             </div>
           </div>
         </div>
@@ -167,8 +167,8 @@ export default async function AdvisorDashboard() {
       <section className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Meine Faelle</div>
-            <div className="mt-1 text-lg font-semibold text-slate-900">Aktive Vorgaenge</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Meine Fälle</div>
+            <div className="mt-1 text-lg font-semibold text-slate-900">Aktive Vorgänge</div>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/advisor/faelle" className="text-sm font-semibold text-slate-900 underline underline-offset-4">
@@ -178,14 +178,14 @@ export default async function AdvisorDashboard() {
               href="/advisor/faelle/bestaetigt"
               className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
             >
-              Bestaetigt ({confirmedCaseCount})
+              Bestätigt ({confirmedCaseCount})
             </Link>
           </div>
         </div>
 
         {!cases || cases.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600">
-            Aktuell sind keine aktiven Faelle vorhanden.
+            Aktuell sind keine aktiven Fälle vorhanden.
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -228,3 +228,6 @@ export default async function AdvisorDashboard() {
     </div>
   )
 }
+
+
+

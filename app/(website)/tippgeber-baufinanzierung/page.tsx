@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -78,7 +78,7 @@ const FAQS = [
   },
   {
     q: "Wann erhalte ich eine Auszahlung?",
-    a: "Nur bei Bankzusage wird die Provision als offen vorgemerkt. Die Auszahlung erfolgt nach interner Freigabe und wird anschliessend im Dashboard als bezahlt markiert.",
+    a: "Nur bei Bankzusage wird die Provision als offen vorgemerkt. Die Auszahlung erfolgt nach interner Freigabe und wird anschließend im Dashboard als bezahlt markiert.",
   },
 ]
 
@@ -96,7 +96,7 @@ const PARTNER_CONTACT = {
   role: "Ansprechpartner Tippgeber-Partnerschaften",
   email: "c.pfad@sepana.de",
   phone: "05035 3169996",
-  response: "Rueckmeldung i. d. R. innerhalb von 48 Stunden",
+  response: "Rückmeldung i. d. R. innerhalb von 48 Stunden",
   imageSrc: "/pfad.png",
   imageAlt: "Herr Pfad",
 }
@@ -108,7 +108,7 @@ const TEAM_MEMBERS: TippgeberTeamMember[] = [
     email: "c.pfad@sepana.de",
     imageSrc: "/pfad.png",
     imageAlt: "Herr Pfad",
-    focus: "Partnerbetreuung, Fallstruktur und Uebergabe an die Finanzierung.",
+    focus: "Partnerbetreuung, Fallstruktur und Übergabe an die Finanzierung.",
   },
   {
     name: "Hr. Wagner",
@@ -119,12 +119,12 @@ const TEAM_MEMBERS: TippgeberTeamMember[] = [
     focus: "Baufinanzierung, Objektstrategie und Bankansprache.",
   },
   {
-    name: "Fr. Mueller",
+    name: "Fr. Müller",
     role: "Kreditexpertin",
-    email: "s.mueller@sepana.de",
+    email: "s.müller@sepana.de",
     imageSrc: "/mueller.png",
-    imageAlt: "Frau Mueller",
-    focus: "Rueckfragen, Statuskommunikation und saubere Prozessbegleitung.",
+    imageAlt: "Frau Müller",
+    focus: "Rückfragen, Statuskommunikation und saubere Prozessbegleitung.",
   },
 ]
 
@@ -212,7 +212,7 @@ export default function TippgeberBaufinanzierungPage() {
                 <div className="text-xs uppercase tracking-[0.08em] text-emerald-100">Bankstatus angenommen</div>
                 <div className="mt-1 text-lg font-semibold text-white">35 % der SEPANA-Provision inkl. MwSt.</div>
                 <div className="mt-1 text-xs text-slate-200/85">
-                  Basis ist die intern erfasste SEPANA-Provision (inkl. MwSt.) nach Bankannahme. Freigabe und Auszahlung ueber den Admin-Prozess.
+                  Basis ist die intern erfasste SEPANA-Provision (inkl. MwSt.) nach Bankannahme. Freigabe und Auszahlung über den Admin-Prozess.
                 </div>
               </div>
             </div>
@@ -231,9 +231,9 @@ export default function TippgeberBaufinanzierungPage() {
         <div className="relative grid gap-4 xl:grid-cols-[0.95fr_1.05fr] xl:items-start">
           <div className="rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur sm:p-5">
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-200/90">Ansprechpartner</div>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Direkter Kontakt fuer neue Tippgeber</h2>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Direkter Kontakt für neue Tippgeber</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-200/90">
-              Wir klaeren Setup, Ablauf und Freischaltung persoenlich mit Ihnen und begleiten den Start ins Dashboard.
+              Wir klären Setup, Ablauf und Freischaltung persönlich mit Ihnen und begleiten den Start ins Dashboard.
             </p>
 
             <div className="mt-4 rounded-2xl border border-white/15 bg-white/10 p-4">
@@ -259,7 +259,7 @@ export default function TippgeberBaufinanzierungPage() {
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-200/85">Rueckmeldung</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-200/85">Rückmeldung</div>
                 <div className="mt-1 text-sm font-semibold text-white">{PARTNER_CONTACT.response}</div>
               </div>
               <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
@@ -438,3 +438,5 @@ export default function TippgeberBaufinanzierungPage() {
     </div>
   )
 }
+
+

@@ -1,4 +1,4 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import { requireCustomer } from "@/lib/app/requireCustomer"
 import { authFetch } from "@/lib/app/authFetch"
 import { parseAppointmentDateTime } from "@/components/appointments/utils"
@@ -29,7 +29,7 @@ type MissingSummaryResp = {
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) return "—"
+  if (!value) return "-"
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(parseAppointmentDateTime(value))
 }
 
@@ -80,7 +80,7 @@ export default async function CustomerDashboard() {
                 href={missingHref}
                 className="inline-flex w-full items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100 sm:w-auto"
               >
-                {missingCount === 1 ? "1 offene Angabe ausfuellen" : `${missingCount} offene Angaben ausfuellen`}
+                {missingCount === 1 ? "1 offene Angabe ausfüllen" : `${missingCount} offene Angaben ausfüllen`}
               </Link>
             ) : null}
             <Link
@@ -144,7 +144,7 @@ export default async function CustomerDashboard() {
               <div className="text-base font-semibold text-slate-900">
                 {nextAppointment.reason || "Beratungstermin"}
               </div>
-              <div className="mt-1 text-sm text-slate-600">Fall {nextAppointment.case_ref || "—"}</div>
+              <div className="mt-1 text-sm text-slate-600">Fall {nextAppointment.case_ref || "-"}</div>
               <div className="mt-3 text-sm text-slate-700">
                 Mit {nextAppointment.advisor_name || "Ihrem Berater"} am{" "}
                 <span className="font-semibold text-slate-900">{formatDateTime(nextAppointment.start_at)}</span>
@@ -201,4 +201,7 @@ export default async function CustomerDashboard() {
     </div>
   )
 }
+
+
+
 

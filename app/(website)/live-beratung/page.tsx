@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import LiveBeratungStart from "./ui/LiveBeratungStart"
 
 export const metadata: Metadata = {
@@ -11,3 +11,5 @@ export const metadata: Metadata = {
 export default function LiveBeratungPage() {
   return <LiveBeratungStart />
 }
+
+

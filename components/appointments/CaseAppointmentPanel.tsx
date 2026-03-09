@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useMemo, useState } from "react"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
@@ -18,7 +18,7 @@ const REASONS = [
   "Finanzierungsangebot besprechen",
   "Unterlagen & Nachweise",
   "Zinsbindung / Konditionen",
-  "Naechste Schritte & Abschluss",
+  "Nächste Schritte & Abschluss",
 ]
 
 type AppointmentItem = {
@@ -129,7 +129,7 @@ export default function CaseAppointmentPanel({ caseId }: { caseId: string }) {
       </div>
 
       {loading ? (
-        <div className="mt-4 text-sm text-slate-500">Lade Verfuegbarkeiten...</div>
+        <div className="mt-4 text-sm text-slate-500">Lade Verfügbarkeiten...</div>
       ) : (
         <div className="mt-4 space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -149,11 +149,11 @@ export default function CaseAppointmentPanel({ caseId }: { caseId: string }) {
 
           {!availabilityForDay?.is_active ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-              An diesem Tag sind keine Termine verfuegbar.
+              An diesem Tag sind keine Termine verfügbar.
             </div>
           ) : slots.length === 0 ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-              Keine freien Slots verfuegbar.
+              Keine freien Slots verfügbar.
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -178,7 +178,7 @@ export default function CaseAppointmentPanel({ caseId }: { caseId: string }) {
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="text-sm font-semibold text-slate-900">Ausgewaehlter Slot</div>
               <div className="mt-1 text-xs text-slate-600">
-                {formatDate(selectedSlot.start)} · {formatTime(selectedSlot.start)} – {formatTime(selectedSlot.end)}
+                {formatDate(selectedSlot.start)} · {formatTime(selectedSlot.start)} - {formatTime(selectedSlot.end)}
               </div>
               <label className="mt-3 block text-xs text-slate-600">
                 Grund
@@ -226,7 +226,7 @@ export default function CaseAppointmentPanel({ caseId }: { caseId: string }) {
                   return (
                     <div key={a.id} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                       <div>
-                        {formatDate(start)} · {formatTime(start)} – {formatTime(end)}
+                        {formatDate(start)} · {formatTime(start)} - {formatTime(end)}
                       </div>
                       <div className="text-[11px] text-slate-500">{a.reason || "Termin"}</div>
                       {isToday ? (
@@ -243,3 +243,6 @@ export default function CaseAppointmentPanel({ caseId }: { caseId: string }) {
     </div>
   )
 }
+
+
+

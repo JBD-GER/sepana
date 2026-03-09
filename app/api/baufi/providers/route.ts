@@ -1,4 +1,4 @@
-// app/api/baufi/providers/route.ts
+﻿// app/api/baufi/providers/route.ts
 export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
@@ -83,9 +83,9 @@ export async function GET(req: Request) {
 
   try {
     /**
-     * ✅ WICHTIG:
+     * OK WICHTIG:
      * Wir holen nur Provider, die EIN passendes provider_product haben (inner join).
-     * Damit kommen keine “Konsum-only” Banken mehr durch, wenn product=baufi.
+     * Damit kommen keine "Konsum-onlyâ€ Banken mehr durch, wenn product=baufi.
      */
     const { data: rows, error: pErr } = await sb
       .from("providers")
@@ -157,3 +157,4 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
 }
+

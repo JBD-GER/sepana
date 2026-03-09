@@ -1,4 +1,4 @@
-// app/api/baufi/check-email/route.ts
+﻿// app/api/baufi/check-email/route.ts
 export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
@@ -9,7 +9,7 @@ function isEmail(v: string) {
 }
 
 async function findUserIdByEmail(sb: ReturnType<typeof supabaseAdmin>, email: string) {
-  // Supabase Docs zeigen keine getUserByEmail in allen Umgebungen → robust via listUsers
+  // Supabase Docs zeigen keine getUserByEmail in allen Umgebungen -> robust via listUsers
   const target = email.trim().toLowerCase()
   const perPage = 1000
   const maxPages = 50 // Schutz (bis 50k User)
@@ -43,7 +43,9 @@ export async function GET(req: Request) {
     const userId = await findUserIdByEmail(sb, email)
     return NextResponse.json({ ok: true, exists: !!userId })
   } catch (e: any) {
-    // lieber “exists:false” als hart failen (UI soll nicht blockieren)
+    // lieber "exists:falseâ€ als hart failen (UI soll nicht blockieren)
     return NextResponse.json({ ok: true, exists: false, softError: e?.message ?? "check failed" })
   }
 }
+
+

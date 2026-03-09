@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
@@ -146,7 +146,7 @@ export default function CaseChat({
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Nachricht schreiben…"
+          placeholder="Nachricht schreiben..."
           className="min-h-[56px] w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
         />
         <button
@@ -160,3 +160,4 @@ export default function CaseChat({
     </div>
   )
 }
+

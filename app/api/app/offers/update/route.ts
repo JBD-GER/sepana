@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { logCaseEvent, buildEmailHtml, sendEmail, getCaseMeta } from "@/lib/notifications/notify"
 import { applyReferralBankOutcomeAndCommission } from "@/lib/tippgeber/service"
@@ -151,19 +151,19 @@ export async function POST(req: Request) {
       bankStatus === "approved"
         ? "\u{1F389} Die Bank hat das Angebot angenommen."
         : bankStatus === "precheck"
-          ? "Die Bank befindet sich in der Vorpruefung."
+          ? "Die Bank befindet sich in der Vorprüfung."
         : bankStatus === "declined"
           ? "Die Bank hat das Angebot abgelehnt."
           : bankStatus === "documents"
             ? "Bitte alle Unterlagen im Bereich Dokumente hochladen."
-          : `Die Bank hat Rueckfragen: ${bankFeedbackNote}`
+          : `Die Bank hat Rückfragen: ${bankFeedbackNote}`
 
     const meta = await logCaseEvent({
       caseId: offer.case_id,
       actorId: user.id,
       actorRole: role ?? "advisor",
       type: "offer_bank_status",
-      title: "Bankrueckmeldung der Bank",
+      title: "Bankrückmeldung der Bank",
       body: bankStatusBody,
     })
 
@@ -181,44 +181,44 @@ export async function POST(req: Request) {
           bankStatus === "approved"
             ? "\u{1F389} Bank hat das Angebot angenommen"
             : bankStatus === "precheck"
-              ? "Bankstatus: Vorpruefung"
+              ? "Bankstatus: Vorprüfung"
             : bankStatus === "declined"
               ? "Bank hat das Angebot abgelehnt"
               : bankStatus === "questions"
-                ? "Bank hat Rueckfragen"
-                : "Unterlagen benoetigt"
+                ? "Bank hat Rückfragen"
+                : "Unterlagen benötigt"
         const html = buildEmailHtml({
           title: subject,
           intro:
             bankStatus === "approved"
               ? "\u{1F389} Gute Nachrichten: die Bank hat Ihr Angebot angenommen."
               : bankStatus === "precheck"
-                ? "Die Bank hat die Vorpruefung Ihres Angebots gestartet."
+                ? "Die Bank hat die Vorprüfung Ihres Angebots gestartet."
               : bankStatus === "declined"
                 ? "Die Bank hat das Angebot leider abgelehnt."
                 : bankStatus === "questions"
-                  ? `Die Bank hat Rueckfragen. Bitte melden Sie sich bei ${advisorName}.`
-                  : "Bitte laden Sie alle benoetigten Unterlagen im Bereich Dokumente hoch.",
+                  ? `Die Bank hat Rückfragen. Bitte melden Sie sich bei ${advisorName}.`
+                  : "Bitte laden Sie alle benötigten Unterlagen im Bereich Dokumente hoch.",
           steps:
             bankStatus === "questions"
               ? [
-                  `Rueckfragen der Bank: ${bankFeedbackNote}`,
+                  `Rückfragen der Bank: ${bankFeedbackNote}`,
                   `Bitte kontaktieren Sie Ihren Kundenberater ${advisorName}.`,
                 ]
               : bankStatus === "precheck"
                 ? [
-                    "Die Bank befindet sich aktuell in der Vorpruefung.",
+                    "Die Bank befindet sich aktuell in der Vorprüfung.",
                     "Aktuell ist keine Aktion von Ihnen erforderlich.",
                     "Ihr Berater informiert Sie, sobald es Neuigkeiten gibt.",
                   ]
               : bankStatus === "documents"
                 ? [
-                    "Bitte oeffnen Sie Ihren Fall im Kundenportal.",
-                    "Laden Sie alle benoetigten Dokumente im Bereich Dokumente hoch.",
+                    "Bitte öffnen Sie Ihren Fall im Kundenportal.",
+                    "Laden Sie alle benötigten Dokumente im Bereich Dokumente hoch.",
                   ]
               : [
-                  "Ihr Berater meldet sich zeitnah mit den naechsten Schritten.",
-                  "Bei Fragen koennen Sie direkt im Portal eine Nachricht senden.",
+                  "Ihr Berater meldet sich zeitnah mit den nächsten Schritten.",
+                  "Bei Fragen können Sie direkt im Portal eine Nachricht senden.",
                 ],
         })
         await sendEmail({ to: caseMeta.customer_email, subject, html })
@@ -296,14 +296,14 @@ export async function POST(req: Request) {
       const advisorName = pickAdvisorName(caseMeta)
       const siteUrl = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL)
       const html = buildEmailHtml({
-        title: "Neues finales Angebot verfuegbar",
-        intro: `${advisorName} hat fuer Ihren Fall ein finales Angebot freigegeben.`,
+        title: "Neues finales Angebot verfügbar",
+        intro: `${advisorName} hat für Ihren Fall ein finales Angebot freigegeben.`,
         steps: [
-          "Bitte pruefen Sie das Angebot im Kundenportal.",
-          "Sie koennen das Angebot annehmen oder ablehnen.",
-          "Wichtig: Es ist nur eine Angebotsannahme pro Fall moeglich.",
+          "Bitte prüfen Sie das Angebot im Kundenportal.",
+          "Sie können das Angebot annehmen oder ablehnen.",
+          "Wichtig: Es ist nur eine Angebotsannahme pro Fall möglich.",
         ],
-        ctaLabel: "Angebot jetzt pruefen",
+        ctaLabel: "Angebot jetzt prüfen",
         ctaUrl: `${siteUrl}/app/faelle/${offer.case_id}`,
       })
       await sendEmail({ to: caseMeta.customer_email, subject: "Finales Angebot zur Entscheidung", html })
@@ -315,15 +315,17 @@ export async function POST(req: Request) {
     if (caseMeta?.customer_email) {
       const html = buildEmailHtml({
         title: "Bitte Unterlagen hochladen",
-        intro: "Ihr finales Angebot wurde angenommen. Bitte laden Sie nun alle benoetigten Unterlagen hoch.",
+        intro: "Ihr finales Angebot wurde angenommen. Bitte laden Sie nun alle benötigten Unterlagen hoch.",
         steps: [
-          "Oeffnen Sie den Bereich Dokumente in Ihrem Fall.",
-          "Laden Sie dort alle benoetigten Unterlagen vollstaendig hoch.",
+          "Öffnen Sie den Bereich Dokumente in Ihrem Fall.",
+          "Laden Sie dort alle benötigten Unterlagen vollständig hoch.",
         ],
       })
-      await sendEmail({ to: caseMeta.customer_email, subject: "Unterlagen fuer Ihre Finanzierung hochladen", html })
+      await sendEmail({ to: caseMeta.customer_email, subject: "Unterlagen für Ihre Finanzierung hochladen", html })
     }
   }
 
   return NextResponse.json({ ok: true })
 }
+
+

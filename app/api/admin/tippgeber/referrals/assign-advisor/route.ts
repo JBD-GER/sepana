@@ -178,7 +178,7 @@ export async function POST(req: Request) {
     }
 
     if (!isEmail(referral.customer_email)) {
-      return NextResponse.json({ ok: false, error: "Kunden-E-Mail ist ungueltig." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Kunden-E-Mail ist ungültig." }, { status: 400 })
     }
 
     const caseType = caseTypeFromReferral(referral)
@@ -187,7 +187,7 @@ export async function POST(req: Request) {
 
     if (caseType === "konsum" && (!requestedAmount || requestedAmount <= 0)) {
       return NextResponse.json(
-        { ok: false, error: "Kreditvolumen fehlt oder ist ungueltig." },
+        { ok: false, error: "Kreditvolumen fehlt oder ist ungültig." },
         { status: 400 }
       )
     }
@@ -303,17 +303,17 @@ export async function POST(req: Request) {
       }
 
       const nextStepsHtml = buildEmailHtml({
-        title: `Naechste Schritte zu Ihrem ${productLabel(caseType)}`,
-        intro: "Vielen Dank. Ihre Anfrage wurde uebernommen und wird nun durch einen Berater bearbeitet.",
+        title: `Nächste Schritte zu Ihrem ${productLabel(caseType)}`,
+        intro: "Vielen Dank. Ihre Anfrage wurde übernommen und wird nun durch einen Berater bearbeitet.",
         steps: [
           "Ihr Berater meldet sich zeitnah bei Ihnen.",
-          "Sie koennen Unterlagen spaeter direkt im Kundenportal hochladen.",
-          "Bei Rueckfragen sind wir telefonisch und per E-Mail erreichbar.",
+          "Sie können Unterlagen später direkt im Kundenportal hochladen.",
+          "Bei Rückfragen sind wir telefonisch und per E-Mail erreichbar.",
         ],
       })
       const nextStepsMail = await sendEmail({
         to: referral.customer_email,
-        subject: `Naechste Schritte zur ${productLabel(caseType)}`,
+        subject: `Nächste Schritte zur ${productLabel(caseType)}`,
         html: nextStepsHtml,
       })
       nextStepsMailSent = !!nextStepsMail.ok
@@ -323,7 +323,7 @@ export async function POST(req: Request) {
           caseId,
           actorRole: "admin",
           type: "tippgeber_referral_linked",
-          title: "Tippgeber-Empfehlung verknuepft",
+          title: "Tippgeber-Empfehlung verknüpft",
           body: `Empfohlen von ${companyName} (${tippgeberKindLabel(referralKind)}).`,
         })
       }
@@ -384,4 +384,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
+
+
 

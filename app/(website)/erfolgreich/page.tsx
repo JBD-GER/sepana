@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import Link from "next/link"
 import { Suspense, type ReactNode } from "react"
 import GoogleAdsDankeConversion from "./ui/GoogleAdsDankeConversion"
@@ -307,3 +307,5 @@ export default async function ErfolgreichPage({
     </div>
   )
 }
+
+

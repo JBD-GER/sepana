@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
@@ -63,9 +63,9 @@ function buildTermNotes(term?: ProviderItem["term"]) {
   if (loanMin && loanMax) {
     parts.push(`Darlehensrahmen typischerweise ${loanMin} bis ${loanMax} EUR.`)
   } else if (loanMin) {
-    parts.push(`Darlehen ab ${loanMin} EUR moeglich.`)
+    parts.push(`Darlehen ab ${loanMin} EUR möglich.`)
   } else if (loanMax) {
-    parts.push(`Darlehen bis ${loanMax} EUR moeglich.`)
+    parts.push(`Darlehen bis ${loanMax} EUR möglich.`)
   }
 
   return parts.join("\n")
@@ -156,13 +156,13 @@ export default function LiveOfferPanel({
         showOverlay("Angebot abgelehnt.", "danger")
       }
       if (nextStatus === "accepted") {
-        setStatusNote("Angebot wurde angenommen. Kein weiteres Angebot moeglich.")
+        setStatusNote("Angebot wurde angenommen. Kein weiteres Angebot möglich.")
         setStatusTone("success")
       } else if (nextStatus === "rejected") {
         setStatusNote("Angebot wurde abgelehnt. Du kannst ein neues Angebot erstellen.")
         setStatusTone("danger")
       } else if (nextStatus === "draft") {
-        setStatusNote("Angebot als Entwurf erstellt. Erst nach Status 'Abgeschickt' ist es fuer den Kunden sichtbar.")
+        setStatusNote("Angebot als Entwurf erstellt. Erst nach Status 'Abgeschickt' ist es für den Kunden sichtbar.")
         setStatusTone("neutral")
       } else if (nextStatus === "sent") {
         setStatusNote("Angebot ist gesendet. Warte auf Feedback vom Kunden.")
@@ -192,7 +192,7 @@ export default function LiveOfferPanel({
             if (next.status === "accepted") {
               setToast("Angebot wurde angenommen.")
               showOverlay("Angebot angenommen!", "success")
-              setStatusNote("Angebot wurde angenommen. Kein weiteres Angebot moeglich.")
+              setStatusNote("Angebot wurde angenommen. Kein weiteres Angebot möglich.")
               setStatusTone("success")
             } else if (next.status === "rejected") {
               setToast("Angebot wurde abgelehnt.")
@@ -201,7 +201,7 @@ export default function LiveOfferPanel({
               setStatusTone("danger")
             } else if (next.status === "draft") {
               setToast("Angebot wurde erstellt.")
-              setStatusNote("Angebot als Entwurf erstellt. Erst nach Status 'Abgeschickt' ist es fuer den Kunden sichtbar.")
+              setStatusNote("Angebot als Entwurf erstellt. Erst nach Status 'Abgeschickt' ist es für den Kunden sichtbar.")
               setStatusTone("neutral")
             } else if (next.status === "sent") {
               setToast("Angebot wurde gesendet.")
@@ -228,7 +228,7 @@ export default function LiveOfferPanel({
   async function submit() {
     setMsg(null)
     if (!providerId) {
-      setMsg("Bitte Bank auswaehlen.")
+      setMsg("Bitte Bank auswählen.")
       return
     }
     if (offerStatus === "accepted") {
@@ -325,7 +325,7 @@ export default function LiveOfferPanel({
             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
             disabled={locked}
           >
-            <option value="">Bitte waehlen</option>
+            <option value="">Bitte wählen</option>
             {providers.map((p) => (
               <option key={p.provider.id} value={p.provider.id}>
                 {p.provider.name}
@@ -460,3 +460,5 @@ export default function LiveOfferPanel({
     </>
   )
 }
+
+

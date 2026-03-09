@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -231,7 +231,7 @@ export default function AdvisorLivePanel() {
               <div key={ticket.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                 {ticket.entry_channel === "live_landing" ? (
                   <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-800">
-                    Vor Wizard â€“ nur Infoanfrage, Daten fehlen
+                    Vor Wizard - nur Infoanfrage, Daten fehlen
                   </div>
                 ) : null}
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -280,3 +280,5 @@ export default function AdvisorLivePanel() {
     </section>
   )
 }
+
+

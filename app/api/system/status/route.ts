@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 
 type ServiceState = "operational" | "degraded" | "outage"
 
@@ -88,3 +88,5 @@ export async function GET() {
     }
   )
 }
+
+

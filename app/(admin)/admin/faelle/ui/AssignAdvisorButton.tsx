@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useRouter } from "next/navigation"
 import { useMemo, useState } from "react"
@@ -37,7 +37,7 @@ export default function AssignAdvisorButton({
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || "Zuweisung fehlgeschlagen")
 
-      setMsg("Gespeichert ✅")
+      setMsg("Gespeichert OK")
       router.refresh()
     } catch (e: any) {
       setMsg(e?.message ?? "Fehler")
@@ -67,7 +67,7 @@ export default function AssignAdvisorButton({
             className="w-full rounded-xl border border-slate-200/70 bg-white px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-indigo-200"
             disabled={loading}
           >
-            <option value="">— keinen —</option>
+            <option value="">- keinen -</option>
             {options.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.label}
@@ -90,3 +90,5 @@ export default function AssignAdvisorButton({
     </div>
   )
 }
+
+

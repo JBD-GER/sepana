@@ -1,22 +1,22 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 
 export const metadata: Metadata = {
   title: "Tippgeber Privatkredit | Partnerprogramm | SEPANA",
   description:
-    "Tippgeber fuer Privatkredit: Empfehlungen digital einreichen, Status transparent verfolgen und Provisionen ueber das SEPANA Tippgeber-Dashboard verwalten.",
+    "Tippgeber für Privatkredit: Empfehlungen digital einreichen, Status transparent verfolgen und Provisionen über das SEPANA Tippgeber-Dashboard verwalten.",
   alternates: { canonical: "/tippgeber-privatkredit" },
 }
 
 const BENEFITS = [
   {
     title: "Digitales Tippgeber-Dashboard",
-    text: "Empfehlungen fuer Privatkredit direkt online einreichen, Status verfolgen und Provisionen transparent einsehen.",
+    text: "Empfehlungen für Privatkredit direkt online einreichen, Status verfolgen und Provisionen transparent einsehen.",
   },
   {
-    title: "Schnelle Uebergabe an Berater",
-    text: "SEPANA uebernimmt den Fall nach Zuweisung, kontaktiert den Kunden und begleitet die Anfrage strukturiert weiter.",
+    title: "Schnelle Übergabe an Berater",
+    text: "SEPANA übernimmt den Fall nach Zuweisung, kontaktiert den Kunden und begleitet die Anfrage strukturiert weiter.",
   },
   {
     title: "Klare Provisionslogik",
@@ -24,7 +24,7 @@ const BENEFITS = [
   },
   {
     title: "Saubere Dokumentation",
-    text: "Empfehlung, Status, Gutschrift und Auszahlungsfreigabe laufen sauber ueber das System.",
+    text: "Empfehlung, Status, Gutschrift und Auszahlungsfreigabe laufen sauber über das System.",
   },
 ]
 
@@ -42,12 +42,12 @@ const FLOW = [
     text: "Sie erfassen die Kontaktdaten des Kunden sowie Anlass, Finanzierungswunsch und wichtige Eckdaten.",
   },
   {
-    title: "4. SEPANA uebernimmt",
-    text: "Wir weisen den Tipp einem Berater zu, kontaktieren den Kunden und pruefen die passende Kreditstrecke.",
+    title: "4. SEPANA übernimmt",
+    text: "Wir weisen den Tipp einem Berater zu, kontaktieren den Kunden und prüfen die passende Kreditstrecke.",
   },
   {
     title: "5. Status & Provision",
-    text: "Bearbeitungsstand und Provisionsstatus bleiben im Dashboard sichtbar. Wichtige Updates kommen zusaetzlich per E-Mail.",
+    text: "Bearbeitungsstand und Provisionsstatus bleiben im Dashboard sichtbar. Wichtige Updates kommen zusätzlich per E-Mail.",
   },
   {
     title: "6. Gutschrift & Auszahlung",
@@ -56,31 +56,31 @@ const FLOW = [
 ]
 
 const USE_CASES = [
-  "PV-Anlagen und Waermepumpen",
-  "Kuechenstudios",
-  "Autohaeuser",
+  "PV-Anlagen und Wärmepumpen",
+  "Küchenstudios",
+  "Autohäuser",
   "Handwerksbetriebe",
   "Medizinische Anbieter",
   "Treppenlifte",
 ]
 
 const DASHBOARD_ITEMS = [
-  "Uebersicht aller eingereichten Tipps",
+  "Übersicht aller eingereichten Tipps",
   "Status pro Empfehlung",
   "Offene Provision (YTD)",
   "Ausgezahlte Provision (YTD)",
-  "Direktes Formular fuer neue Privatkredit-Tipps",
+  "Direktes Formular für neue Privatkredit-Tipps",
   "Gutschriften und relevante Downloads",
 ]
 
 const FAQS = [
   {
-    q: "Wie werde ich Tippgeber fuer Privatkredit bei SEPANA?",
+    q: "Wie werde ich Tippgeber für Privatkredit bei SEPANA?",
     a: "Das Tippgeber-Konto wird durch SEPANA erstellt und per Einladung freigeschaltet. Nach Annahme der Einladung vergeben Sie Ihr Passwort selbst.",
   },
   {
     q: "Welche Empfehlungen passen zu diesem Modell?",
-    a: "Typisch sind Privatkredit-Faelle mit klarem Finanzierungsbedarf, zum Beispiel fuer PV-Anlagen, Waermepumpen, Kuechen, Fahrzeuge, medizinische Leistungen oder Treppenlifte.",
+    a: "Typisch sind Privatkredit-Fälle mit klarem Finanzierungsbedarf, zum Beispiel für PV-Anlagen, Wärmepumpen, Küchen, Fahrzeuge, medizinische Leistungen oder Treppenlifte.",
   },
   {
     q: "Wie sehe ich meine Provisionen?",
@@ -88,7 +88,7 @@ const FAQS = [
   },
   {
     q: "Wann erfolgt eine Auszahlung?",
-    a: "Nur bei Bankzusage wird die Provision als offen vorgemerkt. Die Auszahlung erfolgt nach interner Freigabe und wird anschliessend im Dashboard als bezahlt markiert.",
+    a: "Nur bei Bankzusage wird die Provision als offen vorgemerkt. Die Auszahlung erfolgt nach interner Freigabe und wird anschließend im Dashboard als bezahlt markiert.",
   },
 ]
 
@@ -106,7 +106,7 @@ const PARTNER_CONTACT = {
   role: "Ansprechpartner Tippgeber-Partnerschaften",
   email: "c.pfad@sepana.de",
   phone: "05035 3169996",
-  response: "Rueckmeldung i. d. R. innerhalb von 48 Stunden",
+  response: "Rückmeldung i. d. R. innerhalb von 48 Stunden",
   imageSrc: "/pfad.png",
   imageAlt: "Herr Pfad",
 }
@@ -118,7 +118,7 @@ const TEAM_MEMBERS: TippgeberTeamMember[] = [
     email: "c.pfad@sepana.de",
     imageSrc: "/pfad.png",
     imageAlt: "Herr Pfad",
-    focus: "Partnerbetreuung, Fallstruktur und Uebergabe in die passende Privatkredit-Strecke.",
+    focus: "Partnerbetreuung, Fallstruktur und Übergabe in die passende Privatkredit-Strecke.",
   },
   {
     name: "Hr. Wagner",
@@ -129,12 +129,12 @@ const TEAM_MEMBERS: TippgeberTeamMember[] = [
     focus: "Privatkredit, Finanzierungszwecke mit Produktbezug und saubere Angebotsvorbereitung.",
   },
   {
-    name: "Fr. Mueller",
+    name: "Fr. Müller",
     role: "Kreditexpertin",
-    email: "s.mueller@sepana.de",
+    email: "s.müller@sepana.de",
     imageSrc: "/mueller.png",
-    imageAlt: "Frau Mueller",
-    focus: "Rueckfragen, Statuskommunikation und strukturierte Prozessbegleitung.",
+    imageAlt: "Frau Müller",
+    focus: "Rückfragen, Statuskommunikation und strukturierte Prozessbegleitung.",
   },
 ]
 
@@ -179,13 +179,13 @@ export default function TippgeberPrivatkreditPage() {
             </h1>
 
             <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-200/95 sm:text-base">
-              SEPANA bietet ein strukturiertes Tippgeber-System fuer Privatkredit: Einladung, Dashboard-Zugang,
-              Tipp-Erfassung, Status-Updates und Provisionsuebersicht in einem klaren Prozess.
+              SEPANA bietet ein strukturiertes Tippgeber-System für Privatkredit: Einladung, Dashboard-Zugang,
+              Tipp-Erfassung, Status-Updates und Provisionsübersicht in einem klaren Prozess.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-2 text-xs font-medium text-slate-200">
-              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">PV & Waermepumpen</span>
-              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Kuechen & Fahrzeuge</span>
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">PV & Wärmepumpen</span>
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Küchen & Fahrzeuge</span>
               <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Provision & Gutschrift im Portal</span>
             </div>
 
@@ -222,7 +222,7 @@ export default function TippgeberPrivatkreditPage() {
                 <div className="text-xs uppercase tracking-[0.08em] text-emerald-100">Bankstatus angenommen</div>
                 <div className="mt-1 text-lg font-semibold text-white">35 % der SEPANA-Provision inkl. MwSt.</div>
                 <div className="mt-1 text-xs text-slate-200/85">
-                  Basis ist die intern erfasste SEPANA-Provision (inkl. MwSt.) nach Bankannahme. Freigabe und Auszahlung ueber den Admin-Prozess.
+                  Basis ist die intern erfasste SEPANA-Provision (inkl. MwSt.) nach Bankannahme. Freigabe und Auszahlung über den Admin-Prozess.
                 </div>
               </div>
             </div>
@@ -241,9 +241,9 @@ export default function TippgeberPrivatkreditPage() {
         <div className="relative grid gap-4 xl:grid-cols-[0.95fr_1.05fr] xl:items-start">
           <div className="rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur sm:p-5">
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-200/90">Ansprechpartner</div>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Direkter Kontakt fuer neue Tippgeber</h2>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Direkter Kontakt für neue Tippgeber</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-200/90">
-              Wir klaeren Setup, Ablauf und Freischaltung persoenlich mit Ihnen und begleiten den Start ins Dashboard.
+              Wir klären Setup, Ablauf und Freischaltung persönlich mit Ihnen und begleiten den Start ins Dashboard.
             </p>
 
             <div className="mt-4 rounded-2xl border border-white/15 bg-white/10 p-4">
@@ -269,12 +269,12 @@ export default function TippgeberPrivatkreditPage() {
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-200/85">Rueckmeldung</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-200/85">Rückmeldung</div>
                 <div className="mt-1 text-sm font-semibold text-white">{PARTNER_CONTACT.response}</div>
               </div>
               <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-200/85">Fokus</div>
-                <div className="mt-1 text-sm font-semibold text-white">Privatkredit-Partner und strukturierte Falluebergabe</div>
+                <div className="mt-1 text-sm font-semibold text-white">Privatkredit-Partner und strukturierte Fallübergabe</div>
               </div>
             </div>
 
@@ -348,8 +348,8 @@ export default function TippgeberPrivatkreditPage() {
       <section className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
         <SectionHeadline
           eyebrow="Anwendungsbereiche"
-          title="Typische Privatkredit-Faelle fuer Tippgeber"
-          text="Das Modell ist fuer Partner gedacht, die regelmaessig Kunden mit klarem Finanzierungsbedarf an SEPANA weitergeben."
+          title="Typische Privatkredit-Fälle für Tippgeber"
+          text="Das Modell ist für Partner gedacht, die regelmäßig Kunden mit klarem Finanzierungsbedarf an SEPANA weitergeben."
         />
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {USE_CASES.map((item) => (
@@ -364,8 +364,8 @@ export default function TippgeberPrivatkreditPage() {
       <section className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
         <SectionHeadline
           eyebrow="Ablauf"
-          title="So funktioniert das Tippgeber-System fuer Privatkredit"
-          text="Von der Einladung bis zur Auszahlung laeuft alles nachvollziehbar ueber feste Prozessschritte."
+          title="So funktioniert das Tippgeber-System für Privatkredit"
+          text="Von der Einladung bis zur Auszahlung läuft alles nachvollziehbar über feste Prozessschritte."
         />
         <div className="grid gap-3 lg:grid-cols-2">
           {FLOW.map((step) => (
@@ -381,7 +381,7 @@ export default function TippgeberPrivatkreditPage() {
         <SectionHeadline
           eyebrow="Dashboard"
           title="Was Tippgeber im Portal sehen"
-          text="Das Portal ist auf Uebersicht, schnelle Erfassung und transparente Provisionsdarstellung ausgelegt."
+          text="Das Portal ist auf Übersicht, schnelle Erfassung und transparente Provisionsdarstellung ausgelegt."
         />
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
           <div className="text-sm font-semibold text-slate-900">Im Dashboard-Ueberblick</div>
@@ -397,7 +397,7 @@ export default function TippgeberPrivatkreditPage() {
       </section>
 
       <section className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
-        <SectionHeadline eyebrow="FAQ" title="Haeufige Fragen zum Tippgeber-Modell" />
+        <SectionHeadline eyebrow="FAQ" title="Häufige Fragen zum Tippgeber-Modell" />
         <div className="grid gap-3">
           {FAQS.map((item) => (
             <div key={item.q} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
@@ -414,7 +414,7 @@ export default function TippgeberPrivatkreditPage() {
         <div className="relative flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Anfrage</div>
-            <h3 className="mt-1 text-xl font-semibold text-slate-900">Tippgeber-Zugang fuer Privatkredit anfragen</h3>
+            <h3 className="mt-1 text-xl font-semibold text-slate-900">Tippgeber-Zugang für Privatkredit anfragen</h3>
             <p className="mt-2 max-w-2xl text-sm text-slate-600">
               Sie moechten Privatkredit-Empfehlungen digital einreichen und transparent abrechnen? Dann fordern Sie eine Einladung an.
             </p>
@@ -438,3 +438,5 @@ export default function TippgeberPrivatkreditPage() {
     </div>
   )
 }
+
+

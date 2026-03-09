@@ -1,6 +1,6 @@
-function prettify(raw?: string | null) {
+﻿function prettify(raw?: string | null) {
   const s = String(raw ?? "").trim().toLowerCase()
-  if (!s) return "—"
+  if (!s) return "-"
   const pretty = s.replace(/[_-]+/g, " ").trim()
   return pretty.charAt(0).toUpperCase() + pretty.slice(1)
 }
@@ -64,16 +64,19 @@ export function translateBankStatus(raw?: string | null) {
   const s = String(raw ?? "").trim().toLowerCase()
   const map: Record<string, string> = {
     submitted: "Eingereicht",
-    precheck: "Vorpruefung",
-    pre_check: "Vorpruefung",
-    vorpruefung: "Vorpruefung",
+    precheck: "Vorprüfung",
+    pre_check: "Vorprüfung",
+    vorprüfung: "Vorprüfung",
     documents: "Dokumente",
     approved: "Angenommen",
     accepted: "Angenommen",
     declined: "Abgelehnt",
     rejected: "Abgelehnt",
-    questions: "Rueckfragen",
-    rueckfragen: "Rueckfragen",
+    questions: "Rückfragen",
+    rueckfragen: "Rückfragen",
   }
   return map[s] ?? prettify(s)
 }
+
+
+

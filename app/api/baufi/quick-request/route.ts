@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
@@ -162,7 +162,7 @@ async function sendAdminNotification(opts: {
 
   const html = buildEmailHtml({
     title: subject,
-    intro: "Es wurde eine neue Kurzanfrage ueber die Landingpage Anschlussfinanzierung eingereicht.",
+    intro: "Es wurde eine neue Kurzanfrage über die Landingpage Anschlussfinanzierung eingereicht.",
     bodyHtml,
     preheader: subject,
     eyebrow: "SEPANA - Lead Eingang",
@@ -183,14 +183,14 @@ async function sendCustomerConfirmation(email: string) {
   const subject = "Ihre Kurzanfrage ist eingegangen"
   const html = buildEmailHtml({
     title: subject,
-    intro: "Vielen Dank fuer Ihre Kurzanfrage zur Anschlussfinanzierung.",
+    intro: "Vielen Dank für Ihre Kurzanfrage zur Anschlussfinanzierung.",
     steps: [
       "Wir melden uns zeitnah bei Ihnen.",
-      "Im Gespraech klaeren wir Restschuld, Timing und Forward-Optionen.",
-      "Bei Rueckfragen erreichen Sie uns unter 05035 3169996.",
+      "Im Gespräch klären wir Restschuld, Timing und Forward-Optionen.",
+      "Bei Rückfragen erreichen Sie uns unter 05035 3169996.",
     ],
     preheader: subject,
-    eyebrow: "SEPANA - Bestaetigung",
+    eyebrow: "SEPANA - Bestätigung",
   })
 
   const result = await sendEmail({ to: email, subject, html })
@@ -204,11 +204,11 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json().catch(() => null)) as RequestBody | null
     if (!body || typeof body !== "object") {
-      return NextResponse.json({ ok: false, error: "Ungueltige Anfrage." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Ungültige Anfrage." }, { status: 400 })
     }
 
     if (trimOrNull(body.website)) {
-      return NextResponse.json({ ok: false, error: "Ungueltige Anfrage." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Ungültige Anfrage." }, { status: 400 })
     }
 
     const email = trimOrNull(body.email)?.toLowerCase() ?? null
@@ -224,10 +224,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Bitte E-Mail und Telefonnummer angeben." }, { status: 400 })
     }
     if (!isEmail(email)) {
-      return NextResponse.json({ ok: false, error: "Bitte eine gueltige E-Mail eingeben." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Bitte eine gültige E-Mail eingeben." }, { status: 400 })
     }
     if (!isPhone(phone)) {
-      return NextResponse.json({ ok: false, error: "Bitte eine gueltige Telefonnummer eingeben." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Bitte eine gültige Telefonnummer eingeben." }, { status: 400 })
     }
 
     const now = new Date().toISOString()
@@ -246,7 +246,7 @@ export async function POST(req: Request) {
       product_name: "Baufinanzierung Anschlussfinanzierung",
       lead_case_type: "baufi",
       loan_purpose: "Anschlussfinanzierung",
-      notes: "Kurzanfrage ueber Landingpage Anschlussfinanzierung",
+      notes: "Kurzanfrage über Landingpage Anschlussfinanzierung",
       additional: {
         origin: "website",
         page: pagePath,
@@ -296,3 +296,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
+

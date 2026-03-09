@@ -1,4 +1,4 @@
-// app/api/admin/invite-advisor/route.ts
+﻿// app/api/admin/invite-advisor/route.ts
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
@@ -105,3 +105,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
 }
+

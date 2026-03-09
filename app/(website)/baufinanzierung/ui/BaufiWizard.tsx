@@ -1,4 +1,4 @@
-// app/(website)/baufinanzierung/ui/BaufiWizard.tsx
+﻿// app/(website)/baufinanzierung/ui/BaufiWizard.tsx
 "use client"
 
 import Link from "next/link"
@@ -75,7 +75,7 @@ function isPhone(v?: string) {
 }
 
 /**
- * ✅ Wichtig: robustes Parsing für de-DE Eingaben
+ * OK Wichtig: robustes Parsing für de-DE Eingaben
  * - entfernt Währung/Spaces
  * - entfernt Tausenderpunkte
  * - Komma => Punkt
@@ -141,7 +141,7 @@ type SubmitResponse = {
 }
 
 /**
- * ✅ FINAL: deine URL-Struktur laut Screenshot
+ * OK FINAL: deine URL-Struktur laut Screenshot
  * - Bankenauswahl: /baufinanzierung/auswahl
  */
 function buildNextUrl(opts: {
@@ -158,7 +158,7 @@ function buildNextUrl(opts: {
   if (opts.caseRef) params.set("caseRef", opts.caseRef)
   if (opts.existingAccount) params.set("existing", "1")
 
-  // ✅ Damit Auswahlseite nicht auf Default 300k/30 fällt
+  // OK Damit Auswahlseite nicht auf Default 300k/30 fällt
   if (opts.loanAmount && Number.isFinite(opts.loanAmount)) params.set("loanAmount", String(Math.round(opts.loanAmount)))
   if (opts.years && Number.isFinite(opts.years)) params.set("years", String(Math.round(opts.years)))
 
@@ -322,7 +322,7 @@ export default function BaufiWizard({
 
     const tip =
       surplus < 0
-        ? "Die Ausgaben liegen über den Einnahmen – prüfen Sie Fixkosten/Verpflichtungen oder ergänzen Sie Einnahmen (falls zutreffend)."
+        ? "Die Ausgaben liegen über den Einnahmen - prüfen Sie Fixkosten/Verpflichtungen oder ergänzen Sie Einnahmen (falls zutreffend)."
         : surplusRatio < 0.15
           ? "Kleiner Puffer: Mehr Überschuss verbessert i. d. R. die Finanzierbarkeit und Konditionen."
           : "Solider Puffer: In der Regel ein positives Signal für Banken."
@@ -356,14 +356,14 @@ export default function BaufiWizard({
     setSuccessMsg(null)
 
     try {
-      // ✅ Für Auswahl-Seite: loanAmount als Beispiel = purchase_price (kannst du später ersetzen)
+      // OK Für Auswahl-Seite: loanAmount als Beispiel = purchase_price (kannst du später ersetzen)
       const loanAmountExample = parseMoneyToNumber(baufi.purchase_price || "")
       const yearsExample = 30
 
       const payload = {
         baufi: {
           ...baufi,
-          // ✅ wichtig: keine Tausenderpunkte, Komma -> Punkt
+          // OK wichtig: keine Tausenderpunkte, Komma -> Punkt
           purchase_price: normalizeMoneyString(baufi.purchase_price ?? ""),
         },
         primary: {
@@ -406,7 +406,7 @@ export default function BaufiWizard({
       if (!caseId) {
         setSuccessMsg(
           existingAccount
-            ? "Es gibt bereits ein Konto zu dieser E-Mail. Wir haben Ihren Vergleich im Portal hinterlegt – bitte melden Sie sich an."
+            ? "Es gibt bereits ein Konto zu dieser E-Mail. Wir haben Ihren Vergleich im Portal hinterlegt - bitte melden Sie sich an."
             : "Geschafft! Sie erhalten jetzt eine E-Mail mit dem Einladungslink. Dort legen Sie nur noch Ihr Passwort fest."
         )
         localStorage.removeItem(DRAFT_KEY)
@@ -584,7 +584,7 @@ export default function BaufiWizard({
               )}
             >
               {busy
-                ? "Bankenvergleich wird gestartet…"
+                ? "Bankenvergleich wird gestartet..."
                 : "Bankenvergleich starten"}
             </button>
           )}
@@ -594,9 +594,9 @@ export default function BaufiWizard({
   )
 }
 
-/* ────────────────────────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    UI building blocks
-──────────────────────────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 function Card({
   title,
@@ -776,9 +776,9 @@ function DateInput(
   )
 }
 
-/* ────────────────────────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    Steps
-──────────────────────────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 function ContactStep({
   value,
@@ -893,7 +893,7 @@ function ResidenceStep({
 }) {
   return (
     <div className="space-y-4">
-      <Card title="Adresse & Wohnsituation" subtitle="Optional – aber sehr hilfreich für eine saubere Einordnung.">
+      <Card title="Adresse & Wohnsituation" subtitle="Optional - aber sehr hilfreich für eine saubere Einordnung.">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Straße / Nr.">
             <Input
@@ -935,7 +935,7 @@ function ResidenceStep({
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <Card title="Beschäftigung" subtitle="Bitte als Dropdown – schnell & eindeutig.">
+          <Card title="Beschäftigung" subtitle="Bitte als Dropdown - schnell & eindeutig.">
             <div className="grid grid-cols-1 gap-3">
               <Field label="Beschäftigungsverhältnis">
                 <Select
@@ -983,10 +983,10 @@ function ResidenceStep({
           <Card title="Mini-Tipps" subtitle="Warum diese Infos helfen">
             <div className="space-y-2 text-xs text-slate-600">
               <div className="rounded-2xl border border-slate-200 bg-white/60 px-3 py-2">
-                • Beschäftigung + Status sind Standardfragen bei Banken – Dropdowns verhindern Missverständnisse.
+                • Beschäftigung + Status sind Standardfragen bei Banken - Dropdowns verhindern Missverständnisse.
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white/60 px-3 py-2">
-                • Optional bleibt optional – aber weniger Rückfragen = schnellerer Vergleich.
+                • Optional bleibt optional - aber weniger Rückfragen = schnellerer Vergleich.
               </div>
             </div>
           </Card>
@@ -1055,7 +1055,7 @@ function HouseholdStep({
 
   return (
     <div className="space-y-4">
-      <Card title="Einnahmen & Ausgaben" subtitle="Monatswerte – wird automatisch als Euro formatiert.">
+      <Card title="Einnahmen & Ausgaben" subtitle="Monatswerte - wird automatisch als Euro formatiert.">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Field label="Nettoeinkommen / Monat">
@@ -1065,7 +1065,7 @@ function HouseholdStep({
                 placeholder="z. B. 3.200"
               />
             </Field>
-            <Tip>Wenn schwankend: Durchschnitt der letzten 3–6 Monate.</Tip>
+            <Tip>Wenn schwankend: Durchschnitt der letzten 3-6 Monate.</Tip>
           </div>
 
           <div className="space-y-2">
@@ -1163,7 +1163,7 @@ function CoApplicantsStep({
 
   return (
     <div className="space-y-4">
-      <Card title="Weitere Kreditnehmer" subtitle="Optional – Einkommen wird automatisch in der Haushaltsrechnung berücksichtigt.">
+      <Card title="Weitere Kreditnehmer" subtitle="Optional - Einkommen wird automatisch in der Haushaltsrechnung berücksichtigt.">
         <div className="space-y-3">
           {items.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-white/60 px-4 py-3 text-sm text-slate-600">
@@ -1272,22 +1272,22 @@ function ReviewStep({
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           <div className="space-y-3">
             <Section title="Hauptantragsteller">
-              <KV k="Name" v={`${p.first_name} ${p.last_name}`.trim() || "—"} />
-              <KV k="E-Mail" v={p.email || "—"} />
-              <KV k="Telefon" v={p.phone || "—"} />
-              <KV k="Geburtsdatum" v={p.birth_date || "—"} />
-              <KV k="Familienstand" v={p.marital_status || "—"} />
+              <KV k="Name" v={`${p.first_name} ${p.last_name}`.trim() || "-"} />
+              <KV k="E-Mail" v={p.email || "-"} />
+              <KV k="Telefon" v={p.phone || "-"} />
+              <KV k="Geburtsdatum" v={p.birth_date || "-"} />
+              <KV k="Familienstand" v={p.marital_status || "-"} />
             </Section>
 
             <Section title="Adresse & Situation">
               <KV
                 k="Adresse"
-                v={[p.address_street, p.address_zip, p.address_city].filter(Boolean).join(", ") || "—"}
+                v={[p.address_street, p.address_zip, p.address_city].filter(Boolean).join(", ") || "-"}
               />
-              <KV k="Wohnstatus" v={p.housing_status || "—"} />
+              <KV k="Wohnstatus" v={p.housing_status || "-"} />
               <KV k="Beschäftigungsverhältnis" v={labelEmploymentType(p.employment_type)} />
               <KV k="Status" v={labelEmploymentStatus(p.employment_status)} />
-              <KV k="Arbeitgeber" v={p.employer_name || "—"} />
+              <KV k="Arbeitgeber" v={p.employer_name || "-"} />
             </Section>
           </div>
 
@@ -1315,7 +1315,7 @@ function ReviewStep({
                       c.first_name || c.last_name
                         ? `${c.first_name} ${c.last_name}`.trim()
                         : `Kreditnehmer ${i + 2}`
-                    const income = c.net_income_monthly ? c.net_income_monthly : "—"
+                    const income = c.net_income_monthly ? c.net_income_monthly : "-"
                     return (
                       <li key={i} className="rounded-2xl border border-slate-200 bg-white/60 px-3 py-2">
                         <div className="flex items-baseline justify-between gap-3">
@@ -1325,10 +1325,10 @@ function ReviewStep({
                           <div className="shrink-0 text-sm font-medium text-slate-900 tabular-nums">{income}</div>
                         </div>
                         <div className="mt-1 text-xs text-slate-600">
-                          {c.birth_date ? `Geb.: ${c.birth_date}` : "Geb.: —"} ·{" "}
+                          {c.birth_date ? `Geb.: ${c.birth_date}` : "Geb.: -"} ·{" "}
                           {c.employment_status
                             ? `Status: ${labelEmploymentStatus(c.employment_status)}`
-                            : "Status: —"}
+                            : "Status: -"}
                         </div>
                       </li>
                     )
@@ -1364,7 +1364,7 @@ function KV({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 text-sm">
       <div className="text-slate-600">{k}</div>
-      <div className="font-medium text-slate-900 tabular-nums text-right">{v || "—"}</div>
+      <div className="font-medium text-slate-900 tabular-nums text-right">{v || "-"}</div>
     </div>
   )
 }
@@ -1386,7 +1386,7 @@ function labelEmploymentType(v?: string) {
     case "other":
       return "Sonstiges"
     default:
-      return "—"
+      return "-"
   }
 }
 
@@ -1409,6 +1409,9 @@ function labelEmploymentStatus(v?: string) {
     case "other":
       return "Sonstiges"
     default:
-      return "—"
+      return "-"
   }
 }
+
+
+

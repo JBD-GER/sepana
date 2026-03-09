@@ -1,4 +1,4 @@
-// app/(app)/app/faelle/[id]/page.tsx
+﻿// app/(app)/app/faelle/[id]/page.tsx
 import Link from "next/link"
 import { requireCustomer } from "@/lib/app/requireCustomer"
 import { authFetch } from "@/lib/app/authFetch"
@@ -102,11 +102,11 @@ function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(d))
 }
 function formatEUR(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return "—"
+  if (n == null || Number.isNaN(Number(n))) return "-"
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n))
 }
 function formatPct(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return "—"
+  if (n == null || Number.isNaN(Number(n))) return "-"
   return `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(Number(n))} %`
 }
 
@@ -149,9 +149,9 @@ function parseBoolParam(value: string | string[] | undefined) {
   return ["1", "true", "yes", "y", "on"].includes(normalized)
 }
 
-// ✅ Status-Übersetzung (Case)
+// OK Status-Übersetzung (Case)
 
-// ✅ Status-Übersetzung (Offer)
+// OK Status-Übersetzung (Offer)
 
 export default async function CaseDetailPage({
   params,
@@ -195,7 +195,7 @@ export default async function CaseDetailPage({
   const advisor = data.advisor
 
   const previewProviderName =
-    previewRow?.provider_name ?? previewPayload?.provider?.name ?? "—"
+    previewRow?.provider_name ?? previewPayload?.provider?.name ?? "-"
   const previewProviderLogoPath = normalizeLogoPath(
     previewRow?.provider_logo_path ??
       previewPayload?.provider?.logo_path ??
@@ -217,7 +217,7 @@ export default async function CaseDetailPage({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <Link href="/app/faelle" className="text-sm font-medium text-slate-900 underline underline-offset-4">
-              ← Zurück zu Fälle
+              {"<-"} Zurück zu Fälle
             </Link>
             <h1 className="mt-3 text-2xl font-semibold text-slate-900">Fall {c.case_ref || c.id.slice(0, 8)}</h1>
             <div className="mt-1 text-sm text-slate-600">
@@ -336,7 +336,7 @@ export default async function CaseDetailPage({
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="text-sm font-medium text-slate-900">Finale Angebote</div>
         <p className="mt-1 text-xs text-slate-600">
-          Diese Angebote werden vom Berater freigegeben. Wichtig: Es ist nur eine Angebotsannahme moeglich.
+          Diese Angebote werden vom Berater freigegeben. Wichtig: Es ist nur eine Angebotsannahme möglich.
         </p>
         <OfferList
           offers={data.offers ?? []}
@@ -365,4 +365,7 @@ export default async function CaseDetailPage({
     </div>
   )
 }
+
+
+
 

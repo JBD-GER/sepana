@@ -1,4 +1,4 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import Image from "next/image"
 import LogoutButton from "@/components/LogoutButton"
 
@@ -28,12 +28,12 @@ export default function AdminHeader() {
         </Link>
 
         <nav className="flex items-center gap-2">
-          <NavItem href="/admin" label="Uebersicht" />
+          <NavItem href="/admin" label="Übersicht" />
           <NavItem href="/admin/leads" label="Leads" />
           <NavItem href="/admin/tippgeber" label="Tippgeber" />
           <NavItem href="/admin/banken" label="Banken" />
           <NavItem href="/admin/berater" label="Berater" />
-          <NavItem href="/admin/faelle" label="Faelle & Unterlagen" />
+          <NavItem href="/admin/faelle" label="Fälle & Unterlagen" />
           <NavItem href="/admin/termine" label="Termine" />
           <NavItem href="/admin/logs" label="Logs" />
           <LogoutButton
@@ -46,3 +46,5 @@ export default function AdminHeader() {
     </header>
   )
 }
+
+

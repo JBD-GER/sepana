@@ -44,19 +44,19 @@ type TicketUpdate = {
 }
 
 function formatEUR(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return "â€”"
+  if (n == null || Number.isNaN(Number(n))) return "-"
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n))
 }
 
 function formatPct(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return "â€”"
+  if (n == null || Number.isNaN(Number(n))) return "-"
   return `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(Number(n))} %`
 }
 
 function formatDuration(start?: string | null, end?: string | null) {
-  if (!start || !end) return "â€”"
+  if (!start || !end) return "-"
   const ms = new Date(end).getTime() - new Date(start).getTime()
-  if (!Number.isFinite(ms) || ms <= 0) return "â€”"
+  if (!Number.isFinite(ms) || ms <= 0) return "-"
   const totalSec = Math.floor(ms / 1000)
   const min = Math.floor(totalSec / 60)
   const sec = totalSec % 60
@@ -64,7 +64,7 @@ function formatDuration(start?: string | null, end?: string | null) {
 }
 
 function dt(d: string | null | undefined) {
-  if (!d) return "â€”"
+  if (!d) return "-"
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(d))
 }
 
@@ -395,7 +395,7 @@ export default function LiveRoomClient({
       setCamOn(true)
     } catch {
       setCamOn(false)
-      setErr("Kamera konnte nicht gestartet werden. Bitte Berechtigung prÃ¼fen und erneut versuchen.")
+      setErr("Kamera konnte nicht gestartet werden. Bitte Berechtigung prüfen und erneut versuchen.")
     }
   }
 
@@ -413,7 +413,7 @@ export default function LiveRoomClient({
             <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Live-Session</div>
             <div className="mt-1 text-sm font-semibold text-white sm:text-base">{caseRef || "Beratung"}</div>
             <div className="mt-1 text-[11px] text-slate-300 sm:text-xs">
-              {isCustomer ? "Kunde" : "Berater"} Â· Start {dt(acceptedAt || initialCreatedAt)}
+              {isCustomer ? "Kunde" : "Berater"} · Start {dt(acceptedAt || initialCreatedAt)}
             </div>
           </div>
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
@@ -426,14 +426,14 @@ export default function LiveRoomClient({
                     : "border-amber-300/40 bg-amber-500/20 text-amber-100"
               }`}
             >
-              {hasEnded ? "Beendet" : connected ? "Verbunden" : "Verbindeâ€¦"}
+              {hasEnded ? "Beendet" : connected ? "Verbunden" : "Verbinde..."}
             </span>
             {!hasEnded ? (
               <button
                 onClick={endCall}
                 className="rounded-full border border-rose-300/40 bg-rose-500/20 px-3 py-1.5 text-[11px] font-semibold text-rose-100 transition hover:bg-rose-500/30 sm:px-4 sm:py-2 sm:text-xs"
               >
-                GesprÃ¤ch beenden
+                Gespräch beenden
               </button>
             ) : null}
           </div>
@@ -447,11 +447,11 @@ export default function LiveRoomClient({
       ) : hasEnded && isCustomer ? (
         <div className="relative mx-auto max-w-5xl space-y-6 px-3 py-6 sm:px-4 sm:py-8">
           <div className="rounded-3xl border border-white/15 bg-white/10 p-6 shadow-xl backdrop-blur-xl">
-            <div className="text-sm text-slate-300">GesprÃ¤ch beendet</div>
-            <div className="mt-2 text-xl font-semibold text-white">Danke fÃ¼r Ihre Zeit.</div>
+            <div className="text-sm text-slate-300">Gespräch beendet</div>
+            <div className="mt-2 text-xl font-semibold text-white">Danke für Ihre Zeit.</div>
             <div className="mt-2 text-sm text-slate-200">
               Dauer:{" "}
-              <span className="font-semibold text-white">{formatDuration(acceptedAt || initialCreatedAt, endedAt)}</span> Â·
+              <span className="font-semibold text-white">{formatDuration(acceptedAt || initialCreatedAt, endedAt)}</span> ·
               Beendet: <span className="font-semibold text-white">{dt(endedAt)}</span>
             </div>
             <div className="mt-3 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-slate-200">
@@ -467,12 +467,12 @@ export default function LiveRoomClient({
 
           <div className="rounded-3xl border border-white/15 bg-white/10 p-6 shadow-xl backdrop-blur-xl">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-base font-semibold text-white">AngebotsÃ¼bersicht</div>
+              <div className="text-base font-semibold text-white">Angebotsübersicht</div>
               <div className="text-xs text-slate-300">{summaryItems.length} Entscheidung(en)</div>
             </div>
 
             {summaryLoading ? (
-              <div className="mt-3 text-sm text-slate-300">Lade Angeboteâ€¦</div>
+              <div className="mt-3 text-sm text-slate-300">Lade Angebote...</div>
             ) : summaryItems.length === 0 ? (
               <div className="mt-3 text-sm text-slate-300">Noch keine angenommenen oder abgelehnten Angebote vorhanden.</div>
             ) : (
@@ -481,7 +481,7 @@ export default function LiveRoomClient({
                   <div key={offer.id} className="rounded-2xl border border-white/15 bg-slate-950/35 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="font-semibold text-white">
-                        {providerMap[offer.provider_id] || "Bankpartner"} Â· {formatEUR(offer.rate_monthly)} / Monat
+                        {providerMap[offer.provider_id] || "Bankpartner"} · {formatEUR(offer.rate_monthly)} / Monat
                       </div>
                       <StatusBadge status={offer.status} />
                     </div>
@@ -525,7 +525,7 @@ export default function LiveRoomClient({
                 <VideoTile track={remoteVideo} cover />
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-slate-300">
-                  {connected ? "Warte auf die Gegenseiteâ€¦" : "Verbindeâ€¦"}
+                  {connected ? "Warte auf die Gegenseite..." : "Verbinde..."}
                 </div>
               )}
 
@@ -589,7 +589,7 @@ export default function LiveRoomClient({
             <div className="rounded-[26px] border border-white/15 bg-white/10 p-5 shadow-xl backdrop-blur">
               <div className="text-sm font-semibold text-white">Sitzungsinfo</div>
               <div className="mt-3 space-y-2 text-sm text-slate-200">
-                <div>Fall: {caseRef || "â€”"}</div>
+                <div>Fall: {caseRef || "-"}</div>
                 <div>Start: {dt(acceptedAt || initialCreatedAt)}</div>
                 <div>Status: {hasEnded ? "Beendet" : connected ? "Aktiv" : "Wird verbunden"}</div>
               </div>
@@ -605,4 +605,7 @@ export default function LiveRoomClient({
     </div>
   )
 }
+
+
+
 

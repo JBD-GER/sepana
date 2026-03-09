@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useRef } from "react"
 
@@ -69,7 +69,7 @@ export default function SuccessConfetti({ accent = "#091840", burst = 90 }: Prop
 
       p.style.setProperty("--x", `${drift1}px`)
       p.style.setProperty("--x2", `${drift2}px`)
-      // ✅ bis ganz unten (volle Container-Höhe)
+      // OK bis ganz unten (volle Container-Höhe)
       p.style.setProperty("--y", `${h + 120 + Math.random() * 120}px`)
       p.style.setProperty("--r0", `${Math.random() * 140}deg`)
       p.style.setProperty("--r1", `${320 + Math.random() * 620}deg`)
@@ -93,3 +93,5 @@ export default function SuccessConfetti({ accent = "#091840", burst = 90 }: Prop
     />
   )
 }
+
+

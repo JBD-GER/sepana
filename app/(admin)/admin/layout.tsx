@@ -1,10 +1,10 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import Link from "next/link"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import AdminHeader from "./ui/AdminHeader"
 
 export const metadata: Metadata = {
-  title: "Admin – SEPANA",
+  title: "Admin - SEPANA",
 }
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -29,3 +29,4 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     </div>
   )
 }
+

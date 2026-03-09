@@ -1,9 +1,9 @@
-import Image from "next/image"
+﻿import Image from "next/image"
 import Link from "next/link"
 
 export const BRAND_SLOGAN = "Ihr Finanzpartner für klare Kreditentscheidungen."
 export const BRAND_SUBLINE =
-  "SEPANA begleitet Baufinanzierung und Privatkredit persönlich, strukturiert und digital – von der Anfrage bis zur Umsetzung."
+  "SEPANA begleitet Baufinanzierung und Privatkredit persönlich, strukturiert und digital - von der Anfrage bis zur Umsetzung."
 
 type TeamMember = {
   name: string
@@ -38,7 +38,7 @@ const TEAM_MEMBERS: TeamMember[] = [
     name: "Fr. Müller",
     role: "Kreditexperte",
     focus: "Privatkredit, Haushaltsplanung und schnelle Rückmeldung",
-    email: "s.mueller@sepana.de",
+    email: "s.müller@sepana.de",
     imageSrc: "/mueller.png",
     imageAlt: "Frau Müller",
     accent: "from-emerald-400/25 to-cyan-500/15",
@@ -354,3 +354,6 @@ export function ImageFeatureBlock({
     </section>
   )
 }
+
+
+

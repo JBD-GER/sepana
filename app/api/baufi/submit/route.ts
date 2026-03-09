@@ -1,4 +1,4 @@
-// app/api/baufi/submit/route.ts
+﻿// app/api/baufi/submit/route.ts
 export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
@@ -52,7 +52,7 @@ function isPhone(v?: string) {
 }
 
 /**
- * ✅ robust: "3.200 €" => 3200, "3.200" => 3200, "3,200" => 3.2 (falls wirklich so gemeint)
+ * OK robust: "3.200 €" => 3200, "3.200" => 3200, "3,200" => 3.2 (falls wirklich so gemeint)
  * In DE ist Komma Dezimaltrennzeichen, Punkt Tausender
  */
 function numOrNull(v?: string) {
@@ -208,13 +208,13 @@ async function generatePasswordActionLink(
 function buildPasswordInviteEmailHtml(actionLink: string, firstName?: string) {
   const safeName = String(firstName ?? "").trim()
   return buildEmailHtml({
-    title: "Passwort fuer Ihr SEPANA-Konto festlegen",
+    title: "Passwort für Ihr SEPANA-Konto festlegen",
     intro: safeName
       ? `Hallo ${safeName}, bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschliessen.`
       : "Bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschliessen.",
     steps: [
       "Klicken Sie auf den Button und vergeben Sie ein sicheres Passwort.",
-      "Danach koennen Sie sich direkt im Kundenportal anmelden.",
+      "Danach können Sie sich direkt im Kundenportal anmelden.",
     ],
     ctaLabel: "Passwort festlegen",
     ctaUrl: actionLink,
@@ -284,7 +284,7 @@ export async function POST(req: Request) {
     }
 
     if (!userId) {
-      return NextResponse.json({ error: "User konnte nicht aufgeloest werden." }, { status: 500 })
+      return NextResponse.json({ error: "User konnte nicht aufgelöst werden." }, { status: 500 })
     }
 
     // 3) profiles upsert (auch bei existing)
@@ -301,7 +301,7 @@ export async function POST(req: Request) {
         const inviteEmailHtml = buildPasswordInviteEmailHtml(actionLink, body.primary.first_name)
         const inviteEmail = await sendEmail({
           to: email,
-          subject: "Passwort fuer Ihren SEPANA-Zugang festlegen",
+          subject: "Passwort für Ihren SEPANA-Zugang festlegen",
           html: inviteEmailHtml,
         })
         passwordInviteSent = !!inviteEmail.ok
@@ -344,7 +344,7 @@ export async function POST(req: Request) {
       )
     if (baufiErr) throw baufiErr
 
-    // 5) Applicants speichern (✅ korrekt normalisiert)
+    // 5) Applicants speichern (OK korrekt normalisiert)
     const primaryRow = {
       case_id: caseId,
       role: "primary",
@@ -410,22 +410,22 @@ export async function POST(req: Request) {
       actorId: userId,
       actorRole: "customer",
       type: "bank_selected",
-      title: "Bankauswahl bestaetigt",
-      body: "Der Kunde hat seine Bankauswahl bestaetigt.",
+      title: "Bankauswahl bestätigt",
+      body: "Der Kunde hat seine Bankauswahl bestätigt.",
       meta: { case_ref: caseRef },
     })
 
     const html = buildEmailHtml({
-      title: "Auswahl bestaetigt",
-      intro: "Vielen Dank. Ihre Auswahl wurde bestaetigt.",
+      title: "Auswahl bestätigt",
+      intro: "Vielen Dank. Ihre Auswahl wurde bestätigt.",
       steps: [
-        "Ein Berater meldet sich in Kuerze bei Ihnen.",
-        "Sie koennen jederzeit Unterlagen im Portal hochladen.",
+        "Ein Berater meldet sich in Kürze bei Ihnen.",
+        "Sie können jederzeit Unterlagen im Portal hochladen.",
         "Bei Fragen nutzen Sie bitte den Chat im Fall.",
       ],
     })
     if (email) {
-      await sendEmail({ to: email, subject: "Naechste Schritte zur Baufinanzierung", html })
+      await sendEmail({ to: email, subject: "Nächste Schritte zur Baufinanzierung", html })
     }
     if (assignedAdvisorId && email) {
       await sendAdvisorAssignedEmail({ caseId })
@@ -440,13 +440,16 @@ export async function POST(req: Request) {
       passwordInviteSent,
       message: existingAccount
         ? needsPasswordSetup
-          ? "Konto existiert bereits – Passwort-Link wurde erneut gesendet."
-          : "Konto existiert bereits – Vergleich wurde im Portal hinterlegt."
-        : "Konto erstellt – Invite wurde gesendet.",
+          ? "Konto existiert bereits - Passwort-Link wurde erneut gesendet."
+          : "Konto existiert bereits - Vergleich wurde im Portal hinterlegt."
+        : "Konto erstellt - Invite wurde gesendet.",
     })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Serverfehler."
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
+
+
+
 

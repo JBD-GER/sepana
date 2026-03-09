@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -65,7 +65,7 @@ export default function InviteAdvisorForm() {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error || "Einladung fehlgeschlagen")
-      setMsg("Einladung wurde versendet ✅")
+      setMsg("Einladung wurde versendet OK")
       setEmail("")
       setName("")
       setPhone("")
@@ -225,7 +225,7 @@ export default function InviteAdvisorForm() {
                 Hinzufügen
               </button>
             </div>
-            <div className="text-xs text-slate-500">{langsLabel || "—"}</div>
+            <div className="text-xs text-slate-500">{langsLabel || "-"}</div>
           </div>
 
           <div className="flex items-center justify-end">
@@ -245,3 +245,6 @@ export default function InviteAdvisorForm() {
     </div>
   )
 }
+
+
+

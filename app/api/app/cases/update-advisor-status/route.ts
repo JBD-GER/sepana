@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   }
 
   if (advisorStatus && !ALLOWED.has(advisorStatus)) {
-    return NextResponse.json({ ok: false, error: "Ungueltiger Status" }, { status: 400 })
+    return NextResponse.json({ ok: false, error: "Ungültiger Status" }, { status: 400 })
   }
 
   const admin = supabaseAdmin()
@@ -61,3 +61,4 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true, advisor_status: advisorStatus })
 }
+

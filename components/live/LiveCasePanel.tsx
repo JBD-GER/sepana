@@ -79,7 +79,7 @@ type ChildRow = {
 }
 
 const PURPOSE_OPTIONS = [
-  { value: "buy", label: "Kauf Immobilie / Grundstueck" },
+  { value: "buy", label: "Kauf Immobilie / Grundstück" },
   { value: "build", label: "Eigenes Bauvorhaben" },
   { value: "refi", label: "Anschlussfinanzierung / Umschuldung" },
   { value: "modernize", label: "Umbau / Modernisierung" },
@@ -100,13 +100,13 @@ const PROPERTY_OPTIONS = [
   { value: "house", label: "Einfamilienhaus" },
   { value: "two_family", label: "Zweifamilienhaus" },
   { value: "multi", label: "Mehrfamilienhaus" },
-  { value: "land", label: "Grundstueck" },
+  { value: "land", label: "Grundstück" },
   { value: "other", label: "Sonstiges" },
 ]
 
 const PROPERTY_ADDRESS_OPTIONS = [
   { value: "property", label: "Immobilienadresse" },
-  { value: "plot", label: "Grundstuecksadresse" },
+  { value: "plot", label: "Grundstücksadresse" },
 ]
 
 const SALARY_PAYMENTS_OPTIONS = ["12", "12.5", "13", "13.5", "14", "14.5"]
@@ -120,7 +120,7 @@ const HOUSING_OPTIONS = [
 
 const EMPLOYMENT_TYPE_OPTIONS = [
   { value: "employed", label: "Angestellt" },
-  { value: "self_employed", label: "Selbststaendig" },
+  { value: "self_employed", label: "Selbstständig" },
   { value: "civil_servant", label: "Beamter" },
   { value: "student", label: "Student" },
   { value: "retired", label: "Rentner" },
@@ -269,7 +269,7 @@ function Field({
         ) : null}
       </div>
       {children}
-      {invalid ? <div className="mt-1 text-[11px] text-amber-700">Fehlt noch fuer das finale Angebot.</div> : null}
+      {invalid ? <div className="mt-1 text-[11px] text-amber-700">Fehlt noch für das finale Angebot.</div> : null}
     </label>
   )
 }
@@ -309,7 +309,7 @@ function CheckboxField({
         />
         <span className={cn("text-sm", invalid ? "text-amber-900" : "text-slate-700")}>{optionLabel}</span>
       </label>
-      {invalid ? <div className="mt-1 text-[11px] text-amber-700">Fehlt noch fuer das finale Angebot.</div> : null}
+      {invalid ? <div className="mt-1 text-[11px] text-amber-700">Fehlt noch für das finale Angebot.</div> : null}
     </div>
   )
 }
@@ -619,10 +619,10 @@ export default function LiveCasePanel({
       const json = await res.json().catch(() => ({}))
       if (!res.ok || !json?.ok) {
         const code = String(json?.error ?? "")
-        const fallback = "Speichern fehlgeschlagen. Bitte pruefen und erneut versuchen."
+        const fallback = "Speichern fehlgeschlagen. Bitte prüfen und erneut versuchen."
         const reason =
           code === "customer_edit_locked"
-            ? "Die Falldaten sind bereits gesperrt und koennen nicht mehr bearbeitet werden."
+            ? "Die Falldaten sind bereits gesperrt und können nicht mehr bearbeitet werden."
             : typeof json?.message === "string" && json.message.trim()
               ? json.message
               : fallback
@@ -630,7 +630,7 @@ export default function LiveCasePanel({
         return
       }
       setDirty(false)
-      setSaveMsg({ type: "success", text: "Aenderungen gespeichert." })
+      setSaveMsg({ type: "success", text: "Änderungen gespeichert." })
       await load(true)
     } catch {
       setSaveMsg({ type: "error", text: "Netzwerkfehler beim Speichern. Bitte erneut versuchen." })
@@ -753,10 +753,10 @@ export default function LiveCasePanel({
 
     const tip =
       surplus < 0
-        ? "Die Ausgaben liegen ueber den Einnahmen - pruefen Sie Fixkosten oder ergaenzen Sie Einnahmen."
+        ? "Die Ausgaben liegen über den Einnahmen - prüfen Sie Fixkosten oder ergänzen Sie Einnahmen."
         : surplusRatio < 0.15
           ? "Kleiner Puffer: Mehr Ueberschuss verbessert i. d. R. die Finanzierbarkeit."
-          : "Solider Puffer: In der Regel ein positives Signal fuer Banken."
+          : "Solider Puffer: In der Regel ein positives Signal für Banken."
 
     return { totalIncome, totalOut, surplus, surplusRatio, score, label, tip, coIncome }
   }, [primary, co])
@@ -775,13 +775,13 @@ export default function LiveCasePanel({
       { id: "primary.email", tab: "contact", label: "E-Mail", missing: !hasValue(primary.email) },
       { id: "primary.phone", tab: "contact", label: "Telefon", missing: !hasValue(primary.phone) },
       { id: "primary.birth_date", tab: "contact", label: "Geburtsdatum", missing: !hasValue(primary.birth_date) },
-      { id: "primary.nationality", tab: "contact", label: "Staatsangehoerigkeit", missing: !hasValue(primary.nationality) },
+      { id: "primary.nationality", tab: "contact", label: "Staatsangehörigkeit", missing: !hasValue(primary.nationality) },
       { id: "primary.marital_status", tab: "contact", label: "Familienstand", missing: !hasValue(primary.marital_status) },
       { id: "primary.address_street", tab: "contact", label: "Strasse", missing: !hasValue(primary.address_street) },
       { id: "primary.address_zip", tab: "contact", label: "PLZ", missing: !hasValue(primary.address_zip) },
       { id: "primary.address_city", tab: "contact", label: "Ort", missing: !hasValue(primary.address_city) },
       { id: "primary.housing_status", tab: "contact", label: "Wohnstatus", missing: !hasValue(primary.housing_status) },
-      { id: "primary.employment_type", tab: "contact", label: "Beschaeftigungsverhaeltnis", missing: !hasValue(primary.employment_type) },
+      { id: "primary.employment_type", tab: "contact", label: "Beschäftigungsverhältnis", missing: !hasValue(primary.employment_type) },
       { id: "primary.employment_status", tab: "contact", label: "Anstellungsstatus", missing: !hasValue(primary.employment_status) },
 
       // Haushalt
@@ -796,8 +796,8 @@ export default function LiveCasePanel({
       { id: "additional.id_issued_at", tab: "details", label: "Ausgestellt am", missing: !hasValue(additional.id_issued_at) },
       { id: "additional.id_expires_at", tab: "details", label: "Ablauf am", missing: !hasValue(additional.id_expires_at) },
       { id: "additional.address_since", tab: "details", label: "Wohnhaft seit", missing: !hasValue(additional.address_since) },
-      { id: "additional.salary_payments_per_year", tab: "details", label: "Anzahl Gehaelter", missing: !hasValue(additional.salary_payments_per_year) },
-      { id: "additional.household_persons", tab: "details", label: "Haushaltsgroesse", missing: !hasValue(additional.household_persons) },
+      { id: "additional.salary_payments_per_year", tab: "details", label: "Anzahl Gehälter", missing: !hasValue(additional.salary_payments_per_year) },
+      { id: "additional.household_persons", tab: "details", label: "Haushaltsgröße", missing: !hasValue(additional.household_persons) },
       { id: "additional.bank_account_holder", tab: "details", label: "Kontoinhaber", missing: !hasValue(additional.bank_account_holder) },
       { id: "additional.bank_iban", tab: "details", label: "IBAN", missing: !hasValue(additional.bank_iban) },
       { id: "additional.bank_bic", tab: "details", label: "BIC", missing: !hasValue(additional.bank_bic) },
@@ -937,7 +937,7 @@ export default function LiveCasePanel({
                     : "border-amber-200 bg-amber-50 text-amber-700"
                 )}
               >
-                {completedForFinalOffer ? "Geschafft ðŸŽ‰ bereit fuer finales Angebot" : `${missingRequired.length} Pflichtfelder offen`}
+                {completedForFinalOffer ? "Geschafft, bereit für das finale Angebot" : `${missingRequired.length} Pflichtfelder offen`}
               </span>
             ) : (
               <span className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-center text-[11px] font-semibold text-slate-600 sm:w-auto">
@@ -950,7 +950,7 @@ export default function LiveCasePanel({
             disabled={saving || !canEdit}
             className="col-span-2 w-full rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-60 sm:col-auto sm:w-auto"
           >
-            {saving ? "Speichern..." : "Aenderungen speichern"}
+            {saving ? "Speichern..." : "Änderungen speichern"}
           </button>
         </div>
       </div>
@@ -975,7 +975,7 @@ export default function LiveCasePanel({
           className="mt-3 w-full rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-left transition hover:bg-sky-100"
         >
           <div className="text-sm font-semibold text-sky-900">Hier klicken, um alle Falldaten zu sehen</div>
-          <div className="mt-1 text-xs text-sky-800">Kontakt, Haushalt, Finanzierung und Details oeffnen</div>
+          <div className="mt-1 text-xs text-sky-800">Kontakt, Haushalt, Finanzierung und Details öffnen</div>
         </button>
       ) : null}
 
@@ -994,19 +994,19 @@ export default function LiveCasePanel({
             ) : null}
             {canEdit ? (
               <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 px-4 py-3 text-xs text-slate-700">
-                Hinweis: Fuer Aenderungen im Anschluss bitte immer auf{" "}
-                <span className="font-semibold text-slate-900">Aenderungen speichern</span> klicken.
+                Hinweis: Für Änderungen im Anschluss bitte immer auf{" "}
+                <span className="font-semibold text-slate-900">Änderungen speichern</span> klicken.
               </div>
             ) : null}
             {canEdit && !loading ? (
               completedForFinalOffer ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800">
-                  Geschafft ðŸŽ‰ Alle noetigen Felder fuer ein finales Angebot sind vollstaendig ausgefuellt.
+                  Geschafft. Alle nötigen Felder für ein finales Angebot sind vollständig ausgefüllt.
                 </div>
               ) : (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3">
                   <div className="text-sm font-semibold text-amber-900">
-                    Fuer ein finales Angebot werden noch Daten benoetigt.
+                    Für ein finales Angebot werden noch Daten benötigt.
                   </div>
                   <div className="mt-1 text-xs text-amber-800">
                     Offene Pflichtfelder: {missingRequired.slice(0, 6).map((check) => check.label).join(", ")}
@@ -1110,13 +1110,13 @@ export default function LiveCasePanel({
                     className={missingFieldStyle("primary.birth_date")}
                   />
                 </Field>
-                <Field label="Staatsangehoerigkeit" required invalid={isFieldMissing("primary.nationality")}>
+                <Field label="Staatsangehörigkeit" required invalid={isFieldMissing("primary.nationality")}>
                   <Select
                     value={toInput(primary.nationality)}
                     onChange={(v) => updatePrimary("nationality", v)}
                     className={missingFieldStyle("primary.nationality")}
                   >
-                    <option value="">Bitte waehlen</option>
+                    <option value="">Bitte wählen</option>
                     {countryOptions.map((country) => (
                       <option key={country.code} value={country.code}>
                         {country.label}
@@ -1130,7 +1130,7 @@ export default function LiveCasePanel({
                     onChange={(v) => updatePrimary("marital_status", v)}
                     className={missingFieldStyle("primary.marital_status")}
                   >
-                    <option value="">Bitte waehlen</option>
+                    <option value="">Bitte wählen</option>
                     <option value="single">Ledig</option>
                     <option value="married">Verheiratet</option>
                     <option value="registered">Eingetragene Partnerschaft</option>
@@ -1173,7 +1173,7 @@ export default function LiveCasePanel({
                   onChange={(v) => updatePrimary("housing_status", v)}
                   className={missingFieldStyle("primary.housing_status")}
                 >
-                  <option value="">Bitte waehlen</option>
+                  <option value="">Bitte wählen</option>
                   {HOUSING_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
@@ -1184,15 +1184,15 @@ export default function LiveCasePanel({
             </div>
           </Card>
 
-          <Card title="Berufliche Angaben" subtitle="Fuer Bank- und Angebotspruefung">
+          <Card title="Berufliche Angaben" subtitle="Für Bank- und Angebotsprüfung">
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              <Field label="Beschaeftigungsverhaeltnis" required invalid={isFieldMissing("primary.employment_type")}>
+              <Field label="Beschäftigungsverhältnis" required invalid={isFieldMissing("primary.employment_type")}>
                 <Select
                   value={toInput(primary.employment_type)}
                   onChange={(v) => updatePrimary("employment_type", v)}
                   className={missingFieldStyle("primary.employment_type")}
                 >
-                  <option value="">Bitte waehlen</option>
+                  <option value="">Bitte wählen</option>
                   {EMPLOYMENT_TYPE_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
@@ -1200,13 +1200,13 @@ export default function LiveCasePanel({
                   ))}
                 </Select>
               </Field>
-              <Field label="Status (Anstellungsverhaeltnis)" required invalid={isFieldMissing("primary.employment_status")}>
+              <Field label="Status (Anstellungsverhältnis)" required invalid={isFieldMissing("primary.employment_status")}>
                 <Select
                   value={toInput(primary.employment_status)}
                   onChange={(v) => updatePrimary("employment_status", v)}
                   className={missingFieldStyle("primary.employment_status")}
                 >
-                  <option value="">Bitte waehlen</option>
+                  <option value="">Bitte wählen</option>
                   {EMPLOYMENT_STATUS_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
@@ -1282,11 +1282,11 @@ export default function LiveCasePanel({
             </div>
           </Card>
 
-          <Card title="Weitere Kreditnehmer" subtitle="Optional - Einkommen wird beruecksichtigt.">
+          <Card title="Weitere Kreditnehmer" subtitle="Optional - Einkommen wird berücksichtigt.">
             <div className="space-y-3">
               {co.length === 0 ? (
                 <div className="rounded-2xl border border-slate-200 bg-white/60 px-4 py-3 text-sm text-slate-600">
-                  Noch keine weiteren Kreditnehmer hinzugefuegt.
+                  Noch keine weiteren Kreditnehmer hinzugefügt.
                 </div>
               ) : null}
 
@@ -1295,7 +1295,7 @@ export default function LiveCasePanel({
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-slate-900">Kreditnehmer {i + 2}</div>
-                      <div className="text-xs text-slate-500">Optional, aber hilfreich fuer die Haushaltsrechnung.</div>
+                      <div className="text-xs text-slate-500">Optional, aber hilfreich für die Haushaltsrechnung.</div>
                     </div>
 
                     <button
@@ -1317,9 +1317,9 @@ export default function LiveCasePanel({
                     <Field label="Geburtsdatum">
                       <Input type="date" value={toDateInput(c.birth_date)} onChange={(e) => updateCo(i, { birth_date: e.target.value })} />
                     </Field>
-                    <Field label="Beschaeftigungsstatus">
+                    <Field label="Beschäftigungsstatus">
                       <Select value={toInput(c.employment_status)} onChange={(v) => updateCo(i, { employment_status: v })}>
-                        <option value="">Bitte waehlen</option>
+                        <option value="">Bitte wählen</option>
                         {EMPLOYMENT_STATUS_OPTIONS.map((o) => (
                           <option key={o.value} value={o.value}>
                             {o.label}
@@ -1359,7 +1359,7 @@ export default function LiveCasePanel({
                 {isKonsum ? (
                   <Card
                     title="Eckdaten zum Privatkredit"
-                    subtitle="Nur die Kernangaben fuer das finale Angebot."
+                    subtitle="Nur die Kernangaben für das finale Angebot."
                   >
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                       <Field label="Verwendungszweck" required invalid={isFieldMissing("baufi.purpose")}>
@@ -1368,7 +1368,7 @@ export default function LiveCasePanel({
                           onChange={(v) => updateBaufi("purpose", v)}
                           className={missingFieldStyle("baufi.purpose")}
                         >
-                          <option value="">Bitte waehlen</option>
+                          <option value="">Bitte wählen</option>
                           {KONSUM_PURPOSE_OPTIONS.map((o) => (
                             <option key={o.value} value={o.value}>
                               {o.label}
@@ -1396,7 +1396,7 @@ export default function LiveCasePanel({
                             onChange={(v) => updateBaufi("purpose", v)}
                             className={missingFieldStyle("baufi.purpose")}
                           >
-                            <option value="">Bitte waehlen</option>
+                            <option value="">Bitte wählen</option>
                             {PURPOSE_OPTIONS.map((o) => (
                               <option key={o.value} value={o.value}>
                                 {o.label}
@@ -1411,7 +1411,7 @@ export default function LiveCasePanel({
                             onChange={(v) => updateBaufi("property_type", v)}
                             className={missingFieldStyle("baufi.property_type")}
                           >
-                            <option value="">Bitte waehlen</option>
+                            <option value="">Bitte wählen</option>
                             {PROPERTY_OPTIONS.map((o) => (
                               <option key={o.value} value={o.value}>
                                 {o.label}
@@ -1439,7 +1439,7 @@ export default function LiveCasePanel({
                       </div>
                     </Card>
 
-                    <Card title="Eigenkapital" subtitle="Fuer den digitalen Abschluss erforderlich">
+                    <Card title="Eigenkapital" subtitle="Für den digitalen Abschluss erforderlich">
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <Field label="Eigenkapital insgesamt" required invalid={isFieldMissing("additional.equity_total")}>
                           <MoneyInput
@@ -1468,7 +1468,7 @@ export default function LiveCasePanel({
                             onChange={(v) => updateAdditional("property_address_type", v)}
                             className={missingFieldStyle("additional.property_address_type")}
                           >
-                            <option value="">Bitte waehlen</option>
+                            <option value="">Bitte wählen</option>
                             {PROPERTY_ADDRESS_OPTIONS.map((o) => (
                               <option key={o.value} value={o.value}>
                                 {o.label}
@@ -1504,7 +1504,7 @@ export default function LiveCasePanel({
                             className={missingFieldStyle("additional.property_city")}
                           />
                         </Field>
-                        <Field label="Grundstuecksgroesse (m2)" hint="optional">
+                        <Field label="Grundstücksgröße (m2)" hint="optional">
                           <Input
                             value={toInput(additional.property_plot_size)}
                             onChange={(e) => updateAdditional("property_plot_size", e.target.value)}
@@ -1519,7 +1519,7 @@ export default function LiveCasePanel({
 
             {activeTab === "details" ? (
               <>
-          <Card title="Legitimation" subtitle="Diese Angaben sind fuer den Abschluss erforderlich.">
+          <Card title="Legitimation" subtitle="Diese Angaben sind für den Abschluss erforderlich.">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <Field label="Geburtsort" required invalid={isFieldMissing("additional.birth_place")}>
                 <Input
@@ -1569,7 +1569,7 @@ export default function LiveCasePanel({
             </div>
           </Card>
 
-          <Card title="Bankverbindung" subtitle="Wird fuer die weitere Abwicklung benoetigt.">
+          <Card title="Bankverbindung" subtitle="Wird für die weitere Abwicklung benötigt.">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Kontoinhaber" required invalid={isFieldMissing("additional.bank_account_holder")}>
                 <Input
@@ -1618,14 +1618,14 @@ export default function LiveCasePanel({
               <div className="xl:col-span-2">
                 <CheckboxField
                   label="Warmmiete"
-                  optionLabel="Entfaellt (keine Warmmiete)"
+                  optionLabel="Entfällt (keine Warmmiete)"
                   checked={!!additional.current_warm_rent_none}
                   onChange={(checked) => updateAdditional("current_warm_rent_none", checked)}
                   hint="optional"
                 />
               </div>
               <div className="xl:col-span-2">
-                <Field label="Haushaltsgroesse (Personen)" required invalid={isFieldMissing("additional.household_persons")}>
+                <Field label="Haushaltsgröße (Personen)" required invalid={isFieldMissing("additional.household_persons")}>
                   <Input
                     value={toInput(additional.household_persons)}
                     onChange={(e) => updateAdditional("household_persons", e.target.value)}
@@ -1654,7 +1654,7 @@ export default function LiveCasePanel({
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
               <div className="xl:col-span-2">
                 <CheckboxField
-                  label="Anstellungsverhaeltnis"
+                  label="Anstellungsverhältnis"
                   optionLabel="Probezeit aktiv"
                   checked={!!additional.probation}
                   onChange={(checked) => updateAdditional("probation", checked)}
@@ -1671,13 +1671,13 @@ export default function LiveCasePanel({
                 </Field>
               </div>
               <div className="xl:col-span-2">
-                <Field label="Anzahl Gehaelter / Jahr" required invalid={isFieldMissing("additional.salary_payments_per_year")}>
+                <Field label="Anzahl Gehälter / Jahr" required invalid={isFieldMissing("additional.salary_payments_per_year")}>
                   <Select
                     value={toInput(additional.salary_payments_per_year)}
                     onChange={(v) => updateAdditional("salary_payments_per_year", v)}
                     className={missingFieldStyle("additional.salary_payments_per_year")}
                   >
-                    <option value="">Bitte waehlen</option>
+                    <option value="">Bitte wählen</option>
                     {SALARY_PAYMENTS_OPTIONS.map((o) => (
                       <option key={o} value={o}>
                         {o}
@@ -1791,4 +1791,6 @@ export default function LiveCasePanel({
     </div>
   )
 }
+
+
 

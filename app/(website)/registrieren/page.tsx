@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
@@ -9,7 +9,7 @@ import { Alert, Button, Checkbox, Icon, Input, PasswordStrength } from "../compo
 function normalizeError(message: string) {
   const m = (message || "").toLowerCase()
   if (m.includes("user already registered")) return "Diese E-Mail ist bereits registriert. Bitte einloggen."
-  if (m.includes("password")) return "Passwort ist zu schwach oder erfuellt die Anforderungen nicht."
+  if (m.includes("password")) return "Passwort ist zu schwach oder erfüllt die Anforderungen nicht."
   return message || "Registrierung fehlgeschlagen."
 }
 
@@ -147,3 +147,5 @@ export default function RegisterPage() {
     </AuthShell>
   )
 }
+
+

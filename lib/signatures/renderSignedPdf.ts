@@ -1,4 +1,4 @@
-import path from "path"
+﻿import path from "path"
 import fs from "fs/promises"
 
 type SignatureField = {
@@ -206,3 +206,4 @@ export async function renderSignedPdf(opts: {
   const pdfBytes = await pdfDoc.save()
   return new Uint8Array(pdfBytes)
 }
+

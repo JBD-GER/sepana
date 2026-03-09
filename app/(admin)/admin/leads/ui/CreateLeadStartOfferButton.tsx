@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -22,7 +22,7 @@ export default function CreateLeadStartOfferButton({
 
   async function createStartschuss() {
     if (!providerId) {
-      setMsg("Bitte Anbieter auswaehlen.")
+      setMsg("Bitte Anbieter auswählen.")
       return
     }
 
@@ -53,7 +53,7 @@ export default function CreateLeadStartOfferButton({
         disabled={busy}
         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm outline-none focus:ring-2 focus:ring-indigo-200"
       >
-        <option value="">- Anbieter fuer Startschuss -</option>
+        <option value="">- Anbieter für Startschuss -</option>
         {providerOptions.map((option) => (
           <option key={option.id} value={option.id}>
             {option.label}
@@ -72,3 +72,4 @@ export default function CreateLeadStartOfferButton({
     </div>
   )
 }
+

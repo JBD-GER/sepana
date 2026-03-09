@@ -1,4 +1,4 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
@@ -147,7 +147,7 @@ export default async function AdminLogsPage({
             </thead>
             <tbody>
               {(logs ?? []).map((l) => {
-                const caseRef = l.case_id ? caseRefById.get(l.case_id) ?? l.case_id.slice(0, 8) : "â€”"
+                const caseRef = l.case_id ? caseRefById.get(l.case_id) ?? l.case_id.slice(0, 8) : "-"
                 return (
                   <tr key={l.id} className="border-b border-slate-200/60 last:border-0 hover:bg-slate-50/60 align-top">
                     <td className="px-4 py-3 text-slate-700">{dt(l.created_at)}</td>
@@ -192,3 +192,4 @@ export default async function AdminLogsPage({
     </div>
   )
 }
+

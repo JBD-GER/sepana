@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import Link from "next/link"
 import ScheidungKreditLeadForm from "./ui/ScheidungKreditLeadForm"
 
@@ -344,4 +344,6 @@ export default function ScheidungKreditPage() {
     </div>
   )
 }
+
+
 

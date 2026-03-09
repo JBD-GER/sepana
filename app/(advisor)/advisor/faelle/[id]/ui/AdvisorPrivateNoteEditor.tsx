@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 
@@ -37,7 +37,7 @@ export default function AdvisorPrivateNoteEditor({
   return (
     <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
       <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Interne Notiz</div>
-      <div className="mt-1 text-sm text-slate-600">Nur fuer Berater/Admin sichtbar. Kunden sehen diese Notiz nicht.</div>
+      <div className="mt-1 text-sm text-slate-600">Nur für Berater/Admin sichtbar. Kunden sehen diese Notiz nicht.</div>
       <div className="mt-3 space-y-3">
         <textarea
           value={value}
@@ -63,3 +63,4 @@ export default function AdvisorPrivateNoteEditor({
     </div>
   )
 }
+

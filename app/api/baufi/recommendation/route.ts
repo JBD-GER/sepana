@@ -1,4 +1,4 @@
-export const runtime = "nodejs"
+﻿export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
@@ -44,12 +44,12 @@ function heuristic(calc: { surplus: number; ratio: number; income: number; out: 
       : "Empfehlung: Online (Bank auswählen & Abschluss starten)",
     reasoning: tight
       ? [
-          "Ihre Haushaltsrechnung wirkt knapp – Banken unterscheiden sich hier stark.",
+          "Ihre Haushaltsrechnung wirkt knapp - Banken unterscheiden sich hier stark.",
           "Live sparen Sie Zeit und vermeiden unnötige Ablehnungen.",
           "Danach können Sie immer noch in den Online-Abschluss wechseln.",
         ]
       : [
-          "Ihr Puffer wirkt solide – Sie können direkt eine Bank auswählen.",
+          "Ihr Puffer wirkt solide - Sie können direkt eine Bank auswählen.",
           "Online ist schnell und transparent.",
           "Bei Unsicherheit wechseln Sie jederzeit zur Live-Beratung.",
         ],
@@ -121,3 +121,5 @@ export async function GET(req: Request) {
     },
   })
 }
+
+

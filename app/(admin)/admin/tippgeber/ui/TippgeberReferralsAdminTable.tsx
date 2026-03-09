@@ -142,7 +142,7 @@ export default function TippgeberReferralsAdminTable({
   async function assignAdvisor(referralId: string) {
     const advisorId = String(assignValues[referralId] ?? "").trim()
     if (!advisorId) {
-      setRowMessage(referralId, "Bitte Berater auswaehlen.")
+      setRowMessage(referralId, "Bitte Berater auswählen.")
       return
     }
     setBusyKey(`assign:${referralId}`)
@@ -344,7 +344,7 @@ export default function TippgeberReferralsAdminTable({
                         onChange={(e) => setAssignValues((prev) => ({ ...prev, [r.id]: e.target.value }))}
                         className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm outline-none focus:border-slate-900"
                       >
-                        <option value="">Berater waehlen...</option>
+                        <option value="">Berater wählen...</option>
                         {advisorOptions.map((a) => (
                           <option key={a.id} value={a.id}>
                             {a.label}
@@ -398,11 +398,11 @@ export default function TippgeberReferralsAdminTable({
                           href={`/api/tippgeber/files?referralId=${encodeURIComponent(r.id)}&kind=expose&download=1`}
                           className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:border-slate-300"
                         >
-                          Expose herunterladen
+                          Exposé herunterladen
                         </a>
                       ) : (
                         <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                          {isPrivateCredit ? "Kein Expose erforderlich" : "Kein Expose"}
+                          {isPrivateCredit ? "Kein Exposé erforderlich" : "Kein Exposé"}
                         </div>
                       )}
 
@@ -426,7 +426,7 @@ export default function TippgeberReferralsAdminTable({
                           href={`/api/tippgeber/files?referralId=${encodeURIComponent(r.id)}&kind=credit_note&download=1`}
                           className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 shadow-sm hover:border-emerald-300"
                         >
-                          Gutschrift oeffnen
+                          Gutschrift öffnen
                         </a>
                       ) : null}
 
@@ -464,4 +464,6 @@ export default function TippgeberReferralsAdminTable({
     </section>
   )
 }
+
+
 

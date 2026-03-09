@@ -58,7 +58,7 @@ export default async function AdminTippgeberEditPage({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <Link href="/admin/tippgeber" className="text-sm font-medium text-slate-900 underline underline-offset-4">
-              {"<-"} Zurueck zu Tippgeber
+              {"<-"} Zurück zu Tippgeber
             </Link>
             <h1 className="mt-3 text-2xl font-semibold text-slate-900">{String(profile.company_name ?? "Tippgeber")}</h1>
             <div className="mt-1 text-sm text-slate-600">
@@ -77,7 +77,7 @@ export default async function AdminTippgeberEditPage({
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Tipps</div>
           <div className="mt-2 text-3xl font-semibold text-slate-900">{(referrals ?? []).length}</div>
-          <div className="mt-2 text-sm text-slate-600">Letzte 50 Tipps in dieser Uebersicht.</div>
+          <div className="mt-2 text-sm text-slate-600">Letzte 50 Tipps in dieser Übersicht.</div>
         </div>
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Offene Provision</div>
@@ -160,4 +160,5 @@ export default async function AdminTippgeberEditPage({
     </div>
   )
 }
+
 

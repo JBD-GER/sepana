@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -69,7 +69,7 @@ export default function UpdateOfferStatus({
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || "Update fehlgeschlagen")
 
-      setMsg("Offer aktualisiert âœ…")
+      setMsg("Offer aktualisiert.")
       router.refresh()
     } catch (e: any) {
       setMsg(e?.message ?? "Fehler")
@@ -105,7 +105,7 @@ export default function UpdateOfferStatus({
     if (!questionsOffer) return
     const note = questionsNote.trim()
     if (!note) {
-      setQuestionsError("Bitte Rueckfragen eingeben.")
+      setQuestionsError("Bitte Rückfragen eingeben.")
       return
     }
     await update(questionsOffer.id, { bank_status: "questions", bank_feedback_note: note })
@@ -122,7 +122,7 @@ export default function UpdateOfferStatus({
     if (!approvedOffer) return
     const amount = parseMoneyInput(approvedCommissionInput)
     if (amount == null || amount <= 0) {
-      setApprovedError("Bitte eine gueltige Provision inkl. MwSt. groesser 0 eingeben.")
+      setApprovedError("Bitte eine gültige Provision inkl. MwSt. größer 0 eingeben.")
       return
     }
     await update(approvedOffer.id, { bank_status: "approved", bank_feedback_note: null, bank_commission_amount: amount })
@@ -133,13 +133,13 @@ export default function UpdateOfferStatus({
     <>
     <div className="rounded-2xl border border-slate-200/70 bg-white p-3 shadow-sm">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-medium text-slate-800">Angebote / VorgÃ¤nge</div>
+        <div className="text-xs font-medium text-slate-800">Angebote / Vorgänge</div>
         <button
           className="text-xs text-slate-600 hover:text-slate-900"
           onClick={() => setOpen((v) => !v)}
           type="button"
         >
-          {open ? "SchlieÃŸen" : `Ã–ffnen (${offers.length})`}
+          {open ? "Schließen" : `Öffnen (${offers.length})`}
         </button>
       </div>
 
@@ -163,12 +163,12 @@ export default function UpdateOfferStatus({
                         ) : null}
                         {String(o.bank_status || "").toLowerCase() === "precheck" ? (
                           <div className="mt-1 rounded-md border border-cyan-200 bg-cyan-50 px-2 py-1 text-[11px] text-cyan-800">
-                            Bank befindet sich in der Vorpruefung.
+                            Bank befindet sich in der Vorprüfung.
                           </div>
                         ) : null}
                         {String(o.bank_status || "").toLowerCase() === "questions" && o.bank_feedback_note ? (
                           <div className="mt-1 whitespace-pre-wrap rounded-md border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] text-orange-800">
-                            Rueckfragen: {o.bank_feedback_note}
+                            Rückfragen: {o.bank_feedback_note}
                           </div>
                         ) : null}
                         {String(o.bank_status || "").toLowerCase() === "approved" ? (
@@ -182,7 +182,7 @@ export default function UpdateOfferStatus({
                       </div>
                     ) : null}
                   </div>
-                  <div className="text-xs text-slate-500">{Number(o.loan_amount ?? 0).toLocaleString("de-DE")} â‚¬</div>
+                  <div className="text-xs text-slate-500">{Number(o.loan_amount ?? 0).toLocaleString("de-DE")} €</div>
                 </div>
 
                 <div className="mt-2 grid grid-cols-2 gap-2">
@@ -233,9 +233,9 @@ export default function UpdateOfferStatus({
                         <option value="" disabled>
                           Eingereicht
                         </option>
-                        <option value="precheck">Vorpruefung</option>
+                        <option value="precheck">Vorprüfung</option>
                         <option value="documents">Dokumente</option>
-                        <option value="questions">Rueckfragen</option>
+                        <option value="questions">Rückfragen</option>
                         <option value="approved">Angenommen</option>
                         <option value="declined">Abgelehnt</option>
                       </select>
@@ -250,7 +250,7 @@ export default function UpdateOfferStatus({
                       disabled={loading}
                       className="rounded-lg border border-violet-200 bg-violet-50 px-2 py-1 text-[11px] font-semibold text-violet-700"
                     >
-                      {o.bank_commission_amount != null ? "Provision aendern" : "Provision erfassen"}
+                      {o.bank_commission_amount != null ? "Provision ändern" : "Provision erfassen"}
                     </button>
                   </div>
                 ) : null}
@@ -261,7 +261,7 @@ export default function UpdateOfferStatus({
           {msg ? <div className="text-xs text-slate-600">{msg}</div> : null}
 
           {offers.length > 3 ? (
-            <div className="text-xs text-slate-500">Weitere Angebote werden spÃ¤ter als Detailseite ergÃ¤nzt.</div>
+            <div className="text-xs text-slate-500">Weitere Angebote werden später als Detailseite ergänzt.</div>
           ) : null}
         </div>
       ) : null}
@@ -269,9 +269,9 @@ export default function UpdateOfferStatus({
     {questionsOffer ? (
       <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/60 px-4">
         <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
-          <div className="text-sm font-semibold text-slate-900">Rueckfragen der Bank erfassen</div>
+          <div className="text-sm font-semibold text-slate-900">Rückfragen der Bank erfassen</div>
           <p className="mt-1 text-xs text-slate-600">
-            Bitte die Rueckfragen hier als Freitext eintragen.
+            Bitte die Rückfragen hier als Freitext eintragen.
           </p>
           <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             Hinweis: Diese Nachricht wird exakt so per E-Mail an den Kunden gesendet.
@@ -282,7 +282,7 @@ export default function UpdateOfferStatus({
               setQuestionsNote(e.target.value)
               if (questionsError) setQuestionsError(null)
             }}
-            placeholder="Rueckfragen der Bank..."
+            placeholder="Rückfragen der Bank..."
             className="mt-3 min-h-[140px] w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
           />
           {questionsError ? <div className="mt-2 text-xs text-rose-600">{questionsError}</div> : null}
@@ -299,7 +299,7 @@ export default function UpdateOfferStatus({
               onClick={submitQuestionsModal}
               className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
             >
-              Rueckfragen speichern
+              Rückfragen speichern
             </button>
           </div>
         </div>
@@ -313,7 +313,7 @@ export default function UpdateOfferStatus({
             Tatsaechliche Bank-/SEPANA-Provision inkl. MwSt. eintragen. Tippgeber-Anteil wird daraus intern auf Netto-Basis mit 35 % berechnet.
           </p>
           <p className="mt-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
-            Nur intern sichtbar (Admin/Berater), nicht fuer Kunden.
+            Nur intern sichtbar (Admin/Berater), nicht für Kunden.
           </p>
           <label className="mt-3 block">
             <div className="mb-1 text-xs font-medium text-slate-700">Provision (EUR, inkl. MwSt.) *</div>
@@ -351,3 +351,5 @@ export default function UpdateOfferStatus({
     </>
   )
 }
+
+

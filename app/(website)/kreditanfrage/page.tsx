@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import Link from "next/link"
 import FunnelTemplate from "../funnel-vorlage/ui/FunnelTemplate"
 import { getPublishedWebsiteReviewSummarySet } from "@/lib/websiteReviews"
@@ -6,7 +6,7 @@ import { getPublishedWebsiteReviewSummarySet } from "@/lib/websiteReviews"
 export const metadata: Metadata = {
   title: "Kreditanfrage | SEPANA",
   description:
-    "Einfacher Funnel fuer Baufinanzierung und Privatkredit mit Produktauswahl am Anfang.",
+    "Einfacher Funnel für Baufinanzierung und Privatkredit mit Produktauswahl am Anfang.",
   alternates: { canonical: "/kreditanfrage" },
 }
 
@@ -32,7 +32,7 @@ export default async function KreditanfragePage() {
         heading="Kreditanfrage"
         description="Starten Sie mit der Auswahl: Baufinanzierung oder Privatkredit."
         heroImageSrc="/familie_kueche.jpg"
-        heroImageAlt="Familie in der Kueche"
+        heroImageAlt="Familie in der Küche"
       />
 
       <section className="rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-sm sm:p-6">
@@ -40,7 +40,7 @@ export default async function KreditanfragePage() {
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Bewertungen</div>
             <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
-              Vertrauen durch echte Rueckmeldungen
+              Vertrauen durch echte Rückmeldungen
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
               Eine kompakte Bewertungsbox unter dem Funnel. Das Formular bleibt im Vordergrund, Bewertungen liefern den sozialen Beleg.
@@ -66,7 +66,7 @@ export default async function KreditanfragePage() {
             <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Bewertungen</div>
               <div className="mt-1 text-2xl font-semibold text-slate-900">{stats.count}</div>
-              <div className="text-xs text-slate-500">veroeffentlicht</div>
+              <div className="text-xs text-slate-500">veröffentlicht</div>
             </div>
 
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
@@ -94,3 +94,4 @@ export default async function KreditanfragePage() {
     </div>
   )
 }
+

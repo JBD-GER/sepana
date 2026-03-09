@@ -1,4 +1,4 @@
-import LogoutButton from "@/components/LogoutButton"
+﻿import LogoutButton from "@/components/LogoutButton"
 import { requireCustomer } from "@/lib/app/requireCustomer"
 import { formatCountryName } from "@/lib/countries"
 
@@ -45,7 +45,7 @@ export default async function ProfilPage() {
       .maybeSingle()
     applicant = data
   } else {
-    // Fallback fuer Alt-Daten.
+    // Fallback für Alt-Daten.
     const { data } = await supabase
       .from("case_applicants")
       .select(
@@ -67,7 +67,7 @@ export default async function ProfilPage() {
         <div className="relative">
           <h1 className="text-2xl font-semibold text-slate-900 sm:text-3xl">Profil</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">
-            Ihre hinterlegten Daten fuer den Finanzierungsprozess. Diese Ansicht ist bewusst read-only.
+            Ihre hinterlegten Daten für den Finanzierungsprozess. Diese Ansicht ist bewusst read-only.
           </p>
         </div>
       </section>
@@ -81,7 +81,7 @@ export default async function ProfilPage() {
           </div>
 
           <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600">
-            Sicherheits-Hinweis: Falls Sie Ihre E-Mail aendern moechten, melden Sie sich bitte beim Support.
+            Sicherheits-Hinweis: Falls Sie Ihre E-Mail ändern moechten, melden Sie sich bitte beim Support.
           </div>
 
           <div className="mt-5 border-t border-slate-200/70 pt-5">
@@ -106,15 +106,15 @@ export default async function ProfilPage() {
               <Field label="Nachname" value={applicant.last_name} />
               <Field label="Telefon" value={applicant.phone} />
               <Field label="Geburtsdatum" value={applicant.birth_date} />
-              <Field label="Staatsangehoerigkeit" value={formatCountryName(applicant.nationality, "de-DE")} />
+              <Field label="Staatsangehörigkeit" value={formatCountryName(applicant.nationality, "de-DE")} />
               <Field label="Familienstand" value={applicant.marital_status} />
               <Field
                 label="Adresse"
                 value={[applicant.address_street, applicant.address_zip, applicant.address_city].filter(Boolean).join(", ")}
               />
               <Field label="Wohnstatus" value={applicant.housing_status} />
-              <Field label="Beschaeftigung (Typ)" value={applicant.employment_type} />
-              <Field label="Beschaeftigung (Status)" value={applicant.employment_status} />
+              <Field label="Beschäftigung (Typ)" value={applicant.employment_type} />
+              <Field label="Beschäftigung (Status)" value={applicant.employment_status} />
               <Field label="Arbeitgeber" value={applicant.employer_name} />
               <Field label="Netto/Monat" value={applicant.net_income_monthly?.toString()} />
             </div>
@@ -137,3 +137,4 @@ function Field({ label, value }: { label: string; value: unknown }) {
     </div>
   )
 }
+

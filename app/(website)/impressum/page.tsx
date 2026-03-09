@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 
 export const metadata: Metadata = {
   title: "Impressum",
@@ -97,3 +97,5 @@ export default function ImpressumPage() {
     </div>
   )
 }
+
+

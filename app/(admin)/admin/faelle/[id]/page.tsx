@@ -1,4 +1,4 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { authFetch } from "@/lib/app/authFetch"
 import { translateCaseStatus } from "@/lib/caseStatus"
@@ -132,7 +132,7 @@ export default async function AdminCaseDetailPage({ params }: { params: Promise<
         <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
           <div className="text-sm text-slate-600">Fall konnte nicht geladen werden.</div>
           <Link href="/admin/faelle" className="mt-3 inline-flex text-slate-900 underline underline-offset-4">
-            Zurueck zu Faelle
+            Zurück zu Fälle
           </Link>
         </div>
       </div>
@@ -169,7 +169,7 @@ export default async function AdminCaseDetailPage({ params }: { params: Promise<
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <Link href="/admin/faelle" className="text-sm font-medium text-slate-900 underline underline-offset-4">
-              {"<-"} Zurueck zu Faelle
+              {"<-"} Zurück zu Fälle
             </Link>
             <h1 className="mt-3 text-2xl font-semibold text-slate-900">Fall {c.case_ref || c.id.slice(0, 8)}</h1>
             <div className="mt-1 text-sm text-slate-600">
@@ -213,7 +213,7 @@ export default async function AdminCaseDetailPage({ params }: { params: Promise<
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="text-sm font-medium text-slate-900">Finale Angebote</div>
-        <p className="mt-1 text-xs text-slate-600">Verwaltung der finalen Angebote inklusive Bankrueckmeldung.</p>
+        <p className="mt-1 text-xs text-slate-600">Verwaltung der finalen Angebote inklusive Bankrückmeldung.</p>
         <OfferList offers={data.offers ?? []} canManage caseType={caseType} />
       </div>
 
@@ -235,3 +235,5 @@ export default async function AdminCaseDetailPage({ params }: { params: Promise<
     </div>
   )
 }
+
+

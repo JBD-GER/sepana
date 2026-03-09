@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import Link from "next/link"
 import { useEffect, useId, useMemo, useState } from "react"
@@ -79,7 +79,7 @@ export default function NotificationLog({
 
         if (!res.ok) {
           if (json?.error === "notification_table_missing") {
-            setError("DB-Tabelle fehlt: Bitte db/notifications.sql in Supabase ausfuehren.")
+            setError("DB-Tabelle fehlt: Bitte db/notifications.sql in Supabase ausführen.")
           } else {
             setError("Benachrichtigungen konnten nicht geladen werden.")
           }
@@ -209,7 +209,7 @@ export default function NotificationLog({
             disabled={page <= 1}
             className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Zurueck
+            Zurück
           </button>
           <div className="text-xs text-slate-600">
             Seite {page} von {totalPages}
@@ -227,3 +227,4 @@ export default function NotificationLog({
     </div>
   )
 }
+

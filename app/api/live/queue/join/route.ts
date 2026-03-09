@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
@@ -39,7 +39,7 @@ function caseTypeLabel(value: string | null | undefined) {
 
 function baufiPurposeLabel(value: string | null | undefined) {
   const v = String(value ?? "").toLowerCase()
-  if (v === "buy") return "Kauf Immobilie / Grundstueck"
+  if (v === "buy") return "Kauf Immobilie / Grundstück"
   if (v === "build") return "Eigenes Bauvorhaben"
   if (v === "refi") return "Anschlussfinanzierung / Umschuldung"
   if (v === "modernize") return "Umbau / Modernisierung"
@@ -107,7 +107,7 @@ async function sendQueueAlert(opts: {
             <div><strong style="color:#0f172a;">Telefon:</strong> ${esc(primary?.phone || "-")}</div>
             <div><strong style="color:#0f172a;">Ticket-ID:</strong> ${esc(opts.ticketId)}</div>
             <div><strong style="color:#0f172a;">Wartezeit (ca.):</strong> ${esc(opts.waitMinutes)} Minuten</div>
-            <div><strong style="color:#0f172a;">Berater online/verfuegbar:</strong> ${esc(opts.onlineCount)}/${esc(opts.availableCount)}</div>
+            <div><strong style="color:#0f172a;">Berater online/verfügbar:</strong> ${esc(opts.onlineCount)}/${esc(opts.availableCount)}</div>
           </div>
         </td>
       </tr>
@@ -116,7 +116,7 @@ async function sendQueueAlert(opts: {
 
   const html = buildEmailHtml({
     title: "Neuer Kunde im Live-Wartebereich",
-    intro: "Es wartet ein neuer Kunde in der Live-Warteschlange. Bitte zeitnah uebernehmen.",
+    intro: "Es wartet ein neuer Kunde in der Live-Warteschlange. Bitte zeitnah übernehmen.",
     bodyHtml,
     ctaLabel: "Zum Advisor Dashboard",
     ctaUrl: advisorUrl,
@@ -314,3 +314,5 @@ export async function POST(req: Request) {
     availableCount,
   })
 }
+
+

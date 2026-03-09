@@ -1,4 +1,4 @@
-export const runtime = "nodejs"
+﻿export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
     const supabase = admin()
 
-    // ✅ upsert (pro Case+Provider+Typ nur ein Snapshot, wird aktualisiert)
+    // OK upsert (pro Case+Provider+Typ nur ein Snapshot, wird aktualisiert)
     const { error } = await supabase
       .from("case_offer_previews")
       .upsert(
@@ -49,3 +49,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: e?.message || "Server error" }, { status: 500 })
   }
 }
+

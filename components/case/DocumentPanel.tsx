@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
@@ -49,12 +49,12 @@ type CanonicalRequestKey =
   | "object_site_plan"
 
 const CANONICAL_TITLE_BY_KEY: Record<CanonicalRequestKey, string> = {
-  general_id_passport: "Personalausweis / Reisepass (Vorder- & Rueckseite)",
+  general_id_passport: "Personalausweis / Reisepass (Vorder- & Rückseite)",
   general_registration: "Meldebescheinigung",
   general_salary_slips_3: "Letzte 3 Gehaltsabrechnungen",
-  general_bank_statements_salary_3m: "Kontoauszuege der letzten 3 Monate vom Gehaltskonto (Gehaltseingang sichtbar)",
+  general_bank_statements_salary_3m: "Kontoauszüge der letzten 3 Monate vom Gehaltskonto (Gehaltseingang sichtbar)",
   equity_proof: "Eigenkapital-Nachweis (aktueller Kontoauszug)",
-  object_expose: "Expose / Objektbeschreibung",
+  object_expose: "Exposé / Objektbeschreibung",
   object_purchase_contract: "Kaufvertragsentwurf (sobald vorhanden)",
   object_land_register: "Grundbuchauszug (aktuell)",
   object_energy_certificate: "Energieausweis",
@@ -183,7 +183,7 @@ function dt(d: string) {
 }
 
 function formatBytes(n: number | null | undefined) {
-  if (!n || Number.isNaN(n)) return "—"
+  if (!n || Number.isNaN(n)) return "-"
   const units = ["B", "KB", "MB", "GB"]
   let v = n
   let i = 0
@@ -232,7 +232,7 @@ function isMobileDevice() {
 function uploadPhaseLabel(phase: UploadPhase) {
   if (phase === "preparing") return "Bereite Datei vor"
   if (phase === "retrying") return "Wiederhole Upload"
-  return "Upload laeuft"
+  return "Upload läuft"
 }
 
 function replaceFileExtension(fileName: string, nextExt: string) {
@@ -548,7 +548,7 @@ export default function DocumentPanel({
                 disabled={busy}
                 className="text-xs font-medium text-rose-600 hover:underline disabled:opacity-60"
               >
-                Loeschen
+                Löschen
               </button>
             </div>
           </div>
@@ -742,7 +742,7 @@ export default function DocumentPanel({
       const uploadOptions = options ?? {}
       for (const file of selectedFiles) {
         if (!isAllowedUploadFile(file)) {
-          throw new Error(`"${file.name}" wird nicht unterstuetzt. Erlaubt sind PDF, DOC, DOCX und Bilder.`)
+          throw new Error(`"${file.name}" wird nicht unterstützt. Erlaubt sind PDF, DOC, DOCX und Bilder.`)
         }
         if (file.size > MAX_UPLOAD_BYTES) {
           throw new Error(`"${file.name}" ist zu gross. Maximal ${formatBytes(MAX_UPLOAD_BYTES)} pro Datei.`)
@@ -821,7 +821,7 @@ export default function DocumentPanel({
         body: JSON.stringify({ id }),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json?.error || "Loeschen fehlgeschlagen")
+      if (!res.ok) throw new Error(json?.error || "Löschen fehlgeschlagen")
       window.location.reload()
     } catch (error: unknown) {
       const text = getErrorMessage(error)
@@ -869,7 +869,7 @@ export default function DocumentPanel({
         {canCreateRequest ? (
           <div className="text-xs text-slate-500">Berater / Admin</div>
         ) : (
-          <div className="text-xs text-slate-500">Upload moeglich</div>
+          <div className="text-xs text-slate-500">Upload möglich</div>
         )}
       </div>
       <div className="mt-1 text-[11px] text-slate-500">PDF, DOC, DOCX oder Bilder bis {formatBytes(MAX_UPLOAD_BYTES)} pro Datei.</div>
@@ -939,7 +939,7 @@ export default function DocumentPanel({
           <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
             <div className="text-xs font-semibold uppercase tracking-widest text-amber-700">Nicht zugeordnet</div>
             <div className="mt-1 text-xs text-amber-800">
-              Diese Dateien sind einer geloeschten oder nicht vorhandenen Anforderung zugeordnet.
+              Diese Dateien sind einer gelöschten oder nicht vorhandenen Anforderung zugeordnet.
             </div>
             {renderDocGrid(orphanDocs)}
           </div>
@@ -1010,5 +1010,8 @@ export default function DocumentPanel({
     </div>
   )
 }
+
+
+
 
 

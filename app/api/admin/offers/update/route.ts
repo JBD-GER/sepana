@@ -1,4 +1,4 @@
-// app/api/admin/offers/update/route.ts
+﻿// app/api/admin/offers/update/route.ts
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
@@ -32,8 +32,8 @@ function pickAdvisorName(meta: Awaited<ReturnType<typeof getCaseMeta>>) {
 function parseOptionalMoneyInput(value: unknown) {
   if (value == null || value === "") return { ok: true as const, value: null as number | null }
   const num = Number(value)
-  if (!Number.isFinite(num)) return { ok: false as const, error: "Ungueltige Provisionshoehe" }
-  if (num < 0) return { ok: false as const, error: "Provisionshoehe darf nicht negativ sein" }
+  if (!Number.isFinite(num)) return { ok: false as const, error: "Ungültige Provisionshöhe" }
+  if (num < 0) return { ok: false as const, error: "Provisionshöhe darf nicht negativ sein" }
   return { ok: true as const, value: Math.round((num + Number.EPSILON) * 100) / 100 }
 }
 
@@ -81,21 +81,21 @@ export async function POST(req: Request) {
 
     if (status) {
       if (!ALLOWED_STATUSES.includes(status as any)) {
-        return NextResponse.json({ ok: false, error: "Ungueltiger Status" }, { status: 400 })
+        return NextResponse.json({ ok: false, error: "Ungültiger Status" }, { status: 400 })
       }
       patch.status = status
     }
 
     if (bankStatus) {
       if (!ALLOWED_BANK_STATUS.includes(bankStatus as any)) {
-        return NextResponse.json({ ok: false, error: "Ungueltiger Bank-Status" }, { status: 400 })
+        return NextResponse.json({ ok: false, error: "Ungültiger Bank-Status" }, { status: 400 })
       }
       patch.bank_status = bankStatus
       patch.bank_confirmed_at = bankStatus === "approved" ? new Date().toISOString() : null
       patch.bank_feedback_note = bankStatus === "questions" ? bankFeedbackNote : null
       if (hasBankCommissionAmount) patch.bank_commission_amount = parsedBankCommissionAmount.value
       if (bankStatus === "questions" && !bankFeedbackNote) {
-        return NextResponse.json({ ok: false, error: "Rueckfragen-Text fehlt" }, { status: 400 })
+        return NextResponse.json({ ok: false, error: "Rückfragen-Text fehlt" }, { status: 400 })
       }
     }
 
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
     if (body?.loan_amount === null || typeof body?.loan_amount === "number") patch.loan_amount = body.loan_amount
 
     if (Object.keys(patch).length === 0) {
-      return NextResponse.json({ ok: false, error: "Kein Patch uebergeben" }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Kein Patch übergeben" }, { status: 400 })
     }
 
     let bankCommissionColumnAvailable = true
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
 
     if (Object.prototype.hasOwnProperty.call(patch, "bank_commission_amount") && !bankCommissionColumnAvailable) {
       return NextResponse.json(
-        { ok: false, error: "DB-Spalte 'bank_commission_amount' fehlt. Bitte Migration ausfuehren." },
+        { ok: false, error: "DB-Spalte 'bank_commission_amount' fehlt. Bitte Migration ausführen." },
         { status: 409 }
       )
     }
@@ -151,7 +151,7 @@ export async function POST(req: Request) {
     }
     if (patch.bank_status === "approved" && (effectiveBankCommissionAmount == null || Number(effectiveBankCommissionAmount) <= 0)) {
       return NextResponse.json(
-        { ok: false, error: "Bitte interne Provision inkl. MwSt. (Bank-/SEPANA-Provision) fuer 'Angenommen' erfassen." },
+        { ok: false, error: "Bitte interne Provision inkl. MwSt. (Bank-/SEPANA-Provision) für 'Angenommen' erfassen." },
         { status: 400 }
       )
     }
@@ -217,14 +217,14 @@ export async function POST(req: Request) {
         const advisorName = pickAdvisorName(meta)
         const siteUrl = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL)
         const html = buildEmailHtml({
-          title: "Neues finales Angebot verfuegbar",
-          intro: `${advisorName} hat fuer Ihren Fall ein finales Angebot freigegeben.`,
+          title: "Neues finales Angebot verfügbar",
+          intro: `${advisorName} hat für Ihren Fall ein finales Angebot freigegeben.`,
           steps: [
-            "Bitte pruefen Sie das Angebot im Kundenportal.",
-            "Sie koennen das Angebot annehmen oder ablehnen.",
-            "Wichtig: Es ist nur eine Angebotsannahme pro Fall moeglich.",
+            "Bitte prüfen Sie das Angebot im Kundenportal.",
+            "Sie können das Angebot annehmen oder ablehnen.",
+            "Wichtig: Es ist nur eine Angebotsannahme pro Fall möglich.",
           ],
-          ctaLabel: "Angebot jetzt pruefen",
+          ctaLabel: "Angebot jetzt prüfen",
           ctaUrl: `${siteUrl}/app/faelle/${offer.case_id}`,
         })
         await sendEmail({ to: meta.customer_email, subject: "Finales Angebot zur Entscheidung", html })
@@ -236,19 +236,19 @@ export async function POST(req: Request) {
         patch.bank_status === "approved"
           ? "\u{1F389} Die Bank hat das Angebot angenommen."
           : patch.bank_status === "precheck"
-            ? "Die Bank befindet sich in der Vorpruefung."
+            ? "Die Bank befindet sich in der Vorprüfung."
           : patch.bank_status === "declined"
             ? "Die Bank hat das Angebot abgelehnt."
             : patch.bank_status === "documents"
               ? "Bitte alle Unterlagen im Bereich Dokumente hochladen."
-            : `Die Bank hat Rueckfragen: ${patch.bank_feedback_note}`
+            : `Die Bank hat Rückfragen: ${patch.bank_feedback_note}`
 
       await logCaseEvent({
         caseId: offer.case_id,
         actorId: null,
         actorRole: "admin",
         type: "offer_bank_status",
-        title: "Bankrueckmeldung der Bank",
+        title: "Bankrückmeldung der Bank",
         body: bankStatusBody,
       })
 
@@ -266,44 +266,44 @@ export async function POST(req: Request) {
             patch.bank_status === "approved"
               ? "\u{1F389} Bank hat das Angebot angenommen"
               : patch.bank_status === "precheck"
-                ? "Bankstatus: Vorpruefung"
+                ? "Bankstatus: Vorprüfung"
               : patch.bank_status === "declined"
                 ? "Bank hat das Angebot abgelehnt"
                 : patch.bank_status === "questions"
-                  ? "Bank hat Rueckfragen"
-                  : "Unterlagen benoetigt"
+                  ? "Bank hat Rückfragen"
+                  : "Unterlagen benötigt"
           const html = buildEmailHtml({
             title: subject,
             intro:
               patch.bank_status === "approved"
                 ? "\u{1F389} Gute Nachrichten: die Bank hat Ihr Angebot angenommen."
                 : patch.bank_status === "precheck"
-                  ? "Die Bank hat die Vorpruefung Ihres Angebots gestartet."
+                  ? "Die Bank hat die Vorprüfung Ihres Angebots gestartet."
                 : patch.bank_status === "declined"
                   ? "Die Bank hat das Angebot leider abgelehnt."
                   : patch.bank_status === "questions"
-                    ? `Die Bank hat Rueckfragen. Bitte melden Sie sich bei ${advisorName}.`
-                    : "Bitte laden Sie alle benoetigten Unterlagen im Bereich Dokumente hoch.",
+                    ? `Die Bank hat Rückfragen. Bitte melden Sie sich bei ${advisorName}.`
+                    : "Bitte laden Sie alle benötigten Unterlagen im Bereich Dokumente hoch.",
             steps:
               patch.bank_status === "questions"
                 ? [
-                    `Rueckfragen der Bank: ${patch.bank_feedback_note}`,
+                    `Rückfragen der Bank: ${patch.bank_feedback_note}`,
                     `Bitte kontaktieren Sie Ihren Kundenberater ${advisorName}.`,
                   ]
                 : patch.bank_status === "precheck"
                   ? [
-                      "Die Bank befindet sich aktuell in der Vorpruefung.",
+                      "Die Bank befindet sich aktuell in der Vorprüfung.",
                       "Aktuell ist keine Aktion von Ihnen erforderlich.",
                       "Ihr Berater informiert Sie, sobald es Neuigkeiten gibt.",
                     ]
                 : patch.bank_status === "documents"
                   ? [
-                      "Bitte oeffnen Sie Ihren Fall im Kundenportal.",
-                      "Laden Sie alle benoetigten Dokumente im Bereich Dokumente hoch.",
+                      "Bitte öffnen Sie Ihren Fall im Kundenportal.",
+                      "Laden Sie alle benötigten Dokumente im Bereich Dokumente hoch.",
                     ]
                 : [
-                    "Ihr Berater meldet sich zeitnah mit den naechsten Schritten.",
-                    "Bei Fragen koennen Sie direkt im Portal eine Nachricht senden.",
+                    "Ihr Berater meldet sich zeitnah mit den nächsten Schritten.",
+                    "Bei Fragen können Sie direkt im Portal eine Nachricht senden.",
                   ],
           })
           await sendEmail({ to: meta.customer_email, subject, html })
@@ -327,13 +327,13 @@ export async function POST(req: Request) {
       if (meta?.customer_email) {
         const html = buildEmailHtml({
           title: "Bitte Unterlagen hochladen",
-          intro: "Ihr finales Angebot wurde angenommen. Bitte laden Sie nun alle benoetigten Unterlagen hoch.",
+          intro: "Ihr finales Angebot wurde angenommen. Bitte laden Sie nun alle benötigten Unterlagen hoch.",
           steps: [
-            "Oeffnen Sie den Bereich Dokumente in Ihrem Fall.",
-            "Laden Sie dort alle benoetigten Unterlagen vollstaendig hoch.",
+            "Öffnen Sie den Bereich Dokumente in Ihrem Fall.",
+            "Laden Sie dort alle benötigten Unterlagen vollständig hoch.",
           ],
         })
-        await sendEmail({ to: meta.customer_email, subject: "Unterlagen fuer Ihre Finanzierung hochladen", html })
+        await sendEmail({ to: meta.customer_email, subject: "Unterlagen für Ihre Finanzierung hochladen", html })
       }
     }
 
@@ -342,3 +342,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
 }
+
+

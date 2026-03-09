@@ -1,4 +1,4 @@
-export const runtime = "nodejs"
+﻿export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
@@ -71,11 +71,11 @@ async function generatePasswordActionLink(
 
 function buildPasswordInviteEmailHtml(actionLink: string) {
   return buildEmailHtml({
-    title: "Passwort fuer Ihr SEPANA-Konto festlegen",
+    title: "Passwort für Ihr SEPANA-Konto festlegen",
     intro: "Bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschliessen.",
     steps: [
       "Klicken Sie auf den Button und vergeben Sie ein sicheres Passwort.",
-      "Danach koennen Sie sich direkt im Kundenportal anmelden.",
+      "Danach können Sie sich direkt im Kundenportal anmelden.",
     ],
     ctaLabel: "Passwort festlegen",
     ctaUrl: actionLink,
@@ -113,7 +113,7 @@ export async function POST(req: Request) {
     const html = buildPasswordInviteEmailHtml(actionLink)
     const mail = await sendEmail({
       to: email,
-      subject: "Passwort fuer Ihren SEPANA-Zugang festlegen",
+      subject: "Passwort für Ihren SEPANA-Zugang festlegen",
       html,
     })
 
@@ -129,3 +129,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
 }
+
+

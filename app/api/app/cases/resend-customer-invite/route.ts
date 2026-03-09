@@ -1,4 +1,4 @@
-export const runtime = "nodejs"
+﻿export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
@@ -47,11 +47,11 @@ function buildPasswordInviteEmailHtml(actionLink: string, firstName?: string | n
     : "Bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschliessen."
 
   return buildEmailHtml({
-    title: "Passwort fuer Ihr SEPANA-Konto festlegen",
+    title: "Passwort für Ihr SEPANA-Konto festlegen",
     intro,
     steps: [
       "Klicken Sie auf den Button und vergeben Sie ein sicheres Passwort.",
-      "Danach koennen Sie sich direkt im Kundenportal anmelden.",
+      "Danach können Sie sich direkt im Kundenportal anmelden.",
     ],
     ctaLabel: "Passwort festlegen",
     ctaUrl: actionLink,
@@ -113,7 +113,7 @@ export async function POST(req: Request) {
     const html = buildPasswordInviteEmailHtml(actionLink, applicant?.first_name ?? null)
     const mail = await sendEmail({
       to: email,
-      subject: "Passwort fuer Ihren SEPANA-Zugang festlegen",
+      subject: "Passwort für Ihren SEPANA-Zugang festlegen",
       html,
     })
 
@@ -131,7 +131,7 @@ export async function POST(req: Request) {
       type: "customer_invite_resent",
       title: "Einladung erneut versendet",
       body: caseRow.case_ref
-        ? `Die Einladung zur Passwortvergabe wurde fuer Fall ${caseRow.case_ref} erneut versendet.`
+        ? `Die Einladung zur Passwortvergabe wurde für Fall ${caseRow.case_ref} erneut versendet.`
         : "Die Einladung zur Passwortvergabe wurde erneut versendet.",
       notifyCustomer: false,
     })
@@ -142,3 +142,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
+
+

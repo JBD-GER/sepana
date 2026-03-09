@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { createCaseFromLead, findUserIdByEmail, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
@@ -15,7 +15,7 @@ const MAX_PAGE_PATH_LENGTH = 180
 const PURPOSE_LABELS = {
   kauf: "Kauf einer Immobilie",
   neubau: "Neubau",
-  neubau_bautraeger: "Neubau (Kauf vom Bautraeger)",
+  neubau_bautraeger: "Neubau (Kauf vom Bauträger)",
   neubau_eigenes: "Neubau (eigenes Bauvorhaben)",
   umschuldung: "Anschlussfinanzierung/Umschuldung",
   anschlussfinanzierung: "Anschlussfinanzierung",
@@ -27,8 +27,8 @@ const PROPERTY_TYPE_LABELS = {
   wohnung: "Eigentumswohnung",
   haus: "Einfamilienhaus",
   mehrfamilienhaus: "Mehrfamilienhaus",
-  grundstueck: "Grundstueck",
-  wohn_geschaeftshaus: "Wohn- und Geschaeftshaus",
+  grundstueck: "Grundstück",
+  wohn_geschaeftshaus: "Wohn- und Geschäftshaus",
   gewerbeimmobilie: "Gewerbeimmobilie",
 } as const
 
@@ -288,7 +288,7 @@ async function sendAdminNotification(opts: {
 
   const html = buildEmailHtml({
     title: subject,
-    intro: "Es wurde eine neue Anfrage ueber den Baufinanzierungs-Lead-Funnel eingereicht.",
+    intro: "Es wurde eine neue Anfrage über den Baufinanzierungs-Lead-Funnel eingereicht.",
     bodyHtml,
     ctaLabel: "Zu den Leads",
     ctaUrl: adminUrl,
@@ -316,14 +316,14 @@ async function sendCustomerConfirmation(opts: {
   const subject = "Ihre Baufinanzierungs-Anfrage ist eingegangen"
   const html = buildEmailHtml({
     title: subject,
-    intro: `Hallo ${opts.firstName}, vielen Dank fuer Ihre Anfrage bei SEPANA.`,
+    intro: `Hallo ${opts.firstName}, vielen Dank für Ihre Anfrage bei SEPANA.`,
     steps: [
-      `Wir pruefen Ihren Finanzierungsbedarf von ${formatAmount(opts.financingNeed)} (${PURPOSE_LABELS[opts.purpose]}).`,
-      "Ein Berater meldet sich zeitnah mit einer ersten Einschaetzung bei Ihnen.",
-      "Wenn Sie Rueckfragen haben, erreichen Sie uns unter 05035 3169996.",
+      `Wir prüfen Ihren Finanzierungsbedarf von ${formatAmount(opts.financingNeed)} (${PURPOSE_LABELS[opts.purpose]}).`,
+      "Ein Berater meldet sich zeitnah mit einer ersten Einschätzung bei Ihnen.",
+      "Wenn Sie Rückfragen haben, erreichen Sie uns unter 05035 3169996.",
     ],
     preheader: subject,
-    eyebrow: "SEPANA - Bestaetigung",
+    eyebrow: "SEPANA - Bestätigung",
   })
 
   const result = await sendEmail({
@@ -342,11 +342,11 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json().catch(() => null)) as RequestBody | null
     if (!body || typeof body !== "object") {
-      return NextResponse.json({ ok: false, error: "Ungueltige Anfrage." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Ungültige Anfrage." }, { status: 400 })
     }
 
     if (trimOrNull(body.website)) {
-      return NextResponse.json({ ok: false, error: "Ungueltige Anfrage." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Ungültige Anfrage." }, { status: 400 })
     }
 
     const firstName = trimOrNull(body.firstName)
@@ -363,7 +363,7 @@ export async function POST(req: Request) {
     }
 
     if (!firstName || !lastName || !email || !phone || financingNeed === null || !purpose || !propertyType) {
-      return NextResponse.json({ ok: false, error: "Bitte alle Pflichtfelder ausfuellen." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Bitte alle Pflichtfelder ausfüllen." }, { status: 400 })
     }
 
     if (firstName.length > MAX_NAME_LENGTH || lastName.length > MAX_NAME_LENGTH) {
@@ -371,11 +371,11 @@ export async function POST(req: Request) {
     }
 
     if (!isEmail(email)) {
-      return NextResponse.json({ ok: false, error: "Bitte eine gueltige E-Mail eingeben." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Bitte eine gültige E-Mail eingeben." }, { status: 400 })
     }
 
     if (!isPhone(phone)) {
-      return NextResponse.json({ ok: false, error: "Bitte eine gueltige Telefonnummer eingeben." }, { status: 400 })
+      return NextResponse.json({ ok: false, error: "Bitte eine gültige Telefonnummer eingeben." }, { status: 400 })
     }
 
     if (financingNeed < 10000 || financingNeed > 10000000) {
@@ -404,7 +404,7 @@ export async function POST(req: Request) {
       loan_purpose: PURPOSE_LABELS[purpose],
       loan_amount_total: financingNeed,
       property_type: PROPERTY_TYPE_LABELS[propertyType],
-      notes: "Anfrage ueber Baufinanzierungs-Lead-Funnel",
+      notes: "Anfrage über Baufinanzierungs-Lead-Funnel",
       additional: {
         origin: "website",
         page: pagePath,
@@ -494,7 +494,7 @@ export async function POST(req: Request) {
               property_city: null,
               property_type: PROPERTY_TYPE_LABELS[propertyType],
               property_purchase_price: null,
-              notes: "Anfrage ueber Baufinanzierungs-Lead-Funnel",
+              notes: "Anfrage über Baufinanzierungs-Lead-Funnel",
             }
 
             const created = await createCaseFromLead({
@@ -550,3 +550,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
+
+

@@ -1,4 +1,4 @@
-import Link from "next/link"
+﻿import Link from "next/link"
 import OpenConsentButton from "./OpenConsentButton"
 import { BRAND_SLOGAN } from "./marketing/sections"
 
@@ -10,7 +10,7 @@ export default function Footer() {
           <div className="text-sm font-semibold tracking-[0.08em] text-white/95">SEPANA</div>
           <p className="max-w-md text-sm leading-relaxed text-slate-200/90">{BRAND_SLOGAN}</p>
           <p className="max-w-md text-sm leading-relaxed text-slate-300/85">
-            Baufinanzierung und Privatkredit mit klarem Einstieg über die Kreditanfrage – persönlich begleitet und modern umgesetzt.
+            Baufinanzierung und Privatkredit mit klarem Einstieg über die Kreditanfrage - persönlich begleitet und modern umgesetzt.
           </p>
         </div>
 
@@ -85,3 +85,4 @@ export default function Footer() {
     </footer>
   )
 }
+

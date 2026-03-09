@@ -1,4 +1,4 @@
-// app/api/app/dashboard/route.ts
+﻿// app/api/app/dashboard/route.ts
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
@@ -47,3 +47,4 @@ export async function GET() {
     tip,
   })
 }
+

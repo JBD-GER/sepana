@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -123,7 +123,7 @@ export default function OfferList({
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok || !json?.ok) {
-        alert(json?.error || "Status-Aenderung fehlgeschlagen.")
+        alert(json?.error || "Status-Änderung fehlgeschlagen.")
         return
       }
       router.refresh()
@@ -147,7 +147,7 @@ export default function OfferList({
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok || !json?.ok) {
-        alert(json?.error || "Status-Aenderung fehlgeschlagen.")
+        alert(json?.error || "Status-Änderung fehlgeschlagen.")
         return
       }
       router.refresh()
@@ -195,7 +195,7 @@ export default function OfferList({
     if (!questionsModalOfferId) return
     const note = questionsNote.trim()
     if (!note) {
-      setQuestionsError("Bitte Rueckfragen eingeben.")
+      setQuestionsError("Bitte Rückfragen eingeben.")
       return
     }
     await updateBankStatus(questionsModalOfferId, "questions", note)
@@ -218,7 +218,7 @@ export default function OfferList({
     if (!approvedModalOfferId) return
     const amount = parseMoneyInput(approvedCommissionInput)
     if (amount == null || amount <= 0) {
-      setApprovedError("Bitte eine gueltige Provision inkl. MwSt. groesser 0 eingeben.")
+      setApprovedError("Bitte eine gültige Provision inkl. MwSt. größer 0 eingeben.")
       return
     }
     await updateBankStatus(approvedModalOfferId, "approved", null, amount)
@@ -283,19 +283,19 @@ export default function OfferList({
                     }`}
                   >
                     <div className="text-[10px] font-semibold uppercase tracking-[0.14em]">
-                      Bankrueckmeldung
+                      Bankrückmeldung
                     </div>
                     <div className="mt-1 font-semibold">
                       {bankApproved
                         ? "\u{1F389} Die Bank hat das Angebot angenommen."
                         : bankPrecheck
-                          ? "Die Bank befindet sich in der Vorpruefung."
+                          ? "Die Bank befindet sich in der Vorprüfung."
                         : bankDeclined
                           ? "Die Bank hat das Angebot abgelehnt."
                           : bankDocuments
-                            ? "Bitte laden Sie alle benoetigten Unterlagen im Bereich Dokumente hoch."
+                            ? "Bitte laden Sie alle benötigten Unterlagen im Bereich Dokumente hoch."
                           : bankQuestions
-                            ? "Die Bank hat Rueckfragen."
+                            ? "Die Bank hat Rückfragen."
                           : `Eingereicht bei der Bank: ${translateBankStatus(bankStatus)}`}
                     </div>
                     {bankQuestions && o.bank_feedback_note ? (
@@ -358,9 +358,9 @@ export default function OfferList({
                       <option value="" disabled>
                         Eingereicht
                       </option>
-                      <option value="precheck">Vorpruefung</option>
+                      <option value="precheck">Vorprüfung</option>
                       <option value="documents">Dokumente</option>
-                      <option value="questions">Rueckfragen</option>
+                      <option value="questions">Rückfragen</option>
                       <option value="approved">Angenommen</option>
                       <option value="declined">Abgelehnt</option>
                     </select>
@@ -373,7 +373,7 @@ export default function OfferList({
                     disabled={statusBusyId === o.id}
                     className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-semibold text-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {o.bank_commission_amount != null ? "Provision aendern" : "Provision erfassen"}
+                    {o.bank_commission_amount != null ? "Provision ändern" : "Provision erfassen"}
                   </button>
                 ) : null}
                 {canManage ? (
@@ -407,7 +407,7 @@ export default function OfferList({
             </div>
             {canRespond && o.status === "sent" && hasAcceptedOffer ? (
               <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Es wurde bereits ein anderes Angebot angenommen. Pro Fall ist nur eine Angebotsannahme moeglich.
+                Es wurde bereits ein anderes Angebot angenommen. Pro Fall ist nur eine Angebotsannahme möglich.
               </div>
             ) : null}
 
@@ -443,9 +443,9 @@ export default function OfferList({
     {questionsModalOfferId ? (
       <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 px-4">
         <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
-          <div className="text-sm font-semibold text-slate-900">Rueckfragen der Bank erfassen</div>
+          <div className="text-sm font-semibold text-slate-900">Rückfragen der Bank erfassen</div>
           <p className="mt-1 text-xs text-slate-600">
-            Bitte die Rueckfragen hier als Freitext eintragen.
+            Bitte die Rückfragen hier als Freitext eintragen.
           </p>
           <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             Hinweis: Diese Nachricht wird exakt so per E-Mail an den Kunden gesendet.
@@ -456,7 +456,7 @@ export default function OfferList({
               setQuestionsNote(e.target.value)
               if (questionsError) setQuestionsError(null)
             }}
-            placeholder="Rueckfragen der Bank..."
+            placeholder="Rückfragen der Bank..."
             className="mt-3 min-h-[140px] w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
           />
           {questionsError ? <div className="mt-2 text-xs text-rose-600">{questionsError}</div> : null}
@@ -473,7 +473,7 @@ export default function OfferList({
               onClick={submitQuestionsModal}
               className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
             >
-              Rueckfragen speichern
+              Rückfragen speichern
             </button>
           </div>
         </div>
@@ -487,7 +487,7 @@ export default function OfferList({
             Bitte die tatsaechliche Bank-/SEPANA-Provision inkl. MwSt. eintragen. Die 35%-Berechnung erfolgt intern auf Netto-Basis.
           </p>
           <p className="mt-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
-            Nur intern sichtbar (Admin/Berater) und nicht fuer Kunden vorgesehen.
+            Nur intern sichtbar (Admin/Berater) und nicht für Kunden vorgesehen.
           </p>
           <label className="mt-3 block">
             <div className="mb-1 text-xs font-medium text-slate-700">Provision (EUR, inkl. MwSt.) *</div>
@@ -525,6 +525,7 @@ export default function OfferList({
     </>
   )
 }
+
 
 
 

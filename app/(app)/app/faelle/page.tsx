@@ -1,4 +1,4 @@
-// app/(app)/app/faelle/page.tsx
+﻿// app/(app)/app/faelle/page.tsx
 import Link from "next/link"
 import Image from "next/image"
 import { requireCustomer } from "@/lib/app/requireCustomer"
@@ -48,12 +48,12 @@ function dt(d: string) {
 }
 
 function formatEUR(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return "—"
+  if (n == null || Number.isNaN(Number(n))) return "-"
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n))
 }
 
 function formatPct(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return "—"
+  if (n == null || Number.isNaN(Number(n))) return "-"
   return `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(Number(n))} %`
 }
 
@@ -229,7 +229,7 @@ export default async function CasesPage({
                     <div className="rounded-xl border border-slate-200/70 bg-white px-3 py-2">
                       <div className="text-[11px] text-slate-600">Zinsbindung</div>
                       <div className="text-sm font-semibold text-slate-900">
-                        {s.zinsbindung_years ? `${s.zinsbindung_years} Jahre` : "—"}
+                        {s.zinsbindung_years ? `${s.zinsbindung_years} Jahre` : "-"}
                       </div>
                     </div>
                   </div>
@@ -254,7 +254,7 @@ export default async function CasesPage({
 
         {data.cases.length === 0 ? (
           <div className="rounded-3xl border border-slate-200/70 bg-white p-6 text-sm text-slate-600 shadow-sm">
-            Noch keine Faelle in {productLabel} vorhanden.
+            Noch keine Fälle in {productLabel} vorhanden.
           </div>
         ) : null}
       </section>
@@ -333,7 +333,7 @@ export default async function CasesPage({
                     </td>
                     <td className="px-4 py-3 text-slate-700">
                       <Link href={`/app/faelle/${c.id}`} className="block">
-                        {s?.zinsbindung_years ? `${s.zinsbindung_years} J.` : "—"}
+                        {s?.zinsbindung_years ? `${s.zinsbindung_years} J.` : "-"}
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
@@ -353,7 +353,7 @@ export default async function CasesPage({
               {data.cases.length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-slate-500" colSpan={9}>
-                    Noch keine Faelle in {productLabel} vorhanden.
+                    Noch keine Fälle in {productLabel} vorhanden.
                   </td>
                 </tr>
               ) : null}
@@ -375,11 +375,11 @@ export default async function CasesPage({
                   href={pageHref(page - 1, product)}
                   className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-slate-300"
                 >
-                  Zurueck
+                  Zurück
                 </Link>
               ) : (
                 <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-400">
-                  Zurueck
+                  Zurück
                 </span>
               )}
 
@@ -402,3 +402,6 @@ export default async function CasesPage({
     </div>
   )
 }
+
+
+

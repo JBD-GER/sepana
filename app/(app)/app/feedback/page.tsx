@@ -1,4 +1,4 @@
-import { requireCustomer } from "@/lib/app/requireCustomer"
+﻿import { requireCustomer } from "@/lib/app/requireCustomer"
 import FeedbackForm from "./ui/FeedbackForm"
 
 export default async function FeedbackPage() {
@@ -16,7 +16,7 @@ export default async function FeedbackPage() {
       <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold text-slate-900">Feedback</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Schreiben Sie uns kurz, was besser sein kann – oder was Ihnen gefällt.
+          Schreiben Sie uns kurz, was besser sein kann - oder was Ihnen gefällt.
         </p>
       </div>
 
@@ -24,3 +24,4 @@ export default async function FeedbackPage() {
     </div>
   )
 }
+
