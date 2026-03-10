@@ -1,4 +1,10 @@
 import type { MetadataRoute } from "next"
+import {
+  getRatgeberArticlePath,
+  getRatgeberCategoryPath,
+  getRatgeberTopicPath,
+} from "@/lib/ratgeber/content"
+import { getRatgeberArticles, getRatgeberCategories, getRatgeberTopics } from "@/lib/ratgeber/server"
 
 const FALLBACK_SITE_URL = "https://www.sepana.de"
 
@@ -7,7 +13,7 @@ function siteUrl() {
   return raw.replace(/\/+$/, "")
 }
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl()
   const lastModified = new Date()
 
@@ -31,12 +37,37 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/tippgeber-privatkredit", changeFrequency: "weekly", priority: 0.7 },
     { path: "/funnel-vorlage", changeFrequency: "weekly", priority: 0.6 },
     { path: "/bewertungen", changeFrequency: "weekly", priority: 0.7 },
+    { path: "/ratgeber", changeFrequency: "weekly", priority: 0.85 },
     { path: "/agb", changeFrequency: "weekly", priority: 0.3 },
     { path: "/roadmap", changeFrequency: "weekly", priority: 0.4 },
     { path: "/status", changeFrequency: "weekly", priority: 0.4 },
   ]
 
-  return publicRoutes.map(({ path, changeFrequency, priority }) => ({
+  const [categories, topics, articles] = await Promise.all([
+    getRatgeberCategories(),
+    getRatgeberTopics(),
+    getRatgeberArticles(),
+  ])
+
+  const ratgeberRoutes = [
+    ...categories.map((category) => ({
+      path: getRatgeberCategoryPath(category.slug),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    })),
+    ...topics.map((topic) => ({
+      path: getRatgeberTopicPath(topic),
+      changeFrequency: "weekly" as const,
+      priority: 0.78,
+    })),
+    ...articles.map((article) => ({
+      path: getRatgeberArticlePath(article),
+      changeFrequency: "weekly" as const,
+      priority: 0.75,
+    })),
+  ]
+
+  return [...publicRoutes, ...ratgeberRoutes].map(({ path, changeFrequency, priority }) => ({
     url: `${base}${path}`,
     lastModified,
     changeFrequency,

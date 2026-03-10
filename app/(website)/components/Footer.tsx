@@ -5,7 +5,7 @@ import { BRAND_SLOGAN } from "./marketing/sections"
 export default function Footer() {
   return (
     <footer className="mt-12 border-t border-slate-200/70 bg-[radial-gradient(circle_at_12%_10%,rgba(34,211,238,0.08),transparent_34%),radial-gradient(circle_at_90%_8%,rgba(59,130,246,0.08),transparent_32%),linear-gradient(180deg,#07162f_0%,#081a38_100%)] text-white">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.2fr_1fr_1fr_1fr] lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.2fr_1fr_1fr_1fr_1fr] lg:px-8">
         <div className="space-y-3">
           <div className="text-sm font-semibold tracking-[0.08em] text-white/95">SEPANA</div>
           <p className="max-w-md text-sm leading-relaxed text-slate-200/90">{BRAND_SLOGAN}</p>
@@ -49,6 +49,21 @@ export default function Footer() {
             </Link>
             <Link className="text-slate-300/90 transition hover:text-white" href="/tippgeber-privatkredit">
               Tippgeber Privatkredit
+            </Link>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-sm font-semibold text-white/95">Ratgeber</div>
+          <div className="grid gap-1 text-sm">
+            <Link className="text-slate-300/90 transition hover:text-white" href="/ratgeber">
+              Ratgeber Übersicht
+            </Link>
+            <Link className="text-slate-300/90 transition hover:text-white" href="/ratgeber/baufinanzierung">
+              Ratgeber Baufinanzierung
+            </Link>
+            <Link className="text-slate-300/90 transition hover:text-white" href="/ratgeber/privatkredit">
+              Ratgeber Privatkredit
             </Link>
           </div>
         </div>

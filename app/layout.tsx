@@ -9,17 +9,17 @@ const inter = Inter({
 })
 
 const SITE_NAME = "SEPANA"
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.sepana.de"
 const OG_IMAGE = "/og.png"
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} | Digitale Baufinanzierung`,
+    default: `${SITE_NAME} | Baufinanzierung, Privatkredit und Ratgeber`,
     template: `%s | ${SITE_NAME}`,
   },
   description:
-    "SEPANA ist die digitale Plattform für Baufinanzierung: vergleichen, Angebote auswählen, Unterlagen sicher hochladen und live finalisieren.",
+    "SEPANA ist die digitale Plattform fuer Baufinanzierung und Privatkredit mit strukturierten Landingpages, Ratgeberbereich und klarer Kreditanfrage.",
   applicationName: SITE_NAME,
   alternates: {
     canonical: "./",
@@ -39,9 +39,9 @@ export const metadata: Metadata = {
     type: "website",
     url: SITE_URL,
     siteName: SITE_NAME,
-    title: `${SITE_NAME} | Digitale Baufinanzierung`,
+    title: `${SITE_NAME} | Baufinanzierung, Privatkredit und Ratgeber`,
     description:
-      "Baufinanzierung in einem klaren End-to-End-Flow: Erfassung, Vergleich, Auswahl, Upload und Live-Beratung.",
+      "SEPANA verbindet Baufinanzierung, Privatkredit und indexierbare Ratgeberseiten in einem klaren End-to-End-Flow.",
     images: [
       {
         url: OG_IMAGE,
@@ -54,9 +54,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_NAME} | Digitale Baufinanzierung`,
+    title: `${SITE_NAME} | Baufinanzierung, Privatkredit und Ratgeber`,
     description:
-      "Vergleichen, auswählen und abschließen: die SEPANA-Plattform für moderne Baufinanzierung.",
+      "Baufinanzierung, Privatkredit und starker Ratgeberbereich auf einer klar strukturierten SEPANA-Plattform.",
     images: [OG_IMAGE],
   },
   icons: {

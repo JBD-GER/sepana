@@ -19,7 +19,7 @@ export default function AdminHeader() {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-3 sm:px-6">
         <Link href="/admin" className="flex items-center gap-3">
           <div className="rounded-2xl border border-slate-200/80 bg-white p-1 shadow-sm">
-            <Image src="/og.png" alt="SEPANA" width={120} height={36} className="h-8 w-auto" priority />
+            <Image src="/og.png" alt="SEPANA" width={120} height={36} className="h-8 w-auto" />
           </div>
           <div className="leading-tight">
             <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Admin</div>
@@ -35,6 +35,7 @@ export default function AdminHeader() {
           <NavItem href="/admin/berater" label="Berater" />
           <NavItem href="/admin/faelle" label="Fälle & Unterlagen" />
           <NavItem href="/admin/termine" label="Termine" />
+          <NavItem href="/admin/seo" label="SEO" />
           <NavItem href="/admin/logs" label="Logs" />
           <LogoutButton
             label="Logout"

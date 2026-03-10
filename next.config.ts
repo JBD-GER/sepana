@@ -8,6 +8,9 @@ const noIndexHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: {
+    proxyClientMaxBodySize: "30mb",
+  },
   async headers() {
     return [
       {
