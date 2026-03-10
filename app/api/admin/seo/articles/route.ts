@@ -1,5 +1,6 @@
 export const runtime = "nodejs"
 
+import { revalidatePath } from "next/cache"
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { getStaticRatgeberTopics } from "@/lib/ratgeber/content"
@@ -200,6 +201,17 @@ export async function POST(req: Request) {
       .maybeSingle()
 
     if (reloadError) throw reloadError
+
+    const categoryPath = `/ratgeber/${effectiveCategorySlug}`
+    const topicPath = `${categoryPath}/${topicSlug}`
+    const articlePath = `${topicPath}/${slug}`
+
+    revalidatePath("/ratgeber")
+    revalidatePath(categoryPath)
+    revalidatePath(topicPath)
+    revalidatePath(articlePath)
+    revalidatePath("/sitemap.xml")
+    revalidatePath("/sitemap-index.xml")
 
     return NextResponse.json({ ok: true, id: saved?.id ?? (articleId || null) })
   } catch (error: unknown) {
