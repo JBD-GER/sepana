@@ -122,6 +122,7 @@ export const KREDIT_PURPOSE_OPTIONS: OptionItem<string>[] = [
   { value: "autokredit", label: "Autokredit", icon: "car" },
   { value: "freie_verwendung", label: "Freie Verwendung", icon: "cash" },
   { value: "umschuldung", label: "Umschuldung", icon: "refresh" },
+  { value: "hochzeitskredit", label: "Hochzeitskredit", icon: "heart" },
   { value: "renovierung", label: "Renovierung / Modernisierung", icon: "build" },
   { value: "moebel", label: "Möbel / Elektronik", icon: "cash" },
   { value: "sonstiges", label: "Sonstiger Zweck", icon: "cash" },

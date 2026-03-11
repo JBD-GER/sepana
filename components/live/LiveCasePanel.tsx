@@ -91,6 +91,7 @@ const KONSUM_PURPOSE_OPTIONS = [
   { value: "umschuldung", label: "Umschuldung" },
   { value: "auto", label: "Auto" },
   { value: "pv_anlage", label: "PV-Anlage" },
+  { value: "hochzeitskredit", label: "Hochzeitskredit" },
   { value: "modernisierung", label: "Modernisierung" },
   { value: "sonstiges", label: "Sonstiges" },
 ]

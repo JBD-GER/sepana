@@ -34,6 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/privatkredit/anfrage", changeFrequency: "weekly", priority: 0.8 },
     { path: "/privatkredit/umschulden", changeFrequency: "weekly", priority: 0.8 },
     { path: "/privatkredit/kredit-pv-anlage", changeFrequency: "weekly", priority: 0.8 },
+    { path: "/privatkredit/hochzeitskredit", changeFrequency: "weekly", priority: 0.8 },
     { path: "/live-beratung", changeFrequency: "weekly", priority: 0.7 },
     { path: "/tippgeber-baufinanzierung", changeFrequency: "weekly", priority: 0.7 },
     { path: "/tippgeber-privatkredit", changeFrequency: "weekly", priority: 0.7 },

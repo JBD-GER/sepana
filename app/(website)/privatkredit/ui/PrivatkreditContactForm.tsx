@@ -3,6 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO } from "@/lib/ads/googleAds"
+import { getPrivatkreditPurposeLabel, PRIVATKREDIT_PURPOSE_OPTIONS } from "@/lib/privatkredit/purposes"
 
 type FormState = {
   firstName: string
@@ -65,6 +66,7 @@ export default function PrivatkreditContactForm({
   const [form, setForm] = useState<FormState>(initialState)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const lockedPurposeLabel = useMemo(() => getPrivatkreditPurposeLabel(initialPurpose), [initialPurpose])
 
   const amountHint = useMemo(() => {
     const cleaned = form.loanAmount.replace(/[^\d,.-]/g, "")
@@ -212,7 +214,7 @@ export default function PrivatkreditContactForm({
           <div className="block">
             <div className="mb-1 text-xs font-medium text-slate-700">Verwendungszweck</div>
             <div className="flex h-12 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-800">
-              Umschuldung
+              {lockedPurposeLabel}
             </div>
           </div>
         ) : (
@@ -223,11 +225,11 @@ export default function PrivatkreditContactForm({
               onChange={(e) => patch("purpose", e.target.value)}
               className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:text-sm"
             >
-              <option value="freie_verwendung">Freie Verwendung</option>
-              <option value="umschuldung">Umschuldung</option>
-              <option value="auto">Auto</option>
-              <option value="modernisierung">Modernisierung</option>
-              <option value="sonstiges">Sonstiges</option>
+              {PRIVATKREDIT_PURPOSE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </label>
         )}

@@ -2,6 +2,7 @@
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { createCaseFromLead, ensureCustomerAccount, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
+import { getPrivatkreditProductName, getPrivatkreditPurposeLabel } from "@/lib/privatkredit/purposes"
 
 export const runtime = "nodejs"
 
@@ -61,20 +62,7 @@ function parseAmount(value: unknown) {
 }
 
 function purposeLabel(value: string | null) {
-  const v = String(value ?? "").toLowerCase().trim()
-  if (v === "pv_anlage") return "PV-Anlage Finanzierung"
-  if (v === "pv") return "PV-Anlage Finanzierung"
-  if (v === "photovoltaik") return "PV-Anlage Finanzierung"
-  if (v === "solaranlage") return "PV-Anlage Finanzierung"
-  if (v === "freie_verwendung") return "Freie Verwendung"
-  if (v === "umschuldung") return "Umschuldung"
-  if (v === "auto") return "Auto"
-  if (v === "autokredit") return "Auto"
-  if (v === "modernisierung") return "Modernisierung"
-  if (v === "renovierung") return "Modernisierung"
-  if (v === "moebel") return "Moebel / Elektronik"
-  if (v === "sonstiges") return "Sonstiges"
-  return "Privatkredit"
+  return getPrivatkreditPurposeLabel(value)
 }
 
 function requestTypeLabel(value: RequestType) {
@@ -88,11 +76,7 @@ function requestTypeKey(value: RequestType) {
 }
 
 function productNameForPurpose(purpose: string) {
-  const normalized = purpose.toLowerCase()
-  if (normalized.includes("pv") || normalized.includes("photovoltaik") || normalized.includes("solar")) {
-    return "Privatkredit PV-Anlage"
-  }
-  return "Privatkredit"
+  return getPrivatkreditProductName(purpose)
 }
 
 function formatAmount(value: number | null) {

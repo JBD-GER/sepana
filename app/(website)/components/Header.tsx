@@ -47,6 +47,11 @@ const PRIVATEKREDIT_NAV: PortalNavItem[] = [
     description: "Übersicht und Anfragewege",
   },
   {
+    href: "/privatkredit/hochzeitskredit",
+    label: "Hochzeitskredit",
+    description: "Budgetrechner und Finanzierung für die Hochzeit",
+  },
+  {
     href: "/privatkredit/kredit-pv-anlage",
     label: "Kredit PV Anlage",
     description: "PV-Anlage 100 % finanzieren",

@@ -226,6 +226,7 @@ export default function CreateManualLeadForm({
                   <option value="freie_verwendung">Freie Verwendung</option>
                   <option value="umschuldung">Umschuldung</option>
                   <option value="auto">Auto</option>
+                  <option value="hochzeitskredit">Hochzeitskredit</option>
                   <option value="modernisierung">Modernisierung</option>
                   <option value="sonstiges">Sonstiges</option>
                 </>
