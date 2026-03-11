@@ -41,6 +41,12 @@ type DraftState = {
   sections: RatgeberArticleSection[]
 }
 
+type TopicDraftState = {
+  categorySlug: string
+  name: string
+  slug: string
+}
+
 const MAX_HERO_IMAGE_SIZE_BYTES = 30 * 1024 * 1024
 
 function buildDraft(topics: AdminRatgeberTopic[], article?: AdminRatgeberArticle): DraftState {
@@ -142,11 +148,17 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
   const [isPending, startTransition] = useTransition()
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(articles[0]?.id ?? null)
   const [draft, setDraft] = useState<DraftState>(() => buildDraft(topics, articles[0]))
+  const [topicDraft, setTopicDraft] = useState<TopicDraftState>({
+    categorySlug: categories[0]?.slug ?? topics[0]?.categorySlug ?? "baufinanzierung",
+    name: "",
+    slug: "",
+  })
   const [message, setMessage] = useState<string | null>(null)
   const [uploadMessage, setUploadMessage] = useState<string | null>(null)
   const [generateLoading, setGenerateLoading] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
   const [uploadLoading, setUploadLoading] = useState(false)
+  const [topicSaveLoading, setTopicSaveLoading] = useState(false)
 
   const inputBase =
     "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
@@ -171,6 +183,17 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
       topicSlug: selectedTopicSlug,
     }))
   }, [draft.categorySlug, draft.topicSlug, selectedCategorySlug, selectedTopicSlug])
+
+  useEffect(() => {
+    setTopicDraft((current) => {
+      const nextCategorySlug =
+        (current.categorySlug && categories.some((item) => item.slug === current.categorySlug)
+          ? current.categorySlug
+          : selectedCategorySlug) || categories[0]?.slug || "baufinanzierung"
+      if (nextCategorySlug === current.categorySlug) return current
+      return { ...current, categorySlug: nextCategorySlug }
+    })
+  }, [categories, selectedCategorySlug])
 
   function chooseArticle(articleId: string | null) {
     setMessage(null)
@@ -202,6 +225,56 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
       categorySlug: nextCategorySlug,
       topicSlug: nextTopics.find((item) => item.slug === current.topicSlug)?.slug ?? nextTopics[0]?.slug ?? "",
     }))
+  }
+
+  async function handleTopicCreate() {
+    if (!dbReady) {
+      setMessage("Bitte zuerst die SQL-Migration fuer den Ratgeber ausfuehren.")
+      return
+    }
+
+    setTopicSaveLoading(true)
+    setMessage(null)
+    try {
+      const name = topicDraft.name.trim()
+      const slug = slugify(topicDraft.slug || name)
+      if (!topicDraft.categorySlug || !name || !slug) {
+        throw new Error("Kategorie, Name und Slug der Unterkategorie sind erforderlich.")
+      }
+
+      const res = await fetch("/api/admin/seo/topics", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          categorySlug: topicDraft.categorySlug,
+          name,
+          slug,
+        }),
+      })
+
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean
+        error?: string
+        categorySlug?: string
+        slug?: string
+      }
+      if (!res.ok || !json.ok || !json.categorySlug || !json.slug) {
+        throw new Error(json.error || "Unterkategorie konnte nicht angelegt werden.")
+      }
+
+      setTopicDraft((current) => ({ ...current, name: "", slug: "" }))
+      setDraft((current) => ({
+        ...current,
+        categorySlug: json.categorySlug || current.categorySlug,
+        topicSlug: json.slug || current.topicSlug,
+      }))
+      setMessage("Unterkategorie gespeichert.")
+      startTransition(() => router.refresh())
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : "Unterkategorie konnte nicht angelegt werden.")
+    } finally {
+      setTopicSaveLoading(false)
+    }
   }
 
   async function handleGenerate() {
@@ -412,6 +485,65 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
                 Noch keine DB-Beitraege vorhanden.
               </div>
             ) : null}
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="text-sm font-semibold text-slate-900">Neue Unterkategorie</div>
+          <div className="mt-4 grid gap-3">
+            <div className="grid gap-2">
+              <label className="text-xs text-slate-600">Kategorie</label>
+              <select
+                value={topicDraft.categorySlug}
+                onChange={(event) =>
+                  setTopicDraft((current) => ({ ...current, categorySlug: event.target.value }))
+                }
+                className={inputBase}
+              >
+                {categories.map((category) => (
+                  <option key={category.slug} value={category.slug}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <label className="text-xs text-slate-600">Name</label>
+              <input
+                value={topicDraft.name}
+                onChange={(event) =>
+                  setTopicDraft((current) => ({
+                    ...current,
+                    name: event.target.value,
+                    slug: current.slug || slugify(event.target.value),
+                  }))
+                }
+                className={inputBase}
+                placeholder="z. B. Modernisierung"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <label className="text-xs text-slate-600">Slug</label>
+              <input
+                value={topicDraft.slug}
+                onChange={(event) =>
+                  setTopicDraft((current) => ({ ...current, slug: slugify(event.target.value) }))
+                }
+                className={inputBase}
+                placeholder="modernisierung"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleTopicCreate}
+              disabled={topicSaveLoading || isPending}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+            >
+              {topicSaveLoading || isPending ? "Speichert..." : "Unterkategorie anlegen"}
+            </button>
           </div>
         </section>
       </aside>
@@ -638,7 +770,7 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif"
                 onChange={handleFileChange}
                 className="hidden"
               />

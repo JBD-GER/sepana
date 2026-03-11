@@ -78,6 +78,50 @@ type RatgeberContentSet = {
   articles: RatgeberArticle[]
 }
 
+function sortCategories(items: RatgeberCategory[]) {
+  return [...items].sort((a, b) => a.sortOrder - b.sortOrder)
+}
+
+function sortTopics(items: RatgeberTopic[]) {
+  return [...items].sort((a, b) => {
+    if (a.categorySlug !== b.categorySlug) return a.categorySlug.localeCompare(b.categorySlug, "de")
+    return a.sortOrder - b.sortOrder
+  })
+}
+
+function sortArticles(items: RatgeberArticle[]) {
+  return [...items].sort((a, b) => {
+    if (a.categorySlug !== b.categorySlug) return a.categorySlug.localeCompare(b.categorySlug, "de")
+    if (a.topicSlug !== b.topicSlug) return a.topicSlug.localeCompare(b.topicSlug, "de")
+    return a.sortOrder - b.sortOrder
+  })
+}
+
+function mergeContentSet(base: RatgeberContentSet, overrides: RatgeberContentSet): RatgeberContentSet {
+  const categoryMap = new Map(base.categories.map((item) => [item.slug, item] as const))
+  for (const item of overrides.categories) {
+    categoryMap.set(item.slug, item)
+  }
+
+  const topicMap = new Map(base.topics.map((item) => [`${item.categorySlug}:${item.slug}`, item] as const))
+  for (const item of overrides.topics) {
+    topicMap.set(`${item.categorySlug}:${item.slug}`, item)
+  }
+
+  const articleMap = new Map(
+    base.articles.map((item) => [`${item.categorySlug}:${item.topicSlug}:${item.slug}`, item] as const),
+  )
+  for (const item of overrides.articles) {
+    articleMap.set(`${item.categorySlug}:${item.topicSlug}:${item.slug}`, item)
+  }
+
+  return {
+    categories: sortCategories(Array.from(categoryMap.values())),
+    topics: sortTopics(Array.from(topicMap.values())),
+    articles: sortArticles(Array.from(articleMap.values())),
+  }
+}
+
 function isMissingRatgeberTable(message: string | undefined) {
   return Boolean(message && message.includes("public.ratgeber_"))
 }
@@ -264,12 +308,9 @@ const loadDbContent = cache(async (): Promise<RatgeberContentSet | null> => {
       .filter((item): item is RatgeberArticle => item !== null)
 
     return {
-      categories: Array.from(categoryMap.values()).sort((a, b) => a.sortOrder - b.sortOrder),
-      topics: topics.sort((a, b) => {
-        if (a.categorySlug !== b.categorySlug) return a.categorySlug.localeCompare(b.categorySlug, "de")
-        return a.sortOrder - b.sortOrder
-      }),
-      articles,
+      categories: sortCategories(Array.from(categoryMap.values())),
+      topics: sortTopics(topics),
+      articles: sortArticles(articles),
     }
   } catch (error) {
     console.warn("[ratgeber] unexpected db error:", error instanceof Error ? error.message : "unknown")
@@ -278,13 +319,14 @@ const loadDbContent = cache(async (): Promise<RatgeberContentSet | null> => {
 })
 
 async function getContentSet(): Promise<RatgeberContentSet> {
-  const dbContent = await loadDbContent()
-  if (dbContent) return dbContent
-  return {
+  const staticContent = {
     categories: getStaticRatgeberCategories(),
     topics: getStaticRatgeberTopics(),
     articles: getStaticRatgeberArticles(),
   }
+  const dbContent = await loadDbContent()
+  if (!dbContent) return staticContent
+  return mergeContentSet(staticContent, dbContent)
 }
 
 export async function getRatgeberCategories() {

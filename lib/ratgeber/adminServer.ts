@@ -46,6 +46,28 @@ export type AdminRatgeberState = {
   articles: AdminRatgeberArticle[]
 }
 
+function mergeCategories(
+  base: AdminRatgeberCategory[],
+  overrides: AdminRatgeberCategory[],
+): AdminRatgeberCategory[] {
+  const map = new Map(base.map((item) => [item.slug, item] as const))
+  for (const item of overrides) {
+    map.set(item.slug, item)
+  }
+  return Array.from(map.values())
+}
+
+function mergeTopics(base: AdminRatgeberTopic[], overrides: AdminRatgeberTopic[]): AdminRatgeberTopic[] {
+  const map = new Map(base.map((item) => [`${item.categorySlug}:${item.slug}`, item] as const))
+  for (const item of overrides) {
+    map.set(`${item.categorySlug}:${item.slug}`, item)
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.categorySlug !== b.categorySlug) return a.categorySlug.localeCompare(b.categorySlug, "de")
+    return a.name.localeCompare(b.name, "de")
+  })
+}
+
 type CategoryRow = {
   slug: string
   name: string
@@ -177,16 +199,24 @@ export async function getRatgeberAdminState(): Promise<AdminRatgeberState> {
     if (topicError) throw topicError
     if (articleError) throw articleError
 
-    const loadedCategories = (categoryRows as CategoryRow[] | null)?.map((item) => ({
-      slug: item.slug,
-      name: item.name,
-    })) ?? categories
+    const loadedCategories = mergeCategories(
+      categories,
+      ((categoryRows as CategoryRow[] | null) ?? []).map((item) => ({
+        slug: item.slug,
+        name: item.name,
+      })),
+    )
 
-    const loadedTopics = (topicRows as TopicRow[] | null)?.map((item) => ({
-      categorySlug: item.ratgeber_categories?.[0]?.slug ?? "",
-      slug: item.slug,
-      name: item.name,
-    })) ?? topics
+    const loadedTopics = mergeTopics(
+      topics,
+      ((topicRows as TopicRow[] | null) ?? [])
+        .map((item) => ({
+          categorySlug: item.ratgeber_categories?.[0]?.slug ?? "",
+          slug: item.slug,
+          name: item.name,
+        }))
+        .filter((item) => item.categorySlug && item.slug),
+    )
 
     const articles = (((articleRows as unknown) as ArticleRow[] | null) ?? []).map((row) => ({
       id: row.id,
