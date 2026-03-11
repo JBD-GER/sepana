@@ -187,17 +187,17 @@ export const RATGEBER_TOPICS: RatgeberTopic[] = [
   {
     categorySlug: "privatkredit",
     slug: "bonitaet",
-    name: "Bonitaet",
+    name: "Bonität",
     description: "Beitraege zu Einkommen, Haushaltslage, SCHUFA und Kreditpruefung.",
-    heroTitle: "Bonitaet besser verstehen und die Anfrage sauber vorbereiten.",
+    heroTitle: "Bonität besser verstehen und die Anfrage sauber vorbereiten.",
     heroText:
       "Hier sammeln sich kuenftig Beitraege zu SCHUFA, Haushaltsrechnung, Einkommen, laufenden Verpflichtungen und der Qualitaet einer Kreditanfrage.",
-    seoTitle: "Bonitaet Ratgeber | Beitraege zu Kreditpruefung und SCHUFA | SEPANA",
+    seoTitle: "Bonität Ratgeber | Beitraege zu Kreditpruefung und SCHUFA | SEPANA",
     seoDescription:
-      "Unterkategorie Bonitaet im SEPANA Ratgeber mit eigenen Beitraegen zu Einkommen, SCHUFA und besser vorbereiteten Kreditanfragen.",
+      "Unterkategorie Bonität im SEPANA Ratgeber mit eigenen Beitraegen zu Einkommen, SCHUFA und besser vorbereiteten Kreditanfragen.",
     sortOrder: 2,
     heroImagePath: "/familie_umzug.jpg",
-    heroImageAlt: "Bonitaet im SEPANA Ratgeber",
+    heroImageAlt: "Bonität im SEPANA Ratgeber",
   },
   {
     categorySlug: "privatkredit",

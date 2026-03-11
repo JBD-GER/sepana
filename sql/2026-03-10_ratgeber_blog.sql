@@ -369,16 +369,16 @@ values
   (
     (select id from public.ratgeber_categories where slug = 'privatkredit'),
     'bonitaet',
-    'Bonitaet',
+    'Bonität',
     'Beitraege zu Einkommen, Haushaltslage, SCHUFA und Kreditpruefung.',
-    'Bonitaet besser verstehen und die Anfrage sauber vorbereiten.',
+    'Bonität besser verstehen und die Anfrage sauber vorbereiten.',
     'Hier sammeln sich kuenftig Beitraege zu SCHUFA, Haushaltsrechnung, Einkommen, laufenden Verpflichtungen und der Qualitaet einer Kreditanfrage.',
-    'Bonitaet Ratgeber | Beitraege zu Kreditpruefung und SCHUFA | SEPANA',
-    'Unterkategorie Bonitaet im SEPANA Ratgeber mit eigenen Beitraegen zu Einkommen, SCHUFA und besser vorbereiteten Kreditanfragen.',
+    'Bonität Ratgeber | Beitraege zu Kreditpruefung und SCHUFA | SEPANA',
+    'Unterkategorie Bonität im SEPANA Ratgeber mit eigenen Beitraegen zu Einkommen, SCHUFA und besser vorbereiteten Kreditanfragen.',
     2,
     true,
     '/familie_umzug.jpg',
-    'Bonitaet im SEPANA Ratgeber'
+    'Bonität im SEPANA Ratgeber'
   ),
   (
     (select id from public.ratgeber_categories where slug = 'privatkredit'),
