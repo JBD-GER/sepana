@@ -142,10 +142,35 @@ function resolveDraftSelection(
   return { categorySlug, topicSlug, availableTopics }
 }
 
+function sameTopicList(a: AdminRatgeberTopic[], b: AdminRatgeberTopic[]) {
+  return (
+    a.length === b.length &&
+    a.every(
+      (item, index) =>
+        item.categorySlug === b[index]?.categorySlug && item.slug === b[index]?.slug && item.name === b[index]?.name,
+    )
+  )
+}
+
+function sameArticleList(a: AdminRatgeberArticle[], b: AdminRatgeberArticle[]) {
+  return (
+    a.length === b.length &&
+    a.every(
+      (item, index) =>
+        item.id === b[index]?.id &&
+        item.categorySlug === b[index]?.categorySlug &&
+        item.topicSlug === b[index]?.topicSlug &&
+        item.updatedAt === b[index]?.updatedAt,
+    )
+  )
+}
+
 export default function SeoArticleEditor({ dbReady, categories, topics, articles }: SeoArticleEditorProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [availableTopicsState, setAvailableTopicsState] = useState<AdminRatgeberTopic[]>(topics)
+  const [availableArticlesState, setAvailableArticlesState] = useState<AdminRatgeberArticle[]>(articles)
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(articles[0]?.id ?? null)
   const [draft, setDraft] = useState<DraftState>(() => buildDraft(topics, articles[0]))
   const [topicDraft, setTopicDraft] = useState<TopicDraftState>({
@@ -164,8 +189,8 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
     "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
 
   const resolvedSelection = useMemo(
-    () => resolveDraftSelection(categories, topics, draft),
-    [categories, topics, draft],
+    () => resolveDraftSelection(categories, availableTopicsState, draft),
+    [categories, availableTopicsState, draft],
   )
   const availableTopics = resolvedSelection.availableTopics
   const selectedCategorySlug = resolvedSelection.categorySlug
@@ -174,6 +199,38 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
     categories.find((item) => item.slug === selectedCategorySlug)?.name ?? selectedCategorySlug
   const selectedTopicName = availableTopics.find((item) => item.slug === selectedTopicSlug)?.name ?? selectedTopicSlug
   const heroImageSrc = getRatgeberImageSrc(draft.heroImagePath)
+
+  useEffect(() => {
+    if (!sameTopicList(availableTopicsState, topics)) {
+      setAvailableTopicsState(topics)
+    }
+  }, [availableTopicsState, topics])
+
+  useEffect(() => {
+    if (!sameArticleList(availableArticlesState, articles)) {
+      setAvailableArticlesState(articles)
+    }
+  }, [availableArticlesState, articles])
+
+  useEffect(() => {
+    if (selectedArticleId) {
+      const selectedArticle = availableArticlesState.find((item) => item.id === selectedArticleId)
+      if (selectedArticle) {
+        setDraft((current) => {
+          const next = buildDraft(availableTopicsState, selectedArticle)
+          return JSON.stringify(current) === JSON.stringify(next) ? current : next
+        })
+        return
+      }
+    }
+
+    if (!selectedArticleId) {
+      setDraft((current) => {
+        const next = buildDraft(availableTopicsState)
+        return JSON.stringify(current) === JSON.stringify(next) ? current : next
+      })
+    }
+  }, [availableArticlesState, availableTopicsState, selectedArticleId])
 
   useEffect(() => {
     if (draft.categorySlug === selectedCategorySlug && draft.topicSlug === selectedTopicSlug) return
@@ -200,12 +257,12 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
     setUploadMessage(null)
     setSelectedArticleId(articleId)
     if (!articleId) {
-      setDraft(buildDraft(topics))
+      setDraft(buildDraft(availableTopicsState))
       return
     }
 
-    const article = articles.find((item) => item.id === articleId)
-    setDraft(buildDraft(topics, article))
+    const article = availableArticlesState.find((item) => item.id === articleId)
+    setDraft(buildDraft(availableTopicsState, article))
   }
 
   function updateTitle(nextTitle: string) {
@@ -219,7 +276,7 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
   }
 
   function handleCategoryChange(nextCategorySlug: string) {
-    const nextTopics = topics.filter((item) => item.categorySlug === nextCategorySlug)
+    const nextTopics = availableTopicsState.filter((item) => item.categorySlug === nextCategorySlug)
     setDraft((current) => ({
       ...current,
       categorySlug: nextCategorySlug,
@@ -262,11 +319,30 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
         throw new Error(json.error || "Unterkategorie konnte nicht angelegt werden.")
       }
 
+      const createdCategorySlug = json.categorySlug
+      const createdTopicSlug = json.slug
+
       setTopicDraft((current) => ({ ...current, name: "", slug: "" }))
+      setAvailableTopicsState((current) => {
+        if (current.some((item) => item.categorySlug === createdCategorySlug && item.slug === createdTopicSlug)) {
+          return current
+        }
+        return [
+          ...current,
+          {
+            categorySlug: createdCategorySlug,
+            slug: createdTopicSlug,
+            name,
+          },
+        ].sort((a, b) => {
+          if (a.categorySlug !== b.categorySlug) return a.categorySlug.localeCompare(b.categorySlug, "de")
+          return a.name.localeCompare(b.name, "de")
+        })
+      })
       setDraft((current) => ({
         ...current,
-        categorySlug: json.categorySlug || current.categorySlug,
-        topicSlug: json.slug || current.topicSlug,
+        categorySlug: createdCategorySlug,
+        topicSlug: createdTopicSlug,
       }))
       setMessage("Unterkategorie gespeichert.")
       startTransition(() => router.refresh())
@@ -374,9 +450,41 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
         throw new Error(json.error || "Speichern fehlgeschlagen.")
       }
 
-      setSelectedArticleId(json.id ?? selectedArticleId)
+      const resolvedId = json.id ?? selectedArticleId
+      setSelectedArticleId(resolvedId)
+      if (resolvedId) {
+        setAvailableArticlesState((current) => {
+          const nextArticle: AdminRatgeberArticle = {
+            id: resolvedId,
+            categorySlug: selectedCategorySlug,
+            topicSlug: selectedTopicSlug,
+            topicName: selectedTopicName,
+            slug: draft.slug || slugify(draft.title),
+            menuTitle: draft.menuTitle || draft.title,
+            title: draft.title,
+            excerpt: draft.excerpt,
+            seoTitle: draft.seoTitle,
+            seoDescription: draft.seoDescription,
+            focusKeyword: draft.focusKeyword,
+            readingTimeMinutes: draft.readingTimeMinutes,
+            sortOrder: draft.sortOrder,
+            isPublished: draft.isPublished,
+            heroImagePath: draft.heroImagePath,
+            heroImageAlt: draft.heroImageAlt || draft.title,
+            outline: parseLines(draft.outlineText),
+            highlights: draft.highlights,
+            faq: draft.faq,
+            sections: draft.sections,
+            updatedAt: new Date().toISOString(),
+          }
+
+          const existingIndex = current.findIndex((item) => item.id === resolvedId)
+          if (existingIndex === -1) return [nextArticle, ...current]
+          return current.map((item) => (item.id === resolvedId ? nextArticle : item))
+        })
+      }
       setMessage("Beitrag gespeichert.")
-      startTransition(() => router.refresh())
+      router.refresh()
     } catch (error: unknown) {
       setMessage(error instanceof Error ? error.message : "Speichern fehlgeschlagen.")
     } finally {
@@ -458,7 +566,7 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="text-sm font-semibold text-slate-900">Bestehende Beitraege</div>
           <div className="mt-4 space-y-3">
-            {articles.map((article) => {
+            {availableArticlesState.map((article) => {
               const active = article.id === selectedArticleId
               return (
                 <button
@@ -480,7 +588,7 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
               )
             })}
 
-            {articles.length === 0 ? (
+            {availableArticlesState.length === 0 ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
                 Noch keine DB-Beitraege vorhanden.
               </div>
