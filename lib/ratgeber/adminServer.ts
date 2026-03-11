@@ -58,14 +58,32 @@ function mergeCategories(
 }
 
 function mergeTopics(base: AdminRatgeberTopic[], overrides: AdminRatgeberTopic[]): AdminRatgeberTopic[] {
-  const map = new Map(base.map((item) => [`${item.categorySlug}:${item.slug}`, item] as const))
+  const map = new Map<string, AdminRatgeberTopic>(
+    base.map((item) => [`${item.categorySlug}:${item.slug}`, item] as const),
+  )
   for (const item of overrides) {
     map.set(`${item.categorySlug}:${item.slug}`, item)
   }
-  return Array.from(map.values()).sort((a, b) => {
-    if (a.categorySlug !== b.categorySlug) return a.categorySlug.localeCompare(b.categorySlug, "de")
-    return a.name.localeCompare(b.name, "de")
-  })
+
+  const merged: AdminRatgeberTopic[] = []
+  const seen = new Set<string>()
+
+  for (const item of base) {
+    const key = `${item.categorySlug}:${item.slug}`
+    const resolved = map.get(key)
+    if (!resolved) continue
+    merged.push(resolved)
+    seen.add(key)
+  }
+
+  for (const item of overrides) {
+    const key = `${item.categorySlug}:${item.slug}`
+    if (seen.has(key)) continue
+    merged.push(item)
+    seen.add(key)
+  }
+
+  return merged
 }
 
 type CategoryRow = {
@@ -77,6 +95,9 @@ type TopicRow = {
   slug: string
   name: string
   ratgeber_categories:
+    | {
+        slug: string
+      }
     | {
         slug: string
       }[]
@@ -109,10 +130,30 @@ type ArticleRow = {
         ratgeber_categories:
           | {
               slug: string
+            }
+          | {
+              slug: string
+            }[]
+          | null
+      }
+    | {
+        slug: string
+        name: string
+        ratgeber_categories:
+          | {
+              slug: string
+            }
+          | {
+              slug: string
             }[]
           | null
       }[]
     | null
+}
+
+function firstRelation<T>(value: T | T[] | null | undefined) {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
 }
 
 function parseStringArray(value: unknown) {
@@ -210,37 +251,44 @@ export async function getRatgeberAdminState(): Promise<AdminRatgeberState> {
     const loadedTopics = mergeTopics(
       topics,
       ((topicRows as TopicRow[] | null) ?? [])
-        .map((item) => ({
-          categorySlug: item.ratgeber_categories?.[0]?.slug ?? "",
-          slug: item.slug,
-          name: item.name,
-        }))
+        .map((item) => {
+          const category = firstRelation(item.ratgeber_categories)
+          return {
+            categorySlug: category?.slug ?? "",
+            slug: item.slug,
+            name: item.name,
+          }
+        })
         .filter((item) => item.categorySlug && item.slug),
     )
 
-    const articles = (((articleRows as unknown) as ArticleRow[] | null) ?? []).map((row) => ({
-      id: row.id,
-      categorySlug: row.ratgeber_topics?.[0]?.ratgeber_categories?.[0]?.slug ?? "",
-      topicSlug: row.ratgeber_topics?.[0]?.slug ?? "",
-      topicName: row.ratgeber_topics?.[0]?.name ?? "",
-      slug: row.slug,
-      menuTitle: row.menu_title,
-      title: row.title,
-      excerpt: row.excerpt,
-      seoTitle: row.seo_title,
-      seoDescription: row.seo_description,
-      focusKeyword: row.focus_keyword,
-      readingTimeMinutes: Number(row.reading_time_minutes || 4),
-      sortOrder: Number(row.sort_order || 1),
-      isPublished: Boolean(row.is_published),
-      heroImagePath: row.hero_image_path,
-      heroImageAlt: row.hero_image_alt ?? "",
-      outline: parseStringArray(row.outline),
-      highlights: parseStringArray(row.highlights),
-      faq: parseFaq(row.faq),
-      sections: parseSections(row.content),
-      updatedAt: row.updated_at,
-    }))
+    const articles = (((articleRows as unknown) as ArticleRow[] | null) ?? []).map((row) => {
+      const topic = firstRelation(row.ratgeber_topics)
+      const category = firstRelation(topic?.ratgeber_categories)
+      return {
+        id: row.id,
+        categorySlug: category?.slug ?? "",
+        topicSlug: topic?.slug ?? "",
+        topicName: topic?.name ?? "",
+        slug: row.slug,
+        menuTitle: row.menu_title,
+        title: row.title,
+        excerpt: row.excerpt,
+        seoTitle: row.seo_title,
+        seoDescription: row.seo_description,
+        focusKeyword: row.focus_keyword,
+        readingTimeMinutes: Number(row.reading_time_minutes || 4),
+        sortOrder: Number(row.sort_order || 1),
+        isPublished: Boolean(row.is_published),
+        heroImagePath: row.hero_image_path,
+        heroImageAlt: row.hero_image_alt ?? "",
+        outline: parseStringArray(row.outline),
+        highlights: parseStringArray(row.highlights),
+        faq: parseFaq(row.faq),
+        sections: parseSections(row.content),
+        updatedAt: row.updated_at,
+      }
+    })
 
     return {
       dbReady: true,
