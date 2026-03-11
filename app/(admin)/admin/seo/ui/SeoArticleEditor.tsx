@@ -10,6 +10,7 @@ import type {
   AdminRatgeberTopic,
 } from "@/lib/ratgeber/adminServer"
 import { type GeneratedRatgeberArticle, getRatgeberImageSrc, parseLines, slugify } from "@/lib/ratgeber/utils"
+import { createBrowserSupabaseClientNoAuth } from "@/lib/supabase/browser"
 
 type SeoArticleEditorProps = {
   dbReady: boolean
@@ -505,30 +506,67 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
     setUploadLoading(true)
     setUploadMessage(null)
     try {
-      const form = new FormData()
-      form.append("file", file)
-
       const slug = draft.slug || slugify(draft.title || "ratgeber")
-      const res = await fetch(`/api/admin/seo/upload-image?slug=${encodeURIComponent(slug)}`, {
+      const initRes = await fetch(`/api/admin/seo/upload-image?slug=${encodeURIComponent(slug)}`, {
         method: "POST",
-        body: form,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "init",
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+        }),
       })
 
-      const json = (await res.json().catch(() => ({}))) as {
+      const initJson = (await initRes.json().catch(() => ({}))) as {
+        ok?: boolean
+        error?: string
+        path?: string
+        token?: string
+        contentType?: string
+      }
+      if (initRes.status === 413) {
+        throw new Error(initJson.error || "Das Bild ist zu gross. Bitte eine Datei unter 10 MB hochladen.")
+      }
+      if (!initRes.ok || !initJson.ok || !initJson.path || !initJson.token) {
+        throw new Error(initJson.error || "Upload konnte nicht vorbereitet werden.")
+      }
+
+      const supabase = createBrowserSupabaseClientNoAuth()
+      const upload = await supabase.storage.from("website_media").uploadToSignedUrl(
+        initJson.path,
+        initJson.token,
+        file,
+        {
+          contentType: initJson.contentType || file.type || "image/jpeg",
+          upsert: true,
+        },
+      )
+      if (upload.error) {
+        throw new Error(upload.error.message || "Upload fehlgeschlagen.")
+      }
+
+      const completeRes = await fetch(`/api/admin/seo/upload-image?slug=${encodeURIComponent(slug)}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "complete",
+          path: initJson.path,
+        }),
+      })
+
+      const completeJson = (await completeRes.json().catch(() => ({}))) as {
         ok?: boolean
         error?: string
         path?: string
       }
-      if (res.status === 413) {
-        throw new Error(json.error || "Das Bild ist zu gross. Bitte eine Datei unter 10 MB hochladen.")
-      }
-      if (!res.ok || !json.ok || !json.path) {
-        throw new Error(json.error || "Upload fehlgeschlagen.")
+      if (!completeRes.ok || !completeJson.ok || !completeJson.path) {
+        throw new Error(completeJson.error || "Upload konnte nicht abgeschlossen werden.")
       }
 
       setDraft((current) => ({
         ...current,
-        heroImagePath: json.path || current.heroImagePath,
+        heroImagePath: completeJson.path || current.heroImagePath,
         heroImageAlt: current.heroImageAlt || current.title,
       }))
       setUploadMessage("Bild hochgeladen.")
