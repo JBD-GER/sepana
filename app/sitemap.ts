@@ -7,6 +7,8 @@ import {
 import { getRatgeberArticles, getRatgeberCategories, getRatgeberTopics } from "@/lib/ratgeber/server"
 
 const FALLBACK_SITE_URL = "https://www.sepana.de"
+export const dynamic = "force-dynamic"
+export const revalidate = 3600
 
 function siteUrl() {
   const raw = process.env.NEXT_PUBLIC_SITE_URL || FALLBACK_SITE_URL
@@ -67,7 +69,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   ]
 
-  return [...publicRoutes, ...ratgeberRoutes].map(({ path, changeFrequency, priority }) => ({
+  const uniqueRoutes = [...publicRoutes, ...ratgeberRoutes].filter(
+    (route, index, allRoutes) => allRoutes.findIndex((item) => item.path === route.path) === index,
+  )
+
+  return uniqueRoutes.map(({ path, changeFrequency, priority }) => ({
     url: `${base}${path}`,
     lastModified,
     changeFrequency,
