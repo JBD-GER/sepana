@@ -11,9 +11,10 @@ import {
 } from "@/lib/ratgeber/server"
 import { absoluteUrl, buildBreadcrumbList, buildOrganization, jsonLd } from "@/lib/ratgeber/seo"
 import { buildArticleCta, buildArticleFaq, getRatgeberImageSrc, slugify } from "@/lib/ratgeber/utils"
-import RatgeberArticleCard from "../../../ui/RatgeberArticleCard"
 
 export const revalidate = 3600
+
+const relatedDateFormatter = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" })
 
 export async function generateMetadata({
   params,
@@ -463,20 +464,31 @@ export default async function RatgeberArticlePage({
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                 Weitere Beiträge in {topic.name}
               </div>
-              <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="mt-2 text-sm text-slate-600">
+                Weitere passende Artikel aus dieser Unterkategorie.
+              </div>
+              <div className="mt-5 -mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-2">
                 {relatedArticles.map((item) => (
-                  <RatgeberArticleCard
+                  <Link
                     key={item.slug}
                     href={getRatgeberArticlePath(item)}
-                    title={item.title}
-                    excerpt={item.excerpt}
-                    imageSrc={getRatgeberImageSrc(item.heroImagePath)}
-                    imageAlt={item.heroImageAlt}
-                    topicName={topic.name}
-                    categoryName={category.name}
-                    publishedAt={item.publishedAt}
-                    readingTimeMinutes={item.readingTimeMinutes}
-                  />
+                    className="min-w-[280px] max-w-[320px] snap-start rounded-[24px] border border-slate-200 bg-slate-50 p-5 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+                  >
+                    <div className="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                      <span>{category.name}</span>
+                      <span>/</span>
+                      <span>{topic.name}</span>
+                    </div>
+                    <h3 className="mt-3 text-xl font-semibold leading-snug text-slate-900">{item.title}</h3>
+                    <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-600">
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1">
+                        Veröffentlicht am {relatedDateFormatter.format(new Date(item.publishedAt))}
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1">
+                        {item.readingTimeMinutes} Min. Lesezeit
+                      </span>
+                    </div>
+                  </Link>
                 ))}
               </div>
             </section>
