@@ -47,7 +47,7 @@ type TopicDraftState = {
   slug: string
 }
 
-const MAX_HERO_IMAGE_SIZE_BYTES = 30 * 1024 * 1024
+const MAX_HERO_IMAGE_SIZE_BYTES = 4 * 1024 * 1024
 
 function buildDraft(topics: AdminRatgeberTopic[], article?: AdminRatgeberArticle): DraftState {
   if (!article) {
@@ -497,7 +497,7 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
     if (!file) return
 
     if (file.size > MAX_HERO_IMAGE_SIZE_BYTES) {
-      setUploadMessage("Das Bild ist zu gross. Bitte eine Datei unter 30 MB hochladen.")
+      setUploadMessage("Das Bild ist zu gross. Bitte eine Datei unter 4 MB hochladen.")
       if (fileInputRef.current) fileInputRef.current.value = ""
       return
     }
@@ -518,6 +518,9 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
         ok?: boolean
         error?: string
         path?: string
+      }
+      if (res.status === 413) {
+        throw new Error(json.error || "Das Bild ist zu gross. Bitte eine Datei unter 4 MB hochladen.")
       }
       if (!res.ok || !json.ok || !json.path) {
         throw new Error(json.error || "Upload fehlgeschlagen.")
@@ -863,7 +866,7 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
                 <div>
                   <div className="text-sm font-semibold text-slate-900">Hero-Bild</div>
                   <div className="mt-1 text-xs text-slate-500">
-                    Upload in Supabase Storage `website_media` oder manuelle Pfadangabe.
+                    Upload in Supabase Storage `website_media` oder manuelle Pfadangabe. Maximal 4 MB pro Datei.
                   </div>
                 </div>
                 <button

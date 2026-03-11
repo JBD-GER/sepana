@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { RATGEBER_STORAGE_BUCKET, getRatgeberImageSrc, slugify } from "@/lib/ratgeber/utils"
 
 const FALLBACK_CONTENT_TYPE = "image/jpeg"
+const MAX_HERO_IMAGE_SIZE_BYTES = 4 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES: Record<string, string> = {
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
@@ -42,6 +43,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Datei fehlt." }, { status: 400 })
     }
 
+    if (file.size > MAX_HERO_IMAGE_SIZE_BYTES) {
+      return NextResponse.json(
+        { ok: false, error: "Das Bild ist zu gross. Bitte eine Datei unter 4 MB hochladen." },
+        { status: 413 },
+      )
+    }
+
     const ext = getFileExtension(file.name) || "jpg"
     const contentType = resolveContentType(file, ext)
     if (!contentType.startsWith("image/")) {
@@ -74,7 +82,7 @@ export async function POST(req: Request) {
       /10MB/i.test(message)
     ) {
       return NextResponse.json(
-        { ok: false, error: "Das Bild ist zu gross. Bitte eine Datei unter 30 MB hochladen." },
+        { ok: false, error: "Das Bild ist zu gross. Bitte eine Datei unter 4 MB hochladen." },
         { status: 413 },
       )
     }
