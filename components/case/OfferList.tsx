@@ -484,7 +484,7 @@ export default function OfferList({
         <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
           <div className="text-sm font-semibold text-slate-900">Interne Provision erfassen (inkl. MwSt.)</div>
           <p className="mt-1 text-xs text-slate-600">
-            Bitte die tatsaechliche Bank-/SEPANA-Provision inkl. MwSt. eintragen. Die 35%-Berechnung erfolgt intern auf Netto-Basis.
+            Bitte die tatsaechliche Bank-/SEPANA-Provision inkl. MwSt. eintragen. Die 25%-Berechnung erfolgt intern auf Netto-Basis.
           </p>
           <p className="mt-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
             Nur intern sichtbar (Admin/Berater) und nicht für Kunden vorgesehen.

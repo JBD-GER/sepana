@@ -51,6 +51,8 @@ function statusBadgeClass(referral: TippgeberReferralRow) {
 function commissionReasonLabel(value: string | null | undefined) {
   const v = String(value ?? "").trim().toLowerCase()
   switch (v) {
+    case "bank_approved_25pct_incl_vat":
+      return "25 % inkl. MwSt. (nur bei Bankzusage)"
     case "bank_approved_35pct_incl_vat":
       return "35 % inkl. MwSt. (nur bei Bankzusage)"
     case "bank_declined_no_commission":
@@ -159,7 +161,7 @@ export default async function TippgeberDashboardPage() {
             Hinweis
           </span>
           <p className="text-emerald-900">
-            Wir stellen 35 % inkl. MwSt. von der ausgezahlten Provision aus.
+            Wir stellen 25 % inkl. MwSt. von der ausgezahlten Provision aus.
           </p>
         </div>
       </section>

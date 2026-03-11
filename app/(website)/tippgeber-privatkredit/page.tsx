@@ -61,7 +61,7 @@ const USE_CASES = [
   "Autohäuser",
   "Handwerksbetriebe",
   "Medizinische Anbieter",
-  "Treppenlifte",
+  "Hochzeitsplaner",
 ]
 
 const DASHBOARD_ITEMS = [
@@ -80,7 +80,7 @@ const FAQS = [
   },
   {
     q: "Welche Empfehlungen passen zu diesem Modell?",
-    a: "Typisch sind Privatkredit-Fälle mit klarem Finanzierungsbedarf, zum Beispiel für PV-Anlagen, Wärmepumpen, Küchen, Fahrzeuge, medizinische Leistungen oder Treppenlifte.",
+    a: "Typisch sind Privatkredit-Fälle mit klarem Finanzierungsbedarf, zum Beispiel für PV-Anlagen, Wärmepumpen, Küchen, Fahrzeuge, medizinische Leistungen oder Hochzeitsplaner.",
   },
   {
     q: "Wie sehe ich meine Provisionen?",
@@ -220,7 +220,7 @@ export default function TippgeberPrivatkreditPage() {
               </div>
               <div className="rounded-2xl border border-emerald-200/30 bg-emerald-300/10 p-4">
                 <div className="text-xs uppercase tracking-[0.08em] text-emerald-100">Bankstatus angenommen</div>
-                <div className="mt-1 text-lg font-semibold text-white">35 % der SEPANA-Provision inkl. MwSt.</div>
+                <div className="mt-1 text-lg font-semibold text-white">25 % der SEPANA-Provision inkl. MwSt.</div>
                 <div className="mt-1 text-xs text-slate-200/85">
                   Basis ist die intern erfasste SEPANA-Provision (inkl. MwSt.) nach Bankannahme. Freigabe und Auszahlung über den Admin-Prozess.
                 </div>

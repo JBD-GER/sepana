@@ -1,4 +1,4 @@
-﻿export const TIPPGEBER_APPROVED_PERCENT_RATE = 0.35 // 35 % Auszahlung inkl. MwSt. (berechnet auf Netto-Basis)
+export const TIPPGEBER_APPROVED_PERCENT_RATE = 0.25 // 25 % Auszahlung inkl. MwSt. (berechnet auf Netto-Basis)
 export const TIPPGEBER_VAT_RATE = 0.19
 
 export type TippgeberBankOutcome = "approved" | "declined"
@@ -37,8 +37,8 @@ export function calculateTippgeberCommission(
 ): TippgeberCommissionBreakdown {
   const inputAmount = Math.max(0, toMoney(baseAmountInput ?? 0))
   // Interne Provision wird im Admin/Berater-Frontend inkl. MwSt. erfasst.
-  // Für die Tippgeber-Berechnung bleibt die Basis netto; 35 % netto zzgl. MwSt.
-  // entsprechen damit exakt 35 % des eingegebenen Bruttobetrags.
+  // Fuer die Tippgeber-Berechnung bleibt die Basis netto; 25 % netto zzgl. MwSt.
+  // entsprechen damit exakt 25 % des eingegebenen Bruttobetrags.
   const baseAmount =
     outcome === "approved"
       ? netFromGross(inputAmount, TIPPGEBER_VAT_RATE)
@@ -59,7 +59,7 @@ export function calculateTippgeberCommission(
     vatRate: TIPPGEBER_VAT_RATE,
     vatAmount,
     grossAmount,
-    reason: outcome === "approved" ? "bank_approved_35pct_incl_vat" : "bank_declined_no_commission",
+    reason: outcome === "approved" ? "bank_approved_25pct_incl_vat" : "bank_declined_no_commission",
   }
 }
 
@@ -70,4 +70,3 @@ export function formatEuro(value: number | null | undefined) {
     currency: "EUR",
   }).format(Number(value))
 }
-
