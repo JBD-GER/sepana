@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 
 const PRIMARY = "#0a2342"
@@ -26,6 +26,8 @@ type LiveHeaderStatus = {
   onlineCount: number
   availableCount: number
 }
+
+type MobileSectionId = "baufi" | "privatkredit"
 
 const BAUFINANZIERUNG_NAV: PortalNavItem[] = [
   {
@@ -102,6 +104,11 @@ function formatReviewScore(value: number | null) {
   return value.toFixed(1).replace(".", ",")
 }
 
+function blurActiveElement() {
+  const active = document.activeElement
+  if (active instanceof HTMLElement) active.blur()
+}
+
 function IconMenu(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" {...props}>
@@ -162,12 +169,25 @@ export default function Header({ reviewStats = null }: HeaderProps) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), [])
 
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mobileSectionsOpen, setMobileSectionsOpen] = useState<Record<MobileSectionId, boolean>>({
+    baufi: false,
+    privatkredit: false,
+  })
   const [isAuthed, setIsAuthed] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const [liveHeaderStatus, setLiveHeaderStatus] = useState<LiveHeaderStatus | null>(null)
 
   const panelRef = useRef<HTMLDivElement | null>(null)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    setMenuOpen(false)
+    setMobileSectionsOpen({
+      baufi: pathname.startsWith("/baufinanzierung"),
+      privatkredit: pathname.startsWith("/privatkredit"),
+    })
+    blurActiveElement()
+  }, [pathname])
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -277,6 +297,25 @@ export default function Header({ reviewStats = null }: HeaderProps) {
   const liveOnline = (liveHeaderStatus?.onlineCount ?? 0) > 0
   const liveAvailable = (liveHeaderStatus?.availableCount ?? 0) > 0
 
+  function handleNavLinkClick() {
+    setMenuOpen(false)
+    requestAnimationFrame(() => {
+      blurActiveElement()
+    })
+  }
+
+  function handleDesktopDropdownLinkClick(event: MouseEvent<HTMLAnchorElement>) {
+    event.currentTarget.blur()
+    handleNavLinkClick()
+  }
+
+  function toggleMobileSection(section: MobileSectionId) {
+    setMobileSectionsOpen((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }))
+  }
+
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
@@ -332,6 +371,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={handleDesktopDropdownLinkClick}
                       className={cn(
                         "block rounded-xl border px-3 py-3 transition",
                         active
@@ -372,6 +412,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={handleDesktopDropdownLinkClick}
                       className={cn(
                         "block rounded-xl border px-3 py-3 transition",
                         active
@@ -390,6 +431,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
 
           <Link
             href="/ratgeber"
+            onClick={handleNavLinkClick}
             className={cn(
               "inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium transition",
               ratgeberActive ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
@@ -400,6 +442,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
 
           <Link
             href="/live-beratung"
+            onClick={handleNavLinkClick}
             className={cn(
               "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition",
               liveActive ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
@@ -414,6 +457,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
 
           <Link
             href={authLink.href}
+            onClick={handleNavLinkClick}
             className={cn(
               "rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900",
               !authChecked && "pointer-events-none opacity-60"
@@ -424,6 +468,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
 
           <Link
             href="/kreditanfrage"
+            onClick={handleNavLinkClick}
             className="ml-2 inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
             style={{ backgroundColor: PRIMARY }}
           >
@@ -446,16 +491,16 @@ export default function Header({ reviewStats = null }: HeaderProps) {
         <div
         ref={panelRef}
         className={cn(
-          "overflow-hidden border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden",
-          "transition-[max-height,opacity] duration-200",
-          menuOpen ? "max-h-[720px] opacity-100" : "max-h-0 opacity-0"
+          "border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden",
+          "overflow-hidden transition-[max-height,opacity] duration-200",
+          menuOpen ? "max-h-[calc(100dvh-72px)] opacity-100" : "max-h-0 opacity-0"
         )}
       >
-        <div className="mx-auto max-w-7xl space-y-2 px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto max-h-[calc(100dvh-72px)] max-w-7xl space-y-2 overflow-y-auto px-4 py-3 sm:px-6 lg:px-8">
           {reviewStats?.count ? (
             <Link
               href="/bewertungen"
-              onClick={() => setMenuOpen(false)}
+              onClick={handleNavLinkClick}
               className="mb-1 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-3 text-sm"
             >
               <span className="font-semibold text-[#0b1f5e]">★★★★★ {formatReviewScore(reviewStats.average)}</span>
@@ -463,69 +508,126 @@ export default function Header({ reviewStats = null }: HeaderProps) {
             </Link>
           ) : null}
 
-          <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Baufinanzierung</div>
-            <div className="mt-2 grid gap-2">
-              {BAUFINANZIERUNG_NAV.map((item) => {
-                const active = item.href === baufinanzierungActiveHref
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMenuOpen(false)}
-                    className={cn(
-                      "rounded-xl px-3 py-3 text-sm transition",
-                      active ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-800 hover:bg-slate-100"
-                    )}
-                  >
-                    <div className="font-medium">{item.label}</div>
-                    <div className={cn("mt-0.5 text-xs", active ? "text-slate-200" : "text-slate-500")}>{item.description}</div>
-                  </Link>
-                )
-              })}
+          <Link
+            href="/kreditanfrage"
+            onClick={handleNavLinkClick}
+            className="inline-flex w-full items-center justify-between rounded-2xl border border-[#0b1f5e]/15 bg-[linear-gradient(145deg,#f8fbff_0%,#eef4ff_100%)] px-4 py-3 text-slate-900 shadow-sm transition hover:border-[#0b1f5e]/25 hover:bg-[linear-gradient(145deg,#f4f8ff_0%,#e8f0ff_100%)]"
+          >
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#0b1f5e]/70">Schnellstart</div>
+              <div className="mt-1 text-base font-semibold tracking-tight">Kreditanfrage starten</div>
             </div>
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0b1f5e] text-white shadow-sm">
+              <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+                <path d="M7 12h10M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          </Link>
+
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleMobileSection("baufi")}
+              aria-expanded={mobileSectionsOpen.baufi}
+              className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left"
+            >
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Baufinanzierung</div>
+                <div className="mt-1 text-base font-semibold text-slate-900">Kauf, Neubau, Anschlussfinanzierung</div>
+              </div>
+              <IconChevronDown
+                className={cn("h-5 w-5 text-slate-500 transition", mobileSectionsOpen.baufi && "rotate-180")}
+              />
+            </button>
+            {mobileSectionsOpen.baufi ? (
+              <div className="grid gap-2 border-t border-slate-100 px-3 py-3">
+                {BAUFINANZIERUNG_NAV.map((item) => {
+                  const active = item.href === baufinanzierungActiveHref
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={handleNavLinkClick}
+                      className={cn(
+                        "rounded-xl border px-3 py-3 text-sm transition",
+                        active
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-slate-200 bg-slate-50/80 text-slate-800 hover:bg-slate-100"
+                      )}
+                    >
+                      <div className="font-medium">{item.label}</div>
+                      <div className={cn("mt-0.5 text-xs", active ? "text-slate-200" : "text-slate-500")}>{item.description}</div>
+                    </Link>
+                  )
+                })}
+              </div>
+            ) : null}
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Privatkredit</div>
-            <div className="mt-2 grid gap-2">
-              {PRIVATEKREDIT_NAV.map((item) => {
-                const active = item.href === privatkreditActiveHref
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMenuOpen(false)}
-                    className={cn(
-                      "rounded-xl px-3 py-3 text-sm transition",
-                      active ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-800 hover:bg-slate-100"
-                    )}
-                  >
-                    <div className="font-medium">{item.label}</div>
-                    <div className={cn("mt-0.5 text-xs", active ? "text-slate-200" : "text-slate-500")}>{item.description}</div>
-                  </Link>
-                )
-              })}
-            </div>
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleMobileSection("privatkredit")}
+              aria-expanded={mobileSectionsOpen.privatkredit}
+              className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left"
+            >
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Privatkredit</div>
+                <div className="mt-1 text-base font-semibold text-slate-900">Ratenkredit, Freie Verwendung und mehr</div>
+              </div>
+              <IconChevronDown
+                className={cn("h-5 w-5 text-slate-500 transition", mobileSectionsOpen.privatkredit && "rotate-180")}
+              />
+            </button>
+            {mobileSectionsOpen.privatkredit ? (
+              <div className="grid gap-2 border-t border-slate-100 px-3 py-3">
+                {PRIVATEKREDIT_NAV.map((item) => {
+                  const active = item.href === privatkreditActiveHref
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={handleNavLinkClick}
+                      className={cn(
+                        "rounded-xl border px-3 py-3 text-sm transition",
+                        active
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-slate-200 bg-slate-50/80 text-slate-800 hover:bg-slate-100"
+                      )}
+                    >
+                      <div className="font-medium">{item.label}</div>
+                      <div className={cn("mt-0.5 text-xs", active ? "text-slate-200" : "text-slate-500")}>{item.description}</div>
+                    </Link>
+                  )
+                })}
+              </div>
+            ) : null}
           </div>
 
           <Link
             href="/ratgeber"
-            onClick={() => setMenuOpen(false)}
+            onClick={handleNavLinkClick}
             className={cn(
-              "flex items-center justify-between rounded-2xl px-3 py-3 text-sm font-medium transition",
-              ratgeberActive ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-800 hover:bg-slate-100"
+              "flex items-center justify-between rounded-2xl border px-4 py-4 text-sm font-medium shadow-sm transition",
+              ratgeberActive
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
             )}
           >
-            <span>Ratgeber</span>
+            <span>
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] opacity-70">Ratgeber</span>
+              <span className="mt-1 block text-base font-semibold">Wissen für Privatkredit und Baufinanzierung</span>
+            </span>
           </Link>
 
           <Link
             href="/live-beratung"
-            onClick={() => setMenuOpen(false)}
+            onClick={handleNavLinkClick}
             className={cn(
-              "flex items-center justify-between rounded-2xl px-3 py-3 text-sm font-medium transition",
-              liveActive ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-800 hover:bg-slate-100"
+              "flex items-center justify-between rounded-2xl border px-4 py-4 text-sm font-medium shadow-sm transition",
+              liveActive
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
             )}
             aria-label={`Live-Beratung ${liveOnline ? "online" : "offline"}`}
           >
@@ -540,22 +642,16 @@ export default function Header({ reviewStats = null }: HeaderProps) {
 
           <Link
             href={authLink.href}
-            onClick={() => setMenuOpen(false)}
+            onClick={handleNavLinkClick}
             className={cn(
-              "flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-3 text-sm font-medium text-slate-800 transition hover:bg-slate-100",
+              "flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50",
               !authChecked && "pointer-events-none opacity-60"
             )}
           >
-            {authChecked ? authLink.label : "..."}
-          </Link>
-
-          <Link
-            href="/kreditanfrage"
-            onClick={() => setMenuOpen(false)}
-            className="mt-1 inline-flex w-full items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold text-white shadow-sm"
-            style={{ backgroundColor: PRIMARY }}
-          >
-            Kreditanfrage starten
+            <span>
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Portal</span>
+              <span className="mt-1 block text-base font-semibold text-slate-900">{authChecked ? authLink.label : "..."}</span>
+            </span>
           </Link>
 
         </div>

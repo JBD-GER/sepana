@@ -11,6 +11,16 @@ const nextConfig: NextConfig = {
   experimental: {
     proxyClientMaxBodySize: "30mb",
   },
+  images: {
+    localPatterns: [
+      {
+        pathname: "/**",
+      },
+      {
+        pathname: "/api/baufi/logo",
+      },
+    ],
+  },
   async headers() {
     return [
       {
