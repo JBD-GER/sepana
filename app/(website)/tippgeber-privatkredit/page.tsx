@@ -59,7 +59,7 @@ const USE_CASES = [
   "PV-Anlagen und Wärmepumpen",
   "Küchenstudios",
   "Autohäuser",
-  "Handwerksbetriebe",
+  "Fotografen",
   "Medizinische Anbieter",
   "Hochzeitsplaner",
 ]
