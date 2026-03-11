@@ -29,7 +29,7 @@ type ProvidersResponse = {
 function logoSrc(provider: Provider) {
   const file = provider.logo_horizontal_path || provider.logo_icon_path
   if (!file) return null
-  return `/api/baufi/logo?bucket=logo_banken&path=${encodeURIComponent(String(file))}`
+  return `/api/baufi/logo?bucket=logo_banken&width=280&height=88&quality=80&resize=contain&path=${encodeURIComponent(String(file))}`
 }
 
 async function getBaseUrl() {

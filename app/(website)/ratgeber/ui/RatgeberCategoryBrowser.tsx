@@ -1,7 +1,4 @@
-"use client"
-
 import Link from "next/link"
-import { useState } from "react"
 import RatgeberArticleCard from "./RatgeberArticleCard"
 
 type CategoryTopic = {
@@ -31,9 +28,15 @@ type RatgeberCategoryBrowserProps = {
   categoryCtaLabel: string
   topics: CategoryTopic[]
   articles: CategoryArticle[]
+  selectedTopicSlug: FilterState
 }
 
 type FilterState = "all" | string
+
+function buildCategoryHref(selectedTopicSlug: FilterState) {
+  if (selectedTopicSlug === "all") return "."
+  return `?topic=${encodeURIComponent(selectedTopicSlug)}`
+}
 
 export default function RatgeberCategoryBrowser({
   categoryName,
@@ -41,9 +44,8 @@ export default function RatgeberCategoryBrowser({
   categoryCtaLabel,
   topics,
   articles,
+  selectedTopicSlug,
 }: RatgeberCategoryBrowserProps) {
-  const [selectedTopicSlug, setSelectedTopicSlug] = useState<FilterState>("all")
-
   const activeTopic =
     selectedTopicSlug === "all" ? null : topics.find((topic) => topic.slug === selectedTopicSlug) ?? null
   const filteredArticles =
@@ -85,9 +87,8 @@ export default function RatgeberCategoryBrowser({
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <button
-          type="button"
-          onClick={() => setSelectedTopicSlug("all")}
+        <Link
+          href={buildCategoryHref("all")}
           className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
             selectedTopicSlug === "all"
               ? "border-slate-900 bg-slate-900 text-white"
@@ -95,12 +96,11 @@ export default function RatgeberCategoryBrowser({
           }`}
         >
           {"Alle Beitr\u00E4ge"} ({articles.length})
-        </button>
+        </Link>
         {topics.map((topic) => (
-          <button
+          <Link
             key={topic.slug}
-            type="button"
-            onClick={() => setSelectedTopicSlug(topic.slug)}
+            href={buildCategoryHref(topic.slug)}
             className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
               selectedTopicSlug === topic.slug
                 ? "border-slate-900 bg-slate-900 text-white"
@@ -108,7 +108,7 @@ export default function RatgeberCategoryBrowser({
             }`}
           >
             {topic.name} ({topic.articleCount})
-          </button>
+          </Link>
         ))}
       </div>
 

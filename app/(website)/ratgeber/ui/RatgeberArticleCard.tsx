@@ -42,7 +42,6 @@ export default function RatgeberArticleCard({
             fill
             className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
             sizes="(max-width: 767px) 100vw, (max-width: 1279px) 50vw, 33vw"
-            unoptimized
           />
         ) : <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(148,163,184,0.18),transparent_35%),linear-gradient(145deg,#e2e8f0_0%,#f8fafc_100%)]" />}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-950/18 to-transparent" />

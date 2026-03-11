@@ -218,7 +218,8 @@ export default async function RatgeberArticlePage({
                   fill
                   className="object-cover object-center"
                   sizes="(max-width: 1279px) 100vw, 340px"
-                  unoptimized
+                  preload
+                  fetchPriority="high"
                 />
                 <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-slate-950/35 to-transparent" />
                 <div className="absolute bottom-4 left-4 inline-flex rounded-full border border-white/20 bg-white/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur">

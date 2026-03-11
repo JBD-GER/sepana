@@ -28,7 +28,12 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function RatgeberPage() {
+export default async function RatgeberPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string; topic?: string }>
+}) {
+  const filters = await searchParams
   const categories = await getRatgeberCategories()
   const [sections, articles] = await Promise.all([
     Promise.all(
@@ -90,6 +95,15 @@ export default async function RatgeberPage() {
     }
   })
 
+  const selectedCategorySlug =
+    categories.find((category) => category.slug === filters.category)?.slug ?? "all"
+  const selectedTopicKey =
+    filters.topic &&
+    browserTopics.some((topic) => `${topic.categorySlug}:${topic.slug}` === filters.topic) &&
+    (selectedCategorySlug === "all" || filters.topic.startsWith(`${selectedCategorySlug}:`))
+      ? filters.topic
+      : "all"
+
   const collectionSchema = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -128,7 +142,13 @@ export default async function RatgeberPage() {
         </div>
       </nav>
 
-      <RatgeberHubBrowser categories={browserCategories} topics={browserTopics} articles={browserArticles} />
+      <RatgeberHubBrowser
+        categories={browserCategories}
+        topics={browserTopics}
+        articles={browserArticles}
+        selectedCategorySlug={selectedCategorySlug}
+        selectedTopicKey={selectedTopicKey}
+      />
     </div>
   )
 }

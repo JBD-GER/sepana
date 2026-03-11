@@ -53,10 +53,13 @@ export async function generateMetadata({
 
 export default async function RatgeberCategoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ category: string }>
+  searchParams: Promise<{ topic?: string }>
 }) {
   const { category: categorySlug } = await params
+  const filters = await searchParams
   const category = await getRatgeberCategoryBySlug(categorySlug)
   if (!category) notFound()
 
@@ -88,6 +91,8 @@ export default async function RatgeberCategoryPage({
       readingTimeMinutes: article.readingTimeMinutes,
     }
   })
+  const selectedTopicSlug =
+    filters.topic && browserTopics.some((topic) => topic.slug === filters.topic) ? filters.topic : "all"
 
   const collectionSchema = {
     "@context": "https://schema.org",
@@ -158,6 +163,7 @@ export default async function RatgeberCategoryPage({
         categoryCtaLabel={category.ctaLabel}
         topics={browserTopics}
         articles={browserArticles}
+        selectedTopicSlug={selectedTopicSlug}
       />
     </div>
   )

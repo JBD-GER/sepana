@@ -89,7 +89,8 @@ export default function FinanzpartnerLanding({ bankPartnerLogos = [] }: Finanzpa
                 src="/familie_kueche.jpg"
                 alt="Familie in der Küche"
                 fill
-                priority
+                preload
+                fetchPriority="high"
                 className="object-cover object-center"
                 sizes="(max-width: 1280px) 100vw, 42vw"
               />
@@ -140,15 +141,12 @@ export default function FinanzpartnerLanding({ bankPartnerLogos = [] }: Finanzpa
                 key={logo.id}
                 className="flex h-16 items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 shadow-sm"
               >
-                {/* API logo URLs use query params and are blocked by next/image localPatterns in dev */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={logo.src}
                   alt={logo.name}
                   width={140}
                   height={44}
-                  loading="lazy"
-                  decoding="async"
+                  sizes="140px"
                   className="h-8 w-auto max-w-[140px] object-contain"
                 />
               </div>

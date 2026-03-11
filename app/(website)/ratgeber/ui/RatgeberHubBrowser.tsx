@@ -1,6 +1,4 @@
-"use client"
-
-import { useEffect, useState } from "react"
+import Link from "next/link"
 import RatgeberArticleCard from "./RatgeberArticleCard"
 
 type HubCategory = {
@@ -38,6 +36,8 @@ type RatgeberHubBrowserProps = {
   categories: HubCategory[]
   topics: HubTopic[]
   articles: HubArticle[]
+  selectedCategorySlug: FilterState
+  selectedTopicKey: FilterState
 }
 
 type FilterState = "all" | string
@@ -46,30 +46,45 @@ function getTopicFilterKey(categorySlug: string, topicSlug: string) {
   return `${categorySlug}:${topicSlug}`
 }
 
-export default function RatgeberHubBrowser({ categories, topics, articles }: RatgeberHubBrowserProps) {
-  const [categoryFilter, setCategoryFilter] = useState<FilterState>("all")
-  const [topicFilter, setTopicFilter] = useState<FilterState>("all")
+function buildHubHref(categorySlug: FilterState, topicKey: FilterState) {
+  const params = new URLSearchParams()
+  if (categorySlug !== "all") {
+    params.set("category", categorySlug)
+  }
+  if (topicKey !== "all") {
+    params.set("topic", topicKey)
+  }
+  const query = params.toString()
+  return query ? `/ratgeber?${query}` : "/ratgeber"
+}
 
+export default function RatgeberHubBrowser({
+  categories,
+  topics,
+  articles,
+  selectedCategorySlug,
+  selectedTopicKey,
+}: RatgeberHubBrowserProps) {
   const visibleTopics =
-    categoryFilter === "all" ? topics : topics.filter((topic) => topic.categorySlug === categoryFilter)
-
-  useEffect(() => {
-    setTopicFilter("all")
-  }, [categoryFilter])
+    selectedCategorySlug === "all"
+      ? topics
+      : topics.filter((topic) => topic.categorySlug === selectedCategorySlug)
 
   const visibleArticles = articles.filter((article) => {
-    const matchesCategory = categoryFilter === "all" || article.categorySlug === categoryFilter
+    const matchesCategory = selectedCategorySlug === "all" || article.categorySlug === selectedCategorySlug
     const matchesTopic =
-      topicFilter === "all" || getTopicFilterKey(article.categorySlug, article.topicSlug) === topicFilter
+      selectedTopicKey === "all" || getTopicFilterKey(article.categorySlug, article.topicSlug) === selectedTopicKey
     return matchesCategory && matchesTopic
   })
 
   const activeCategory =
-    categoryFilter === "all" ? null : categories.find((category) => category.slug === categoryFilter) ?? null
-  const activeTopic =
-    topicFilter === "all"
+    selectedCategorySlug === "all"
       ? null
-      : topics.find((topic) => getTopicFilterKey(topic.categorySlug, topic.slug) === topicFilter) ?? null
+      : categories.find((category) => category.slug === selectedCategorySlug) ?? null
+  const activeTopic =
+    selectedTopicKey === "all"
+      ? null
+      : topics.find((topic) => getTopicFilterKey(topic.categorySlug, topic.slug) === selectedTopicKey) ?? null
 
   return (
     <div className="space-y-8">
@@ -89,30 +104,28 @@ export default function RatgeberHubBrowser({ categories, topics, articles }: Rat
             <div className="rounded-[26px] border border-slate-200 bg-white/85 p-4 shadow-sm sm:p-5">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Hauptkategorien</div>
               <div className="mt-4 flex flex-wrap gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setCategoryFilter("all")}
+                <Link
+                  href={buildHubHref("all", "all")}
                   className={`rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
-                    categoryFilter === "all"
+                    selectedCategorySlug === "all"
                       ? "border-slate-900 bg-slate-900 text-white"
                       : "border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50"
                   }`}
                 >
                   Alle Kategorien ({topics.length})
-                </button>
+                </Link>
                 {categories.map((category) => (
-                  <button
+                  <Link
                     key={category.slug}
-                    type="button"
-                    onClick={() => setCategoryFilter(category.slug)}
+                    href={buildHubHref(category.slug, "all")}
                     className={`rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
-                      categoryFilter === category.slug
+                      selectedCategorySlug === category.slug
                         ? "border-slate-900 bg-slate-900 text-white"
                         : "border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50"
                     }`}
                   >
                     {category.name} ({category.topicCount})
-                  </button>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -120,30 +133,28 @@ export default function RatgeberHubBrowser({ categories, topics, articles }: Rat
             <div className="rounded-[26px] border border-slate-200 bg-white/85 p-4 shadow-sm sm:p-5">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Unterkategorien</div>
               <div className="mt-4 flex flex-wrap gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setTopicFilter("all")}
+                <Link
+                  href={buildHubHref(selectedCategorySlug, "all")}
                   className={`rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
-                    topicFilter === "all"
+                    selectedTopicKey === "all"
                       ? "border-slate-900 bg-slate-900 text-white"
                       : "border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50"
                   }`}
                 >
                   Alle Unterkategorien ({visibleTopics.length})
-                </button>
+                </Link>
                 {visibleTopics.map((topic) => (
-                  <button
+                  <Link
                     key={`${topic.categorySlug}-${topic.slug}`}
-                    type="button"
-                    onClick={() => setTopicFilter(getTopicFilterKey(topic.categorySlug, topic.slug))}
+                    href={buildHubHref(selectedCategorySlug, getTopicFilterKey(topic.categorySlug, topic.slug))}
                     className={`rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
-                      topicFilter === getTopicFilterKey(topic.categorySlug, topic.slug)
+                      selectedTopicKey === getTopicFilterKey(topic.categorySlug, topic.slug)
                         ? "border-slate-900 bg-slate-900 text-white"
                         : "border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50"
                     }`}
                   >
                     {topic.name} ({topic.articleCount})
-                  </button>
+                  </Link>
                 ))}
               </div>
             </div>
