@@ -322,7 +322,7 @@ export default async function RatgeberArticlePage({
           </div>
         </aside>
 
-        <article className="space-y-6">
+        <article className="min-w-0 space-y-6">
           <header className="rounded-[28px] border border-slate-200 bg-white px-5 py-4 shadow-sm sm:px-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
@@ -353,16 +353,16 @@ export default async function RatgeberArticlePage({
                 </h2>
                 <p className="mt-3 text-base leading-relaxed text-slate-700">{cta.text}</p>
               </div>
-              <div className="flex flex-wrap gap-3 lg:flex-col lg:items-stretch">
+              <div className="grid gap-3 sm:flex sm:flex-wrap lg:flex lg:flex-col lg:items-stretch">
                 <Link
                   href={cta.href}
-                  className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  className="inline-flex w-full items-center justify-center rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto lg:w-full"
                 >
                   {cta.buttonLabel}
                 </Link>
                 <Link
                   href={getRatgeberTopicPath(topic)}
-                  className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50 sm:w-auto lg:w-full"
                 >
                   Mehr zu {topic.name}
                 </Link>
@@ -442,16 +442,16 @@ export default async function RatgeberArticlePage({
                 <h2 className="mt-2 text-3xl font-semibold tracking-tight text-white">{cta.title}</h2>
                 <p className="mt-3 text-base leading-relaxed text-slate-300">{cta.text}</p>
               </div>
-              <div className="flex flex-wrap gap-3 lg:justify-end">
+              <div className="grid gap-3 sm:flex sm:flex-wrap lg:justify-end">
                 <Link
                   href={cta.href}
-                  className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                  className="inline-flex w-full items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100 sm:w-auto"
                 >
                   {cta.buttonLabel}
                 </Link>
                 <Link
                   href={getRatgeberTopicPath(topic)}
-                  className="inline-flex items-center justify-center rounded-full border border-slate-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-slate-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
                 >
                   Mehr zu {topic.name}
                 </Link>
@@ -467,12 +467,12 @@ export default async function RatgeberArticlePage({
               <div className="mt-2 text-sm text-slate-600">
                 Weitere passende Artikel aus dieser Unterkategorie.
               </div>
-              <div className="mt-5 -mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-2">
+              <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {relatedArticles.map((item) => (
                   <Link
                     key={item.slug}
                     href={getRatgeberArticlePath(item)}
-                    className="min-w-[280px] max-w-[320px] snap-start rounded-[24px] border border-slate-200 bg-slate-50 p-5 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+                    className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
                   >
                     <div className="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                       <span>{category.name}</span>
