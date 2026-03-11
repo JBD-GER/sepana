@@ -80,13 +80,13 @@ export const RATGEBER_CATEGORIES: RatgeberCategory[] = [
     slug: "privatkredit",
     name: "Privatkredit",
     description:
-      "Ratgeber zum Privatkredit mit Fokus auf Umschuldung, Bonitaet, Zinsen, Voraussetzungen und sinnvolle Verwendungszwecke.",
-    seoTitle: "Ratgeber Privatkredit | Umschuldung, Bonitaet, Zinsen & Voraussetzungen | SEPANA",
+      "Ratgeber zum Privatkredit mit Fokus auf Umschuldung, Bonität, Zinsen, Voraussetzungen und sinnvolle Verwendungszwecke.",
+    seoTitle: "Ratgeber Privatkredit | Umschuldung, Bonität, Zinsen & Voraussetzungen | SEPANA",
     seoDescription:
-      "Der SEPANA Ratgeber zum Privatkredit erklaert Umschuldung, Bonitaet, Zinsen, Voraussetzungen und Verwendungszwecke klar und suchmaschinenstark.",
+      "Der SEPANA Ratgeber zum Privatkredit erklaert Umschuldung, Bonität, Zinsen, Voraussetzungen und Verwendungszwecke klar und suchmaschinenstark.",
     heroTitle: "Privatkredit klar einordnen, bevor du anfragst.",
     heroText:
-      "Beim Privatkredit entscheiden Bonitaet, Verwendungszweck, Rate und Unterlagen ueber die Qualitaet des Ergebnisses. Die wichtigsten Grundlagen findest du hier an einem Ort.",
+      "Beim Privatkredit entscheiden Bonität, Verwendungszweck, Rate und Unterlagen ueber die Qualitaet des Ergebnisses. Die wichtigsten Grundlagen findest du hier an einem Ort.",
     ctaHref: "/privatkredit",
     ctaLabel: "Zum Privatkredit",
     sortOrder: 2,

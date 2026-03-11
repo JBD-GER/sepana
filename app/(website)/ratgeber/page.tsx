@@ -11,7 +11,7 @@ export const revalidate = 3600
 export const metadata: Metadata = {
   title: "Ratgeber Baufinanzierung & Privatkredit | SEPANA",
   description:
-    "Der SEPANA Ratgeber erklaert Baufinanzierung und Privatkredit mit strukturierten Themenclustern zu Hauskauf, Anschlussfinanzierung, Umschuldung, Bonitaet und Zinsen.",
+    "Der SEPANA Ratgeber erklaert Baufinanzierung und Privatkredit mit strukturierten Themenclustern zu Hauskauf, Anschlussfinanzierung, Umschuldung, Bonität und Zinsen.",
   alternates: { canonical: "/ratgeber" },
   openGraph: {
     title: "Ratgeber Baufinanzierung & Privatkredit | SEPANA",
