@@ -7,6 +7,11 @@ const UPLOAD_ACCEPT = "image/*,.pdf,.doc,.docx"
 const MOBILE_IMAGE_MAX_BYTES = 4 * 1024 * 1024
 const MOBILE_IMAGE_MAX_EDGE = 2200
 const MOBILE_IMAGE_QUALITY = 0.85
+const PDF_IMAGE_MAX_EDGE = 2400
+const PDF_IMAGE_QUALITY = 0.9
+const PDF_PAGE_WIDTH = 595.28
+const PDF_PAGE_HEIGHT = 841.89
+const PDF_PAGE_MARGIN = 24
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 const UPLOAD_RETRY_DELAY_MS = 600
 const ALLOWED_UPLOAD_EXTENSIONS = new Set([
@@ -22,6 +27,7 @@ const ALLOWED_UPLOAD_EXTENSIONS = new Set([
   "heic",
   "heif",
 ])
+const IMAGE_UPLOAD_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif"])
 
 const ALLOWED_UPLOAD_MIME_TYPES = new Set([
   "application/pdf",
@@ -163,6 +169,13 @@ type UploadProgressState = {
   phase: UploadPhase
 }
 
+type PdfProgressState = {
+  current: number
+  total: number
+  fileName: string
+  title: string
+}
+
 type UploadOptions = {
   requestId?: string | null
   requestTitle?: string | null
@@ -207,6 +220,24 @@ function fileExt(name: string) {
   const dot = raw.lastIndexOf(".")
   if (dot < 0) return ""
   return raw.slice(dot + 1).trim().toLowerCase()
+}
+
+function isImageDocument(doc: DocumentRow) {
+  const mime = String(doc.mime_type ?? "").trim().toLowerCase()
+  if (mime.startsWith("image/")) return true
+  return IMAGE_UPLOAD_EXTENSIONS.has(fileExt(doc.file_name))
+}
+
+function sanitizeFileNamePart(value: string) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\u00e4/g, "ae")
+    .replace(/\u00f6/g, "oe")
+    .replace(/\u00fc/g, "ue")
+    .replace(/\u00df/g, "ss")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
 }
 
 function isAllowedUploadFile(file: File) {
@@ -255,6 +286,15 @@ function loadImageFromFile(file: File) {
       reject(new Error("Bild konnte nicht gelesen werden."))
     }
     img.src = url
+  })
+}
+
+function loadHtmlImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error("Bild konnte nicht gelesen werden."))
+    img.src = src
   })
 }
 
@@ -338,6 +378,8 @@ export default function DocumentPanel({
   const [freeOpen, setFreeOpen] = useState(false)
   const [imagePreview, setImagePreview] = useState<{ src: string; name: string } | null>(null)
   const [uploadProgress, setUploadProgress] = useState<UploadProgressState | null>(null)
+  const [pdfProgress, setPdfProgress] = useState<PdfProgressState | null>(null)
+  const [pdfBusyKey, setPdfBusyKey] = useState<string | null>(null)
   const flashTimerRef = useRef<number | null>(null)
   const reloadTimerRef = useRef<number | null>(null)
   const normalizedCaseType = String(caseType ?? "").trim().toLowerCase()
@@ -557,10 +599,131 @@ export default function DocumentPanel({
     )
   }
 
+  async function rasterizeDocumentImage(doc: DocumentRow) {
+    const response = await fetch(fileUrl(doc.file_path))
+    if (!response.ok) {
+      throw new Error(`"${doc.file_name}" konnte nicht geladen werden.`)
+    }
+
+    const sourceBlob = await response.blob()
+    const objectUrl = URL.createObjectURL(sourceBlob)
+    try {
+      const image = await loadHtmlImage(objectUrl)
+      const width = image.naturalWidth || image.width
+      const height = image.naturalHeight || image.height
+      if (!width || !height) throw new Error(`"${doc.file_name}" konnte nicht verarbeitet werden.`)
+
+      const maxEdge = Math.max(width, height)
+      const scale = maxEdge > PDF_IMAGE_MAX_EDGE ? PDF_IMAGE_MAX_EDGE / maxEdge : 1
+      const targetWidth = Math.max(1, Math.round(width * scale))
+      const targetHeight = Math.max(1, Math.round(height * scale))
+
+      const canvas = document.createElement("canvas")
+      canvas.width = targetWidth
+      canvas.height = targetHeight
+      const ctx = canvas.getContext("2d")
+      if (!ctx) throw new Error("PDF konnte nicht erstellt werden.")
+      ctx.fillStyle = "#ffffff"
+      ctx.fillRect(0, 0, targetWidth, targetHeight)
+      ctx.drawImage(image, 0, 0, targetWidth, targetHeight)
+
+      const jpegBlob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, "image/jpeg", PDF_IMAGE_QUALITY)
+      })
+      if (!jpegBlob) throw new Error(`"${doc.file_name}" konnte nicht in PDF umgewandelt werden.`)
+
+      return {
+        bytes: new Uint8Array(await jpegBlob.arrayBuffer()),
+        width: targetWidth,
+        height: targetHeight,
+      }
+    } finally {
+      URL.revokeObjectURL(objectUrl)
+    }
+  }
+
+  function downloadBlob(blob: Blob, fileName: string) {
+    const objectUrl = URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = objectUrl
+    anchor.download = fileName
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+  }
+
+  async function convertRequestDocsToPdf(request: RequestGroup, list: DocumentRow[]) {
+    const sortedList = [...list].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    const imageDocs = sortedList.filter(isImageDocument)
+    const skippedCount = sortedList.length - imageDocs.length
+
+    if (!imageDocs.length) {
+      showFlash("error", `Für "${request.title}" sind keine Bilddateien vorhanden.`)
+      return
+    }
+
+    setMsg(null)
+    setPdfBusyKey(request.dedupeKey)
+    try {
+      const pdfLib = await import("pdf-lib").catch(() => null)
+      if (!pdfLib) throw new Error("PDF-Funktion ist aktuell nicht verfügbar.")
+      const { PDFDocument } = pdfLib
+      const pdfDoc = await PDFDocument.create()
+
+      for (let index = 0; index < imageDocs.length; index += 1) {
+        const doc = imageDocs[index]
+        setPdfProgress({
+          current: index + 1,
+          total: imageDocs.length,
+          fileName: doc.file_name,
+          title: request.title,
+        })
+        const rasterized = await rasterizeDocumentImage(doc)
+        const embedded = await pdfDoc.embedJpg(rasterized.bytes)
+        const page = pdfDoc.addPage([PDF_PAGE_WIDTH, PDF_PAGE_HEIGHT])
+        const scale = Math.min(
+          (PDF_PAGE_WIDTH - PDF_PAGE_MARGIN * 2) / rasterized.width,
+          (PDF_PAGE_HEIGHT - PDF_PAGE_MARGIN * 2) / rasterized.height
+        )
+        const drawWidth = rasterized.width * scale
+        const drawHeight = rasterized.height * scale
+        page.drawImage(embedded, {
+          x: (PDF_PAGE_WIDTH - drawWidth) / 2,
+          y: (PDF_PAGE_HEIGHT - drawHeight) / 2,
+          width: drawWidth,
+          height: drawHeight,
+        })
+      }
+
+      const pdfBytes = await pdfDoc.save()
+      const pdfBuffer = new ArrayBuffer(pdfBytes.byteLength)
+      new Uint8Array(pdfBuffer).set(pdfBytes)
+      const safeTitle = sanitizeFileNamePart(request.title) || "dokumente"
+      const downloadName = `${safeTitle}-${caseId.slice(0, 8)}.pdf`
+      downloadBlob(new Blob([pdfBuffer], { type: "application/pdf" }), downloadName)
+      setMsg(`PDF für "${request.title}" wurde erstellt.`)
+      showFlash(
+        "success",
+        skippedCount > 0
+          ? `PDF erstellt. ${skippedCount} Datei(en) ohne Bild wurden übersprungen.`
+          : `PDF für "${request.title}" erstellt.`
+      )
+    } catch (error: unknown) {
+      const text = getErrorMessage(error)
+      setMsg(text)
+      showFlash("error", text, 3200)
+    } finally {
+      setPdfProgress(null)
+      setPdfBusyKey(null)
+    }
+  }
+
   function renderRequestCard(r: RequestGroup) {
     const list = r.requestIds.flatMap((requestId) => docsByRequest.get(requestId) ?? [])
     const duplicateCount = Math.max(0, r.requestIds.length - 1)
     const uploadRequestId = r.requestIds[0] ?? null
+    const imageCount = list.filter(isImageDocument).length
     return (
       <div key={r.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
         <div className="flex items-center justify-between">
@@ -579,28 +742,40 @@ export default function DocumentPanel({
               </div>
             ) : null}
           </div>
-          <label
-            className={`rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm ${busy ? "cursor-not-allowed opacity-60" : ""}`}
-          >
-            Upload
-            <input
-              type="file"
-              multiple
-              accept={UPLOAD_ACCEPT}
-              className="hidden"
-              disabled={busy}
-              onChange={(e) => {
-                const files = e.target.files
-                if (files?.length) {
-                  uploadFiles(files, {
-                    requestId: uploadRequestId,
-                    requestTitle: r.title,
-                  })
-                }
-                e.currentTarget.value = ""
-              }}
-            />
-          </label>
+          <div className="flex items-center gap-2">
+            {canCreateRequest && imageCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => convertRequestDocsToPdf(r, list)}
+                disabled={busy || pdfBusyKey === r.dedupeKey}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {pdfBusyKey === r.dedupeKey ? "PDF wird erstellt..." : "In PDF umwandeln"}
+              </button>
+            ) : null}
+            <label
+              className={`rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm ${busy ? "cursor-not-allowed opacity-60" : ""}`}
+            >
+              Upload
+              <input
+                type="file"
+                multiple
+                accept={UPLOAD_ACCEPT}
+                className="hidden"
+                disabled={busy}
+                onChange={(e) => {
+                  const files = e.target.files
+                  if (files?.length) {
+                    uploadFiles(files, {
+                      requestId: uploadRequestId,
+                      requestTitle: r.title,
+                    })
+                  }
+                  e.currentTarget.value = ""
+                }}
+              />
+            </label>
+          </div>
         </div>
 
         {list.length ? renderDocGrid(list) : <div className="mt-2 text-xs text-slate-500">Noch nichts hochgeladen.</div>}
@@ -905,6 +1080,11 @@ export default function DocumentPanel({
       {uploadProgress ? (
         <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
           {uploadPhaseLabel(uploadProgress.phase)} ({uploadProgress.current}/{uploadProgress.total}): {uploadProgress.fileName}
+        </div>
+      ) : null}
+      {pdfProgress ? (
+        <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+          PDF wird erstellt für {pdfProgress.title} ({pdfProgress.current}/{pdfProgress.total}): {pdfProgress.fileName}
         </div>
       ) : null}
 
