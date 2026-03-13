@@ -22,6 +22,12 @@ import {
   TERM_OPTIONS,
 } from "./funnelData"
 
+const HERO_TEAM_MEMBERS = [
+  { src: "/pfad.png", alt: "SEPANA Berater" },
+  { src: "/wagner.png", alt: "SEPANA Berater" },
+  { src: "/mueller.png", alt: "SEPANA Berater" },
+] as const
+
 function formatCurrency(value: string) {
   const n = Number(value.replace(",", "."))
   if (!Number.isFinite(n) || n <= 0) return "-"
@@ -108,6 +114,25 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   )
 }
 
+function partnerLogoUrl(path: string | null | undefined) {
+  const clean = String(path ?? "").trim()
+  if (!clean) return null
+  return `/api/baufi/logo?bucket=tipgeber_logos&width=192&height=192&resize=contain&path=${encodeURIComponent(clean)}`
+}
+
+function partnerInitials(name: string | null | undefined) {
+  return (
+    String(name ?? "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0))
+      .join("")
+      .toUpperCase() || "P"
+  )
+}
+
 type FunnelTemplateProps = {
   variant?: "template" | "kreditanfrage"
   eyebrow?: string
@@ -115,6 +140,9 @@ type FunnelTemplateProps = {
   description?: string
   heroImageSrc?: string | null
   heroImageAlt?: string
+  partnerId?: string | null
+  partnerName?: string | null
+  partnerLogoPath?: string | null
 }
 
 export default function FunnelTemplate({
@@ -124,6 +152,9 @@ export default function FunnelTemplate({
   description = "Vorlage für Baufinanzierung und Privatkredit mit bedingten Schritten. Fokus: einfache Bedienung, klare Struktur und moderne Darstellung.",
   heroImageSrc = null,
   heroImageAlt = "Familie in der Küche",
+  partnerId = null,
+  partnerName = null,
+  partnerLogoPath = null,
 }: FunnelTemplateProps = {}) {
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
   const [stepIndex, setStepIndex] = useState(0)
@@ -137,6 +168,9 @@ export default function FunnelTemplate({
   const progress = ((stepIndex + 1) / flow.length) * 100
   const progressFromZero = submitted ? 100 : (stepIndex / Math.max(flow.length, 1)) * 100
   const isKreditanfrage = variant === "kreditanfrage"
+  const resolvedPartnerLogoUrl = partnerLogoUrl(partnerLogoPath)
+  const resolvedPartnerInitials = partnerInitials(partnerName)
+  const showPartnerHero = isKreditanfrage && Boolean(partnerName)
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }))
@@ -268,7 +302,8 @@ export default function FunnelTemplate({
       return setError("Bitte wählen Sie zuerst ein Produkt.")
     }
 
-    const pagePath = "/kreditanfrage"
+    const pagePath =
+      typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "/kreditanfrage"
     const commonHeaders = { "Content-Type": "application/json" }
 
     setError(null)
@@ -301,6 +336,7 @@ export default function FunnelTemplate({
           propertyType: form.objectType,
           consentAccepted: form.dsgvoConsent,
           pagePath,
+          partnerId: partnerId ?? undefined,
           tracking: {
             source_funnel: "kreditanfrage",
             coApplicant: form.coApplicant,
@@ -324,6 +360,7 @@ export default function FunnelTemplate({
           loanAmount: form.loanAmount.trim() || null,
           purpose: form.purpose,
           pagePath,
+          partnerId: partnerId ?? undefined,
         }
       }
 
@@ -444,10 +481,75 @@ export default function FunnelTemplate({
           <div className="pointer-events-none absolute -right-16 -bottom-16 h-44 w-44 rounded-full bg-emerald-200/30 blur-3xl" />
 
           <div className="relative mx-auto flex w-full max-w-6xl flex-col xl:min-h-[calc(100svh-13rem)] xl:justify-center">
-            <div className="mx-auto max-w-3xl text-center">
-              <div className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white/90 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600 shadow-sm">
-                {eyebrow}
-              </div>
+            <div className="mx-auto max-w-4xl text-center">
+              {showPartnerHero ? (
+                <div className="mx-auto mb-6 w-full max-w-5xl">
+                  <div className="rounded-[30px] border border-white/85 bg-white/88 p-3 shadow-[0_28px_70px_rgba(15,23,42,0.10)] ring-1 ring-slate-200/70 backdrop-blur sm:p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
+                      <div className="flex min-w-0 flex-1 flex-col justify-center rounded-[26px] bg-[linear-gradient(135deg,#08162f_0%,#0b1f5e_54%,#0f766e_100%)] px-5 py-5 text-left text-white shadow-[0_18px_44px_rgba(15,23,42,0.24)] sm:px-6">
+                        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100/80">Bewertungen & Beratung</div>
+                            <div className="mt-2 flex items-end gap-2">
+                              <div className="text-4xl font-semibold leading-none tracking-tight">4,9</div>
+                              <div className="pb-1 text-sm text-slate-200/80">/ 5,0</div>
+                            </div>
+                            <div className="mt-2 text-base leading-none text-cyan-300">★★★★★</div>
+                            <div className="mt-3 text-sm text-slate-200/88">100+ Bewertungen und persönliche Begleitung durch SEPANA.</div>
+                          </div>
+
+                          <div className="flex items-center gap-3 xl:min-w-[260px] xl:justify-end">
+                            <div className="flex -space-x-3">
+                              {HERO_TEAM_MEMBERS.map((member) => (
+                                <div
+                                  key={member.src}
+                                  className="relative h-14 w-14 overflow-hidden rounded-full border-2 border-white/85 bg-slate-100 shadow-[0_10px_24px_rgba(15,23,42,0.24)]"
+                                >
+                                  <Image src={member.src} alt={member.alt} fill className="object-cover object-top" sizes="56px" />
+                                </div>
+                              ))}
+                            </div>
+                            <div className="text-sm text-slate-100">
+                              <div className="font-semibold text-white">Ihre Ansprechpartner</div>
+                              <div className="mt-0.5 text-slate-200">Direkt erreichbar und persönlich für Sie da.</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex w-full items-center rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-5 py-5 text-left shadow-sm lg:w-[320px]">
+                        <div className="flex items-center gap-4">
+                          <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-[20px] border border-slate-200 bg-slate-50 shadow-sm">
+                            {resolvedPartnerLogoUrl ? (
+                              <img src={resolvedPartnerLogoUrl} alt={`${partnerName} Logo`} className="h-full w-full object-contain p-2" />
+                            ) : (
+                              <span className="text-sm font-semibold text-slate-600">{resolvedPartnerInitials}</span>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Partnerfirma</div>
+                            <div className="mt-1 text-xl font-semibold tracking-tight text-slate-900">{partnerName}</div>
+                            <div className="mt-2 text-sm leading-relaxed text-slate-600">
+                              Empfohlen von Ihrem Partner, begleitet von SEPANA.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white/90 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600 shadow-sm">
+                  {eyebrow}
+                </div>
+              )}
+
+              {!showPartnerHero ? null : (
+                <div className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white/90 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600 shadow-sm">
+                  {eyebrow}
+                </div>
+              )}
+
               <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
                 {heading}
               </h1>
@@ -456,6 +558,11 @@ export default function FunnelTemplate({
                 <span className="rounded-full border border-slate-200 bg-white px-3 py-1">Baufinanzierung</span>
                 <span className="rounded-full border border-slate-200 bg-white px-3 py-1">Privatkredit</span>
                 <span className="rounded-full border border-slate-200 bg-white px-3 py-1">In wenigen Schritten</span>
+                {showPartnerHero ? (
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
+                    Mit Partnerempfehlung
+                  </span>
+                ) : null}
               </div>
             </div>
 
@@ -597,7 +704,7 @@ export default function FunnelTemplate({
                   <div className="rounded-[22px] border border-white/90 bg-white/90 p-4 shadow-sm ring-1 ring-slate-200/70 backdrop-blur sm:p-5">
                     <div className="text-sm font-semibold text-slate-900">Schneller Start ohne lange Vorbereitung</div>
                     <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                      Wählen Sie zuerst das Produkt und fuehren Sie die Anfrage Schritt für Schritt weiter.
+                      Wählen Sie zuerst das Produkt und führen Sie die Anfrage Schritt für Schritt weiter.
                     </p>
                   </div>
                 )}

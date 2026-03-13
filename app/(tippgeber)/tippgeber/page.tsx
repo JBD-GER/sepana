@@ -1,6 +1,7 @@
 ﻿import Link from "next/link"
 import { requireTippgeber } from "@/lib/tippgeber/requireTippgeber"
 import {
+  buildTippgeberPublicPartnerUrl,
   computeTippgeberYtdMetrics,
   getTippgeberProfileByUserId,
   listTippgeberReferralsForUser,
@@ -116,6 +117,8 @@ export default async function TippgeberDashboardPage() {
   const companyName = profile?.company_name ?? "Tippgeber"
   const logoUrl = tippgeberLogoUrl(profile?.logo_path)
   const initials = companyInitials(companyName)
+  const publicPartnerLink = buildTippgeberPublicPartnerUrl(user.id)
+  const embedSnippet = `<a href="${publicPartnerLink}" target="_blank" rel="noopener noreferrer">Jetzt Kreditanfrage starten</a>`
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -207,6 +210,51 @@ export default async function TippgeberDashboardPage() {
                 : "3. Exposé/Gutschriften später direkt pro Tipp herunterladen"}
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm sm:p-6">
+        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Partner-Link</div>
+        <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
+          Öffentliche Kreditanfrage für Ihre Website
+        </h2>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">
+          Diesen Link können Sie auf Ihrer Website hinterlegen. Er öffnet eine volle Partner-Landing ohne Header und Footer.
+        </p>
+
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 break-all">
+          {publicPartnerLink}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-3">
+          <a
+            href={publicPartnerLink}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center rounded-2xl border border-slate-900 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-95"
+          >
+            Landing ansehen
+          </a>
+          <a
+            href="/bewertungen"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            Bewertungen ansehen
+          </a>
+        </div>
+
+        <div className="mt-6 border-t border-slate-200 pt-6">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">HTML-Snippet</div>
+          <h3 className="mt-1 text-lg font-semibold tracking-tight text-slate-900">Einfach auf Ihrer Website einbauen</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">
+            Minimaler Einbau als normaler Link. Der Partner wird über Ihre ID automatisch erkannt und intern am Lead/Fall verknüpft.
+          </p>
+
+          <pre className="mt-4 overflow-x-auto rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-xs leading-relaxed text-slate-100">
+            <code>{embedSnippet}</code>
+          </pre>
         </div>
       </section>
 

@@ -3,6 +3,7 @@ import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { createCaseFromLead, ensureCustomerAccount, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
 import { getPrivatkreditProductName, getPrivatkreditPurposeLabel } from "@/lib/privatkredit/purposes"
+import { getActiveTippgeberProfileByUserId } from "@/lib/tippgeber/service"
 
 export const runtime = "nodejs"
 
@@ -371,6 +372,7 @@ export async function POST(req: Request) {
     const purposeRaw = trimOrNull(body?.purpose)
     const callbackTime = trimOrNull(body?.callbackTime)
     const message = trimOrNull(body?.message)
+    const partnerId = trimOrNull(body?.partnerId)
 
     if (requestType === "contact") {
       if (!phone) {
@@ -427,6 +429,16 @@ export async function POST(req: Request) {
     const productName = productNameForPurpose(purpose)
 
     const admin = supabaseAdmin()
+    const partnerProfile = partnerId ? await getActiveTippgeberProfileByUserId(partnerId) : null
+
+    if (partnerId && !partnerProfile) {
+      return NextResponse.json({ ok: false, error: "Partner ist nicht aktiv oder ungueltig." }, { status: 400 })
+    }
+
+    const partnerCompanyName = partnerProfile?.company_name?.trim() || null
+    const partnerNote = partnerCompanyName ? `Partner: ${partnerCompanyName}` : null
+    const resolvedNotes = [notes, partnerNote].filter(Boolean).join("\n\n") || null
+
     const rowBase = {
       source: SOURCE,
       event_type: "lead.new",
@@ -443,12 +455,14 @@ export async function POST(req: Request) {
       product_price: loanAmount,
       loan_purpose: purpose,
       loan_amount_total: loanAmount,
-      notes,
+      notes: resolvedNotes,
       additional: {
         origin: "website",
         page: pagePath,
         callback_time: callbackTime,
         request_type: requestTypeKey(requestType),
+        partner_user_id: partnerProfile?.user_id ?? null,
+        partner_company_name: partnerCompanyName,
       },
     }
 
@@ -495,6 +509,13 @@ export async function POST(req: Request) {
           email,
           firstName,
           lastName,
+          recommendedBy: partnerProfile
+            ? {
+                companyName: partnerCompanyName || "Partner",
+                phone: partnerProfile.phone ?? null,
+                logoPath: partnerProfile.logo_path ?? null,
+              }
+            : null,
         })
         existingAccount = account.existingAccount
 
@@ -528,7 +549,7 @@ export async function POST(req: Request) {
           property_city: null,
           property_type: null,
           property_purchase_price: null,
-          notes,
+          notes: resolvedNotes,
         }
 
         const created = await createCaseFromLead({
@@ -551,6 +572,30 @@ export async function POST(req: Request) {
         if (updateQuery.error && isMissingLeadCaseTypeColumnError(updateQuery.error) && "lead_case_type" in updatePayload) {
           delete updatePayload.lead_case_type
           await admin.from("webhook_leads").update(updatePayload).eq("id", String(leadId))
+        }
+
+        if (partnerProfile) {
+          const referralPayload = {
+            tippgeber_user_id: partnerProfile.user_id,
+            referral_kind: "private_credit",
+            status: stickyAdvisorId ? "assigned" : "case_created",
+            customer_first_name: firstName,
+            customer_last_name: lastName,
+            customer_email: email,
+            customer_phone: phone,
+            manual_purchase_price: null,
+            private_credit_volume: loanAmount,
+            manual_broker_commission_percent: null,
+            assigned_advisor_id: stickyAdvisorId,
+            assigned_at: stickyAdvisorId ? now : null,
+            linked_lead_id: String(leadId),
+            linked_case_id: created.caseId,
+          }
+
+          const referralInsert = await admin.from("tippgeber_referrals").insert(referralPayload)
+          if (referralInsert.error) {
+            console.error("[privatkredit-request] partner referral linking failed", referralInsert.error)
+          }
         }
       } catch (accountOrCaseError) {
         console.error("[privatkredit-request] account/case linking failed", accountOrCaseError)

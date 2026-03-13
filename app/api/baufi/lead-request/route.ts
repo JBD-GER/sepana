@@ -2,6 +2,7 @@
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { createCaseFromLead, ensureCustomerAccount, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
+import { getActiveTippgeberProfileByUserId } from "@/lib/tippgeber/service"
 
 export const runtime = "nodejs"
 
@@ -46,6 +47,7 @@ type RequestBody = {
   consentAccepted?: boolean
   website?: string
   pagePath?: string
+  partnerId?: string
   tracking?: Record<string, unknown>
 }
 
@@ -357,6 +359,7 @@ export async function POST(req: Request) {
     const purpose = toPurpose(trimOrNull(body.purpose))
     const propertyType = toPropertyType(trimOrNull(body.propertyType))
     const consentAccepted = body.consentAccepted === true
+    const partnerId = trimOrNull(body.partnerId)
 
     if (!consentAccepted) {
       return NextResponse.json({ ok: false, error: "Bitte Datenschutz akzeptieren." }, { status: 400 })
@@ -386,6 +389,16 @@ export async function POST(req: Request) {
     const pagePath = normalizePagePath(body.pagePath)
     const now = new Date().toISOString()
     const admin = supabaseAdmin()
+    const rawTracking: Record<string, unknown> =
+      body.tracking && typeof body.tracking === "object" ? body.tracking : {}
+    const partnerProfile = partnerId ? await getActiveTippgeberProfileByUserId(partnerId) : null
+
+    if (partnerId && !partnerProfile) {
+      return NextResponse.json({ ok: false, error: "Partner ist nicht aktiv oder ungueltig." }, { status: 400 })
+    }
+
+    const partnerCompanyName = partnerProfile?.company_name?.trim() || null
+    const partnerNote = partnerCompanyName ? `Partner: ${partnerCompanyName}` : null
 
     const rowBase = {
       source: SOURCE,
@@ -404,13 +417,15 @@ export async function POST(req: Request) {
       loan_purpose: PURPOSE_LABELS[purpose],
       loan_amount_total: financingNeed,
       property_type: PROPERTY_TYPE_LABELS[propertyType],
-      notes: "Anfrage über Baufinanzierungs-Lead-Funnel",
+      notes: ["Anfrage über Baufinanzierungs-Lead-Funnel", partnerNote].filter(Boolean).join(" · "),
       additional: {
         origin: "website",
         page: pagePath,
         purpose_key: purpose,
         property_type_key: propertyType,
         consent_accepted: consentAccepted,
+        partner_user_id: partnerProfile?.user_id ?? null,
+        partner_company_name: partnerCompanyName,
         tracking,
       },
     }
@@ -455,6 +470,13 @@ export async function POST(req: Request) {
           email,
           firstName,
           lastName,
+          recommendedBy: partnerProfile
+            ? {
+                companyName: partnerCompanyName || "Partner",
+                phone: partnerProfile.phone ?? null,
+                logoPath: partnerProfile.logo_path ?? null,
+              }
+            : null,
         })
         existingAccount = account.existingAccount
 
@@ -488,7 +510,7 @@ export async function POST(req: Request) {
           property_city: null,
           property_type: PROPERTY_TYPE_LABELS[propertyType],
           property_purchase_price: null,
-          notes: "Anfrage über Baufinanzierungs-Lead-Funnel",
+          notes: ["Anfrage über Baufinanzierungs-Lead-Funnel", partnerNote].filter(Boolean).join(" · "),
         }
 
         const created = await createCaseFromLead({
@@ -511,6 +533,32 @@ export async function POST(req: Request) {
         if (updateQuery.error && isMissingLeadCaseTypeColumnError(updateQuery.error) && "lead_case_type" in updatePayload) {
           delete updatePayload.lead_case_type
           await admin.from("webhook_leads").update(updatePayload).eq("id", String(leadId))
+        }
+
+        if (partnerProfile) {
+          const referralPayload = {
+            tippgeber_user_id: partnerProfile.user_id,
+            referral_kind: "classic",
+            status: stickyAdvisorId ? "assigned" : "case_created",
+            customer_first_name: firstName,
+            customer_last_name: lastName,
+            customer_email: email,
+            customer_phone: phone,
+            manual_purchase_price: parseAmount(rawTracking.purchasePrice) ?? null,
+            private_credit_volume: null,
+            manual_broker_commission_percent: parseAmount(rawTracking.brokerCommission),
+            property_zip: trimOrNull(rawTracking.objectZip),
+            property_city: trimOrNull(rawTracking.objectCity),
+            assigned_advisor_id: stickyAdvisorId,
+            assigned_at: stickyAdvisorId ? now : null,
+            linked_lead_id: String(leadId),
+            linked_case_id: created.caseId,
+          }
+
+          const referralInsert = await admin.from("tippgeber_referrals").insert(referralPayload)
+          if (referralInsert.error) {
+            console.error("[baufi-lead-request] partner referral linking failed", referralInsert.error)
+          }
         }
       } catch (accountOrCaseError) {
         console.error("[baufi-lead-request] account/case linking failed", accountOrCaseError)

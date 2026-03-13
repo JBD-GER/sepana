@@ -24,6 +24,11 @@ export type TippgeberProfileRow = {
   updated_at?: string | null
 }
 
+export type PublicTippgeberProfile = Pick<
+  TippgeberProfileRow,
+  "user_id" | "company_name" | "tippgeber_kind" | "phone" | "email" | "logo_path" | "is_active"
+>
+
 export type TippgeberReferralRow = {
   id: string
   tippgeber_user_id: string
@@ -116,6 +121,24 @@ export async function getTippgeberProfileByUserId(userId: string) {
     .eq("user_id", userId)
     .maybeSingle()
   return (data as TippgeberProfileRow | null) ?? null
+}
+
+export async function getActiveTippgeberProfileByUserId(userId: string) {
+  const admin = supabaseAdmin()
+  const { data } = await admin
+    .from("tippgeber_profiles")
+    .select("user_id,company_name,tippgeber_kind,phone,email,logo_path,is_active")
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  const profile = (data as PublicTippgeberProfile | null) ?? null
+  if (!profile || profile.is_active === false) return null
+  return profile
+}
+
+export function buildTippgeberPublicPartnerUrl(userId: string) {
+  const base = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL)
+  return `${base}/partner/${encodeURIComponent(userId)}`
 }
 
 export async function getTippgeberBrandForCase(caseId: string) {
