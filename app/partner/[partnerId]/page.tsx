@@ -4,6 +4,7 @@ import Link from "next/link"
 import FunnelTemplate from "@/app/(website)/funnel-vorlage/ui/FunnelTemplate"
 import { getPublishedWebsiteReviews } from "@/lib/websiteReviews"
 import { getActiveTippgeberProfileByUserId } from "@/lib/tippgeber/service"
+import PartnerLegalFooter from "./PartnerLegalFooter"
 
 const CONTACT_EMAIL = "info@sepana.de"
 const CONTACT_PHONE = "05035 3169996"
@@ -360,6 +361,8 @@ export default async function PartnerLeadLandingPage({
           </div>
         </div>
       </section>
+
+      <PartnerLegalFooter />
     </div>
   )
 }
