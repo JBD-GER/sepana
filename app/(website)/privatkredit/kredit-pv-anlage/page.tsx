@@ -8,7 +8,7 @@ import PvQuickStartForm from "./ui/PvQuickStartForm"
 import PvCashflowCalculator from "./ui/PvCashflowCalculator"
 
 export const metadata: Metadata = {
-  title: "PV-Anlage 100 % finanzieren | SEPANA",
+  title: "Solarkredit für Ihre PV-Anlage | SEPANA",
   description:
     "Kredit für PV-Anlage mit KfW 270 oder Top-Ökokredit: 100 % Finanzierung ohne hohes Eigenkapital, Cashflow-Rechner und schnelle Rückmeldung.",
   alternates: { canonical: "/privatkredit/kredit-pv-anlage" },
@@ -219,7 +219,7 @@ export default async function PvKreditLandingPage() {
             </div>
 
             <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
-              PV-Anlage 100 % finanzieren
+              Solarkredit für Ihre PV-Anlage
             </h1>
 
             <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-100/95 sm:text-base">
