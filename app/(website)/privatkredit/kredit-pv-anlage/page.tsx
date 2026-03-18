@@ -215,7 +215,7 @@ export default async function PvKreditLandingPage() {
         <div className="relative grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
           <div>
             <div className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-100/95">
-              Privatkredit · Kredit PV Anlage
+              Solarkredit · Kredit PV Anlage
             </div>
 
             <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
