@@ -57,7 +57,7 @@ const FLOW = [
 
 const USE_CASES = [
   "PV-Anlagen und Wärmepumpen",
-  "Küchenstudios",
+  "Handwerker",
   "Autohäuser",
   "Fotografen",
   "Medizinische Anbieter",
