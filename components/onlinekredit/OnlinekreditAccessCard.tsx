@@ -110,7 +110,7 @@ export default function OnlinekreditAccessCard({
         ]
 
   return (
-    <div className="relative overflow-hidden rounded-[36px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.16),transparent_28%),linear-gradient(135deg,#020617,#0f172a_46%,#083344)] p-6 text-white shadow-[0_30px_90px_rgba(15,23,42,0.34)] sm:p-8">
+    <div className="relative overflow-hidden rounded-[28px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.16),transparent_28%),linear-gradient(135deg,#020617,#0f172a_46%,#083344)] p-4 text-white shadow-[0_30px_90px_rgba(15,23,42,0.34)] sm:rounded-[36px] sm:p-8">
       <div className="pointer-events-none absolute -left-16 top-10 h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl" />
       <div className="pointer-events-none absolute -right-12 bottom-0 h-40 w-40 rounded-full bg-emerald-400/10 blur-3xl" />
 
@@ -133,7 +133,7 @@ export default function OnlinekreditAccessCard({
           </div>
         </div>
 
-        <div className="w-full max-w-lg rounded-[30px] border border-white/12 bg-white/10 p-5 shadow-[0_18px_50px_rgba(2,6,23,0.18)] backdrop-blur">
+        <div className="w-full max-w-lg rounded-[24px] border border-white/12 bg-white/10 p-4 shadow-[0_18px_50px_rgba(2,6,23,0.18)] backdrop-blur sm:rounded-[30px] sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100/80">Zugang</div>
@@ -141,7 +141,7 @@ export default function OnlinekreditAccessCard({
                 {existingAccount ? "Bestehendes Konto erkannt" : "Einladungslink per E-Mail"}
               </div>
             </div>
-            <span className="rounded-full border border-white/12 bg-white/8 px-3 py-1 text-xs font-semibold text-slate-200">
+            <span className="break-all rounded-full border border-white/12 bg-white/8 px-3 py-1 text-xs font-semibold text-slate-200">
               Fall-ID: {caseId}
             </span>
           </div>
@@ -155,7 +155,7 @@ export default function OnlinekreditAccessCard({
           <div className="mt-5 flex flex-col gap-2 sm:flex-row">
             <Link
               href={loginHref}
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-white px-5 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-slate-100"
+              className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-white px-5 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-slate-100 sm:w-auto"
             >
               Zum Login
             </Link>
@@ -164,7 +164,7 @@ export default function OnlinekreditAccessCard({
                 type="button"
                 onClick={() => void resendInvite()}
                 disabled={busy}
-                className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/15 bg-white/6 px-5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-white/15 bg-white/6 px-5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 {busy ? "Versende…" : "Einladungslink neu senden"}
               </button>

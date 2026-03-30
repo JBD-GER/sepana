@@ -309,7 +309,7 @@ export default function OnlinekreditDocumentUploadPanel({
   }
 
   return (
-    <section className="rounded-[32px] border border-emerald-200/70 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_38%),linear-gradient(180deg,_rgba(255,255,255,1),_rgba(248,250,252,1))] p-6 shadow-sm sm:p-8">
+    <section className="rounded-[28px] border border-emerald-200/70 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_38%),linear-gradient(180deg,_rgba(255,255,255,1),_rgba(248,250,252,1))] p-4 shadow-sm sm:rounded-[32px] sm:p-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-3xl">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Deine Unterlagen</div>
@@ -321,7 +321,7 @@ export default function OnlinekreditDocumentUploadPanel({
           </p>
         </div>
 
-        <div className="grid min-w-[220px] gap-3 sm:grid-cols-2 lg:grid-cols-1">
+        <div className="grid w-full gap-3 min-[360px]:grid-cols-2 lg:w-auto lg:grid-cols-1">
           <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 shadow-sm backdrop-blur">
             <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Jetzt noch offen</div>
             <div className="mt-1 text-2xl font-semibold text-slate-900">{requiredRequirements.length}</div>
@@ -338,7 +338,7 @@ export default function OnlinekreditDocumentUploadPanel({
         angefragt werden, erscheinen sie automatisch direkt hier in deinem Vorgang.
       </div>
 
-      <div className="mt-4 grid gap-4 rounded-[28px] border border-slate-200/80 bg-white/90 px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
+      <div className="mt-4 grid gap-4 rounded-[24px] border border-slate-200/80 bg-white/90 px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] lg:grid-cols-[minmax(0,1fr)_minmax(0,220px)] lg:items-center sm:rounded-[28px]">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Wichtig für den nächsten Schritt</div>
           <p className="mt-2 text-sm font-medium leading-relaxed text-slate-800">
@@ -413,7 +413,7 @@ export default function OnlinekreditDocumentUploadPanel({
                   </div>
 
                   <label
-                    className={`inline-flex h-11 min-w-[164px] items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(15,23,42,0.16)] transition hover:bg-slate-800 ${
+                className={`inline-flex h-11 w-full items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(15,23,42,0.16)] transition hover:bg-slate-800 sm:w-auto sm:min-w-[164px] ${
                       busy ? "cursor-not-allowed opacity-60" : "cursor-pointer"
                     }`}
                   >
@@ -519,14 +519,14 @@ export default function OnlinekreditDocumentUploadPanel({
           })}
         </div>
       ) : (
-        <div className="mt-6 rounded-3xl border border-slate-200/70 bg-white px-5 py-4 text-sm text-slate-600">
+      <div className="mt-6 rounded-[24px] border border-slate-200/70 bg-white px-4 py-4 text-sm text-slate-600 sm:rounded-3xl sm:px-5">
           Aktuell gibt es noch keine konkret angeforderten Unterlagen für deinen Antrag. Sobald etwas benötigt wird,
           erscheint es automatisch direkt hier.
         </div>
       )}
 
       {unmatchedDocuments.length ? (
-        <div className="mt-6 rounded-[28px] border border-slate-200/70 bg-white p-5 shadow-sm">
+        <div className="mt-6 rounded-[24px] border border-slate-200/70 bg-white p-4 shadow-sm sm:rounded-[28px] sm:p-5">
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Weitere Dateien in deinem Vorgang</div>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             {unmatchedDocuments.map((document) => {

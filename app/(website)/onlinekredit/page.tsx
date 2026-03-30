@@ -181,8 +181,8 @@ export default async function OnlinekreditPage({
   const reviewStats = reviewSummary.overall
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 sm:space-y-10">
-      <section className="relative overflow-hidden rounded-[38px] border border-slate-200/70 bg-[radial-gradient(circle_at_12%_12%,rgba(56,189,248,0.24),transparent_28%),radial-gradient(circle_at_88%_14%,rgba(16,185,129,0.20),transparent_30%),linear-gradient(135deg,#07162f_0%,#0b1f5e_55%,#0f3d82_100%)] p-5 text-white shadow-[0_24px_70px_rgba(2,6,23,0.32)] sm:p-8 lg:p-10">
+    <div className="mx-auto max-w-6xl space-y-6 sm:space-y-10">
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/70 bg-[radial-gradient(circle_at_12%_12%,rgba(56,189,248,0.24),transparent_28%),radial-gradient(circle_at_88%_14%,rgba(16,185,129,0.20),transparent_30%),linear-gradient(135deg,#07162f_0%,#0b1f5e_55%,#0f3d82_100%)] p-4 text-white shadow-[0_24px_70px_rgba(2,6,23,0.32)] sm:rounded-[38px] sm:p-8 lg:p-10">
         <div className="pointer-events-none absolute -left-16 top-0 h-56 w-56 rounded-full bg-emerald-300/18 blur-3xl" />
         <div className="pointer-events-none absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-cyan-300/18 blur-3xl" />
 
@@ -221,23 +221,23 @@ export default async function OnlinekreditPage({
             ))}
           </div>
 
-          <div className="mt-7 flex flex-wrap items-center gap-3">
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <Link
               href="#onlinekredit-wizard"
-              className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100"
+              className="inline-flex w-full items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100 sm:w-auto"
             >
               Jetzt online starten
             </Link>
             <Link
               href="#onlinekredit-inhalt"
-              className="inline-flex items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15"
+              className="inline-flex w-full items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15 sm:w-auto"
             >
               Ablauf ansehen
             </Link>
             {reviewStats.count > 0 ? (
               <Link
                 href="/bewertungen"
-                className="inline-flex items-center gap-2 rounded-full border border-white/18 bg-white/10 px-4 py-2 text-xs font-semibold text-white/95 backdrop-blur transition hover:bg-white/15"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/18 bg-white/10 px-4 py-2 text-center text-xs font-semibold text-white/95 backdrop-blur transition hover:bg-white/15 sm:w-auto sm:justify-start"
               >
                 <span className="text-amber-300">{stars(reviewStats.average)}</span>
                 <span>
@@ -249,7 +249,7 @@ export default async function OnlinekreditPage({
         </div>
 
         {logos.length ? (
-          <div className="relative mt-8 rounded-[28px] border border-white/16 bg-white/8 p-4 backdrop-blur-sm">
+          <div className="relative mt-8 rounded-[24px] border border-white/16 bg-white/8 p-3 backdrop-blur-sm sm:rounded-[28px] sm:p-4">
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200/80">
               Ausgewählte Partnerbanken
             </div>
@@ -257,7 +257,7 @@ export default async function OnlinekreditPage({
               {logos.map((logo) => (
                 <div
                   key={logo.id}
-                  className="flex h-16 items-center justify-center rounded-2xl border border-white/12 bg-white/90 px-4 py-2"
+                  className="flex h-14 items-center justify-center rounded-2xl border border-white/12 bg-white/90 px-3 py-2 sm:h-16 sm:px-4"
                 >
                   <img
                     src={logo.src}
@@ -282,7 +282,7 @@ export default async function OnlinekreditPage({
       </section>
 
       <section id="onlinekredit-inhalt" className="grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
-        <article className="rounded-[32px] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
+        <article className="rounded-[28px] border border-slate-200/70 bg-white p-5 shadow-sm sm:rounded-[32px] sm:p-8">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Onlinekredit digital abschließen</div>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
             Schnell digital starten und sauber bis zum Abschluss weitergehen
@@ -302,7 +302,7 @@ export default async function OnlinekreditPage({
         </article>
 
         <div className="grid gap-4">
-          <article className="rounded-[28px] border border-emerald-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(236,253,245,0.95))] p-5 shadow-sm">
+          <article className="rounded-[24px] border border-emerald-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(236,253,245,0.95))] p-4 shadow-sm sm:rounded-[28px] sm:p-5">
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">Was dich erwartet</div>
             <div className="mt-4 space-y-3">
               {SEO_POINTS.map((point) => (
@@ -313,7 +313,7 @@ export default async function OnlinekreditPage({
             </div>
           </article>
 
-          <article className="rounded-[28px] border border-slate-200/70 bg-white p-5 shadow-sm">
+          <article className="rounded-[24px] border border-slate-200/70 bg-white p-4 shadow-sm sm:rounded-[28px] sm:p-5">
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Typische Kreditwünsche</div>
             <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
               Für viele klassische Onlinekredit-Fälle passend

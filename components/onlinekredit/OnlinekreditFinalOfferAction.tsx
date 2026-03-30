@@ -454,16 +454,16 @@ export default function OnlinekreditFinalOfferAction({
   ])
   const primaryActionClassName = useMemo(() => {
     if (finalOffer && needsAccountCheckBeforeAcceptance) {
-      return `inline-flex h-12 items-center justify-center rounded-2xl px-5 text-sm font-semibold shadow-sm ${
+      return `inline-flex h-12 w-full items-center justify-center rounded-2xl px-5 text-sm font-semibold shadow-sm sm:w-auto ${
         accountCheckStatus === "activated"
           ? "border border-emerald-200 bg-emerald-50 text-emerald-950"
           : "border border-cyan-200 bg-cyan-50 text-cyan-950"
       }`
     }
     if (finalOffer && canAcceptFinalOffer) {
-      return "inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+      return "inline-flex h-12 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
     }
-    return "inline-flex h-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f172a,#1e293b)] px-5 text-sm font-semibold text-white shadow-[0_16px_35px_rgba(15,23,42,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
+    return "inline-flex h-12 w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f172a,#1e293b)] px-5 text-sm font-semibold text-white shadow-[0_16px_35px_rgba(15,23,42,0.18)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
   }, [accountCheckStatus, canAcceptFinalOffer, finalOffer, needsAccountCheckBeforeAcceptance])
   const resultHref = useMemo(
     () => buildOfferResultHref(successHref, finalOffer?.angebot_id ?? initialOffer.angebot_id),
@@ -898,7 +898,7 @@ export default function OnlinekreditFinalOfferAction({
   ])
 
   return (
-    <div className="relative overflow-hidden rounded-[36px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_28%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.10),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] p-6 shadow-[0_30px_90px_rgba(15,23,42,0.10)] sm:p-8">
+    <div className="relative overflow-hidden rounded-[28px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_28%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.10),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] p-4 shadow-[0_30px_90px_rgba(15,23,42,0.10)] sm:rounded-[36px] sm:p-8">
       <div className="pointer-events-none absolute -left-10 top-8 h-32 w-32 rounded-full bg-cyan-300/20 blur-3xl" />
       <div className="pointer-events-none absolute -right-12 bottom-0 h-32 w-32 rounded-full bg-emerald-300/20 blur-3xl" />
       <div className="relative flex flex-col gap-6">
@@ -927,7 +927,7 @@ export default function OnlinekreditFinalOfferAction({
           </div>
         </div>
 
-        <div className="w-full max-w-sm rounded-[28px] border border-slate-200/70 bg-white/85 p-4 shadow-sm backdrop-blur">
+        <div className="w-full max-w-sm rounded-[24px] border border-slate-200/70 bg-white/85 p-4 shadow-sm backdrop-blur sm:rounded-[28px]">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Deine Aktionen</div>
           <div className="mt-2 text-sm leading-6 text-slate-600">
             {!finalOffer
@@ -974,7 +974,7 @@ export default function OnlinekreditFinalOfferAction({
               type="button"
               onClick={() => void triggerFinalAcceptance()}
               disabled={!canAcceptFinalOffer || busy || hasRunningJob || hasAcceptedApplication}
-              className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               {hasAcceptedApplication
                 ? "Bereits angenommen"
@@ -990,7 +990,7 @@ export default function OnlinekreditFinalOfferAction({
               type="button"
               onClick={() => void pollJob(true)}
               disabled={polling}
-              className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               {polling ? "Prüfe Status…" : "Status aktualisieren"}
             </button>
@@ -1040,7 +1040,7 @@ export default function OnlinekreditFinalOfferAction({
             <button
               type="button"
               onClick={() => reopenAccountCheck()}
-              className="inline-flex h-11 items-center justify-center rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-950 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-11 w-full items-center justify-center rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-950 shadow-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               Kontocheck erneut starten
             </button>
@@ -1134,7 +1134,7 @@ export default function OnlinekreditFinalOfferAction({
             </div>
           ) : null}
 
-          <div className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-[24px] border border-slate-200/70 bg-white shadow-sm sm:rounded-[28px]">
             <div className="border-b border-slate-200/70 bg-slate-50/80 px-5 py-4 text-sm font-semibold text-slate-900">
               {offerChanged
                 ? "Vergleich zwischen Live-Angebot und finalen Konditionen"
@@ -1144,7 +1144,7 @@ export default function OnlinekreditFinalOfferAction({
               {comparisonRows.map((metric) => {
                 const badge = changeBadge(metric)
                 return (
-                  <div key={metric.id} className="grid gap-3 px-5 py-4 md:grid-cols-[1.1fr_1fr_1fr_auto] md:items-center">
+                  <div key={metric.id} className="grid gap-3 px-4 py-4 md:grid-cols-[1.1fr_1fr_1fr_auto] md:items-center sm:px-5">
                     <div className="text-sm font-semibold text-slate-900">{metric.label}</div>
                     <div className="text-sm text-slate-600">
                       <div className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Vorher</div>

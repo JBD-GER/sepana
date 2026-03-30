@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useEffectEvent, useRef, useState } from "react"
 
 type Message = { type: "ok" | "err"; text: string } | null
 
@@ -86,15 +86,19 @@ export default function OnlinekreditDocumentPinCard({
     }
   }
 
+  const sendPinMailOnMount = useEffectEvent(() => {
+    void sendPinMail(true)
+  })
+
   useEffect(() => {
     if (!autoSendOnMount) return
     if (autoTriggeredRef.current) return
     autoTriggeredRef.current = true
-    void sendPinMail(true)
-  }, [accessToken, autoSendOnMount, caseId, caseRef, existingAccount, pin])
+    sendPinMailOnMount()
+  }, [autoSendOnMount])
 
   return (
-    <div className="rounded-[28px] border border-cyan-200 bg-white/90 p-5 shadow-sm">
+    <div className="rounded-[24px] border border-cyan-200 bg-white/90 p-4 shadow-sm sm:rounded-[28px] sm:p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
           <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-700">Dokumenten-PIN</div>
@@ -120,12 +124,12 @@ export default function OnlinekreditDocumentPinCard({
         </div>
 
         {revealPin ? (
-          <div className="rounded-[24px] border border-slate-200 bg-slate-950 px-5 py-4 text-center text-white shadow-sm">
+          <div className="rounded-[20px] border border-slate-200 bg-slate-950 px-4 py-4 text-center text-white shadow-sm sm:rounded-[24px] sm:px-5">
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200/80">Aktuelle PIN</div>
             <div className="mt-2 text-2xl font-semibold tracking-[0.28em]">{pin}</div>
           </div>
         ) : (
-          <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-700 shadow-sm">
+          <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700 shadow-sm sm:rounded-[24px] sm:px-5">
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Sicherheit</div>
             <div className="mt-2 max-w-[16rem] leading-relaxed">
               Die PIN bleibt hier verborgen und wird nur separat per E-Mail versendet.
@@ -140,7 +144,7 @@ export default function OnlinekreditDocumentPinCard({
             type="button"
             onClick={() => void copyPin()}
             disabled={copyBusy}
-            className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-11 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             {copyBusy ? "Kopiere..." : "PIN kopieren"}
           </button>
@@ -149,7 +153,7 @@ export default function OnlinekreditDocumentPinCard({
           type="button"
           onClick={() => void sendPinMail(false)}
           disabled={mailBusy}
-          className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {mailBusy ? "Versende..." : "PIN per E-Mail senden"}
         </button>

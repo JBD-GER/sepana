@@ -926,8 +926,8 @@ function Field({
 }) {
   return (
     <label className="block">
-      <div className="mb-1.5 flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
+      <div className="mb-1.5 flex flex-wrap items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <span className="text-sm font-semibold text-slate-800">{label}</span>
           {info ? <InfoBadge info={info} /> : null}
         </div>
@@ -960,7 +960,7 @@ function Card({
   return (
     <div
       className={cn(
-        "rounded-[1.75rem] border bg-white/95 p-5 shadow-[0_16px_40px_-24px_rgba(15,23,42,0.28)] backdrop-blur",
+        "rounded-[1.5rem] border bg-white/95 p-4 shadow-[0_16px_40px_-24px_rgba(15,23,42,0.28)] backdrop-blur sm:rounded-[1.75rem] sm:p-5",
         visibleErrors.length ? "border-rose-200/90" : "border-slate-200/80"
       )}
     >
@@ -1045,9 +1045,9 @@ function MoneyInput({
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
+    <div className="flex flex-col gap-0.5 min-[420px]:flex-row min-[420px]:items-baseline min-[420px]:justify-between min-[420px]:gap-3">
       <div className="text-slate-600">{label}</div>
-      <div className="text-right font-medium tabular-nums text-slate-900">{value}</div>
+      <div className="text-left font-medium tabular-nums text-slate-900 min-[420px]:text-right">{value}</div>
     </div>
   )
 }
@@ -1069,12 +1069,12 @@ function BudgetBar({
   const ratio = max > 0 ? Math.min(100, Math.max(0, (Math.abs(value) / max) * 100)) : 0
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between min-[420px]:gap-3">
         <div className="min-w-0">
           <div className="text-sm font-semibold text-slate-900">{label}</div>
           {hint ? <div className="mt-1 text-xs text-slate-500">{hint}</div> : null}
         </div>
-        <div className={cn("shrink-0 text-sm font-semibold tabular-nums", palette.value)}>{formatMoney(value)}</div>
+        <div className={cn("text-sm font-semibold tabular-nums min-[420px]:shrink-0", palette.value)}>{formatMoney(value)}</div>
       </div>
       <div className={cn("mt-3 h-2.5 overflow-hidden rounded-full", palette.track)}>
         <div className={cn("h-full rounded-full transition-[width] duration-300", palette.fill)} style={{ width: `${ratio}%` }} />
@@ -1093,9 +1093,9 @@ function Checkbox({
   label: string
 }) {
   return (
-    <label className="flex h-11 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 shadow-sm transition hover:border-sky-200 hover:bg-sky-50/40">
+    <label className="flex min-h-11 items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition hover:border-sky-200 hover:bg-sky-50/40">
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
-      <span>{label}</span>
+      <span className="leading-5">{label}</span>
     </label>
   )
 }
@@ -2815,7 +2815,7 @@ export default function OnlinekreditWizard({
 
   if (loading) {
     return (
-      <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+      <div className="rounded-[24px] border border-slate-200/70 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6">
         <div className="text-sm text-slate-600">Onlinekredit-Antrag wird geladen...</div>
       </div>
     )
@@ -2823,7 +2823,7 @@ export default function OnlinekreditWizard({
 
   if (!customerCanEdit) {
     return (
-      <div className="rounded-3xl border border-amber-200 bg-white p-6 shadow-sm">
+      <div className="rounded-[24px] border border-amber-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Onlinekredit</div>
         <h2 className="mt-2 text-xl font-semibold text-slate-900">Bearbeitung ist in dieser Phase gesperrt</h2>
         <p className="mt-2 text-sm text-slate-600">
@@ -2837,24 +2837,24 @@ export default function OnlinekreditWizard({
   const coApplicant = coApplicants[0] ?? createCoApplicant()
 
   return (
-    <div ref={wizardRef} className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,0.98))] shadow-[0_28px_80px_-44px_rgba(15,23,42,0.35)]">
+    <div ref={wizardRef} className="relative overflow-hidden rounded-[1.5rem] border border-sky-100 bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,0.98))] shadow-[0_28px_80px_-44px_rgba(15,23,42,0.35)] sm:rounded-[2rem]">
       <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-sky-100/70 blur-3xl" />
       <div className="pointer-events-none absolute -left-20 top-1/3 h-48 w-48 rounded-full bg-emerald-100/60 blur-3xl" />
 
-      <div className="relative border-b border-slate-200/80 bg-white/70 px-5 py-5 backdrop-blur sm:px-6">
+      <div className="relative border-b border-slate-200/80 bg-white/70 px-4 py-4 backdrop-blur sm:px-6 sm:py-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">SEPANA Onlinekredit</div>
             <div className="mt-2 inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">
               Schritt {Math.max(stepIndex, 0) + 1} von {steps.length}
             </div>
-            <div className="mt-3 text-xl font-semibold text-slate-950">{currentStep.title}</div>
+            <div className="mt-3 text-lg font-semibold text-slate-950 sm:text-xl">{currentStep.title}</div>
             <div className="mt-1 text-sm text-slate-600">{currentStep.subtitle}</div>
             <div className="mt-3 inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-800">
               Deine Angaben werden beim Wechsel automatisch gespeichert.
             </div>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-right shadow-sm">
+          <div className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm sm:w-auto sm:text-right">
             <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Fortschritt</div>
             <div className="mt-1 text-lg font-semibold text-slate-900">{progress}%</div>
           </div>
@@ -2878,7 +2878,7 @@ export default function OnlinekreditWizard({
         </div>
       </div>
 
-      <div className="relative px-5 py-6 sm:px-6">
+      <div className="relative px-4 py-5 sm:px-6 sm:py-6">
         {error && !shouldHideGlobalErrorBannerForCurrentStep ? (
           <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -2890,7 +2890,7 @@ export default function OnlinekreditWizard({
                 <button
                   type="button"
                   onClick={() => void jumpTo(serverIssueJumpStep)}
-                  className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-800"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-800 sm:w-auto"
                 >
                   Zum betroffenen Bereich
                 </button>
@@ -3450,13 +3450,13 @@ export default function OnlinekreditWizard({
                 {additional.has_children ? (
                   <div className="space-y-3">
                     {children.map((child, index) => (
-                      <div key={child.id ?? index} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="mb-3 flex items-center justify-between gap-3">
+                        <div key={child.id ?? index} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="text-sm font-semibold text-slate-900">Kind {index + 1}</div>
                           <button
                             type="button"
                             onClick={() => removeChild(index)}
-                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 sm:w-auto"
                           >
                             Entfernen
                           </button>
@@ -3541,7 +3541,7 @@ export default function OnlinekreditWizard({
                     <button
                       type="button"
                       onClick={addChild}
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 sm:w-auto"
                     >
                       + Kind hinzufuegen
                     </button>
@@ -3559,7 +3559,7 @@ export default function OnlinekreditWizard({
                         key={type}
                         type="button"
                         onClick={() => addLiability(type)}
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 sm:w-auto"
                       >
                         {meta.addLabel}
                       </button>
@@ -3585,14 +3585,14 @@ export default function OnlinekreditWizard({
 
                       return (
                         <div key={row.id ?? `${row.liability_type}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                          <div className="mb-3 flex items-center justify-between gap-3">
+                          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="text-sm font-semibold text-slate-900">
                               {liabilityLabel(row.liability_type)} {index + 1}
                             </div>
                             <button
                               type="button"
                               onClick={() => removeLiability(index)}
-                              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 sm:w-auto"
                             >
                               Entfernen
                             </button>
@@ -3743,7 +3743,7 @@ export default function OnlinekreditWizard({
                 <button
                   type="button"
                   onClick={addRealEstateAsset}
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 sm:w-auto"
                 >
                   + Immobilie erfassen
                 </button>
@@ -3755,12 +3755,12 @@ export default function OnlinekreditWizard({
 
                       return (
                         <div key={asset.id ?? `asset-${assetIndex}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                          <div className="mb-3 flex items-center justify-between gap-3">
+                          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="text-sm font-semibold text-slate-900">Immobilie {assetIndex + 1}</div>
                             <button
                               type="button"
                               onClick={() => removeRealEstateAsset(assetIndex)}
-                              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 sm:w-auto"
                             >
                               Entfernen
                             </button>
@@ -3845,12 +3845,12 @@ export default function OnlinekreditWizard({
                           </div>
 
                           <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                               <div className="text-sm font-semibold text-slate-900">Darlehen</div>
                               <button
                                 type="button"
                                 onClick={() => addRealEstateLoan(assetIndex)}
-                                className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
+                                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 sm:w-auto"
                               >
                                 + Darlehen
                               </button>
@@ -3860,12 +3860,12 @@ export default function OnlinekreditWizard({
                               <div className="space-y-3">
                                 {asset.loans.map((loan, loanIndex) => (
                                   <div key={loan.id ?? `loan-${assetIndex}-${loanIndex}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                       <div className="text-sm font-semibold text-slate-900">Darlehen {loanIndex + 1}</div>
                                       <button
                                         type="button"
                                         onClick={() => removeRealEstateLoan(assetIndex, loanIndex)}
-                                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 sm:w-auto"
                                       >
                                         Entfernen
                                       </button>
@@ -4384,7 +4384,7 @@ export default function OnlinekreditWizard({
             onClick={() => void goPrev()}
             disabled={stepIndex <= 0 || saving || offersTransitionOverlayOpen}
             className={cn(
-              "rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50",
+              "w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 sm:w-auto",
               (stepIndex <= 0 || saving || offersTransitionOverlayOpen) && "cursor-not-allowed opacity-50"
             )}
           >
@@ -4397,7 +4397,7 @@ export default function OnlinekreditWizard({
               onClick={() => void save({ showMessage: true, triggerEuropaceSync: false })}
               disabled={saving || offersTransitionOverlayOpen}
               className={cn(
-                "rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50",
+                "w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 sm:w-auto",
                 (saving || offersTransitionOverlayOpen) && "cursor-not-allowed opacity-60"
               )}
             >
@@ -4410,7 +4410,7 @@ export default function OnlinekreditWizard({
                 onClick={() => void goNext()}
                 disabled={saving || offersTransitionOverlayOpen}
                 className={cn(
-                  "rounded-2xl bg-[linear-gradient(90deg,#0f172a,#0369a1)] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-900/15 transition hover:-translate-y-0.5",
+                  "w-full rounded-2xl bg-[linear-gradient(90deg,#0f172a,#0369a1)] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-900/15 transition hover:-translate-y-0.5 sm:w-auto",
                   (saving || offersTransitionOverlayOpen) && "cursor-not-allowed opacity-60"
                 )}
               >
@@ -4422,7 +4422,7 @@ export default function OnlinekreditWizard({
                 onClick={() => void finishAndScrollToOffers()}
                 disabled={saving || offersTransitionOverlayOpen}
                 className={cn(
-                  "rounded-2xl bg-[linear-gradient(90deg,#0f172a,#0369a1)] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-900/15 transition hover:-translate-y-0.5",
+                  "w-full rounded-2xl bg-[linear-gradient(90deg,#0f172a,#0369a1)] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-900/15 transition hover:-translate-y-0.5 sm:w-auto",
                   (saving || offersTransitionOverlayOpen) && "cursor-not-allowed opacity-60"
                 )}
               >

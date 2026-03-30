@@ -306,7 +306,7 @@ export default async function OnlinekreditConfirmationPage({
 
   if (!caseId || !caseRef || !accessToken) {
     return (
-      <div className="rounded-[32px] border border-amber-200 bg-white p-6 shadow-sm">
+      <div className="rounded-[24px] border border-amber-200 bg-white p-4 shadow-sm sm:rounded-[32px] sm:p-6">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Onlinekredit</div>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Link ungültig</h1>
         <p className="mt-2 text-sm text-slate-600">
@@ -315,7 +315,7 @@ export default async function OnlinekreditConfirmationPage({
         <div className="mt-4">
           <Link
             href="/onlinekredit"
-            className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm"
+            className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm sm:w-auto"
           >
             Neu starten
           </Link>
@@ -334,7 +334,7 @@ export default async function OnlinekreditConfirmationPage({
 
   if (!access.ok) {
     return (
-      <div className="rounded-[32px] border border-amber-200 bg-white p-6 shadow-sm">
+      <div className="rounded-[24px] border border-amber-200 bg-white p-4 shadow-sm sm:rounded-[32px] sm:p-6">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Onlinekredit</div>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Link ungültig oder abgelaufen</h1>
         <p className="mt-2 text-sm text-slate-600">
@@ -343,7 +343,7 @@ export default async function OnlinekreditConfirmationPage({
         <div className="mt-4">
           <Link
             href="/onlinekredit"
-            className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm"
+            className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm sm:w-auto"
           >
             Neu starten
           </Link>
@@ -750,7 +750,7 @@ export default async function OnlinekreditConfirmationPage({
     (bankPreviewCards.length > 0 || bankCaseDocuments.length > 0 || previewableBankApplicationDocuments.length > 0)
 
   const directOnlineCompletionSection = showDirectOnlineCompletionSection ? (
-    <section className="rounded-[32px] border border-emerald-200/70 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_38%),linear-gradient(180deg,_rgba(255,255,255,1),_rgba(248,250,252,1))] p-6 shadow-sm sm:p-8">
+    <section className="rounded-[24px] border border-emerald-200/70 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_38%),linear-gradient(180deg,_rgba(255,255,255,1),_rgba(248,250,252,1))] p-4 shadow-sm sm:rounded-[32px] sm:p-8">
       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Digital bei der Bank abschließen</div>
       <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
         {accountCheckFlowCompleted ? "Abgeschlossen und im Fall gespeichert" : "Jetzt nur noch legitimieren und digital signieren"}
@@ -814,7 +814,7 @@ export default async function OnlinekreditConfirmationPage({
             ? bankContinuationSteps.map((step, index) => (
                 <div
                   key={[step.applicantName, step.referenceNumber, step.videoLegitUrl, step.qesUrl, index].filter(Boolean).join("|")}
-                  className="rounded-[28px] border border-emerald-200/80 bg-white/90 p-5 shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
+                  className="rounded-[24px] border border-emerald-200/80 bg-white/90 p-4 shadow-[0_12px_32px_rgba(15,23,42,0.06)] sm:rounded-[28px] sm:p-5"
                 >
                   <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
                     {step.applicantName ? `Dein digitaler Abschluss für ${step.applicantName}` : `Digitaler Abschluss ${index + 1}`}
@@ -833,7 +833,7 @@ export default async function OnlinekreditConfirmationPage({
                         href={step.videoLegitUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm"
+                        className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm sm:w-auto"
                       >
                         Online-Legitimation starten
                       </a>
@@ -843,7 +843,7 @@ export default async function OnlinekreditConfirmationPage({
                         href={step.qesUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex h-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-900 shadow-sm"
+                        className="inline-flex h-11 w-full items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-900 shadow-sm sm:w-auto"
                       >
                         Digital signieren
                       </a>
@@ -857,7 +857,7 @@ export default async function OnlinekreditConfirmationPage({
             <a
               key={document.id}
               href={caseDocumentDownloadHref(document.file_path, document.file_name)}
-              className={`rounded-[28px] border bg-white/90 p-5 shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition ${
+              className={`rounded-[24px] border bg-white/90 p-4 shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition sm:rounded-[28px] sm:p-5 ${
                 bankDocumentKindLabel(document.file_name) === "Kreditvertrag"
                   ? "border-slate-900/15 bg-[linear-gradient(135deg,rgba(15,23,42,0.04),rgba(255,255,255,0.98))] hover:border-slate-900/30"
                   : "border-emerald-200/80 hover:border-emerald-300"
@@ -875,7 +875,7 @@ export default async function OnlinekreditConfirmationPage({
                 Dieses Bankdokument wurde automatisch in deinen Vorgang übernommen und steht jetzt direkt zur Einsicht bereit.
               </p>
               <div
-                className={`mt-4 inline-flex h-11 items-center justify-center rounded-2xl px-4 text-sm font-semibold text-white shadow-sm ${
+                  className={`mt-4 inline-flex h-11 w-full items-center justify-center rounded-2xl px-4 text-sm font-semibold text-white shadow-sm sm:w-auto ${
                   bankDocumentKindLabel(document.file_name) === "Kreditvertrag"
                     ? "bg-[linear-gradient(135deg,#0f172a,#0f766e)] shadow-[0_14px_30px_rgba(15,23,42,0.20)]"
                     : "bg-slate-900"
@@ -893,7 +893,7 @@ export default async function OnlinekreditConfirmationPage({
                   href={String(document.url)}
                   target="_blank"
                   rel="noreferrer"
-                  className={`rounded-[28px] border bg-white/90 p-5 shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition ${
+                  className={`rounded-[24px] border bg-white/90 p-4 shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition sm:rounded-[28px] sm:p-5 ${
                     bankDocumentKindLabel(document.name) === "Kreditvertrag"
                       ? "border-slate-900/15 bg-[linear-gradient(135deg,rgba(15,23,42,0.04),rgba(255,255,255,0.98))] hover:border-slate-900/30"
                       : "border-slate-200/80 hover:border-slate-300"
@@ -906,7 +906,7 @@ export default async function OnlinekreditConfirmationPage({
                     sichtbar. Die Legitimation und digitale Unterschrift laufen separat über die Links oberhalb.
                   </p>
                   <div
-                    className={`mt-4 inline-flex h-11 items-center justify-center rounded-2xl px-4 text-sm font-semibold shadow-sm ${
+                    className={`mt-4 inline-flex h-11 w-full items-center justify-center rounded-2xl px-4 text-sm font-semibold shadow-sm sm:w-auto ${
                       bankDocumentKindLabel(document.name) === "Kreditvertrag"
                         ? "bg-[linear-gradient(135deg,#0f172a,#0f766e)] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)]"
                         : "border border-slate-200 bg-slate-50 text-slate-900"
@@ -929,7 +929,7 @@ export default async function OnlinekreditConfirmationPage({
   return (
     <div className="relative space-y-8">
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_32%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.16),transparent_30%),radial-gradient(circle_at_center,rgba(251,191,36,0.12),transparent_38%)] blur-3xl" />
-      <section className="relative overflow-hidden rounded-[40px] border border-emerald-200/70 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.12),transparent_26%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] p-6 shadow-[0_28px_80px_rgba(15,23,42,0.10)] sm:p-8">
+      <section className="relative overflow-hidden rounded-[28px] border border-emerald-200/70 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.12),transparent_26%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] p-4 shadow-[0_28px_80px_rgba(15,23,42,0.10)] sm:rounded-[40px] sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">Onlinekredit · Stufe 4 von 4</div>
@@ -969,14 +969,14 @@ export default async function OnlinekreditConfirmationPage({
             <Link
               href={hasRejectedApplication ? offersHref : hasApplication ? loginHref : offersHref}
               prefetch={false}
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f172a,#1e293b)] px-5 text-sm font-semibold text-white shadow-[0_16px_35px_rgba(15,23,42,0.18)]"
+              className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f172a,#1e293b)] px-5 text-sm font-semibold text-white shadow-[0_16px_35px_rgba(15,23,42,0.18)] sm:w-auto"
             >
               {hasRejectedApplication ? "Andere Angebote prüfen" : hasApplication ? "Zum SEPANA-Portal" : "Zur Angebotsübersicht"}
             </Link>
             <Link
               href={formHref}
               prefetch={false}
-              className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm"
+              className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm sm:w-auto"
             >
               Angaben öffnen
             </Link>
@@ -984,7 +984,7 @@ export default async function OnlinekreditConfirmationPage({
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+      <section className="rounded-[24px] border border-slate-200/70 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-slate-200/70 bg-slate-50 p-4">
             <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Antragsnummer</div>
@@ -1047,14 +1047,14 @@ export default async function OnlinekreditConfirmationPage({
               <Link
                 href={offersHref}
                 prefetch={false}
-                className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm"
+                className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm sm:w-auto"
               >
                 Andere Angebote prüfen
               </Link>
               <Link
                 href={formHref}
                 prefetch={false}
-                className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm"
+                className="inline-flex h-11 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm sm:w-auto"
               >
                 Angaben anpassen
               </Link>
@@ -1071,11 +1071,11 @@ export default async function OnlinekreditConfirmationPage({
       {directOnlineCompletionSection}
 
       {hasRejectedApplication ? (
-        <section className="rounded-[32px] border border-rose-200/70 bg-white p-6 shadow-sm sm:p-8">
+        <section className="rounded-[24px] border border-rose-200/70 bg-white p-4 shadow-sm sm:rounded-[32px] sm:p-8">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-700">Nächste Schritte</div>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">So geht es jetzt weiter</h2>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-rose-900">
+            <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-rose-900 sm:rounded-[28px] sm:p-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-700">01. Neue Auswahl</div>
               <h3 className="mt-3 text-lg font-semibold text-slate-900">Bitte wähle ein anderes Angebot</h3>
               <p className="mt-2 text-sm leading-relaxed text-rose-900">
@@ -1084,7 +1084,7 @@ export default async function OnlinekreditConfirmationPage({
                   : "Diese Bank konnte deinen Antrag nicht annehmen. Bitte gehe zurück zur Angebotsübersicht und wähle eine andere verfügbare Variante."}
               </p>
             </div>
-            <div className="rounded-[28px] border border-slate-200/80 bg-slate-50 p-5">
+            <div className="rounded-[24px] border border-slate-200/80 bg-slate-50 p-4 sm:rounded-[28px] sm:p-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">02. Angaben übernehmen</div>
               <h3 className="mt-3 text-lg font-semibold text-slate-900">Deine Daten bleiben erhalten</h3>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
@@ -1095,7 +1095,7 @@ export default async function OnlinekreditConfirmationPage({
           </div>
         </section>
       ) : (
-        <section className="rounded-[32px] border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
+        <section className="rounded-[24px] border border-slate-200/70 bg-white p-4 shadow-sm sm:rounded-[32px] sm:p-8">
           <div className="max-w-3xl">
             <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Dein Ablauf</div>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">So geht es jetzt weiter</h2>
@@ -1112,7 +1112,7 @@ export default async function OnlinekreditConfirmationPage({
               return (
                 <article
                   key={step.key}
-                  className={`rounded-[30px] border p-5 transition ${tone.card}`}
+                  className={`rounded-[24px] border p-4 transition sm:rounded-[30px] sm:p-5 ${tone.card}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-semibold ${tone.number}`}>
@@ -1132,7 +1132,7 @@ export default async function OnlinekreditConfirmationPage({
       )}
 
       {showBankPreviewSection ? (
-        <section className="rounded-[32px] border border-emerald-200/70 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.12),_transparent_36%),linear-gradient(180deg,_rgba(255,255,255,1),_rgba(248,250,252,1))] p-6 shadow-sm sm:p-8">
+        <section className="rounded-[24px] border border-emerald-200/70 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.12),_transparent_36%),linear-gradient(180deg,_rgba(255,255,255,1),_rgba(248,250,252,1))] p-4 shadow-sm sm:rounded-[32px] sm:p-8">
           <div className="max-w-3xl">
             <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Unterlagen zur Einsicht</div>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
@@ -1183,7 +1183,7 @@ export default async function OnlinekreditConfirmationPage({
                 href={card.href}
                 target="_blank"
                 rel="noreferrer"
-                className={`rounded-[30px] border bg-white/92 p-5 shadow-[0_14px_34px_rgba(15,23,42,0.07)] transition ${
+                className={`rounded-[24px] border bg-white/92 p-4 shadow-[0_14px_34px_rgba(15,23,42,0.07)] transition sm:rounded-[30px] sm:p-5 ${
                   card.kind === "Kreditvertrag"
                     ? "border-slate-900/15 bg-[linear-gradient(135deg,rgba(15,23,42,0.04),rgba(255,255,255,0.98))] shadow-[0_18px_40px_rgba(15,23,42,0.10)] hover:border-slate-900/30"
                     : card.accent === "emerald"
@@ -1207,7 +1207,7 @@ export default async function OnlinekreditConfirmationPage({
                   {card.description}
                 </p>
                 <div
-                  className={`mt-4 inline-flex h-11 items-center justify-center rounded-2xl px-4 text-sm font-semibold shadow-sm ${
+                  className={`mt-4 inline-flex h-11 w-full items-center justify-center rounded-2xl px-4 text-sm font-semibold shadow-sm sm:w-auto ${
                     card.kind === "Kreditvertrag"
                       ? "bg-[linear-gradient(135deg,#0f172a,#0f766e)] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)]"
                       : "bg-slate-900 text-white"
@@ -1233,7 +1233,7 @@ export default async function OnlinekreditConfirmationPage({
           />
         )
       ) : hasRejectedApplication ? (
-        <section className="rounded-3xl border border-rose-200/70 bg-white p-6 shadow-sm">
+        <section className="rounded-[24px] border border-rose-200/70 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-700">Unterlagen</div>
           <h2 className="mt-2 text-xl font-semibold text-slate-900">Kein Upload für diese Absage nötig</h2>
           <p className="mt-2 text-sm text-slate-600">
@@ -1242,7 +1242,7 @@ export default async function OnlinekreditConfirmationPage({
           </p>
         </section>
       ) : (
-        <section className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+        <section className="rounded-[24px] border border-slate-200/70 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Unterlagen</div>
           <h2 className="mt-2 text-xl font-semibold text-slate-900">Upload wird vorbereitet</h2>
           <p className="mt-2 text-sm text-slate-600">

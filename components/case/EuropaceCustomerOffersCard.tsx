@@ -2418,7 +2418,7 @@ export default function EuropaceCustomerOffersCard({
     return (
       <div className="w-full lg:max-w-[360px]">
         <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Stand dieser Karte</div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div className="mt-3 grid gap-2 min-[360px]:grid-cols-2">
           {metaItems.map((item, index) => (
             <div
               key={item.key}
@@ -2453,7 +2453,7 @@ export default function EuropaceCustomerOffersCard({
     return (
       <div
         key={`account-check-${view.offer.angebot_id}`}
-        className="relative overflow-hidden rounded-[30px] border border-cyan-200/80 bg-[linear-gradient(180deg,rgba(248,253,255,0.98),rgba(255,255,255,1))] p-5 shadow-[0_18px_50px_rgba(14,165,233,0.08)]"
+        className="relative overflow-hidden rounded-[24px] border border-cyan-200/80 bg-[linear-gradient(180deg,rgba(248,253,255,0.98),rgba(255,255,255,1))] p-4 shadow-[0_18px_50px_rgba(14,165,233,0.08)] sm:rounded-[30px] sm:p-5"
       >
         <div className="absolute inset-x-0 top-0 h-24 bg-[linear-gradient(90deg,rgba(34,211,238,0.12),transparent_40%,rgba(14,165,233,0.08))]" />
 
@@ -2461,7 +2461,7 @@ export default function EuropaceCustomerOffersCard({
           <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0 flex-1">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                <div className="flex h-[4.25rem] w-36 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200/80 bg-white px-3 shadow-sm">
+                <div className="flex h-[4.25rem] w-full max-w-[9rem] shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200/80 bg-white px-3 shadow-sm sm:w-36">
                   <ProviderLogo
                     key={view.providerBrand?.src ?? view.providerName}
                     brand={view.providerBrand}
@@ -2518,7 +2518,7 @@ export default function EuropaceCustomerOffersCard({
                     ? reopenAccountCheck(view)
                     : setAccountCheckDialogView(view)
                 }
-                className={`inline-flex h-11 items-center justify-center rounded-2xl px-5 text-center text-sm font-semibold shadow-[0_10px_24px_rgba(15,23,42,0.14)] sm:min-w-[230px] ${
+                className={`inline-flex h-11 w-full items-center justify-center rounded-2xl px-5 text-center text-sm font-semibold shadow-[0_10px_24px_rgba(15,23,42,0.14)] sm:w-auto sm:min-w-[230px] ${
                   accountCheckStatus === "activated"
                     ? "border border-emerald-200 bg-emerald-50 text-emerald-950"
                     : "bg-slate-900 text-white"
@@ -2526,13 +2526,13 @@ export default function EuropaceCustomerOffersCard({
               >
                 {actionLabel}
               </button>
-              <div className="max-w-[230px] text-xs leading-relaxed text-slate-600 xl:text-right">
+              <div className="max-w-full text-xs leading-relaxed text-slate-600 xl:max-w-[230px] xl:text-right">
                 Der Kontocheck läuft direkt im Browser und dauert in der Regel nur wenige Minuten.
               </div>
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mt-5 grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-2xl border border-slate-200/70 bg-white px-4 py-3 shadow-sm">
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Monatsrate</div>
               <div className="mt-1 text-lg font-semibold text-slate-900">{formatEUR(view.snapshot?.gesamtkonditionen?.rateMonatlich)}</div>
@@ -2654,7 +2654,7 @@ export default function EuropaceCustomerOffersCard({
     return (
       <div
         key={offer.angebot_id}
-        className={`relative overflow-hidden rounded-[30px] border p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] ${cardShellClass} ${
+        className={`relative overflow-hidden rounded-[24px] border p-4 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5 ${cardShellClass} ${
           isRecommendedSelection ? "ring-2 ring-emerald-200/90 ring-offset-2 ring-offset-white" : ""
         }`}
       >
@@ -2663,7 +2663,7 @@ export default function EuropaceCustomerOffersCard({
         <div className="relative flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-              <div className="flex h-[4.25rem] w-36 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200/80 bg-white px-3 shadow-sm">
+              <div className="flex h-[4.25rem] w-full max-w-[9rem] shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200/80 bg-white px-3 shadow-sm sm:w-36">
                 <ProviderLogo
                   key={view.providerBrand?.src ?? view.providerName}
                   brand={view.providerBrand}
@@ -2741,7 +2741,7 @@ export default function EuropaceCustomerOffersCard({
                 type="button"
                 onClick={() => router.push(buildSelectionHref(offer.angebot_id))}
                 disabled={!canSelect}
-                className={`inline-flex h-11 items-center justify-center rounded-2xl px-5 text-center text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[220px] ${primaryButtonClass}`}
+                className={`inline-flex h-11 w-full items-center justify-center rounded-2xl px-5 text-center text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[220px] ${primaryButtonClass}`}
               >
                 {selectionButtonLabel}
               </button>
@@ -2750,7 +2750,7 @@ export default function EuropaceCustomerOffersCard({
                 type="button"
                 onClick={() => void acceptOffer(offer.angebot_id)}
                 disabled={!canAccept || busyOfferId === offer.angebot_id}
-                className={`inline-flex h-11 items-center justify-center rounded-2xl px-5 text-center text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[220px] ${primaryButtonClass}`}
+                className={`inline-flex h-11 w-full items-center justify-center rounded-2xl px-5 text-center text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[220px] ${primaryButtonClass}`}
               >
                 {busyOfferId === offer.angebot_id
                   ? "Starte..."
@@ -2771,7 +2771,7 @@ export default function EuropaceCustomerOffersCard({
                     view.diagnostics.blocking.map((item) => item.text)
                   )
                 }
-                className="inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-center text-sm font-semibold text-slate-900 shadow-sm sm:min-w-[220px]"
+                className="inline-flex h-10 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-center text-sm font-semibold text-slate-900 shadow-sm sm:w-auto sm:min-w-[220px]"
               >
                 Offene Punkte ergänzen
               </button>
@@ -2779,7 +2779,7 @@ export default function EuropaceCustomerOffersCard({
           </div>
         </div>
 
-        <div className="relative mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <div className="relative mt-5 grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
           <div className="rounded-2xl border border-slate-200/70 bg-white px-4 py-3">
             <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Monatsrate</div>
             <div className="mt-1 text-lg font-semibold text-slate-900">{formatEUR(snapshot?.gesamtkonditionen?.rateMonatlich)}</div>
@@ -2811,7 +2811,7 @@ export default function EuropaceCustomerOffersCard({
         </div>
 
         <div className="mt-4 rounded-[24px] border border-white/80 bg-white/82 px-4 py-4 shadow-sm">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-start">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(240px,360px)] lg:items-start">
             <div className="max-w-3xl">
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Was diese Karte bedeutet</div>
               <div className="mt-2 text-sm font-semibold text-slate-900">
@@ -2847,7 +2847,7 @@ export default function EuropaceCustomerOffersCard({
 
   return (
     <>
-      <div className="overflow-hidden rounded-[36px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] p-6 shadow-[0_28px_80px_rgba(15,23,42,0.08)] sm:p-7">
+      <div className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] p-4 shadow-[0_28px_80px_rgba(15,23,42,0.08)] sm:rounded-[36px] sm:p-7">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="max-w-3xl">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
@@ -2881,13 +2881,13 @@ export default function EuropaceCustomerOffersCard({
               type="button"
               onClick={() => void rereshOffers()}
               disabled={refreshingOffers || hasRunningJob}
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f172a,#1e293b)] px-5 text-sm font-semibold text-white shadow-[0_16px_35px_rgba(15,23,42,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f172a,#1e293b)] px-5 text-sm font-semibold text-white shadow-[0_16px_35px_rgba(15,23,42,0.18)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               {refreshButtonLabel}
             </button>
           ) : null}
           {isPublicOnlinekredit ? (
-            <div className="max-w-xs text-xs leading-relaxed text-slate-500 sm:text-right">
+              <div className="max-w-full text-xs leading-relaxed text-slate-500 sm:max-w-xs sm:text-right">
               {shouldHidePublicLiveOfferSections
                 ? "Weitere Angebotsvarianten werden in dieser Ansicht bewusst gesperrt, weil bereits ein Angebot final bestätigt wurde."
                 : "Prüft Angebote, Freigaben und aktuelle Bankrückmeldungen für diesen Onlinekredit erneut."}
@@ -2898,7 +2898,7 @@ export default function EuropaceCustomerOffersCard({
               type="button"
               onClick={() => void pollJob(true)}
               disabled={polling}
-              className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               {polling ? "Prüfe Status…" : "Antragsstatus prüfen"}
             </button>
@@ -3121,7 +3121,7 @@ export default function EuropaceCustomerOffersCard({
                           diagnostics.editableReasons.map((item) => item.text)
                         )
                       }
-                      className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm"
+                      className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm sm:w-auto"
                     >
                       Offene Punkte direkt ergänzen
                     </button>
@@ -3198,7 +3198,7 @@ export default function EuropaceCustomerOffersCard({
             <button
               type="button"
               onClick={() => reopenAccountCheck()}
-              className="inline-flex h-11 items-center justify-center rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-950 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-11 w-full items-center justify-center rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-950 shadow-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               Kontocheck erneut starten
             </button>
@@ -3651,7 +3651,7 @@ export default function EuropaceCustomerOffersCard({
                 type="button"
                 onClick={() => closeQuickEdit()}
                 disabled={editorSaving}
-                className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-11 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 Abbrechen
               </button>
@@ -3659,7 +3659,7 @@ export default function EuropaceCustomerOffersCard({
                 type="button"
                 onClick={() => void saveQuickEdit()}
                 disabled={editorLoading || editorSaving}
-                className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 {editorSaving ? "Speichere und berechne neu..." : "Speichern und Angebote aktualisieren"}
               </button>

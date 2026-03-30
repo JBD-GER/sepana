@@ -168,7 +168,7 @@ export default async function OnlinekreditOffersPage({
 
   if (!caseId || !caseRef || !accessToken) {
     return (
-      <div className="rounded-[32px] border border-amber-200 bg-white p-6 shadow-sm">
+      <div className="rounded-[24px] border border-amber-200 bg-white p-4 shadow-sm sm:rounded-[32px] sm:p-6">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Onlinekredit</div>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Link ungültig</h1>
         <p className="mt-2 text-sm text-slate-600">
@@ -177,7 +177,7 @@ export default async function OnlinekreditOffersPage({
         <div className="mt-4">
           <Link
             href="/onlinekredit"
-            className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm"
+            className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm sm:w-auto"
           >
             Zum Antrag
           </Link>
@@ -196,7 +196,7 @@ export default async function OnlinekreditOffersPage({
 
   if (!access.ok) {
     return (
-      <div className="rounded-[32px] border border-amber-200 bg-white p-6 shadow-sm">
+      <div className="rounded-[24px] border border-amber-200 bg-white p-4 shadow-sm sm:rounded-[32px] sm:p-6">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Onlinekredit</div>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Link ungültig oder abgelaufen</h1>
         <p className="mt-2 text-sm text-slate-600">
@@ -205,7 +205,7 @@ export default async function OnlinekreditOffersPage({
         <div className="mt-4">
           <Link
             href="/onlinekredit"
-            className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm"
+            className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm sm:w-auto"
           >
             Neu starten
           </Link>
@@ -306,7 +306,7 @@ export default async function OnlinekreditOffersPage({
     <div className="relative space-y-8">
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_32%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.16),transparent_30%),radial-gradient(circle_at_center,rgba(251,191,36,0.12),transparent_38%)] blur-3xl" />
 
-      <section className="relative overflow-hidden rounded-[40px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_26%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] p-6 shadow-[0_28px_80px_rgba(15,23,42,0.10)] sm:p-8">
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_26%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] p-4 shadow-[0_28px_80px_rgba(15,23,42,0.10)] sm:rounded-[40px] sm:p-8">
         <div className="absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(15,23,42,0.18),transparent)]" />
         <div className="relative grid gap-6 xl:grid-cols-[1.35fr_0.9fr]">
           <div>
@@ -355,11 +355,11 @@ export default async function OnlinekreditOffersPage({
                   <Link
                     href={formHref}
                     prefetch={false}
-                    className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                    className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:w-auto"
                   >
                     Angaben anpassen
                   </Link>
-                  <div className="inline-flex items-center rounded-2xl border border-white/70 bg-white/75 px-4 py-3 text-sm text-slate-700 shadow-sm backdrop-blur">
+                  <div className="inline-flex w-full items-center rounded-2xl border border-white/70 bg-white/75 px-4 py-3 text-sm text-slate-700 shadow-sm backdrop-blur sm:w-auto">
                     Jede neue Berechnung holt die aktuelle Banklage live in diese Ansicht.
                   </div>
                 </>
@@ -368,7 +368,7 @@ export default async function OnlinekreditOffersPage({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-            <div className="rounded-[28px] border border-white/80 bg-white/85 p-5 shadow-sm backdrop-blur">
+            <div className="rounded-[24px] border border-white/80 bg-white/85 p-4 shadow-sm backdrop-blur sm:rounded-[28px] sm:p-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                 {hasFinalPositiveApplication ? "Sichtbare Auswahl" : "Aktive Angebote"}
               </div>
@@ -381,7 +381,7 @@ export default async function OnlinekreditOffersPage({
                   : "Freigegebene oder aktuell relevante Varianten in dieser Runde."}
               </div>
             </div>
-            <div className="rounded-[28px] border border-emerald-200/80 bg-[linear-gradient(180deg,rgba(236,253,245,0.96),rgba(255,255,255,0.94))] p-5 shadow-sm">
+            <div className="rounded-[24px] border border-emerald-200/80 bg-[linear-gradient(180deg,rgba(236,253,245,0.96),rgba(255,255,255,0.94))] p-4 shadow-sm sm:rounded-[28px] sm:p-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
                 {hasFinalPositiveApplication ? "Bankstatus" : "Direkt digital"}
               </div>
@@ -394,7 +394,7 @@ export default async function OnlinekreditOffersPage({
                   : "Angebote, die ohne Medienbruch bis in den Online-Abschluss laufen können."}
               </div>
             </div>
-            <div className="rounded-[28px] border border-cyan-200/80 bg-[linear-gradient(180deg,rgba(236,254,255,0.96),rgba(255,255,255,0.94))] p-5 shadow-sm">
+            <div className="rounded-[24px] border border-cyan-200/80 bg-[linear-gradient(180deg,rgba(236,254,255,0.96),rgba(255,255,255,0.94))] p-4 shadow-sm sm:rounded-[28px] sm:p-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-700">
                 {hasFinalPositiveApplication ? "Antrag" : "Bereits fixiert"}
               </div>
