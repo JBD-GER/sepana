@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/erfolgreich" },
 }
 
-type SourceType = "baufi" | "privatkredit" | null
+type SourceType = "baufi" | "privatkredit" | "onlinekredit" | null
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ")
@@ -34,18 +34,21 @@ function parseSource(value: string | string[] | undefined): SourceType {
     return "baufi"
   }
   if (
+    normalized === "onlinekredit" ||
+    normalized.startsWith("onlinekredit") ||
     normalized === "privatkredit" ||
     normalized === "konsum" ||
     normalized.startsWith("privatkredit") ||
     normalized.includes("scheidung-kredit-privat")
   ) {
-    return "privatkredit"
+    return normalized === "onlinekredit" || normalized.startsWith("onlinekredit") ? "onlinekredit" : "privatkredit"
   }
   return null
 }
 
 function sourceBackLink(source: SourceType) {
   if (source === "baufi") return { href: "/baufinanzierung", label: "Zur Baufinanzierung" }
+  if (source === "onlinekredit") return { href: "/onlinekredit", label: "Zum Onlinekredit" }
   if (source === "privatkredit") return { href: "/privatkredit", label: "Zum Privatkredit" }
   return null
 }

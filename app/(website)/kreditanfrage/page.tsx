@@ -6,7 +6,7 @@ import { getPublishedWebsiteReviewSummarySet } from "@/lib/websiteReviews"
 export const metadata: Metadata = {
   title: "Kreditanfrage | SEPANA",
   description:
-    "Einfacher Funnel für Baufinanzierung und Privatkredit mit Produktauswahl am Anfang.",
+    "Allgemeine Kreditanfrage mit Produktauswahl fuer verschiedene Finanzierungsanliegen.",
   alternates: { canonical: "/kreditanfrage" },
 }
 
@@ -30,7 +30,7 @@ export default async function KreditanfragePage() {
         variant="kreditanfrage"
         eyebrow="Kreditanfrage"
         heading="Kreditanfrage"
-        description="Starten Sie mit der Auswahl: Baufinanzierung oder Privatkredit."
+        description="Allgemeiner Einstieg mit Produktauswahl fuer unterschiedliche Finanzierungsanliegen."
         heroImageSrc="/familie_kueche.jpg"
         heroImageAlt="Familie in der Küche"
       />

@@ -68,7 +68,17 @@ function isPhone(value: string) {
   return digits.length >= 6
 }
 
-export default function PrivatkreditRateCalculator() {
+type PrivatkreditRateCalculatorProps = {
+  successSource?: string
+  pagePath?: string
+  continuePathBase?: string | null
+}
+
+export default function PrivatkreditRateCalculator({
+  successSource = "privatkredit",
+  pagePath = "/privatkredit/anfrage",
+  continuePathBase = null,
+}: PrivatkreditRateCalculatorProps = {}) {
   const router = useRouter()
   const [amount, setAmount] = useState(DEFAULT_AMOUNT)
   const [termMonths, setTermMonths] = useState(DEFAULT_TERM)
@@ -175,19 +185,44 @@ export default function PrivatkreditRateCalculator() {
           loanAmount: amount,
           purpose: "freie_verwendung",
           message: summary,
+          pagePath,
         }),
       })
 
       const json = (await response.json().catch(() => null)) as
-        | { ok?: boolean; error?: string; leadId?: string | number; externalLeadId?: string | number; existingAccount?: boolean }
+        | {
+            ok?: boolean
+            error?: string
+            leadId?: string | number
+            externalLeadId?: string | number
+            existingAccount?: boolean
+            linkedCaseId?: string
+            linkedCaseRef?: string
+            publicAccessToken?: string
+          }
         | null
       if (!response.ok || !json?.ok) {
         setRequestError(json?.error || "Anfrage konnte nicht gesendet werden.")
         return
       }
 
+      const linkedCaseId = String(json?.linkedCaseId ?? "").trim()
+      const linkedCaseRef = String(json?.linkedCaseRef ?? "").trim()
+      const publicAccessToken = String(json?.publicAccessToken ?? "").trim()
+
+      if (continuePathBase && linkedCaseId && linkedCaseRef && publicAccessToken) {
+        const params = new URLSearchParams({
+          caseId: linkedCaseId,
+          caseRef: linkedCaseRef,
+          access: publicAccessToken,
+        })
+        if (json?.existingAccount) params.set("existing", "1")
+        router.push(`${continuePathBase}?${params.toString()}`)
+        return
+      }
+
       const params = new URLSearchParams({
-        source: "privatkredit",
+        source: successSource,
         conversion: GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO,
       })
       if (json?.leadId) params.set("leadId", String(json.leadId))

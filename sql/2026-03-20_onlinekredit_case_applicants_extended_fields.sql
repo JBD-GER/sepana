@@ -1,0 +1,15 @@
+alter table if exists public.case_applicants
+  add column if not exists salutation text,
+  add column if not exists phone_business text,
+  add column if not exists birth_name text,
+  add column if not exists birth_country text,
+  add column if not exists tax_id text,
+  add column if not exists address_house_no text,
+  add column if not exists employment_job_title text,
+  add column if not exists employment_since date,
+  add column if not exists employer_industry text,
+  add column if not exists employer_address_street text,
+  add column if not exists employer_address_house_no text,
+  add column if not exists employer_address_zip text,
+  add column if not exists employer_address_city text,
+  add column if not exists employer_address_country text;

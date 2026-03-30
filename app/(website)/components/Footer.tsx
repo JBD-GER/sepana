@@ -10,7 +10,7 @@ export default function Footer() {
           <div className="text-sm font-semibold tracking-[0.08em] text-white/95">SEPANA</div>
           <p className="max-w-md text-sm leading-relaxed text-slate-200/90">{BRAND_SLOGAN}</p>
           <p className="max-w-md text-sm leading-relaxed text-slate-300/85">
-            Baufinanzierung und Privatkredit mit klarem Einstieg über die Kreditanfrage - persönlich begleitet und modern umgesetzt.
+            Baufinanzierung und Privatkredit mit klarem Einstieg ueber die allgemeine Kreditanfrage oder die eigene Onlinekredit-Strecke.
           </p>
         </div>
 
@@ -22,6 +22,9 @@ export default function Footer() {
             </Link>
             <Link className="text-slate-300/90 transition hover:text-white" href="/kreditanfrage">
               Kreditanfrage
+            </Link>
+            <Link className="text-slate-300/90 transition hover:text-white" href="/onlinekredit">
+              Onlinekredit
             </Link>
             <Link className="text-slate-300/90 transition hover:text-white" href="/bewertungen">
               Bewertungen
@@ -40,6 +43,9 @@ export default function Footer() {
             </Link>
             <Link className="text-slate-300/90 transition hover:text-white" href="/privatkredit">
               Privatkredit
+            </Link>
+            <Link className="text-slate-300/90 transition hover:text-white" href="/onlinekredit">
+              Onlinekredit
             </Link>
             <Link className="text-slate-300/90 transition hover:text-white" href="/baufinanzierung/auswahl">
               Vergleichsportal Baufinanzierung

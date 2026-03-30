@@ -88,6 +88,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => null)
     const email = String(body?.email ?? "").trim().toLowerCase()
+    const forcePasswordSetup = body?.forcePasswordSetup === true
 
     if (!isEmail(email)) {
       return NextResponse.json({ ok: false, error: "invalid_email" }, { status: 400 })
@@ -100,7 +101,7 @@ export async function POST(req: Request) {
     }
 
     const profile = await getProfile(admin, userId)
-    if (profile?.password_set_at) {
+    if (profile?.password_set_at && !forcePasswordSetup) {
       return NextResponse.json({ ok: true, sent: false, reason: "already_active" })
     }
 
@@ -124,9 +125,10 @@ export async function POST(req: Request) {
       )
     }
 
-    return NextResponse.json({ ok: true, sent: true })
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
+    return NextResponse.json({ ok: true, sent: true, forced: forcePasswordSetup })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Serverfehler"
+    return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
 

@@ -46,35 +46,54 @@ export async function GET(req: Request) {
   if (role !== "customer") return NextResponse.json({ ok: false, error: "not_allowed" }, { status: 403 })
 
   const url = new URL(req.url)
+  const requestedCaseId = String(url.searchParams.get("caseId") ?? "").trim()
   const caseTypeFilter = normalizeCaseType(url.searchParams.get("caseType"))
   const admin = supabaseAdmin()
-  let openQuery = admin
-    .from("cases")
-    .select("id,case_ref,status,case_type,created_at")
-    .eq("customer_id", user.id)
-    .neq("status", "closed")
-    .order("created_at", { ascending: false })
-    .limit(1)
-  if (caseTypeFilter) openQuery = openQuery.eq("case_type", caseTypeFilter)
-  const { data: openCase, error: openError } = await openQuery.maybeSingle()
-  if (openError) {
-    return NextResponse.json({ ok: false, error: "case_lookup_failed" }, { status: 500 })
-  }
+  let targetCase: { id: string; case_ref: string | null; status: string | null; case_type: string | null; created_at?: string | null } | null =
+    null
 
-  let targetCase = openCase
-  if (!targetCase) {
-    let latestQuery = admin
+  if (requestedCaseId) {
+    let requestedQuery = admin
       .from("cases")
       .select("id,case_ref,status,case_type,created_at")
       .eq("customer_id", user.id)
-      .order("created_at", { ascending: false })
+      .eq("id", requestedCaseId)
       .limit(1)
-    if (caseTypeFilter) latestQuery = latestQuery.eq("case_type", caseTypeFilter)
-    const { data: latestCase, error: latestError } = await latestQuery.maybeSingle()
-    if (latestError) {
+    if (caseTypeFilter) requestedQuery = requestedQuery.eq("case_type", caseTypeFilter)
+    const { data: requestedCase, error: requestedError } = await requestedQuery.maybeSingle()
+    if (requestedError) {
       return NextResponse.json({ ok: false, error: "case_lookup_failed" }, { status: 500 })
     }
-    targetCase = latestCase ?? null
+    targetCase = requestedCase ?? null
+  } else {
+    let openQuery = admin
+      .from("cases")
+      .select("id,case_ref,status,case_type,created_at")
+      .eq("customer_id", user.id)
+      .neq("status", "closed")
+      .order("created_at", { ascending: false })
+      .limit(1)
+    if (caseTypeFilter) openQuery = openQuery.eq("case_type", caseTypeFilter)
+    const { data: openCase, error: openError } = await openQuery.maybeSingle()
+    if (openError) {
+      return NextResponse.json({ ok: false, error: "case_lookup_failed" }, { status: 500 })
+    }
+
+    targetCase = openCase ?? null
+    if (!targetCase) {
+      let latestQuery = admin
+        .from("cases")
+        .select("id,case_ref,status,case_type,created_at")
+        .eq("customer_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+      if (caseTypeFilter) latestQuery = latestQuery.eq("case_type", caseTypeFilter)
+      const { data: latestCase, error: latestError } = await latestQuery.maybeSingle()
+      if (latestError) {
+        return NextResponse.json({ ok: false, error: "case_lookup_failed" }, { status: 500 })
+      }
+      targetCase = latestCase ?? null
+    }
   }
 
   if (!targetCase) {
@@ -83,7 +102,7 @@ export async function GET(req: Request) {
 
   const caseId = targetCase.id
 
-  const [{ data: primary }, { data: baufi }, { data: additional }, { data: children }] = await Promise.all([
+  const [{ data: primary }, { data: coApplicants }, { data: baufi }, { data: additional }, { data: children }] = await Promise.all([
     admin
       .from("case_applicants")
       .select(
@@ -92,6 +111,12 @@ export async function GET(req: Request) {
       .eq("case_id", caseId)
       .eq("role", "primary")
       .maybeSingle(),
+    admin
+      .from("case_applicants")
+      .select("*")
+      .eq("case_id", caseId)
+      .eq("role", "co")
+      .order("created_at", { ascending: true }),
     admin
       .from("case_baufi_details")
       .select("purpose,property_type,purchase_price,loan_amount_requested,property_address_kind,property_street,property_house_no,property_zip,property_city,property_plot_size")
@@ -114,6 +139,7 @@ export async function GET(req: Request) {
     property_city?: string | null
   }
   const additionalRow = (additional ?? {}) as Record<string, any>
+  const coRows = Array.isArray(coApplicants) ? coApplicants : []
   const childrenRows = Array.isArray(children) ? children : []
 
   const childrenUi = childrenRows.map((c: any) => ({
@@ -168,8 +194,6 @@ export async function GET(req: Request) {
 
     // Haushalt
     { tab: "household", missing: !hasValue(primaryRow.net_income_monthly) },
-    { tab: "household", missing: !hasValue(primaryRow.expenses_monthly) },
-    { tab: "household", missing: !hasValue(primaryRow.existing_loans_monthly) },
 
     // Details
     { tab: "details", missing: !hasValue(additionalUi.birth_place) },
@@ -221,6 +245,17 @@ export async function GET(req: Request) {
       checks.push({ tab: "details", missing: !hasValue(child.birth_date) })
     })
   }
+
+  coRows.forEach((applicant: any) => {
+    checks.push(
+      { tab: "contact", missing: !hasValue(applicant?.birth_date) },
+      { tab: "details", missing: !hasValue(applicant?.birth_place) },
+      { tab: "details", missing: !hasValue(applicant?.id_document_number) },
+      { tab: "details", missing: !hasValue(applicant?.id_issued_place) },
+      { tab: "details", missing: !hasValue(applicant?.id_issued_at) },
+      { tab: "details", missing: !hasValue(applicant?.id_expires_at) }
+    )
+  })
 
   const missing = checks.filter((check) => check.missing)
   const firstTab = findFirstMissingTab(missing)

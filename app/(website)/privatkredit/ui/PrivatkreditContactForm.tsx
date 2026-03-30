@@ -38,6 +38,7 @@ type PrivatkreditContactFormProps = {
   lockPurpose?: boolean
   successSource?: string
   pagePath?: string
+  continuePathBase?: string | null
 }
 
 function isEmail(v: string) {
@@ -60,6 +61,7 @@ export default function PrivatkreditContactForm({
   lockPurpose = false,
   successSource = "privatkredit",
   pagePath = "/privatkredit/anfrage",
+  continuePathBase = null,
 }: PrivatkreditContactFormProps) {
   const router = useRouter()
   const initialState = useMemo(() => createInitialState(initialPurpose), [initialPurpose])
@@ -123,6 +125,22 @@ export default function PrivatkreditContactForm({
         setError(String(json?.error || "Anfrage konnte nicht gesendet werden."))
         return
       }
+      const linkedCaseId = String(json?.linkedCaseId ?? "").trim()
+      const linkedCaseRef = String(json?.linkedCaseRef ?? "").trim()
+      const publicAccessToken = String(json?.publicAccessToken ?? "").trim()
+
+      if (continuePathBase && linkedCaseId && linkedCaseRef && publicAccessToken) {
+        setForm(initialState)
+        const params = new URLSearchParams({
+          caseId: linkedCaseId,
+          caseRef: linkedCaseRef,
+          access: publicAccessToken,
+        })
+        if (json?.existingAccount) params.set("existing", "1")
+        router.push(`${continuePathBase}?${params.toString()}`)
+        return
+      }
+
       setForm(initialState)
       const params = new URLSearchParams({
         source: successSource,
@@ -144,13 +162,15 @@ export default function PrivatkreditContactForm({
       <div className="pointer-events-none absolute -left-14 -bottom-16 h-44 w-44 rounded-full bg-cyan-200/30 blur-3xl" />
 
       <div className="relative">
-        <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
-          {eyebrow}
-        </div>
-        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">{title}</h2>
-        <p className="mt-2 max-w-3xl text-sm text-slate-600 sm:text-base">{description}</p>
+        {eyebrow ? (
+          <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+            {eyebrow}
+          </div>
+        ) : null}
+        {title ? <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">{title}</h2> : null}
+        {description ? <p className="mt-2 max-w-3xl text-sm text-slate-600 sm:text-base">{description}</p> : null}
 
-        <form onSubmit={submit} className="mt-6 grid gap-3 sm:grid-cols-2">
+        <form onSubmit={submit} className={`${eyebrow || title || description ? "mt-6" : ""} grid gap-3 sm:grid-cols-2`}>
         <label className="block">
           <div className="mb-1 text-xs font-medium text-slate-700">Vorname *</div>
           <input

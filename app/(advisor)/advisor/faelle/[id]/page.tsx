@@ -7,13 +7,18 @@ import OfferList from "@/components/case/OfferList"
 import OfferEditor from "@/components/case/OfferEditor"
 import CaseChat from "@/components/case/CaseChat"
 import DocumentPanel from "@/components/case/DocumentPanel"
+import EuropaceStatusCard from "@/components/case/EuropaceStatusCard"
 import SignaturePanel from "@/components/case/SignaturePanel"
 import LiveCasePanel from "@/components/live/LiveCasePanel"
 import ClearSignatureHash from "@/components/case/ClearSignatureHash"
 import RecommendedByCard from "@/components/case/RecommendedByCard"
 import ResendCustomerInviteButton from "@/components/case/ResendCustomerInviteButton"
+import { isImportedBankDocumentPath, type EuropaceFlowSummary } from "@/lib/europace/flow"
 import AdvisorCaseRefEditor from "./ui/AdvisorCaseRefEditor"
 import AdvisorPrivateNoteEditor from "./ui/AdvisorPrivateNoteEditor"
+import EuropaceDocumentsCard from "./ui/EuropaceDocumentsCard"
+import EuropaceOffersCard from "./ui/EuropaceOffersCard"
+import EuropaceSyncCard from "./ui/EuropaceSyncCard"
 import AdvisorCaseStatusSelect from "../ui/AdvisorCaseStatusSelect"
 
 type Resp = {
@@ -98,6 +103,57 @@ type Resp = {
     company_name: string
     logo_path: string | null
   } | null
+  europace?: {
+    vorgangsnummer: string | null
+    annahme_job_id: string | null
+    antragsnummer: string | null
+    produktanbieterantragsnummer: string | null
+    sync_status: string | null
+    last_sync_at: string | null
+    letzte_aenderung_am: string | null
+    letztes_ereignis_am: string | null
+    last_error: string | null
+  } | null
+  europace_applications?: Array<{
+    antragsnummer: string | null
+    produktanbieterantragsnummer: string | null
+    antragstellerstatus: string | null
+    produktanbieterstatus: string | null
+    provisionsforderungsstatus: string | null
+  }>
+  europace_flow?: EuropaceFlowSummary | null
+  europace_offers?: Array<{
+    angebot_id: string
+    angebot_snapshot?: any
+    machbarkeit_status: string | null
+    vollstaendigkeit_status: string | null
+    calculated_at: string | null
+    accepted_at: string | null
+    superseded_at: string | null
+    created_at: string
+  }>
+  europace_documents?: Array<{
+    local_document_id: string | null
+    europace_document_id: string | null
+    category: string | null
+    assignment_id: string | null
+    release_status: string | null
+    upload_status: string | null
+    last_sync_at: string | null
+    last_error: string | null
+    created_at: string | null
+  }>
+  europace_upload_targets?: Array<{
+    key: string
+    title: string
+    category_id: string
+    category_name: string | null
+    category_description: string | null
+    assignment_id: string | null
+    assignment_type: string | null
+    assignment_name: string | null
+    assignment_role_name: string | null
+  }>
   viewer_role: string | null
 }
 
@@ -198,6 +254,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   const advisorAvatar = advisor?.photo_path
     ? `/api/baufi/logo?bucket=advisor_avatars&width=256&height=256&quality=100&resize=cover&path=${encodeURIComponent(advisor.photo_path)}`
     : null
+  const bankCaseDocuments = (data.documents ?? []).filter((document) => isImportedBankDocumentPath(document.file_path))
 
   return (
     <div className="space-y-6">
@@ -245,6 +302,33 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
       </div>
 
       <AdvisorPrivateNoteEditor caseId={c.id} initialValue={c.advisor_private_note ?? null} />
+
+      {isKonsum ? <EuropaceSyncCard caseId={c.id} initialMeta={data.europace ?? null} /> : null}
+      {isKonsum ? (
+        <EuropaceStatusCard
+          caseId={c.id}
+          endpoint="/api/advisor/privatkredit/europace/status"
+          initialMeta={data.europace ?? null}
+          initialApplications={data.europace_applications ?? []}
+          initialFlow={data.europace_flow ?? null}
+        />
+      ) : null}
+      {isKonsum ? (
+        <EuropaceOffersCard
+          caseId={c.id}
+          initialOffers={data.europace_offers ?? []}
+          initialMeta={data.europace ?? null}
+          initialApplications={data.europace_applications ?? []}
+        />
+      ) : null}
+      {isKonsum ? (
+        <EuropaceDocumentsCard
+          caseId={c.id}
+          initialVorgangsnummer={data.europace?.vorgangsnummer ?? null}
+          initialAntragsnummer={data.europace?.antragsnummer ?? null}
+          localDocumentCount={(data.europace_documents ?? []).length}
+        />
+      ) : null}
 
       {advisor ? (
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -352,22 +436,40 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
         </div>
       ) : null}
 
-      <OfferEditor caseId={c.id} caseType={caseType} />
-      <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
-        <div className="text-sm font-medium text-slate-900">Finale Angebote</div>
-        <p className="mt-1 text-xs text-slate-600">Diese Angebote werden später vom Berater erstellt und freigegeben.</p>
-        <OfferList offers={data.offers ?? []} canManage caseType={caseType} />
-      </div>
+      {!isKonsum ? <OfferEditor caseId={c.id} caseType={caseType} /> : null}
+      {!isKonsum ? (
+        <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+          <div className="text-sm font-medium text-slate-900">Finale Angebote</div>
+          <p className="mt-1 text-xs text-slate-600">Diese Angebote werden später vom Berater erstellt und freigegeben.</p>
+          <OfferList offers={data.offers ?? []} canManage caseType={caseType} />
+        </div>
+      ) : null}
 
       <DocumentPanel
         caseId={c.id}
         requests={data.document_requests ?? []}
         documents={data.documents ?? []}
+        europaceDocuments={data.europace_documents ?? []}
+        europaceUploadTargets={data.europace_upload_targets ?? []}
         caseType={caseType}
         canCreateRequest={data.viewer_role === "advisor" || data.viewer_role === "admin"}
         caseCustomerId={c.customer_id ?? null}
         caseAdvisorId={c.assigned_advisor_id ?? null}
       />
+
+      {isKonsum && bankCaseDocuments.length > 0 ? (
+        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Signatur-Übergabe</div>
+          <h2 className="mt-2 text-lg font-semibold text-slate-900">
+            Bankvorschau liegt vor, jetzt nur noch den Kreditvertrag signierbar machen
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-amber-950">
+            Kreditvertrag und Datenschutzhinweise der Bank liegen bereits im Dokumentenbereich. Übernehmen Sie jetzt
+            nur noch den Kreditvertrag im Bereich Unterschriften als signierbare Version, setzen Sie die Felder für
+            Kunde und Berater und schicken Sie das Dokument danach an den Kunden.
+          </p>
+        </div>
+      ) : null}
 
       <div id="unterschriften" className="scroll-mt-24">
         <SignaturePanel caseId={c.id} canEdit />

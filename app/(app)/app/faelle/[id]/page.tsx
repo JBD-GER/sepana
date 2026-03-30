@@ -4,6 +4,9 @@ import { requireCustomer } from "@/lib/app/requireCustomer"
 import { authFetch } from "@/lib/app/authFetch"
 import CaseChat from "@/components/case/CaseChat"
 import DocumentPanel from "@/components/case/DocumentPanel"
+import EuropaceCustomerOffersCard from "@/components/case/EuropaceCustomerOffersCard"
+import EuropaceStatusCard from "@/components/case/EuropaceStatusCard"
+import PrivatkreditJourneyPanel from "@/components/case/PrivatkreditJourneyPanel"
 import SignaturePanel from "@/components/case/SignaturePanel"
 import { translateCaseStatus, translateOfferStatus } from "@/lib/caseStatus"
 import OfferList from "@/components/case/OfferList"
@@ -12,6 +15,11 @@ import CaseAppointmentPanel from "@/components/appointments/CaseAppointmentPanel
 import AdvisorCard from "@/components/case/AdvisorCard"
 import ClearSignatureHash from "@/components/case/ClearSignatureHash"
 import RecommendedByCard from "@/components/case/RecommendedByCard"
+import { derivePrivatkreditJourney } from "@/lib/europace/customerJourney"
+import type { EuropaceFlowSummary } from "@/lib/europace/flow"
+import { isImportedBankDocumentPath } from "@/lib/europace/flow"
+import { getOnlinekreditAccountCheckRestrictionReason } from "@/lib/onlinekredit/accountCheckPolicy"
+import { getOnlinekreditDocumentPin } from "@/lib/onlinekredit/documentPin"
 
 type Resp = {
   case: {
@@ -92,7 +100,81 @@ type Resp = {
     company_name: string
     logo_path: string | null
   } | null
+  europace?: {
+    vorgangsnummer?: string | null
+    annahme_job_id: string | null
+    antragsnummer: string | null
+    produktanbieterantragsnummer: string | null
+    selected_angebot_id?: string | null
+    sync_status: string | null
+    last_sync_at: string | null
+    letzte_aenderung_am: string | null
+    letztes_ereignis_am: string | null
+    last_error: string | null
+  } | null
+  europace_applications?: Array<{
+    antragsnummer: string | null
+    produktanbieterantragsnummer: string | null
+    antragstellerstatus: string | null
+    produktanbieterstatus: string | null
+    provisionsforderungsstatus: string | null
+  }>
+  europace_flow?: EuropaceFlowSummary | null
+  europace_offers?: Array<{
+    angebot_id: string
+    angebot_snapshot?: any
+    machbarkeit_status: string | null
+    vollstaendigkeit_status: string | null
+    calculated_at: string | null
+    accepted_at: string | null
+    superseded_at: string | null
+    created_at: string
+  }>
+  europace_documents?: Array<{
+    local_document_id: string | null
+    europace_document_id: string | null
+    category: string | null
+    assignment_id: string | null
+    release_status: string | null
+    upload_status: string | null
+    last_sync_at: string | null
+    last_error: string | null
+    created_at: string | null
+  }>
+  europace_upload_targets?: Array<{
+    key: string
+    title: string
+    category_id: string
+    category_name: string | null
+    category_description: string | null
+    assignment_id: string | null
+    assignment_type: string | null
+    assignment_name: string | null
+    assignment_role_name: string | null
+  }>
   viewer_role: string | null
+}
+
+type MissingSummaryResp = {
+  ok: true
+  caseId: string | null
+  caseRef: string | null
+  caseType?: string | null
+  missingCount: number
+  firstTab: "contact" | "household" | "finance" | "details" | null
+}
+
+type SignatureResp = {
+  items: Array<{
+    id: string
+    title: string | null
+    requires_wet_signature: boolean | null
+    advisor_signed_at: string | null
+    customer_signed_at: string | null
+    status: string | null
+    fields?: Array<{ owner?: "advisor" | "customer" | string | null }> | null
+    documents?: Array<{ document_kind?: "signature_original" | "signature_signed" | string | null }> | null
+  }>
 }
 
 const LIVE_CASE_TAB_IDS = ["contact", "household", "finance", "details"] as const
@@ -149,6 +231,43 @@ function parseBoolParam(value: string | string[] | undefined) {
   return ["1", "true", "yes", "y", "on"].includes(normalized)
 }
 
+function getJourneyStepBadgeLabel(stepNumber: number, state: "done" | "current" | "upcoming") {
+  if (state === "done") return `Schritt ${stepNumber} · Erledigt`
+  if (state === "current") return `Schritt ${stepNumber} · Aktuell`
+  return `Schritt ${stepNumber} · Danach`
+}
+
+function getJourneyStepBadgeClass(state: "done" | "current" | "upcoming") {
+  if (state === "done") return "border-emerald-200 bg-emerald-50 text-emerald-800"
+  if (state === "current") return "border-slate-900 bg-slate-900 text-white"
+  return "border-slate-200 bg-slate-50 text-slate-600"
+}
+
+function caseDocumentDownloadHref(path: string, fileName?: string | null) {
+  const fileNameParam = fileName ? `&filename=${encodeURIComponent(fileName)}` : ""
+  return `/api/baufi/logo?bucket=case_documents&path=${encodeURIComponent(path)}&raw=1&download=1${fileNameParam}`
+}
+
+function normalizeBankDocumentTitle(value: string | null | undefined) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\.(pdf|jpg|jpeg|png|tif|tiff)$/i, "")
+    .replace(/\s+/g, " ")
+}
+
+function bankDocumentKindLabel(fileName: string | null | undefined) {
+  const normalized = normalizeBankDocumentTitle(fileName)
+  if (!normalized) return "Bankdokument"
+  if (normalized.includes("kreditvertrag") || normalized.includes("darlehensvertrag") || normalized.includes("vertrag")) {
+    return "Kreditvertrag"
+  }
+  if (normalized.includes("datenschutz") || normalized.includes("einwilligung")) {
+    return "Datenschutz"
+  }
+  return "Bankdokument"
+}
+
 // OK Status-Übersetzung (Case)
 
 // OK Status-Übersetzung (Offer)
@@ -164,7 +283,12 @@ export default async function CaseDetailPage({
   const { id } = await params
   const resolvedSearchParams = searchParams ? await searchParams : undefined
 
-  const res = await authFetch(`/api/app/cases/get?id=${encodeURIComponent(id)}`).catch(() => null)
+  const [res, missingRes, signaturesRes] = await Promise.all([
+    authFetch(`/api/app/cases/get?id=${encodeURIComponent(id)}`).catch(() => null),
+    authFetch(`/api/app/cases/missing-summary?caseId=${encodeURIComponent(id)}&caseType=konsum`).catch(() => null),
+    authFetch(`/api/app/signatures?caseId=${encodeURIComponent(id)}`).catch(() => null),
+  ])
+
   const data: Resp | null = res && res.ok ? await res.json() : null
 
   if (!data) {
@@ -183,6 +307,12 @@ export default async function CaseDetailPage({
   const c = data.case
   const caseType = String(c.case_type ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
   const isKonsum = caseType === "konsum"
+  const accountCheckRestrictedReason = isKonsum
+    ? getOnlinekreditAccountCheckRestrictionReason({
+        purpose: data.baufi_details?.purpose,
+        employmentTypes: (data.applicants ?? []).map((row) => row?.employment_type),
+      })
+    : null
   const previewRow = data.offer_previews?.[0] ?? null
   let previewPayload: any = previewRow?.payload ?? null
   if (typeof previewPayload === "string") {
@@ -209,6 +339,32 @@ export default async function CaseDetailPage({
     : null
   const initialTab = parseTabParam(resolvedSearchParams?.tab)
   const forceExpanded = parseBoolParam(resolvedSearchParams?.open)
+  const missingSummary: MissingSummaryResp | null = missingRes && missingRes.ok ? await missingRes.json() : null
+  const signatureData: SignatureResp | null = signaturesRes && signaturesRes.ok ? await signaturesRes.json() : null
+  const signatureItems = signatureData?.items ?? []
+  const bankCaseDocuments = (data.documents ?? []).filter((document) => isImportedBankDocumentPath(document.file_path))
+  const documentPin = getOnlinekreditDocumentPin(data.europace?.vorgangsnummer)
+  const privatkreditJourney = isKonsum
+    ? derivePrivatkreditJourney({
+        caseId: c.id,
+        meta: data.europace ?? null,
+        missingCount: missingSummary?.missingCount ?? 0,
+        firstMissingTab: missingSummary?.firstTab ?? null,
+        offers: data.europace_offers ?? [],
+        documents: data.europace_documents ?? [],
+        uploadTargets: data.europace_upload_targets ?? [],
+        signatureRequests: signatureItems,
+        flowSummary: data.europace_flow ?? null,
+      })
+    : null
+  const customerOfferLocked =
+    isKonsum &&
+    Boolean(
+      privatkreditJourney?.hasAcceptedOffer || privatkreditJourney?.hasRunningApplicationJob || privatkreditJourney?.hasApplication
+    )
+  const privatkreditStepStateById = new Map(privatkreditJourney?.steps.map((step) => [step.id, step.state]) ?? [])
+  const getPrivatkreditStepState = (id: "data" | "offers" | "documents" | "signature" | "status") =>
+    privatkreditStepStateById.get(id) ?? "upcoming"
 
   return (
     <div className="w-full overflow-x-clip space-y-6">
@@ -246,12 +402,49 @@ export default async function CaseDetailPage({
 
       <RecommendedByCard recommendedBy={data.recommended_by} />
 
+      {isKonsum && privatkreditJourney ? (
+        <PrivatkreditJourneyPanel caseId={c.id} summary={privatkreditJourney} meta={data.europace ?? null} />
+      ) : null}
+
+      {isKonsum ? (
+        <section id="privatkredit-angaben" className="scroll-mt-24 space-y-3">
+          <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div
+                  className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${getJourneyStepBadgeClass(getPrivatkreditStepState("data"))}`}
+                >
+                  {getJourneyStepBadgeLabel(1, getPrivatkreditStepState("data"))}
+                </div>
+                <h2 className="mt-1 text-lg font-semibold text-slate-900">Angaben vervollstaendigen</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Erfasse hier alle Daten fuer deinen Privatkredit. Mit dem Speichern werden die Angaben direkt mit
+                  deiner Angebots- und Antragsstrecke uebernommen.
+                </p>
+              </div>
+              {privatkreditJourney?.missingCount ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                  {privatkreditJourney.missingCount === 1
+                    ? "1 Pflichtfeld noch offen"
+                    : `${privatkreditJourney.missingCount} Pflichtfelder noch offen`}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+                  Angaben fuer die Angebotsberechnung komplett
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       <LiveCasePanel
         caseId={c.id}
         caseRef={c.case_ref ?? null}
-        defaultCollapsed
+        defaultCollapsed={!isKonsum}
         initialTab={initialTab}
         forceExpanded={forceExpanded}
+        hideKonsumExpenseFields={customerOfferLocked}
       />
       <CaseAppointmentPanel caseId={c.id} />
 
@@ -333,33 +526,296 @@ export default async function CaseDetailPage({
         </div>
       ) : null}
 
-      <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
-        <div className="text-sm font-medium text-slate-900">Finale Angebote</div>
-        <p className="mt-1 text-xs text-slate-600">
-          Diese Angebote werden vom Berater freigegeben. Wichtig: Es ist nur eine Angebotsannahme möglich.
-        </p>
-        <OfferList
-          offers={data.offers ?? []}
-          canManage={data.viewer_role === "advisor" || data.viewer_role === "admin"}
-          canRespond={data.viewer_role === "customer"}
-          filterStatuses={["sent", "accepted", "rejected"]}
+      {isKonsum ? (
+        <section id="privatkredit-angebote" className="scroll-mt-24 space-y-3">
+          <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div
+                  className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${getJourneyStepBadgeClass(getPrivatkreditStepState("offers"))}`}
+                >
+                  {getJourneyStepBadgeLabel(2, getPrivatkreditStepState("offers"))}
+                </div>
+                <h2 className="mt-1 text-lg font-semibold text-slate-900">
+                  {privatkreditJourney?.hasRunningApplicationJob
+                    ? "Ausgewähltes Angebot wird verarbeitet"
+                    : customerOfferLocked
+                      ? "Ausgewähltes Angebot"
+                      : "Live-Angebot wählen"}
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {privatkreditJourney?.hasRunningApplicationJob
+                    ? "Du hast bereits ein Angebot ausgewählt. Wir erstellen gerade deinen Antrag und zeigen dir hier nur noch dieses Angebot."
+                    : customerOfferLocked
+                      ? "Dein ausgewähltes Angebot bleibt hier sichtbar. Weitere Varianten blenden wir in deiner Kundensicht bewusst aus."
+                      : "Berechne hier deine aktuellen Live-Angebote und wähle anschließend das passende Angebot aus."}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                {customerOfferLocked ? (
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-emerald-800">
+                    {privatkreditJourney?.hasRunningApplicationJob
+                      ? "Antrag wird erstellt"
+                      : privatkreditJourney?.hasApplication
+                        ? "Weiter im Antrag"
+                        : "Angebot ausgewählt"}
+                  </span>
+                ) : (
+                  <>
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-700">
+                      Angebote: {privatkreditJourney?.offerCount ?? 0}
+                    </span>
+                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-emerald-800">
+                      Online abschließbar: {accountCheckRestrictedReason ? 0 : privatkreditJourney?.onlineOfferCount ?? 0}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          <EuropaceCustomerOffersCard
+            caseId={c.id}
+            initialOffers={data.europace_offers ?? []}
+            initialMeta={data.europace ?? null}
+            accountCheckRestrictedReason={accountCheckRestrictedReason}
+            contactPhone={advisor?.phone ?? null}
+          />
+        </section>
+      ) : (
+        <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+          <div className="text-sm font-medium text-slate-900">Finale Angebote</div>
+          <p className="mt-1 text-xs text-slate-600">
+            Diese Angebote werden vom Berater freigegeben. Wichtig: Es ist nur eine Angebotsannahme möglich.
+          </p>
+          <OfferList
+            offers={data.offers ?? []}
+            canManage={data.viewer_role === "advisor" || data.viewer_role === "admin"}
+            canRespond={data.viewer_role === "customer"}
+            filterStatuses={["sent", "accepted", "rejected"]}
+            caseType={caseType}
+          />
+        </div>
+      )}
+
+      {isKonsum ? (
+        <section id="privatkredit-unterlagen" className="scroll-mt-24 space-y-3">
+          <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div
+                  className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${getJourneyStepBadgeClass(getPrivatkreditStepState("documents"))}`}
+                >
+                  {getJourneyStepBadgeLabel(3, getPrivatkreditStepState("documents"))}
+                </div>
+                <h2 className="mt-1 text-lg font-semibold text-slate-900">
+                  {privatkreditJourney?.shouldHideUploads ? "Direkt bei der Bank fortsetzen" : "Unterlagen hochladen"}
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {privatkreditJourney?.shouldHideUploads
+                    ? privatkreditJourney.isCompleted
+                      ? "Dein Kontocheck-Direktabschluss ist erledigt. SEPANA zeigt hier bewusst keinen Upload mehr an."
+                      : "Für diesen Kontocheck-Direktabschluss gibt es hier bewusst keinen Upload. Die nächsten Schritte laufen direkt bei der Bank."
+                    : "Nach der Angebotsauswahl zeigen wir dir direkt, welche Unterlagen für den Antrag noch benötigt werden."}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
+                {privatkreditJourney?.shouldHideUploads
+                  ? privatkreditJourney.isCompleted
+                    ? "Abgeschlossen"
+                    : privatkreditJourney.bankContinuationReady
+                      ? "Bank-Fortsetzung bereit"
+                      : "Wird vorbereitet"
+                  : privatkreditJourney?.requiredDocumentCount
+                    ? `${privatkreditJourney.uploadedDocumentCount}/${privatkreditJourney.requiredDocumentCount} Upload-Ziele erledigt`
+                    : privatkreditJourney?.hasApplication
+                      ? "Noch keine konkreten Unterlagen"
+                      : "Wird nach Angebotsannahme sichtbar"}
+              </div>
+            </div>
+          </div>
+          {privatkreditJourney?.shouldHideUploads ? (
+            <div className="rounded-3xl border border-emerald-200/70 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_38%),linear-gradient(180deg,_rgba(255,255,255,1),_rgba(248,250,252,1))] p-6 shadow-sm">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Kontocheck-Direktabschluss</div>
+              <h3 className="mt-2 text-xl font-semibold text-slate-900">
+                {privatkreditJourney.isCompleted
+                  ? "Geschafft. Dein Antrag ist digital abgeschlossen."
+                  : privatkreditJourney.bankContinuationReady
+                    ? "Jetzt nur noch Online-Legitimation und digitale Signatur bei der Bank."
+                    : "Die Bank-Fortsetzung wird noch vorbereitet."}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                {privatkreditJourney.isCompleted
+                  ? "SEPANA hat den Kontocheck-Direktabschluss übernommen. Es gibt hier keinen Upload mehr. Die fertigen Bankdokumente liegen jetzt direkt im Fall."
+                  : privatkreditJourney.bankContinuationReady
+                    ? "Für dieses Angebot läuft alles weitere direkt bei der Bank. Bitte schließe dort die Online-Legitimation und digitale Signatur vollständig ab."
+                    : "Sobald die Bank die nächsten Schritte zurückmeldet, siehst du sie unten im Status. Ein Upload über SEPANA ist für diese Strecke nicht vorgesehen."}
+              </p>
+              {documentPin ? (
+                <div className="mt-5 rounded-2xl border border-cyan-200 bg-white px-4 py-4 shadow-sm">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-700">PIN für Bankunterlagen</div>
+                      <div className="mt-2 text-sm font-semibold text-slate-900">
+                        Falls die Bank beim Öffnen des Kreditvertrags nach einer PIN fragt, nutze bitte diesen Code.
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm font-semibold tracking-[0.22em] text-white">
+                      {documentPin}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              {bankCaseDocuments.length > 0 ? (
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  {bankCaseDocuments.map((document) => (
+                    <a
+                      key={document.id}
+                      href={caseDocumentDownloadHref(document.file_path, document.file_name)}
+                      className={`rounded-2xl border bg-white px-4 py-4 text-sm text-slate-900 shadow-sm transition ${
+                        bankDocumentKindLabel(document.file_name) === "Kreditvertrag"
+                          ? "border-slate-900/15 bg-[linear-gradient(135deg,rgba(15,23,42,0.04),rgba(255,255,255,0.98))] hover:border-slate-900/30"
+                          : "border-emerald-200 hover:border-emerald-300"
+                      }`}
+                    >
+                      <div
+                        className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${
+                          bankDocumentKindLabel(document.file_name) === "Kreditvertrag" ? "text-slate-700" : "text-emerald-700"
+                        }`}
+                      >
+                        {bankDocumentKindLabel(document.file_name)}
+                      </div>
+                      <div className="mt-2 font-semibold">{document.file_name}</div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {bankDocumentKindLabel(document.file_name) === "Kreditvertrag" ? "Kreditvertrag jetzt öffnen" : "Jetzt herunterladen"}
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <DocumentPanel
+              caseId={c.id}
+              requests={data.document_requests ?? []}
+              documents={data.documents ?? []}
+              europaceDocuments={data.europace_documents ?? []}
+              europaceUploadTargets={data.europace_upload_targets ?? []}
+              documentPin={documentPin}
+              caseType={caseType}
+              canCreateRequest={data.viewer_role === "advisor" || data.viewer_role === "admin"}
+              caseCustomerId={c.customer_id ?? null}
+              caseAdvisorId={c.assigned_advisor_id ?? null}
+              hideTechnicalBranding
+            />
+          )}
+        </section>
+      ) : (
+        <DocumentPanel
+          caseId={c.id}
+          requests={data.document_requests ?? []}
+          documents={data.documents ?? []}
+          europaceDocuments={data.europace_documents ?? []}
+          europaceUploadTargets={data.europace_upload_targets ?? []}
+          documentPin={documentPin}
           caseType={caseType}
+          canCreateRequest={data.viewer_role === "advisor" || data.viewer_role === "admin"}
+          caseCustomerId={c.customer_id ?? null}
+          caseAdvisorId={c.assigned_advisor_id ?? null}
         />
-      </div>
+      )}
 
-      <DocumentPanel
-        caseId={c.id}
-        requests={data.document_requests ?? []}
-        documents={data.documents ?? []}
-        caseType={caseType}
-        canCreateRequest={data.viewer_role === "advisor" || data.viewer_role === "admin"}
-        caseCustomerId={c.customer_id ?? null}
-        caseAdvisorId={c.assigned_advisor_id ?? null}
-      />
+      {isKonsum ? (
+        <section id="privatkredit-unterschrift" className="scroll-mt-24 space-y-3">
+          <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div
+                  className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${getJourneyStepBadgeClass(getPrivatkreditStepState("signature"))}`}
+                >
+                  {getJourneyStepBadgeLabel(4, getPrivatkreditStepState("signature"))}
+                </div>
+                <h2 className="mt-1 text-lg font-semibold text-slate-900">
+                  {privatkreditJourney?.shouldHideSignatures ? "Digitale Bank-Fortsetzung" : "Vertrag und Unterschrift"}
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {privatkreditJourney?.shouldHideSignatures
+                    ? "Für diesen Kontocheck-Direktabschluss unterschreibst und legitimierst du dich direkt bei der Bank. SEPANA zeigt hier bewusst keinen separaten Signatur-Workflow."
+                    : "Sobald dein Vertragsdokument bereit ist, kannst du es hier direkt digital unterzeichnen oder das Dokument für den manuellen Ablauf sehen."}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
+                {privatkreditJourney?.shouldHideSignatures
+                  ? privatkreditJourney.isCompleted
+                    ? "Erledigt"
+                    : privatkreditJourney.bankContinuationReady
+                      ? "Bei der Bank offen"
+                      : "Wird vorbereitet"
+                  : privatkreditJourney?.signatureRequestCount
+                    ? `${privatkreditJourney.completedSignatureCount}/${privatkreditJourney.signatureRequestCount} Dokumente abgeschlossen`
+                    : "Wird vorbereitet"}
+              </div>
+            </div>
+          </div>
+          {!privatkreditJourney?.shouldHideSignatures && bankCaseDocuments.length > 0 && signatureItems.length === 0 ? (
+            <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900 shadow-sm">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Vorbereitung läuft</div>
+              <div className="mt-2 text-lg font-semibold text-slate-900">
+                Die Bankunterlagen sind schon im Fall, der signierbare Vertrag folgt separat.
+              </div>
+              <p className="mt-2 leading-relaxed">
+                Du kannst Kreditvertrag und Datenschutzhinweise bereits im Dokumentenbereich einsehen. Dein Berater
+                übernimmt den Kreditvertrag anschließend in den Signaturbereich und schickt dir dann die finale Version
+                zur Unterschrift.
+              </p>
+            </div>
+          ) : null}
+          {privatkreditJourney?.shouldHideSignatures ? (
+            <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm text-sm text-slate-600">
+              Der weitere Abschluss läuft jetzt direkt bei der Bank. Im Status siehst du, ob die Bank-Fortsetzung
+              bereits bereit ist oder ob der Antrag schon abgeschlossen wurde.
+            </div>
+          ) : (
+            <div id="unterschriften" className="scroll-mt-24">
+              <SignaturePanel caseId={c.id} canEdit={false} />
+            </div>
+          )}
+        </section>
+      ) : (
+        <div id="unterschriften" className="scroll-mt-24">
+          <SignaturePanel caseId={c.id} canEdit={false} />
+        </div>
+      )}
 
-      <div id="unterschriften" className="scroll-mt-24">
-        <SignaturePanel caseId={c.id} canEdit={false} />
-      </div>
+      {isKonsum ? (
+        <section id="privatkredit-status" className="scroll-mt-24 space-y-3">
+          <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div
+                  className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${getJourneyStepBadgeClass(getPrivatkreditStepState("status"))}`}
+                >
+                  {getJourneyStepBadgeLabel(5, getPrivatkreditStepState("status"))}
+                </div>
+                <h2 className="mt-1 text-lg font-semibold text-slate-900">Antrag und Verlauf</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Hier verfolgst du den aktuellen Antragsstatus, Freigaben und den weiteren Verlauf deines Privatkredits.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
+                {data.europace?.antragsnummer ? `Antrag ${data.europace.antragsnummer}` : "Noch kein Antrag vorhanden"}
+              </div>
+            </div>
+          </div>
+          <EuropaceStatusCard
+            caseId={c.id}
+            endpoint="/api/app/privatkredit/europace/status"
+            initialMeta={data.europace ?? null}
+            initialApplications={data.europace_applications ?? []}
+            initialFlow={data.europace_flow ?? null}
+            hideTechnicalBranding
+          />
+        </section>
+      ) : null}
 
       <CaseChat caseId={c.id} currentUserId={user.id} initialMessages={data.chat ?? []} />
     </div>

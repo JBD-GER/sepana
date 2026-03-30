@@ -3,13 +3,22 @@ export type CountryOption = {
   label: string
 }
 
+const LEGACY_COUNTRY_CODE_ALIASES: Record<string, string> = {
+  DD: "DE",
+}
+
+function normalizeLegacyCountryCode(value: string) {
+  return LEGACY_COUNTRY_CODE_ALIASES[value] ?? value
+}
+
 type IntlWithSupportedValues = typeof Intl & {
   supportedValuesOf?: (key: string) => string[]
 }
 
 function toCountryCode(value: unknown) {
   const code = String(value ?? "").trim().toUpperCase()
-  return /^[A-Z]{2}$/.test(code) ? code : null
+  if (!/^[A-Z]{2}$/.test(code)) return null
+  return normalizeLegacyCountryCode(code)
 }
 
 function regionCodesFromIntl() {
@@ -44,10 +53,14 @@ export function getCountryOptions(locale = "de-DE") {
   const candidates = regionCodes.length > 0 ? regionCodes : regionCodesFallback()
 
   const out: CountryOption[] = []
+  const seen = new Set<string>()
   for (const code of candidates) {
-    const label = displayNames.of(code)
+    const normalizedCode = normalizeLegacyCountryCode(code)
+    if (seen.has(normalizedCode)) continue
+    const label = displayNames.of(normalizedCode)
     if (!label || label === code) continue
-    out.push({ code, label })
+    out.push({ code: normalizedCode, label })
+    seen.add(normalizedCode)
   }
 
   out.sort((a, b) => a.label.localeCompare(b.label, locale))

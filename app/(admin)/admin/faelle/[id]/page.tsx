@@ -6,11 +6,13 @@ import OfferList from "@/components/case/OfferList"
 import OfferEditor from "@/components/case/OfferEditor"
 import CaseChat from "@/components/case/CaseChat"
 import DocumentPanel from "@/components/case/DocumentPanel"
+import EuropaceStatusCard from "@/components/case/EuropaceStatusCard"
 import SignaturePanel from "@/components/case/SignaturePanel"
 import LiveCasePanel from "@/components/live/LiveCasePanel"
 import ClearSignatureHash from "@/components/case/ClearSignatureHash"
 import RecommendedByCard from "@/components/case/RecommendedByCard"
 import ResendCustomerInviteButton from "@/components/case/ResendCustomerInviteButton"
+import type { EuropaceFlowSummary } from "@/lib/europace/flow"
 
 type Resp = {
   case: {
@@ -31,7 +33,7 @@ type Resp = {
     provider_name?: string | null
     provider_logo_path?: string | null
     product_type: string
-    payload: any
+    payload: unknown
   }>
   offers: Array<{
     id: string
@@ -91,6 +93,47 @@ type Resp = {
     company_name: string
     logo_path: string | null
   } | null
+  europace?: {
+    vorgangsnummer: string | null
+    annahme_job_id: string | null
+    antragsnummer: string | null
+    produktanbieterantragsnummer: string | null
+    sync_status: string | null
+    last_sync_at: string | null
+    letzte_aenderung_am: string | null
+    letztes_ereignis_am: string | null
+    last_error: string | null
+  } | null
+  europace_applications?: Array<{
+    antragsnummer: string | null
+    produktanbieterantragsnummer: string | null
+    antragstellerstatus: string | null
+    produktanbieterstatus: string | null
+    provisionsforderungsstatus: string | null
+  }>
+  europace_flow?: EuropaceFlowSummary | null
+  europace_documents?: Array<{
+    local_document_id: string | null
+    europace_document_id: string | null
+    category: string | null
+    assignment_id: string | null
+    release_status: string | null
+    upload_status: string | null
+    last_sync_at: string | null
+    last_error: string | null
+    created_at: string | null
+  }>
+  europace_upload_targets?: Array<{
+    key: string
+    title: string
+    category_id: string
+    category_name: string | null
+    category_description: string | null
+    assignment_id: string | null
+    assignment_type: string | null
+    assignment_name: string | null
+    assignment_role_name: string | null
+  }>
   viewer_role: string | null
 }
 
@@ -105,8 +148,9 @@ function normalizeLogoPath(input: unknown): string | null {
     return s ? s : null
   }
   if (typeof input === "object") {
-    const anyObj = input as any
-    const candidate = anyObj?.path ?? anyObj?.logo_path ?? anyObj?.logoPath ?? anyObj?.key ?? anyObj?.name ?? null
+    const maybeObject = input as Record<string, unknown>
+    const candidate =
+      maybeObject.path ?? maybeObject.logo_path ?? maybeObject.logoPath ?? maybeObject.key ?? maybeObject.name ?? null
     if (typeof candidate === "string" && candidate.trim()) return candidate.trim()
   }
   return null
@@ -143,7 +187,7 @@ export default async function AdminCaseDetailPage({ params }: { params: Promise<
   const caseType = String(c.case_type ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
   const isKonsum = caseType === "konsum"
   const previewRow = data.offer_previews?.[0] ?? null
-  let previewPayload: any = previewRow?.payload ?? null
+  let previewPayload: unknown = previewRow?.payload ?? null
   if (typeof previewPayload === "string") {
     try {
       previewPayload = JSON.parse(previewPayload)
@@ -151,13 +195,18 @@ export default async function AdminCaseDetailPage({ params }: { params: Promise<
       previewPayload = null
     }
   }
+  const previewProvider =
+    previewPayload && typeof previewPayload === "object"
+      ? (((previewPayload as { provider?: unknown }).provider ?? null) as Record<string, unknown> | null)
+      : null
 
-  const previewProviderName = previewRow?.provider_name ?? previewPayload?.provider?.name ?? "-"
+  const previewProviderName =
+    previewRow?.provider_name ?? (typeof previewProvider?.name === "string" ? previewProvider.name : null) ?? "-"
   const previewProviderLogoPath = normalizeLogoPath(
     previewRow?.provider_logo_path ??
-      previewPayload?.provider?.logo_path ??
-      previewPayload?.provider?.logoPath ??
-      previewPayload?.provider?.logo ??
+      previewProvider?.logo_path ??
+      previewProvider?.logoPath ??
+      previewProvider?.logo ??
       null
   )
   const previewLogoUrl = previewProviderLogoPath ? logoSrc(previewProviderLogoPath) : null
@@ -192,6 +241,16 @@ export default async function AdminCaseDetailPage({ params }: { params: Promise<
 
       <LiveCasePanel caseId={c.id} caseRef={c.case_ref ?? null} defaultCollapsed />
 
+      {isKonsum ? (
+        <EuropaceStatusCard
+          caseId={c.id}
+          endpoint="/api/advisor/privatkredit/europace/status"
+          initialMeta={data.europace ?? null}
+          initialApplications={data.europace_applications ?? []}
+          initialFlow={data.europace_flow ?? null}
+        />
+      ) : null}
+
       {!isKonsum ? (
         <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3">
@@ -221,6 +280,8 @@ export default async function AdminCaseDetailPage({ params }: { params: Promise<
         caseId={c.id}
         requests={data.document_requests ?? []}
         documents={data.documents ?? []}
+        europaceDocuments={data.europace_documents ?? []}
+        europaceUploadTargets={data.europace_upload_targets ?? []}
         caseType={caseType}
         canCreateRequest
         caseCustomerId={c.customer_id ?? null}

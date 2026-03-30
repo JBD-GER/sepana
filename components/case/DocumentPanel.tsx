@@ -1,6 +1,8 @@
 ﻿"use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { isImportedBankDocumentPath } from "@/lib/europace/flow"
+import { deriveConcreteUploadRequirements } from "@/lib/europace/uploadRequirements"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 
 const UPLOAD_ACCEPT = "image/*,.pdf,.doc,.docx"
@@ -128,6 +130,13 @@ function classifyRequestTitle(rawTitle: string): CanonicalRequestKey | null {
   return null
 }
 
+function getEuropaceRequestScopeKey(request: Pick<RequestSourceRow, "europaceCategory" | "europaceAssignmentId">) {
+  const category = String(request.europaceCategory ?? "").trim()
+  const assignmentId = String(request.europaceAssignmentId ?? "").trim()
+  if (!category && !assignmentId) return ""
+  return `${category || "none"}::${assignmentId || "none"}`
+}
+
 type DocRequest = {
   id: string
   case_id: string
@@ -149,6 +158,44 @@ type DocumentRow = {
   case_id?: string | null
 }
 
+type EuropaceDocumentRow = {
+  local_document_id?: string | null
+  europace_document_id?: string | null
+  category?: string | null
+  assignment_id?: string | null
+  release_status?: string | null
+  upload_status?: string | null
+  last_sync_at?: string | null
+  last_error?: string | null
+  created_at?: string | null
+}
+
+type EuropaceUploadTarget = {
+  key: string
+  title: string
+  category_id: string
+  category_name?: string | null
+  category_description?: string | null
+  assignment_id?: string | null
+  assignment_type?: string | null
+  assignment_name?: string | null
+  assignment_role_name?: string | null
+}
+
+type RequestSourceRow = {
+  id: string
+  title: string
+  required: boolean
+  created_at: string | null
+  linkedRequestIds: string[]
+  linkedDocumentIds: string[]
+  source: "local" | "europace"
+  requestTitle: string
+  hint: string | null
+  europaceCategory: string | null
+  europaceAssignmentId: string | null
+}
+
 type RequestGroup = {
   id: string
   dedupeKey: string
@@ -156,8 +203,14 @@ type RequestGroup = {
   required: boolean
   created_at: string | null
   requestIds: string[]
+  documentIds: string[]
   canonicalKey: CanonicalRequestKey | null
   virtual: boolean
+  source: "local" | "europace"
+  requestTitle: string
+  hint: string | null
+  europaceCategory: string | null
+  europaceAssignmentId: string | null
 }
 
 type UploadPhase = "preparing" | "uploading" | "retrying"
@@ -180,6 +233,8 @@ type UploadOptions = {
   requestId?: string | null
   requestTitle?: string | null
   keepUnassigned?: boolean
+  europaceCategory?: string | null
+  europaceAssignmentId?: string | null
 }
 
 type DirectUploadInitResult = {
@@ -353,22 +408,59 @@ function fileUrl(
   return `/api/baufi/logo?bucket=case_documents&path=${encodeURIComponent(path)}${downloadParam}${filenameParam}`
 }
 
+function bankDocumentKindLabel(fileName: string) {
+  const normalized = normalizeTitle(fileName)
+  if (!normalized) return "Bankdokument"
+  if (normalized.includes("kreditvertrag") || normalized.includes("darlehensvertrag") || normalized.includes("vertrag")) {
+    return "Kreditvertrag"
+  }
+  if (normalized.includes("datenschutz") || normalized.includes("einwilligung")) {
+    return "Datenschutz"
+  }
+  return "Bankdokument"
+}
+
+function translateEuropaceUploadStatus(value: string | null | undefined) {
+  const normalized = String(value ?? "").trim().toLowerCase()
+  if (!normalized) return null
+  if (normalized === "uploaded") return "hochgeladen"
+  if (normalized === "error") return "Fehler"
+  if (normalized === "pending") return "in Bearbeitung"
+  return normalized
+}
+
+function translateEuropaceReleaseStatus(value: string | null | undefined) {
+  const normalized = String(value ?? "").trim().toLowerCase()
+  if (!normalized) return null
+  if (normalized === "released" || normalized === "freigegeben") return "freigegeben"
+  if (normalized === "pending") return "offen"
+  return normalized
+}
+
 export default function DocumentPanel({
   caseId,
   requests,
   documents,
+  europaceDocuments = [],
+  europaceUploadTargets = [],
+  documentPin = null,
   caseType,
   canCreateRequest,
   caseCustomerId,
   caseAdvisorId,
+  hideTechnicalBranding = false,
 }: {
   caseId: string
   requests: DocRequest[]
   documents: DocumentRow[]
+  europaceDocuments?: EuropaceDocumentRow[]
+  europaceUploadTargets?: EuropaceUploadTarget[]
+  documentPin?: string | null
   caseType?: string | null
   canCreateRequest: boolean
   caseCustomerId?: string | null
   caseAdvisorId?: string | null
+  hideTechnicalBranding?: boolean
 }) {
   const [title, setTitle] = useState("")
   const [required, setRequired] = useState(true)
@@ -384,12 +476,40 @@ export default function DocumentPanel({
   const reloadTimerRef = useRef<number | null>(null)
   const normalizedCaseType = String(caseType ?? "").trim().toLowerCase()
   const isBaufi = normalizedCaseType !== "konsum"
+  const usesEuropaceTargets = !isBaufi && (europaceUploadTargets?.length ?? 0) > 0
+  const canCreateManualRequest = canCreateRequest && isBaufi
+  const bankDocuments = useMemo(
+    () => (documents ?? []).filter((row) => isImportedBankDocumentPath(row.file_path)),
+    [documents]
+  )
+  const managedDocuments = useMemo(
+    () => (documents ?? []).filter((row) => !isImportedBankDocumentPath(row.file_path)),
+    [documents]
+  )
+  const europaceDocumentMap = useMemo(() => {
+    const map = new Map<string, EuropaceDocumentRow>()
+    for (const row of europaceDocuments ?? []) {
+      const localDocumentId = String(row?.local_document_id ?? "").trim()
+      if (!localDocumentId || map.has(localDocumentId)) continue
+      map.set(localDocumentId, row)
+    }
+    return map
+  }, [europaceDocuments])
+  const documentById = useMemo(() => {
+    const map = new Map<string, DocumentRow>()
+    for (const row of managedDocuments ?? []) {
+      const documentId = String(row?.id ?? "").trim()
+      if (!documentId || map.has(documentId)) continue
+      map.set(documentId, row)
+    }
+    return map
+  }, [managedDocuments])
 
   const { docsByRequest, orphanDocs } = useMemo(() => {
     const map = new Map<string, DocumentRow[]>()
     const requestIds = new Set((requests ?? []).map((r) => r.id))
     const orphans: DocumentRow[] = []
-    for (const d of documents ?? []) {
+    for (const d of managedDocuments ?? []) {
       const reqId = d.request_id || null
       if (reqId && !requestIds.has(reqId)) {
         orphans.push(d)
@@ -401,7 +521,119 @@ export default function DocumentPanel({
       map.set(key, arr)
     }
     return { docsByRequest: map, orphanDocs: orphans }
-  }, [documents, requests])
+  }, [managedDocuments, requests])
+
+  const requestIdsByNormalizedTitle = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const request of requests ?? []) {
+      const key = normalizeTitle(request.title)
+      if (!key) continue
+      const rows = map.get(key) ?? []
+      rows.push(request.id)
+      map.set(key, rows)
+    }
+    return map
+  }, [requests])
+
+  const concreteEuropaceRequirements = useMemo(
+    () =>
+      !isBaufi
+        ? deriveConcreteUploadRequirements({
+            requests,
+            uploadTargets: europaceUploadTargets,
+            documents: managedDocuments,
+            europaceDocuments,
+          })
+        : [],
+    [managedDocuments, europaceDocuments, europaceUploadTargets, isBaufi, requests]
+  )
+  const hasConcreteEuropaceRequirements = !isBaufi && concreteEuropaceRequirements.length > 0
+
+  const requestSourceRows = useMemo(() => {
+    if (hasConcreteEuropaceRequirements) {
+      return concreteEuropaceRequirements.map((requirement) => {
+        const linkedDocumentIds = (managedDocuments ?? [])
+          .filter((document) => {
+            if (requirement.request_id && document.request_id === requirement.request_id) {
+              return true
+            }
+            const mapping = europaceDocumentMap.get(document.id)
+            return (
+              Boolean(requirement.category_id) &&
+              mapping?.category === requirement.category_id &&
+              String(mapping?.assignment_id ?? "").trim() === String(requirement.assignment_id ?? "").trim()
+            )
+          })
+          .map((document) => document.id)
+
+        return {
+          id: requirement.key,
+          title: requirement.title,
+          required: requirement.required,
+          created_at: null,
+          linkedRequestIds: requirement.request_id ? [requirement.request_id] : [],
+          linkedDocumentIds,
+          source: requirement.source === "request" ? ("local" as const) : ("europace" as const),
+          requestTitle: requirement.title,
+          hint:
+            [requirement.category_name ?? requirement.category_id, requirement.assignment_role_name, requirement.assignment_name, requirement.category_description]
+              .filter(Boolean)
+              .join(" | ") || null,
+          europaceCategory: requirement.category_id ?? null,
+          europaceAssignmentId: requirement.assignment_id ?? null,
+        }
+      })
+    }
+
+    if (usesEuropaceTargets) {
+      return (europaceUploadTargets ?? []).map((target) => {
+        const normalizedTitle = normalizeTitle(target.title)
+        const linkedRequestIds = normalizedTitle ? requestIdsByNormalizedTitle.get(normalizedTitle) ?? [] : []
+        const categoryLabel = target.category_name ?? target.category_id
+        const assignmentLabel =
+          [target.assignment_role_name, target.assignment_name].filter(Boolean).join(" - ") ||
+          target.assignment_name ||
+          null
+
+        return {
+          id: target.key,
+          title: target.title,
+          required: true,
+          created_at: null,
+          linkedRequestIds,
+          linkedDocumentIds: [],
+          source: "europace" as const,
+          requestTitle: target.title,
+          hint: [categoryLabel, assignmentLabel, target.category_description].filter(Boolean).join(" | ") || null,
+          europaceCategory: target.category_id,
+          europaceAssignmentId: target.assignment_id ?? null,
+        }
+      })
+    }
+
+    return (requests ?? []).map((request) => ({
+      id: request.id,
+      title: request.title,
+      required: request.required,
+      created_at: request.created_at,
+      linkedRequestIds: [request.id],
+      linkedDocumentIds: [],
+      source: "local" as const,
+      requestTitle: request.title,
+      hint: null,
+      europaceCategory: null,
+      europaceAssignmentId: null,
+    }))
+  }, [
+    concreteEuropaceRequirements,
+    managedDocuments,
+    europaceDocumentMap,
+    europaceUploadTargets,
+    hasConcreteEuropaceRequirements,
+    requestIdsByNormalizedTitle,
+    requests,
+    usesEuropaceTargets,
+  ])
 
   const generalKeys = useMemo(
     () => (isBaufi ? [...STANDARD_GENERAL_KEYS, ...BAUFI_GENERAL_EXTRA_KEYS] : [...STANDARD_GENERAL_KEYS]),
@@ -439,14 +671,22 @@ export default function DocumentPanel({
     function addToBucket(
       bucket: RequestGroup[],
       dedupeKey: string,
-      request: DocRequest,
+      request: RequestSourceRow,
       canonicalKey: CanonicalRequestKey | null,
       titleOverride?: string
     ) {
       const existing = byDedupeKey.get(dedupeKey)
       if (existing) {
         existing.required = existing.required || request.required
-        if (!existing.requestIds.includes(request.id)) existing.requestIds.push(request.id)
+        for (const requestId of request.linkedRequestIds) {
+          if (!existing.requestIds.includes(requestId)) existing.requestIds.push(requestId)
+        }
+        for (const documentId of request.linkedDocumentIds) {
+          if (!existing.documentIds.includes(documentId)) existing.documentIds.push(documentId)
+        }
+        if (!existing.hint && request.hint) existing.hint = request.hint
+        if (!existing.europaceCategory && request.europaceCategory) existing.europaceCategory = request.europaceCategory
+        if (!existing.europaceAssignmentId && request.europaceAssignmentId) existing.europaceAssignmentId = request.europaceAssignmentId
         return
       }
       const group: RequestGroup = {
@@ -455,64 +695,97 @@ export default function DocumentPanel({
         title: titleOverride ?? request.title,
         required: request.required,
         created_at: request.created_at,
-        requestIds: [request.id],
+        requestIds: [...request.linkedRequestIds],
+        documentIds: [...request.linkedDocumentIds],
         canonicalKey,
         virtual: false,
+        source: request.source,
+        requestTitle: request.requestTitle,
+        hint: request.hint,
+        europaceCategory: request.europaceCategory,
+        europaceAssignmentId: request.europaceAssignmentId,
       }
       bucket.push(group)
       byDedupeKey.set(dedupeKey, group)
     }
 
-    for (const request of requests ?? []) {
+    for (const request of requestSourceRows) {
       const canonicalKey = classifyRequestTitle(request.title)
+      const scopeKey = getEuropaceRequestScopeKey(request)
       if (!isBaufi && canonicalKey && BAUFI_ONLY_KEYS.has(canonicalKey)) {
         continue
       }
       if (canonicalKey && generalKeySet.has(canonicalKey)) {
-        addToBucket(general, `general:${canonicalKey}`, request, canonicalKey, CANONICAL_TITLE_BY_KEY[canonicalKey])
+        addToBucket(
+          general,
+          scopeKey ? `general:${canonicalKey}:${scopeKey}` : `general:${canonicalKey}`,
+          request,
+          canonicalKey,
+          CANONICAL_TITLE_BY_KEY[canonicalKey]
+        )
         continue
       }
       if (canonicalKey && objectKeySet.has(canonicalKey)) {
-        addToBucket(object, `object:${canonicalKey}`, request, canonicalKey, CANONICAL_TITLE_BY_KEY[canonicalKey])
+        addToBucket(
+          object,
+          scopeKey ? `object:${canonicalKey}:${scopeKey}` : `object:${canonicalKey}`,
+          request,
+          canonicalKey,
+          CANONICAL_TITLE_BY_KEY[canonicalKey]
+        )
         continue
       }
       const otherKey = normalizeTitle(request.title) || request.id
-      addToBucket(other, `other:${otherKey}`, request, null)
+      addToBucket(other, scopeKey ? `other:${otherKey}:${scopeKey}` : `other:${otherKey}`, request, null)
     }
 
-    for (const key of generalKeys) {
-      const dedupeKey = `general:${key}`
-      if (!byDedupeKey.has(dedupeKey)) {
-        const virtualGroup: RequestGroup = {
-          id: `virtual-${dedupeKey}`,
-          dedupeKey,
-          title: CANONICAL_TITLE_BY_KEY[key],
-          required: true,
-          created_at: null,
-          requestIds: [],
-          canonicalKey: key,
-          virtual: true,
+    if (!usesEuropaceTargets) {
+      for (const key of generalKeys) {
+        const dedupeKey = `general:${key}`
+        if (!byDedupeKey.has(dedupeKey)) {
+          const virtualGroup: RequestGroup = {
+            id: `virtual-${dedupeKey}`,
+            dedupeKey,
+            title: CANONICAL_TITLE_BY_KEY[key],
+            required: true,
+            created_at: null,
+            requestIds: [],
+            documentIds: [],
+            canonicalKey: key,
+            virtual: true,
+            source: "local",
+            requestTitle: CANONICAL_TITLE_BY_KEY[key],
+            hint: null,
+            europaceCategory: null,
+            europaceAssignmentId: null,
+          }
+          general.push(virtualGroup)
+          byDedupeKey.set(dedupeKey, virtualGroup)
         }
-        general.push(virtualGroup)
-        byDedupeKey.set(dedupeKey, virtualGroup)
       }
-    }
 
-    for (const key of objectKeys) {
-      const dedupeKey = `object:${key}`
-      if (!byDedupeKey.has(dedupeKey)) {
-        const virtualGroup: RequestGroup = {
-          id: `virtual-${dedupeKey}`,
-          dedupeKey,
-          title: CANONICAL_TITLE_BY_KEY[key],
-          required: true,
-          created_at: null,
-          requestIds: [],
-          canonicalKey: key,
-          virtual: true,
+      for (const key of objectKeys) {
+        const dedupeKey = `object:${key}`
+        if (!byDedupeKey.has(dedupeKey)) {
+          const virtualGroup: RequestGroup = {
+            id: `virtual-${dedupeKey}`,
+            dedupeKey,
+            title: CANONICAL_TITLE_BY_KEY[key],
+            required: true,
+            created_at: null,
+            requestIds: [],
+            documentIds: [],
+            canonicalKey: key,
+            virtual: true,
+            source: "local",
+            requestTitle: CANONICAL_TITLE_BY_KEY[key],
+            hint: null,
+            europaceCategory: null,
+            europaceAssignmentId: null,
+          }
+          object.push(virtualGroup)
+          byDedupeKey.set(dedupeKey, virtualGroup)
         }
-        object.push(virtualGroup)
-        byDedupeKey.set(dedupeKey, virtualGroup)
       }
     }
 
@@ -537,7 +810,7 @@ export default function DocumentPanel({
       objectRequests: object,
       otherRequests: other,
     }
-  }, [generalKeys, isBaufi, objectKeys, requests])
+  }, [generalKeys, isBaufi, objectKeys, requestSourceRows, usesEuropaceTargets])
 
   function uploaderLabel(d: DocumentRow) {
     if (!d.uploaded_by) return null
@@ -552,46 +825,154 @@ export default function DocumentPanel({
     }
     return (
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {list.map((d) => (
-          <div key={d.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2">
-            {d.mime_type?.startsWith("image/") ? (
-              <button
-                type="button"
-                onClick={() => setImagePreview({ src: fileUrl(d.file_path), name: d.file_name })}
-                className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
-                aria-label={`Vorschau öffnen: ${d.file_name}`}
-              >
-                <img src={fileUrl(d.file_path)} alt="" className="h-full w-full object-cover" />
-              </button>
-            ) : (
-              <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">DOC</div>
+        {list.map((d) => {
+          const europaceDocument = europaceDocumentMap.get(d.id) ?? null
+          const uploadStatusLabel = translateEuropaceUploadStatus(europaceDocument?.upload_status)
+          const releaseStatusLabel = translateEuropaceReleaseStatus(europaceDocument?.release_status)
+          const syncLabel = hideTechnicalBranding ? "Uebertragung" : "Europace"
+          const hasEuropaceState =
+            Boolean(uploadStatusLabel) ||
+            Boolean(releaseStatusLabel) ||
+            Boolean(europaceDocument?.europace_document_id) ||
+            Boolean(europaceDocument?.last_error)
+
+          return (
+            <div key={d.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2">
+              {d.mime_type?.startsWith("image/") ? (
+                <button
+                  type="button"
+                  onClick={() => setImagePreview({ src: fileUrl(d.file_path), name: d.file_name })}
+                  className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+                  aria-label={`Vorschau öffnen: ${d.file_name}`}
+                >
+                  <img src={fileUrl(d.file_path)} alt="" className="h-full w-full object-cover" />
+                </button>
+              ) : (
+                <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                  <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">DOC</div>
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-slate-900">{d.file_name}</div>
+                <div className="text-xs text-slate-500">
+                  {formatBytes(d.size_bytes)} - {dt(d.created_at)}
+                </div>
+                {uploaderLabel(d) ? (
+                  <div className="mt-1 text-[11px] text-slate-500">Von: {uploaderLabel(d)}</div>
+                ) : null}
+                {!isBaufi ? (
+                  <div className="mt-1 space-y-1">
+                    {hasEuropaceState ? (
+                      <>
+                        <div className="flex flex-wrap gap-1">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                              String(europaceDocument?.upload_status ?? "").trim().toLowerCase() === "error"
+                                ? "bg-rose-100 text-rose-700"
+                                : "bg-sky-100 text-sky-700"
+                            }`}
+                          >
+                            {syncLabel}: {uploadStatusLabel ?? "unbekannt"}
+                          </span>
+                          {releaseStatusLabel ? (
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                              Freigabe: {releaseStatusLabel}
+                            </span>
+                          ) : null}
+                        </div>
+                        {europaceDocument?.europace_document_id && !hideTechnicalBranding ? (
+                          <div className="truncate text-[11px] text-slate-500">
+                            Europace-ID: {europaceDocument.europace_document_id}
+                          </div>
+                        ) : null}
+                        {europaceDocument?.last_error ? (
+                          <div className="text-[11px] text-rose-600">{europaceDocument.last_error}</div>
+                        ) : null}
+                      </>
+                    ) : (
+                      <div className="text-[11px] text-slate-500">
+                        {syncLabel}: {hideTechnicalBranding ? "wird vorbereitet" : "noch nicht synchronisiert"}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-slate-900">{d.file_name}</div>
-              <div className="text-xs text-slate-500">
-                {formatBytes(d.size_bytes)} - {dt(d.created_at)}
+              <div className="flex items-center gap-2">
+                <a
+                  className="text-xs font-medium text-slate-700 hover:underline"
+                  href={fileUrl(d.file_path, { download: true, filename: d.file_name })}
+                  download={d.file_name}
+                >
+                  Download
+                </a>
+                <button
+                  onClick={() => removeDoc(d.id)}
+                  disabled={busy}
+                  className="text-xs font-medium text-rose-600 hover:underline disabled:opacity-60"
+                >
+                  Löschen
+                </button>
               </div>
-              {uploaderLabel(d) ? (
-                <div className="mt-1 text-[11px] text-slate-500">Von: {uploaderLabel(d)}</div>
-              ) : null}
             </div>
-            <div className="flex items-center gap-2">
+          )
+        })}
+      </div>
+    )
+  }
+
+  function renderBankDocumentGrid(list: DocumentRow[]) {
+    if (!list.length) return null
+    return (
+      <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        {list.map((document) => (
+          <div
+            key={document.id}
+            className={`rounded-2xl border bg-white p-4 shadow-sm ${
+              bankDocumentKindLabel(document.file_name) === "Kreditvertrag"
+                ? "border-slate-900/15 bg-[linear-gradient(135deg,rgba(15,23,42,0.04),rgba(255,255,255,0.98))]"
+                : "border-emerald-200/80"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div
+                  className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${
+                    bankDocumentKindLabel(document.file_name) === "Kreditvertrag" ? "text-slate-700" : "text-emerald-700"
+                  }`}
+                >
+                  {bankDocumentKindLabel(document.file_name)}
+                </div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">{document.file_name}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Automatisch vom Anbieter übernommen · {dt(document.created_at)}
+                </div>
+                <div className="mt-1 text-xs text-slate-500">{formatBytes(document.size_bytes)}</div>
+              </div>
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">
+                Nur zur Einsicht
+              </span>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
               <a
-                className="text-xs font-medium text-slate-700 hover:underline"
-                href={fileUrl(d.file_path, { download: true, filename: d.file_name })}
-                download={d.file_name}
+                className={`inline-flex h-10 items-center justify-center rounded-xl px-4 text-xs font-semibold text-white shadow-sm ${
+                  bankDocumentKindLabel(document.file_name) === "Kreditvertrag"
+                    ? "bg-[linear-gradient(135deg,#0f172a,#0f766e)] shadow-[0_14px_30px_rgba(15,23,42,0.18)]"
+                    : "bg-slate-900"
+                }`}
+                href={fileUrl(document.file_path)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {bankDocumentKindLabel(document.file_name) === "Kreditvertrag" ? "Kreditvertrag öffnen" : "Öffnen"}
+              </a>
+              <a
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-900 shadow-sm"
+                href={fileUrl(document.file_path, { download: true, filename: document.file_name })}
+                download={document.file_name}
               >
                 Download
               </a>
-              <button
-                onClick={() => removeDoc(d.id)}
-                disabled={busy}
-                className="text-xs font-medium text-rose-600 hover:underline disabled:opacity-60"
-              >
-                Löschen
-              </button>
             </div>
           </div>
         ))}
@@ -720,7 +1101,16 @@ export default function DocumentPanel({
   }
 
   function renderRequestCard(r: RequestGroup) {
-    const list = r.requestIds.flatMap((requestId) => docsByRequest.get(requestId) ?? [])
+    const seenDocumentIds = new Set<string>()
+    const docsFromRequests = r.requestIds.flatMap((requestId) => docsByRequest.get(requestId) ?? [])
+    const docsFromMappings = r.documentIds
+      .map((documentId) => documentById.get(documentId))
+      .filter(Boolean) as DocumentRow[]
+    const list = [...docsFromRequests, ...docsFromMappings].filter((document) => {
+      if (seenDocumentIds.has(document.id)) return false
+      seenDocumentIds.add(document.id)
+      return true
+    })
     const duplicateCount = Math.max(0, r.requestIds.length - 1)
     const uploadRequestId = r.requestIds[0] ?? null
     const imageCount = list.filter(isImageDocument).length
@@ -736,9 +1126,14 @@ export default function DocumentPanel({
             {duplicateCount > 0 ? (
               <div className="mt-1 text-[11px] text-slate-500">Zusammengefasst aus {duplicateCount + 1} gleichartigen Anforderungen</div>
             ) : null}
+            {r.hint ? <div className="mt-1 text-[11px] text-slate-500">{r.hint}</div> : null}
             {r.virtual ? (
               <div className="mt-1 text-[11px] text-slate-500">
-                Diese Anforderung wird beim ersten Upload automatisch angelegt.
+                {r.source === "europace"
+                  ? hideTechnicalBranding
+                    ? "Diese Anforderung wurde direkt aus der Antragsstrecke uebernommen."
+                    : "Dieses Upload-Ziel kommt direkt aus Europace."
+                  : "Diese Anforderung wird beim ersten Upload automatisch angelegt."}
               </div>
             ) : null}
           </div>
@@ -768,7 +1163,9 @@ export default function DocumentPanel({
                   if (files?.length) {
                     uploadFiles(files, {
                       requestId: uploadRequestId,
-                      requestTitle: r.title,
+                      requestTitle: r.requestTitle,
+                      europaceCategory: r.europaceCategory,
+                      europaceAssignmentId: r.europaceAssignmentId,
                     })
                   }
                   e.currentTarget.value = ""
@@ -793,6 +1190,8 @@ export default function DocumentPanel({
         requestId: options.requestId ?? null,
         requestTitle: options.requestTitle ?? null,
         keepUnassigned: Boolean(options.keepUnassigned),
+        europaceCategory: options.europaceCategory ?? null,
+        europaceAssignmentId: options.europaceAssignmentId ?? null,
         fileName: file.name || "upload",
         fileType: file.type || null,
         fileSize: Number(file.size || 0),
@@ -814,7 +1213,7 @@ export default function DocumentPanel({
     } as DirectUploadInitResult
   }
 
-  async function completeDirectUpload(init: DirectUploadInitResult) {
+  async function completeDirectUpload(init: DirectUploadInitResult, options: UploadOptions) {
     const res = await fetch("/api/app/documents/upload/direct", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -822,6 +1221,8 @@ export default function DocumentPanel({
         action: "complete",
         caseId,
         requestId: init.request_id ?? null,
+        europaceCategory: options.europaceCategory ?? null,
+        europaceAssignmentId: options.europaceAssignmentId ?? null,
         path: init.path,
         fileName: init.file_name,
         mimeType: init.mime_type ?? null,
@@ -839,6 +1240,8 @@ export default function DocumentPanel({
     if (options.requestId) form.set("requestId", options.requestId)
     if (options.requestTitle) form.set("requestTitle", options.requestTitle)
     if (options.keepUnassigned) form.set("keepUnassigned", "1")
+    if (options.europaceCategory) form.set("europaceCategory", options.europaceCategory)
+    if (options.europaceAssignmentId) form.set("europaceAssignmentId", options.europaceAssignmentId)
     form.set("file", file)
 
     const res = await fetch("/api/app/documents/upload", {
@@ -882,7 +1285,7 @@ export default function DocumentPanel({
           throw new Error(message)
         }
 
-        const completedRequestId = await completeDirectUpload(init)
+        const completedRequestId = await completeDirectUpload(init, options)
         return completedRequestId
       } catch (error: unknown) {
         signedUploadError = error
@@ -925,7 +1328,7 @@ export default function DocumentPanel({
       }
 
       let requestIdFinal = uploadOptions.requestId ?? null
-      if (!requestIdFinal && uploadOptions.requestTitle && canCreateRequest) {
+      if (!requestIdFinal && uploadOptions.requestTitle && canCreateManualRequest) {
         const createRes = await fetch("/api/app/documents/requests", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -942,6 +1345,8 @@ export default function DocumentPanel({
         requestId: resolvedRequestId,
         requestTitle: uploadOptions.requestTitle,
         keepUnassigned: uploadOptions.keepUnassigned,
+        europaceCategory: uploadOptions.europaceCategory,
+        europaceAssignmentId: uploadOptions.europaceAssignmentId,
       }
       for (let index = 0; index < selectedFiles.length; index += 1) {
         const file = selectedFiles[index]
@@ -1048,8 +1453,15 @@ export default function DocumentPanel({
         )}
       </div>
       <div className="mt-1 text-[11px] text-slate-500">PDF, DOC, DOCX oder Bilder bis {formatBytes(MAX_UPLOAD_BYTES)} pro Datei.</div>
+      {!isBaufi ? (
+        <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+          {hideTechnicalBranding
+            ? "Neue Uploads werden direkt fuer deinen Antrag uebernommen. Den Uebertragungsstatus siehst du pro Datei."
+            : "Neue Uploads werden zusaetzlich an Europace gespiegelt. Der Sync-Status wird pro Datei angezeigt."}
+        </div>
+      ) : null}
 
-      {canCreateRequest ? (
+      {canCreateManualRequest ? (
         <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[1fr_140px_120px]">
           <input
             value={title}
@@ -1089,10 +1501,49 @@ export default function DocumentPanel({
       ) : null}
 
       <div className="mt-4 space-y-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="text-xs font-semibold uppercase tracking-widest text-slate-600">Allgemeine Unterlagen</div>
-          {generalRequests.length ? <div className="mt-2 space-y-3">{generalRequests.map((r) => renderRequestCard(r))}</div> : null}
-        </div>
+        {bankDocuments.length ? (
+          <div className="rounded-2xl border border-emerald-200/80 bg-[linear-gradient(180deg,rgba(236,253,245,0.7),rgba(255,255,255,0.98))] p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-3xl">
+                <div className="text-xs font-semibold uppercase tracking-widest text-emerald-700">Bankunterlagen zur Einsicht</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">
+                  Kreditvertrag, Datenschutz und weitere Unterlagen des Anbieters liegen bereits im gemeinsamen Fall.
+                </div>
+                <div className="mt-1 text-xs leading-relaxed text-slate-600">
+                  Diese Dateien wurden automatisch aus der Bank übernommen und stehen identisch im Kunden- und Beraterfall bereit.
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/80 bg-white/85 px-4 py-3 text-xs text-slate-700 shadow-sm">
+                {canCreateRequest
+                  ? "Nächster Schritt: Kreditvertrag im Bereich Unterschriften als signierbare Version anlegen und Felder setzen."
+                  : "Hinweis: Das ist zunächst die Vorschau der Bank. Dein Berater stellt dir den signierbaren Kreditvertrag danach separat bereit."}
+              </div>
+            </div>
+            {documentPin ? (
+              <div className="mt-4 rounded-2xl border border-cyan-200 bg-white px-4 py-4 shadow-sm">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-700">PIN für geschützte Dokumente</div>
+                    <div className="mt-2 text-sm font-semibold text-slate-900">
+                      Falls die Bank beim Öffnen des Kreditvertrags oder von Datenschutzhinweisen nach einer PIN fragt, nutze bitte diesen Code.
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm font-semibold tracking-[0.22em] text-white">
+                    {documentPin}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            {renderBankDocumentGrid(bankDocuments)}
+          </div>
+        ) : null}
+
+        {generalRequests.length ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-600">Allgemeine Unterlagen</div>
+            <div className="mt-2 space-y-3">{generalRequests.map((r) => renderRequestCard(r))}</div>
+          </div>
+        ) : null}
 
         {isBaufi ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -1111,7 +1562,7 @@ export default function DocumentPanel({
 
         {generalRequests.length === 0 && objectRequests.length === 0 && otherRequests.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-            Noch keine Dokumente angefordert.
+            {usesEuropaceTargets ? "Aktuell sind noch keine konkreten Unterlagen sichtbar." : "Noch keine Dokumente angefordert."}
           </div>
         ) : null}
 

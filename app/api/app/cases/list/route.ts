@@ -159,6 +159,15 @@ function firstApprovedOffer(rows: OfferRow[]) {
     .sort((a, b) => +new Date(b.bank_confirmed_at ?? b.created_at) - +new Date(a.bank_confirmed_at ?? a.created_at))[0]
 }
 
+function acceptedCustomerOffers(rows: OfferRow[]) {
+  const accepted = rows.filter((row) => {
+    const status = String(row.status ?? "").trim().toLowerCase()
+    const bankStatus = String(row.bank_status ?? "").trim().toLowerCase()
+    return status === "accepted" || bankStatus === "approved"
+  })
+  return accepted
+}
+
 export async function GET(req: Request) {
   const { supabase, user, role } = await getUserAndRole()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -322,9 +331,12 @@ export async function GET(req: Request) {
   }
 
   const mapped = baseCases.map((baseCase) => {
-    const caseOffers = offersByCase.get(baseCase.id) ?? []
+    const rawCaseOffers = offersByCase.get(baseCase.id) ?? []
+    const customerAcceptedOffers = role === "customer" ? acceptedCustomerOffers(rawCaseOffers) : []
+    const lockedCustomerOfferView = role === "customer" && customerAcceptedOffers.length > 0
+    const caseOffers = lockedCustomerOfferView ? customerAcceptedOffers : rawCaseOffers
     const latestOffer = firstByLatestCreated(caseOffers)
-    const approvedOffer = firstApprovedOffer(caseOffers)
+    const approvedOffer = firstApprovedOffer(rawCaseOffers)
     const preview = latestPreviewSummary(previewsByCase.get(baseCase.id) ?? [])
     const bestOffer = bestOfferSummary(caseOffers)
     const applicant = applicantByCase.get(baseCase.id) ?? null
@@ -348,7 +360,7 @@ export async function GET(req: Request) {
       ...baseCase,
       status_display: statusDisplay,
       docsCount: docsCountByCase.get(baseCase.id) ?? 0,
-      offersCount: caseOffers.length,
+      offersCount: lockedCustomerOfferView ? 1 : caseOffers.length,
       previewsCount: (previewsByCase.get(baseCase.id) ?? []).length,
       comparison: preview,
       bestOffer,

@@ -26,12 +26,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }> = [
     { path: "/", changeFrequency: "daily", priority: 1 },
     { path: "/kreditanfrage", changeFrequency: "weekly", priority: 0.9 },
+    { path: "/onlinekredit", changeFrequency: "weekly", priority: 0.9 },
     { path: "/scheidung-kredit", changeFrequency: "weekly", priority: 0.8 },
     { path: "/baufinanzierung", changeFrequency: "weekly", priority: 0.9 },
     { path: "/baufinanzierung/anschlussfinanzierung", changeFrequency: "weekly", priority: 0.8 },
     { path: "/baufinanzierung/anfrage", changeFrequency: "weekly", priority: 0.8 },
     { path: "/privatkredit", changeFrequency: "weekly", priority: 0.9 },
-    { path: "/privatkredit/anfrage", changeFrequency: "weekly", priority: 0.8 },
     { path: "/privatkredit/umschulden", changeFrequency: "weekly", priority: 0.8 },
     { path: "/privatkredit/kredit-pv-anlage", changeFrequency: "weekly", priority: 0.8 },
     { path: "/privatkredit/hochzeitskredit", changeFrequency: "weekly", priority: 0.8 },

@@ -33,9 +33,9 @@ const PRIVAT_VALUES = [
 ]
 
 const PRIVAT_POINTS = [
-  "Privatkredit im Funnel auswählen",
+  "Direkt in die Onlinekredit-Strecke starten",
   "Wichtige Angaben strukturiert erfassen",
-  "Rückmeldung und nächste Schritte abstimmen",
+  "Erste Ergebnisse und naechste Schritte erhalten",
   "Weitere Bearbeitung mit klarer Kommunikation",
 ]
 
@@ -74,10 +74,10 @@ export default function PrivatkreditPage() {
                 Rate reduzieren
               </Link>
               <Link
-                href="/kreditanfrage"
+                href="/onlinekredit"
                 className="inline-flex items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15"
               >
-                Kreditanfrage starten
+                Onlinekredit starten
               </Link>
               <Link
                 href="/bewertungen"
@@ -179,8 +179,8 @@ export default function PrivatkreditPage() {
         imageSrc="/familie_kueche.jpg"
         imageAlt="Familie in der Küche"
         eyebrow="Ablauf"
-        title="Privatkredit ohne Umwege starten"
-        text="Auch Privatkredit-Anfragen starten über die gemeinsame Kreditanfrage. Dort erfolgt direkt die Produktauswahl, danach führt die Antragsstrecke Schritt für Schritt weiter."
+        title="Onlinekredit ohne Umwege starten"
+        text="Der Einstieg fuer Privatkredit laeuft jetzt ueber die eigene Onlinekredit-Strecke. Dort fuehrt die Antragsstrecke Schritt fuer Schritt durch Betrag, Laufzeit und Anfrage."
         points={PRIVAT_POINTS}
       />
 
@@ -197,8 +197,10 @@ export default function PrivatkreditPage() {
       />
 
       <LeadCtaSection
-        title="Privatkredit starten"
-        text="Starten Sie die gemeinsame Kreditanfrage und wählen Sie im ersten Schritt Privatkredit. Der Funnel führt Sie direkt weiter."
+        title="Onlinekredit starten"
+        text="Starten Sie direkt in die Privatkredit-Strecke. Die Seite ist auf Onlinekredit fokussiert und fuehrt Sie ohne Produktauswahl weiter."
+        buttonLabel="Onlinekredit starten"
+        buttonHref="/onlinekredit"
       />
     </div>
   )

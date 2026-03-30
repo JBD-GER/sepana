@@ -83,6 +83,18 @@ function providerLabel(c: CaseRow, s: ComparisonMini | null) {
   return s?.provider_name || c.comparison?.provider_name || "Bankpartner"
 }
 
+function offerCountLabel(count: number) {
+  return count === 1 ? "Angebot" : "Angebote"
+}
+
+function mobileCaseBadge(c: CaseRow, hasComparison: boolean) {
+  const status = String(c.status_display ?? c.status ?? "").trim().toLowerCase()
+  if (status === "offer_accepted" || status === "approved") return "Angebot angenommen"
+  if (status === "offer_rejected") return "Angebot abgelehnt"
+  if (hasComparison) return "Vergleich bereit"
+  return "In Bearbeitung"
+}
+
 function parsePage(raw: string | string[] | undefined) {
   const value = Array.isArray(raw) ? raw[0] : raw
   const num = Number(value)
@@ -105,6 +117,10 @@ function pageHref(page: number, product: ProductTab) {
   if (page > 1) params.set("page", String(page))
   const query = params.toString()
   return query ? `/app/faelle?${query}` : "/app/faelle"
+}
+
+function continueCaseHref(caseId: string, product: ProductTab) {
+  return product === "konsum" ? `/app/faelle/${caseId}#privatkredit-journey` : `/app/faelle/${caseId}`
 }
 
 export default async function CasesPage({
@@ -131,10 +147,25 @@ export default async function CasesPage({
         <div className="pointer-events-none absolute -top-14 right-0 h-36 w-36 rounded-full bg-cyan-100/60 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-16 -left-8 h-40 w-40 rounded-full bg-indigo-100/60 blur-3xl" />
         <div className="relative">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">Ihre Fälle</h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600">
-            Hier sehen Sie den aktuellen Stand Ihrer {productLabel} inklusive Unterlagen und Angeboten.
-          </p>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">Ihre Fälle</h1>
+              <p className="mt-2 max-w-2xl text-sm text-slate-600">
+                {product === "konsum"
+                  ? "Hier fuehren Sie Ihren Privatkredit Schritt fuer Schritt weiter: Angaben, Live-Angebote, Unterlagen und Abschluss."
+                  : `Hier sehen Sie den aktuellen Stand Ihrer ${productLabel} inklusive Unterlagen und Angeboten.`}
+              </p>
+            </div>
+
+            {product === "konsum" && data.cases[0] ? (
+              <Link
+                href={continueCaseHref(data.cases[0].id, product)}
+                className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+              >
+                Aktuellen Antrag fortsetzen
+              </Link>
+            ) : null}
+          </div>
         </div>
       </section>
 
@@ -168,11 +199,14 @@ export default async function CasesPage({
           const hasComparison = !!c.comparison
           const bankLogo = s?.provider_logo_path ? logoSrc(s.provider_logo_path) : null
           const label = providerLabel(c, s)
+          const badgeLabel = mobileCaseBadge(c, hasComparison)
+          const acceptedBadge = badgeLabel === "Angebot angenommen"
+          const rejectedBadge = badgeLabel === "Angebot abgelehnt"
 
           return (
             <Link
               key={c.id}
-              href={`/app/faelle/${c.id}`}
+              href={continueCaseHref(c.id, product)}
               className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:bg-slate-50/50"
             >
               <div className="flex items-start justify-between gap-3">
@@ -185,12 +219,16 @@ export default async function CasesPage({
 
                 <div
                   className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${
-                    hasComparison
+                    acceptedBadge
                       ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200 bg-slate-50 text-slate-700"
+                      : rejectedBadge
+                        ? "border-rose-200 bg-rose-50 text-rose-700"
+                        : hasComparison
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-slate-200 bg-slate-50 text-slate-700"
                   }`}
                 >
-                  {hasComparison ? "Vergleich bereit" : "In Bearbeitung"}
+                  {badgeLabel}
                 </div>
               </div>
 
@@ -245,9 +283,17 @@ export default async function CasesPage({
                   Unterlagen: <span className="font-medium text-slate-900">{c.docsCount}</span>
                 </span>
                 <span>
-                  Angebote: <span className="font-medium text-slate-900">{c.offersCount}</span>
+                  {offerCountLabel(c.offersCount)}: <span className="font-medium text-slate-900">{c.offersCount}</span>
                 </span>
               </div>
+
+              {product === "konsum" ? (
+                <div className="mt-4">
+                  <span className="inline-flex items-center rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white">
+                    Antrag fortsetzen
+                  </span>
+                </div>
+              ) : null}
             </Link>
           )
         })}
@@ -280,6 +326,7 @@ export default async function CasesPage({
                 <th className="px-4 py-3 font-medium text-slate-700">Zinsbindung</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Unterlagen</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Angebote</th>
+                {product === "konsum" ? <th className="px-4 py-3 font-medium text-slate-700">Weiter</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -291,18 +338,18 @@ export default async function CasesPage({
                 return (
                   <tr key={c.id} className="border-b border-slate-200/60 last:border-0 hover:bg-slate-50/60">
                     <td className="px-4 py-3">
-                      <Link href={`/app/faelle/${c.id}`} className="block">
+                      <Link href={continueCaseHref(c.id, product)} className="block">
                         <div className="font-medium text-slate-900">{c.case_ref || c.id.slice(0, 8)}</div>
                         <div className="text-xs text-slate-500">{dt(c.created_at)}</div>
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      <Link href={`/app/faelle/${c.id}`} className="block">
+                      <Link href={continueCaseHref(c.id, product)} className="block">
                         {translateCaseStatus(c.status_display ?? c.status)}
                       </Link>
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/app/faelle/${c.id}`} className="flex items-center gap-2">
+                      <Link href={continueCaseHref(c.id, product)} className="flex items-center gap-2">
                         <span className="max-w-[170px] truncate text-slate-900">{label}</span>
                         {bankLogo ? (
                           <Image
@@ -317,42 +364,52 @@ export default async function CasesPage({
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      <Link href={`/app/faelle/${c.id}`} className="block">
+                      <Link href={continueCaseHref(c.id, product)} className="block">
                         {formatEUR(s?.loan_amount ?? null)}
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      <Link href={`/app/faelle/${c.id}`} className="block">
+                      <Link href={continueCaseHref(c.id, product)} className="block">
                         {formatEUR(s?.rate_monthly ?? null)}
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      <Link href={`/app/faelle/${c.id}`} className="block">
+                      <Link href={continueCaseHref(c.id, product)} className="block">
                         {formatPct(s?.apr_effective ?? null)}
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      <Link href={`/app/faelle/${c.id}`} className="block">
+                      <Link href={continueCaseHref(c.id, product)} className="block">
                         {s?.zinsbindung_years ? `${s.zinsbindung_years} J.` : "-"}
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      <Link href={`/app/faelle/${c.id}`} className="block">
+                      <Link href={continueCaseHref(c.id, product)} className="block">
                         {c.docsCount}
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      <Link href={`/app/faelle/${c.id}`} className="block">
+                      <Link href={continueCaseHref(c.id, product)} className="block">
                         {c.offersCount}
                       </Link>
                     </td>
+                    {product === "konsum" ? (
+                      <td className="px-4 py-3">
+                        <Link
+                          href={continueCaseHref(c.id, product)}
+                          className="inline-flex items-center rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
+                        >
+                          Fortsetzen
+                        </Link>
+                      </td>
+                    ) : null}
                   </tr>
                 )
               })}
 
               {data.cases.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-slate-500" colSpan={9}>
+                  <td className="px-4 py-6 text-slate-500" colSpan={product === "konsum" ? 10 : 9}>
                     Noch keine Fälle in {productLabel} vorhanden.
                   </td>
                 </tr>

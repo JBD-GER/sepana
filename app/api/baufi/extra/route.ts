@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { getAdditionalIdDateValidationIssue, mapOnlinekreditSaveValidationIssue } from "@/lib/onlinekredit/validation"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const runtime = "nodejs"
@@ -292,6 +293,23 @@ export async function POST(req: Request) {
       if (additionalPatch[k] !== undefined) additionalPatch[k] = dateOrNull(additionalPatch[k])
     })
 
+    const additionalValidationIssue = getAdditionalIdDateValidationIssue({
+      id_issued_at: additionalPatch.id_issued_at,
+      id_expires_at: additionalPatch.id_expires_at,
+    })
+    if (additionalValidationIssue) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "validation_failed",
+          stage: "additional_validation",
+          message: additionalValidationIssue.message,
+          validation: additionalValidationIssue,
+        },
+        { status: 400 }
+      )
+    }
+
     if (additionalPatch.warm_rent_not_applicable !== undefined) {
       additionalPatch.warm_rent_not_applicable = !!additionalPatch.warm_rent_not_applicable
       if (additionalPatch.warm_rent_not_applicable) additionalPatch.warm_rent_monthly = null
@@ -305,8 +323,20 @@ export async function POST(req: Request) {
       .from("case_additional_details")
       .upsert({ case_id: caseId, ...additionalPatch }, { onConflict: "case_id" })
     if (additionalUpsertError) {
+      const validationIssue = mapOnlinekreditSaveValidationIssue({
+        stage: "additional_upsert",
+        message: additionalUpsertError.message,
+      })
       return NextResponse.json(
-        { ok: false, error: "save_failed", stage: "additional_upsert", message: additionalUpsertError.message },
+        validationIssue
+          ? {
+              ok: false,
+              error: "validation_failed",
+              stage: "additional_upsert",
+              message: validationIssue.message,
+              validation: validationIssue,
+            }
+          : { ok: false, error: "save_failed", stage: "additional_upsert", message: additionalUpsertError.message },
         { status: 400 }
       )
     }

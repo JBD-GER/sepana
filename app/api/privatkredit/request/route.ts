@@ -2,8 +2,10 @@
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { createCaseFromLead, ensureCustomerAccount, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
+import { ONLINEKREDIT_MIN_LOAN_AMOUNT } from "@/lib/onlinekredit/validation"
 import { getPrivatkreditProductName, getPrivatkreditPurposeLabel } from "@/lib/privatkredit/purposes"
 import { getActiveTippgeberProfileByUserId } from "@/lib/tippgeber/service"
+import { createPublicCaseAccessToken } from "@/lib/onlinekredit/publicAccess"
 
 export const runtime = "nodejs"
 
@@ -369,10 +371,13 @@ export async function POST(req: Request) {
     const email = trimOrNull(body?.email)?.toLowerCase() ?? null
     const phone = trimOrNull(body?.phone)
     const loanAmountRaw = trimOrNull(body?.loanAmount)
+    const loanTermMonthsRaw = trimOrNull(body?.termMonths)
     const purposeRaw = trimOrNull(body?.purpose)
     const callbackTime = trimOrNull(body?.callbackTime)
     const message = trimOrNull(body?.message)
     const partnerId = trimOrNull(body?.partnerId)
+    const deferCustomerInvite = Boolean(body?.deferCustomerInvite)
+    const requirePublicCaseAccess = Boolean(body?.requirePublicCaseAccess)
 
     if (requestType === "contact") {
       if (!phone) {
@@ -419,6 +424,16 @@ export async function POST(req: Request) {
     const loanAmount = loanAmountRaw ? parseAmount(loanAmountRaw) : null
     if (loanAmountRaw && loanAmount === null) {
       return NextResponse.json({ ok: false, error: "Kreditsumme konnte nicht erkannt werden." }, { status: 400 })
+    }
+    if (requirePublicCaseAccess && loanAmount !== null && loanAmount < ONLINEKREDIT_MIN_LOAN_AMOUNT) {
+      return NextResponse.json(
+        { ok: false, error: `Die Kreditsumme muss mindestens ${ONLINEKREDIT_MIN_LOAN_AMOUNT.toLocaleString("de-DE")} EUR betragen.` },
+        { status: 400 }
+      )
+    }
+    const loanTermMonths = loanTermMonthsRaw ? Number(loanTermMonthsRaw) : null
+    if (loanTermMonthsRaw && !Number.isFinite(loanTermMonths)) {
+      return NextResponse.json({ ok: false, error: "Laufzeit konnte nicht erkannt werden." }, { status: 400 })
     }
 
     const now = new Date().toISOString()
@@ -478,7 +493,10 @@ export async function POST(req: Request) {
     const leadId = data?.id ?? null
     const externalLeadId = data?.external_lead_id ?? null
     let linkedCaseId: string | null = null
+    let linkedCaseRef: string | null = null
     let existingAccount = false
+    let publicAccessToken: string | null = null
+    let accountOrCaseLinkError: string | null = null
 
     const [adminMail, customerMail] = await Promise.all([
       sendAdminNotification({
@@ -509,6 +527,7 @@ export async function POST(req: Request) {
           email,
           firstName,
           lastName,
+          deferInvite: deferCustomerInvite,
           recommendedBy: partnerProfile
             ? {
                 companyName: partnerCompanyName || "Partner",
@@ -545,6 +564,7 @@ export async function POST(req: Request) {
           product_price: loanAmount,
           loan_purpose: purpose,
           loan_amount_total: loanAmount,
+          loan_term_months: loanTermMonths,
           property_zip: null,
           property_city: null,
           property_type: null,
@@ -561,6 +581,12 @@ export async function POST(req: Request) {
           entryChannel: `website_${requestTypeKey(requestType)}`,
         })
         linkedCaseId = created.caseId
+        linkedCaseRef = created.caseRef
+        publicAccessToken = createPublicCaseAccessToken({
+          caseId: created.caseId,
+          caseRef: created.caseRef,
+          customerId: account.userId,
+        })
 
         const updatePayload: Record<string, unknown> = {
           linked_case_id: created.caseId,
@@ -599,7 +625,20 @@ export async function POST(req: Request) {
         }
       } catch (accountOrCaseError) {
         console.error("[privatkredit-request] account/case linking failed", accountOrCaseError)
+        accountOrCaseLinkError = accountOrCaseError instanceof Error ? accountOrCaseError.message : "Fall konnte nicht verknüpft werden."
       }
+    }
+
+    if (requirePublicCaseAccess && (!linkedCaseId || !linkedCaseRef || !publicAccessToken)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            accountOrCaseLinkError ??
+            "Der Privatkredit-Fall konnte nicht vollständig mit öffentlichem Zugriff angelegt werden.",
+        },
+        { status: 500 }
+      )
     }
 
     if (adminMail.successCount === 0 && adminMail.error) {
@@ -614,6 +653,8 @@ export async function POST(req: Request) {
       leadId,
       externalLeadId,
       linkedCaseId,
+      linkedCaseRef,
+      publicAccessToken,
       existingAccount,
       message: "Anfrage gespeichert",
       mail: {

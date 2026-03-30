@@ -66,6 +66,7 @@ export async function GET(req: Request) {
     const headers: Record<string, string> = {
       "content-type": contentType,
       "cache-control": cacheControlForRequest(bucket, raw),
+      "content-length": String(arrayBuffer.byteLength),
     }
     if (download) {
       headers["content-disposition"] = `attachment; filename="${filename}"`

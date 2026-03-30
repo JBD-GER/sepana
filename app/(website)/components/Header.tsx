@@ -13,6 +13,7 @@ type PortalNavItem = {
   href: string
   label: string
   description: string
+  featured?: boolean
 }
 
 type HeaderProps = {
@@ -44,9 +45,10 @@ const BAUFINANZIERUNG_NAV: PortalNavItem[] = [
 
 const PRIVATEKREDIT_NAV: PortalNavItem[] = [
   {
-    href: "/privatkredit",
-    label: "Allgemeine Kreditwünsche",
-    description: "Übersicht und Anfragewege",
+    href: "/onlinekredit",
+    label: "Onlinekredit",
+    description: "15 Minuten · 100 % digitaler Einstieg in die Kreditstrecke",
+    featured: true,
   },
   {
     href: "/privatkredit/hochzeitskredit",
@@ -184,7 +186,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
     setMenuOpen(false)
     setMobileSectionsOpen({
       baufi: pathname.startsWith("/baufinanzierung"),
-      privatkredit: pathname.startsWith("/privatkredit"),
+      privatkredit: pathname.startsWith("/privatkredit") || pathname.startsWith("/onlinekredit"),
     })
     blurActiveElement()
   }, [pathname])
@@ -417,10 +419,12 @@ export default function Header({ reviewStats = null }: HeaderProps) {
                         "block rounded-xl border px-3 py-3 transition",
                         active
                           ? "border-slate-900 bg-slate-900 text-white"
+                          : item.featured
+                            ? "border-[#0b1f5e]/15 bg-[linear-gradient(145deg,#f8fbff_0%,#eef4ff_100%)] text-slate-900 hover:border-[#0b1f5e]/25 hover:bg-[linear-gradient(145deg,#f4f8ff_0%,#e8f0ff_100%)]"
                           : "border-transparent bg-white text-slate-800 hover:border-slate-200 hover:bg-slate-50"
                       )}
                     >
-                      <div className="text-sm font-semibold">{item.label}</div>
+                      <div className={cn("text-sm font-semibold", item.featured && !active && "text-[#0b1f5e]")}>{item.label}</div>
                       <div className={cn("mt-0.5 text-xs", active ? "text-slate-200" : "text-slate-500")}>{item.description}</div>
                     </Link>
                   )
@@ -592,10 +596,12 @@ export default function Header({ reviewStats = null }: HeaderProps) {
                         "rounded-xl border px-3 py-3 text-sm transition",
                         active
                           ? "border-slate-900 bg-slate-900 text-white"
+                          : item.featured
+                            ? "border-[#0b1f5e]/15 bg-[linear-gradient(145deg,#f8fbff_0%,#eef4ff_100%)] text-slate-900 hover:border-[#0b1f5e]/25 hover:bg-[linear-gradient(145deg,#f4f8ff_0%,#e8f0ff_100%)]"
                           : "border-slate-200 bg-slate-50/80 text-slate-800 hover:bg-slate-100"
                       )}
                     >
-                      <div className="font-medium">{item.label}</div>
+                      <div className={cn("font-medium", item.featured && !active && "text-[#0b1f5e]")}>{item.label}</div>
                       <div className={cn("mt-0.5 text-xs", active ? "text-slate-200" : "text-slate-500")}>{item.description}</div>
                     </Link>
                   )

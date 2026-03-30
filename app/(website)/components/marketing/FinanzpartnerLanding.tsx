@@ -1,4 +1,4 @@
-﻿import Image from "next/image"
+import Image from "next/image"
 import Link from "next/link"
 import WebsiteReviewsOverviewCard from "../WebsiteReviewsOverviewCard"
 import {
@@ -203,5 +203,3 @@ export default function FinanzpartnerLanding({ bankPartnerLogos = [] }: Finanzpa
     </div>
   )
 }
-
-

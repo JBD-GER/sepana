@@ -30,6 +30,12 @@ type CoApplicant = {
   first_name?: string | null
   last_name?: string | null
   birth_date?: string | null
+  birth_place?: string | null
+  id_document_number?: string | null
+  id_issued_place?: string | null
+  id_issued_at?: string | null
+  id_expires_at?: string | null
+  employment_type?: string | null
   employment_status?: string | null
   net_income_monthly?: string | number | null
 }
@@ -447,19 +453,23 @@ export default function LiveCasePanel({
   caseRef,
   ticketId,
   guestToken,
+  publicAccessToken,
   defaultCollapsed = false,
   initialTab,
   forceExpanded,
   showMissingDataReminderButton = false,
+  hideKonsumExpenseFields = false,
 }: {
   caseId: string
   caseRef: string | null
   ticketId?: string
   guestToken?: string
+  publicAccessToken?: string | null
   defaultCollapsed?: boolean
   initialTab?: LiveCaseTabId | null
   forceExpanded?: boolean
   showMissingDataReminderButton?: boolean
+  hideKonsumExpenseFields?: boolean
 }) {
   const supabase = useMemo(() => createBrowserSupabaseClientNoAuth(), [])
   const [primary, setPrimary] = useState<PrimaryApplicant>({})
@@ -495,6 +505,8 @@ export default function LiveCasePanel({
     const qs = new URLSearchParams({ caseId })
     if (ticketId) qs.set("ticketId", ticketId)
     if (guestToken) qs.set("guestToken", guestToken)
+    if (caseRef) qs.set("caseRef", caseRef)
+    if (publicAccessToken) qs.set("access", publicAccessToken)
     const res = await fetch(`/api/live/case?${qs.toString()}`)
     const json = await res.json().catch(() => ({}))
     if (!json?.ok) return
@@ -511,6 +523,8 @@ export default function LiveCasePanel({
       ? json.co.map((c: any) => ({
           ...c,
           birth_date: toDateInput(c?.birth_date),
+          id_issued_at: toDateInput(c?.id_issued_at),
+          id_expires_at: toDateInput(c?.id_expires_at),
           net_income_monthly: toMoneyInput(c?.net_income_monthly),
         }))
       : []
@@ -615,7 +629,18 @@ export default function LiveCasePanel({
       const res = await fetch("/api/live/case", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ caseId, ticketId: ticketId ?? null, guestToken, primary, co, baufi, additional, children }),
+        body: JSON.stringify({
+          caseId,
+          caseRef,
+          access: publicAccessToken,
+          ticketId: ticketId ?? null,
+          guestToken,
+          primary,
+          co,
+          baufi,
+          additional,
+          children,
+        }),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok || !json?.ok) {
@@ -631,7 +656,18 @@ export default function LiveCasePanel({
         return
       }
       setDirty(false)
-      setSaveMsg({ type: "success", text: "Änderungen gespeichert." })
+      const europaceSync = json?.europaceSync
+      if (europaceSync?.attempted && europaceSync?.ok) {
+        setSaveMsg({ type: "success", text: "Änderungen gespeichert. Europace wurde mit aktualisiert." })
+      } else if (europaceSync?.attempted && !europaceSync?.ok) {
+        const reason =
+          typeof europaceSync?.error === "string" && europaceSync.error.trim()
+            ? europaceSync.error
+            : "Europace konnte nicht aktualisiert werden."
+        setSaveMsg({ type: "error", text: `Änderungen lokal gespeichert, aber ${reason}` })
+      } else {
+        setSaveMsg({ type: "success", text: "Änderungen gespeichert." })
+      }
       await load(true)
     } catch {
       setSaveMsg({ type: "error", text: "Netzwerkfehler beim Speichern. Bitte erneut versuchen." })
@@ -688,7 +724,18 @@ export default function LiveCasePanel({
     setDirty(true)
     setCo((prev) => [
       ...prev,
-      { first_name: "", last_name: "", birth_date: "", employment_status: "", net_income_monthly: "" },
+      {
+        first_name: "",
+        last_name: "",
+        birth_date: "",
+        birth_place: "",
+        id_document_number: "",
+        id_issued_place: "",
+        id_issued_at: "",
+        id_expires_at: "",
+        employment_status: "",
+        net_income_monthly: "",
+      },
     ])
   }
 
@@ -768,6 +815,7 @@ export default function LiveCasePanel({
   const isCustomerView = viewerRole === "customer" || viewerRole === "guest"
   const canEdit = !isCustomerView || customerCanEdit
   const fieldDisabled = !canEdit
+  const shouldHideKonsumExpenseFields = isKonsum && isCustomerView && hideKonsumExpenseFields
   const requiredChecks = useMemo(() => {
     const checks: RequiredFieldCheck[] = [
       // Kontakt
@@ -787,8 +835,6 @@ export default function LiveCasePanel({
 
       // Haushalt
       { id: "primary.net_income_monthly", tab: "household", label: "Nettoeinkommen", missing: !hasValue(primary.net_income_monthly) },
-      { id: "primary.expenses_monthly", tab: "household", label: "Fixkosten", missing: !hasValue(primary.expenses_monthly) },
-      { id: "primary.existing_loans_monthly", tab: "household", label: "Bestehende Kredite", missing: !hasValue(primary.existing_loans_monthly) },
 
       // Details
       { id: "additional.birth_place", tab: "details", label: "Geburtsort", missing: !hasValue(additional.birth_place) },
@@ -868,8 +914,50 @@ export default function LiveCasePanel({
       })
     }
 
+    co.forEach((applicant, index) => {
+      const applicantNumber = index + 2
+      checks.push(
+        {
+          id: `co.${index}.birth_date`,
+          tab: "contact",
+          label: `Kreditnehmer ${applicantNumber}: Geburtsdatum`,
+          missing: !hasValue(applicant.birth_date),
+        },
+        {
+          id: `co.${index}.birth_place`,
+          tab: "details",
+          label: `Kreditnehmer ${applicantNumber}: Geburtsort`,
+          missing: !hasValue(applicant.birth_place),
+        },
+        {
+          id: `co.${index}.id_document_number`,
+          tab: "details",
+          label: `Kreditnehmer ${applicantNumber}: Ausweisnummer`,
+          missing: !hasValue(applicant.id_document_number),
+        },
+        {
+          id: `co.${index}.id_issued_place`,
+          tab: "details",
+          label: `Kreditnehmer ${applicantNumber}: Ausstellungsort`,
+          missing: !hasValue(applicant.id_issued_place),
+        },
+        {
+          id: `co.${index}.id_issued_at`,
+          tab: "details",
+          label: `Kreditnehmer ${applicantNumber}: Ausgestellt am`,
+          missing: !hasValue(applicant.id_issued_at),
+        },
+        {
+          id: `co.${index}.id_expires_at`,
+          tab: "details",
+          label: `Kreditnehmer ${applicantNumber}: Ablauf am`,
+          missing: !hasValue(applicant.id_expires_at),
+        }
+      )
+    })
+
     return checks
-  }, [primary, baufi, additional, children, isKonsum])
+  }, [primary, baufi, additional, children, co, isKonsum])
   const missingRequired = useMemo(() => requiredChecks.filter((check) => check.missing), [requiredChecks])
   const missingRequiredIds = useMemo(() => new Set(missingRequired.map((check) => check.id)), [missingRequired])
   const missingRequiredByTab = useMemo(
@@ -1242,22 +1330,36 @@ export default function LiveCasePanel({
                   placeholder="z. B. 300"
                 />
               </Field>
-              <Field label="Fixkosten / Monat" required invalid={isFieldMissing("primary.expenses_monthly")}>
-                <MoneyInput
-                  value={toMoneyInput(primary.expenses_monthly)}
-                  onChange={(v) => updatePrimary("expenses_monthly", v)}
-                  placeholder="z. B. 1.200"
-                  className={missingFieldStyle("primary.expenses_monthly")}
-                />
-              </Field>
-              <Field label="Bestehende Kredite / Monat" required invalid={isFieldMissing("primary.existing_loans_monthly")}>
-                <MoneyInput
-                  value={toMoneyInput(primary.existing_loans_monthly)}
-                  onChange={(v) => updatePrimary("existing_loans_monthly", v)}
-                  placeholder="z. B. 150"
-                  className={missingFieldStyle("primary.existing_loans_monthly")}
-                />
-              </Field>
+              {!shouldHideKonsumExpenseFields ? (
+                <Field
+                  label="Fixkosten / Monat"
+                  required={!isKonsum}
+                  hint={isKonsum ? "optional" : undefined}
+                  invalid={!isKonsum && isFieldMissing("primary.expenses_monthly")}
+                >
+                  <MoneyInput
+                    value={toMoneyInput(primary.expenses_monthly)}
+                    onChange={(v) => updatePrimary("expenses_monthly", v)}
+                    placeholder="z. B. 1.200"
+                    className={!isKonsum ? missingFieldStyle("primary.expenses_monthly") : ""}
+                  />
+                </Field>
+              ) : null}
+              {!shouldHideKonsumExpenseFields ? (
+                <Field
+                  label="Bestehende Kredite / Monat"
+                  required={!isKonsum}
+                  hint={isKonsum ? "optional" : undefined}
+                  invalid={!isKonsum && isFieldMissing("primary.existing_loans_monthly")}
+                >
+                  <MoneyInput
+                    value={toMoneyInput(primary.existing_loans_monthly)}
+                    onChange={(v) => updatePrimary("existing_loans_monthly", v)}
+                    placeholder="z. B. 150"
+                    className={!isKonsum ? missingFieldStyle("primary.existing_loans_monthly") : ""}
+                  />
+                </Field>
+              ) : null}
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -1283,7 +1385,7 @@ export default function LiveCasePanel({
             </div>
           </Card>
 
-          <Card title="Weitere Kreditnehmer" subtitle="Optional - Einkommen wird berücksichtigt.">
+          <Card title="Weitere Kreditnehmer" subtitle="Optional in der Anlage, nach Hinzufügen aber bitte vollständig vervollständigen.">
             <div className="space-y-3">
               {co.length === 0 ? (
                 <div className="rounded-2xl border border-slate-200 bg-white/60 px-4 py-3 text-sm text-slate-600">
@@ -1296,7 +1398,7 @@ export default function LiveCasePanel({
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-slate-900">Kreditnehmer {i + 2}</div>
-                      <div className="text-xs text-slate-500">Optional, aber hilfreich für die Haushaltsrechnung.</div>
+                      <div className="text-xs text-slate-500">Bitte Personendaten und Legitimation vollständig hinterlegen.</div>
                     </div>
 
                     <button
@@ -1308,15 +1410,67 @@ export default function LiveCasePanel({
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     <Field label="Vorname">
                       <Input value={toInput(c.first_name)} onChange={(e) => updateCo(i, { first_name: e.target.value })} />
                     </Field>
                     <Field label="Nachname">
                       <Input value={toInput(c.last_name)} onChange={(e) => updateCo(i, { last_name: e.target.value })} />
                     </Field>
-                    <Field label="Geburtsdatum">
-                      <Input type="date" value={toDateInput(c.birth_date)} onChange={(e) => updateCo(i, { birth_date: e.target.value })} />
+                    <Field label="Geburtsdatum" required invalid={isFieldMissing(`co.${i}.birth_date`)}>
+                      <Input
+                        type="date"
+                        value={toDateInput(c.birth_date)}
+                        onChange={(e) => updateCo(i, { birth_date: e.target.value })}
+                        className={missingFieldStyle(`co.${i}.birth_date`)}
+                      />
+                    </Field>
+                    <Field label="Geburtsort" required invalid={isFieldMissing(`co.${i}.birth_place`)}>
+                      <Input
+                        value={toInput(c.birth_place)}
+                        onChange={(e) => updateCo(i, { birth_place: e.target.value })}
+                        className={missingFieldStyle(`co.${i}.birth_place`)}
+                      />
+                    </Field>
+                    <Field label="Ausweisnummer" required invalid={isFieldMissing(`co.${i}.id_document_number`)}>
+                      <Input
+                        value={toInput(c.id_document_number)}
+                        onChange={(e) => updateCo(i, { id_document_number: e.target.value })}
+                        className={missingFieldStyle(`co.${i}.id_document_number`)}
+                      />
+                    </Field>
+                    <Field label="Ausstellungsort" required invalid={isFieldMissing(`co.${i}.id_issued_place`)}>
+                      <Input
+                        value={toInput(c.id_issued_place)}
+                        onChange={(e) => updateCo(i, { id_issued_place: e.target.value })}
+                        className={missingFieldStyle(`co.${i}.id_issued_place`)}
+                      />
+                    </Field>
+                    <Field label="Ausgestellt am" required invalid={isFieldMissing(`co.${i}.id_issued_at`)}>
+                      <Input
+                        type="date"
+                        value={toDateInput(c.id_issued_at)}
+                        onChange={(e) => updateCo(i, { id_issued_at: e.target.value })}
+                        className={missingFieldStyle(`co.${i}.id_issued_at`)}
+                      />
+                    </Field>
+                    <Field label="Ablauf am" required invalid={isFieldMissing(`co.${i}.id_expires_at`)}>
+                      <Input
+                        type="date"
+                        value={toDateInput(c.id_expires_at)}
+                        onChange={(e) => updateCo(i, { id_expires_at: e.target.value })}
+                        className={missingFieldStyle(`co.${i}.id_expires_at`)}
+                      />
+                    </Field>
+                    <Field label="Beschaeftigungsverhaeltnis">
+                      <Select value={toInput(c.employment_type)} onChange={(v) => updateCo(i, { employment_type: v })}>
+                        <option value="">Bitte wählen</option>
+                        {EMPLOYMENT_TYPE_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </Select>
                     </Field>
                     <Field label="Beschäftigungsstatus">
                       <Select value={toInput(c.employment_status)} onChange={(v) => updateCo(i, { employment_status: v })}>
@@ -1328,7 +1482,7 @@ export default function LiveCasePanel({
                         ))}
                       </Select>
                     </Field>
-                    <div className="sm:col-span-2">
+                    <div className="sm:col-span-2 xl:col-span-3">
                       <Field label="Nettoeinkommen / Monat" hint="optional">
                         <MoneyInput
                           value={toMoneyInput(c.net_income_monthly)}

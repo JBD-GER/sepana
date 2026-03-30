@@ -259,10 +259,10 @@ export function ProductOverviewSection({
 
             <div className="mt-5 flex flex-wrap gap-2">
               <Link
-                href="/kreditanfrage"
+                href="/onlinekredit"
                 className="inline-flex items-center gap-2 rounded-2xl bg-[#0b1f5e] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-95"
               >
-                Kreditanfrage starten
+                Onlinekredit starten
                 <ArrowIcon />
               </Link>
               <Link
@@ -283,10 +283,12 @@ export function LeadCtaSection({
   title = "Bereit für den nächsten Schritt?",
   text = "Starten Sie jetzt Ihre Kreditanfrage. Die Produktauswahl (Baufinanzierung oder Privatkredit) erfolgt direkt in der Antragsstrecke.",
   buttonLabel = "Kreditanfrage starten",
+  buttonHref = "/kreditanfrage",
 }: {
   title?: string
   text?: string
   buttonLabel?: string
+  buttonHref?: string
 }) {
   return (
     <section className="relative overflow-hidden rounded-[30px] border border-slate-200/70 bg-[linear-gradient(135deg,#07162f_0%,#0b1f5e_58%,#0f3b80_100%)] p-6 text-white shadow-[0_20px_60px_rgba(2,6,23,0.28)] sm:p-8">
@@ -301,7 +303,7 @@ export function LeadCtaSection({
         </div>
 
         <Link
-          href="/kreditanfrage"
+          href={buttonHref}
           className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100"
         >
           {buttonLabel}

@@ -3,6 +3,11 @@ export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
+import { flattenEuropaceAvailableAssignments, listEuropaceAvailableAssignments } from "@/lib/europace/documents"
+import { deriveEuropaceFlowSummary } from "@/lib/europace/flow"
+import { selectVisibleEuropaceOffers } from "@/lib/europace/offerVisibility"
+import { normalizeEuropaceApplications } from "@/lib/europace/status"
+import { deriveConcreteUploadProgress, deriveConcreteUploadTargets } from "@/lib/europace/uploadRequirements"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { getTippgeberBrandForCase } from "@/lib/tippgeber/service"
 
@@ -13,6 +18,42 @@ type ProviderMini = {
   logo_icon_path?: string | null
   preferred_logo_variant?: string | null
   logo_path?: any | null
+}
+
+function trimOrNull(value: unknown) {
+  const trimmed = String(value ?? "").trim()
+  return trimmed ? trimmed : null
+}
+
+function resolveSelectedEuropaceOfferId(
+  offers: Array<{ angebot_id?: string | null; accepted_at?: string | null; superseded_at?: string | null; created_at?: string | null }>,
+  syncEvents: Array<{
+    created_at?: string | null
+    request_payload?: Record<string, unknown> | null
+    response_payload?: Record<string, unknown> | null
+  }>,
+  reference?: { annahme_job_id?: string | null } | null
+) {
+  const acceptedOffer = offers
+    .filter((offer) => trimOrNull(offer.accepted_at) && !trimOrNull(offer.superseded_at))
+    .sort((left, right) => {
+      const leftTs = new Date(String(left.accepted_at ?? left.created_at ?? "")).getTime()
+      const rightTs = new Date(String(right.accepted_at ?? right.created_at ?? "")).getTime()
+      return rightTs - leftTs
+    })[0]
+  if (trimOrNull(acceptedOffer?.angebot_id)) return trimOrNull(acceptedOffer?.angebot_id)
+
+  const currentJobId = trimOrNull(reference?.annahme_job_id)
+  if (currentJobId) {
+    const byJob = syncEvents.find((event) => trimOrNull(event.response_payload?.jobId) === currentJobId)
+    const jobOfferId = trimOrNull(byJob?.request_payload?.resolvedAngebotId) ?? trimOrNull(byJob?.request_payload?.angebotId)
+    if (jobOfferId) return jobOfferId
+  }
+
+  const latestEvent = syncEvents.find(
+    (event) => trimOrNull(event.request_payload?.resolvedAngebotId) || trimOrNull(event.request_payload?.angebotId)
+  )
+  return trimOrNull(latestEvent?.request_payload?.resolvedAngebotId) ?? trimOrNull(latestEvent?.request_payload?.angebotId)
 }
 
 function extractLogoRef(v: any) {
@@ -42,6 +83,22 @@ function isMissingBankCommissionAmountColumnError(error: unknown) {
   if (anyError.code !== "42703") return false
   const msg = String(anyError.message ?? "").toLowerCase()
   return msg.includes("bank_commission_amount")
+}
+
+function isMissingEuropaceTableError(error: unknown) {
+  const anyError = error as { code?: string; message?: string } | null
+  if (!anyError) return false
+  if (anyError.code === "42P01") return true
+  const msg = String(anyError.message ?? "").toLowerCase()
+  return msg.includes("case_europace") && (msg.includes("relation") || msg.includes("table"))
+}
+
+function isMissingCaseLiabilitiesTableError(error: unknown) {
+  const anyError = error as { code?: string; message?: string } | null
+  if (!anyError) return false
+  if (anyError.code === "42P01") return true
+  const msg = String(anyError.message ?? "").toLowerCase()
+  return msg.includes("case_liabilities") && (msg.includes("relation") || msg.includes("table"))
 }
 
 export async function GET(req: Request) {
@@ -93,6 +150,11 @@ export async function GET(req: Request) {
     { data: notes },
     { data: additional },
     { data: children },
+    { data: liabilities },
+    { data: europace },
+    { data: europaceOffers },
+    { data: europaceDocuments },
+    { data: europaceOfferSyncEvents },
     tippgeberReferrer,
   ] =
     await Promise.all([
@@ -135,6 +197,70 @@ export async function GET(req: Request) {
         .limit(200),
       readClient.from("case_additional_details").select("*").eq("case_id", id).maybeSingle(),
       readClient.from("case_children").select("*").eq("case_id", id).order("created_at", { ascending: true }),
+      (async () => {
+        const result = await readClient.from("case_liabilities").select("*").eq("case_id", id).order("created_at", { ascending: true })
+        if (result.error && isMissingCaseLiabilitiesTableError(result.error)) {
+          return { data: [] }
+        }
+        return { data: result.data ?? [] }
+      })(),
+      (async () => {
+        const result = await readClient
+          .from("case_europace")
+          .select(
+            "case_id,vorgangsnummer,annahme_job_id,antragsnummer,produktanbieterantragsnummer,sync_status,last_sync_at,letzte_aenderung_am,letztes_ereignis_am,last_error,last_export_snapshot"
+          )
+          .eq("case_id", id)
+          .maybeSingle()
+        if (result.error && isMissingEuropaceTableError(result.error)) {
+          return { data: null }
+        }
+        return { data: result.data ?? null }
+      })(),
+      (async () => {
+        const result = await readClient
+          .from("case_europace_offers")
+          .select(
+            "angebot_id,angebot_snapshot,machbarkeit_status,vollstaendigkeit_status,calculated_at,accepted_at,superseded_at,created_at"
+          )
+          .eq("case_id", id)
+          .order("accepted_at", { ascending: false, nullsFirst: false })
+          .order("calculated_at", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .limit(50)
+        if (result.error && isMissingEuropaceTableError(result.error)) {
+          return { data: [] }
+        }
+        return { data: result.data ?? [] }
+      })(),
+      (async () => {
+        const result = await readClient
+          .from("case_europace_documents")
+          .select(
+            "local_document_id,europace_document_id,category,assignment_id,release_status,upload_status,last_sync_at,last_error,created_at"
+          )
+          .eq("case_id", id)
+          .order("created_at", { ascending: false })
+          .limit(200)
+        if (result.error && isMissingEuropaceTableError(result.error)) {
+          return { data: [] }
+        }
+        return { data: result.data ?? [] }
+      })(),
+      (async () => {
+        const result = await readClient
+          .from("case_europace_sync_events")
+          .select("created_at,request_payload,response_payload,operation,success")
+          .eq("case_id", id)
+          .eq("operation", "angebotAnnehmen")
+          .eq("success", true)
+          .order("created_at", { ascending: false })
+          .limit(20)
+        if (result.error && isMissingEuropaceTableError(result.error)) {
+          return { data: [] }
+        }
+        return { data: result.data ?? [] }
+      })(),
       getTippgeberBrandForCase(id),
     ])
 
@@ -230,7 +356,245 @@ export async function GET(req: Request) {
               : c.status
 
   const canViewAdvisorPrivateFields = role === "advisor" || role === "admin"
+  const europaceApplications = normalizeEuropaceApplications(
+    ((europace as { last_export_snapshot?: unknown } | null)?.last_export_snapshot ?? null) as {
+      antraege?: Array<{
+        antragsnummer?: string | null
+        produktanbieterantragsnummer?: string | null
+        antragstellerstatus?: string | null
+        produktanbieterstatus?: string | null
+        provisionsforderungsstatus?: string | null
+      }> | null
+    } | null
+  )
+  const leadingEuropaceApplication = europaceApplications[0] ?? null
+  const normalizedEuropaceMeta = europace
+    ? {
+        ...europace,
+        antragsnummer: leadingEuropaceApplication?.antragsnummer ?? europace.antragsnummer ?? null,
+        produktanbieterantragsnummer:
+          leadingEuropaceApplication?.produktanbieterantragsnummer ?? europace.produktanbieterantragsnummer ?? null,
+      }
+    : null
+  const selectedEuropaceOfferId = resolveSelectedEuropaceOfferId(
+    ((europaceOffers ?? []) as Array<{
+      angebot_id?: string | null
+      accepted_at?: string | null
+      superseded_at?: string | null
+      created_at?: string | null
+    }>) ?? [],
+    ((europaceOfferSyncEvents ?? []) as Array<{
+      created_at?: string | null
+      request_payload?: Record<string, unknown> | null
+      response_payload?: Record<string, unknown> | null
+    }>) ?? [],
+    normalizedEuropaceMeta
+      ? {
+          annahme_job_id: normalizedEuropaceMeta.annahme_job_id ?? null,
+        }
+      : null
+  )
   const casePayload = canViewAdvisorPrivateFields ? c : { ...c, advisor_private_note: null }
+  const europacePayload = canViewAdvisorPrivateFields
+    ? normalizedEuropaceMeta
+      ? {
+          ...normalizedEuropaceMeta,
+          selected_angebot_id: selectedEuropaceOfferId,
+        }
+      : null
+    : normalizedEuropaceMeta
+      ? {
+          annahme_job_id: normalizedEuropaceMeta.annahme_job_id ?? null,
+          antragsnummer: normalizedEuropaceMeta.antragsnummer ?? null,
+          produktanbieterantragsnummer: normalizedEuropaceMeta.produktanbieterantragsnummer ?? null,
+          selected_angebot_id: selectedEuropaceOfferId,
+          sync_status: normalizedEuropaceMeta.sync_status ?? null,
+          last_sync_at: normalizedEuropaceMeta.last_sync_at ?? null,
+          letzte_aenderung_am: normalizedEuropaceMeta.letzte_aenderung_am ?? null,
+          letztes_ereignis_am: normalizedEuropaceMeta.letztes_ereignis_am ?? null,
+          last_error: normalizedEuropaceMeta.last_error ?? null,
+        }
+      : null
+  const europaceAvailableAssignments = (() => {
+    if (String(c.case_type ?? "").trim().toLowerCase() !== "konsum") return []
+    const vorgangsnummer = String(europace?.vorgangsnummer ?? "").trim()
+    if (!vorgangsnummer) return []
+    return null
+  })()
+
+  let europaceUploadTargets: Array<{
+    key: string
+    title: string
+    category_id: string
+    category_name: string | null
+    category_description: string | null
+    assignment_id: string | null
+    assignment_type: string | null
+    assignment_name: string | null
+    assignment_role_name: string | null
+  }> = []
+
+  if (europaceAvailableAssignments === null) {
+    try {
+      const assignments = await listEuropaceAvailableAssignments(admin, {
+        caseId: id,
+        vorgangsnummer: String(europace?.vorgangsnummer ?? "").trim(),
+        antragsnummer: String(normalizedEuropaceMeta?.antragsnummer ?? "").trim() || null,
+      })
+
+      europaceUploadTargets = flattenEuropaceAvailableAssignments(assignments).map((target) => ({
+        key: target.key,
+        title: target.title,
+        category_id: target.categoryId,
+        category_name: target.categoryName,
+        category_description: target.categoryDescription,
+        assignment_id: target.assignmentId,
+        assignment_type: target.assignmentType,
+        assignment_name: target.assignmentName,
+        assignment_role_name: target.assignmentRoleName,
+      }))
+    } catch (error) {
+      console.error("europace assignments query failed", error)
+    }
+  }
+
+  const europaceRequestRows = ((docRequests ?? []) as Array<{
+    id?: string | null
+    title?: string | null
+    created_at?: string | null
+    required?: boolean | null
+  }>)
+    .map((row) => ({
+      id: String(row?.id ?? "").trim(),
+      title: String(row?.title ?? "").trim(),
+      created_at: row?.created_at ?? null,
+      required: row?.required ?? null,
+    }))
+    .filter((row) => Boolean(row.id) && Boolean(row.title))
+  const europaceLocalDocumentRows = ((docs ?? []) as Array<{
+    id?: string | null
+    request_id?: string | null
+  }>)
+    .map((row) => ({
+      id: String(row?.id ?? "").trim(),
+      request_id: row?.request_id ?? null,
+    }))
+    .filter((row) => Boolean(row.id))
+  const europaceDocumentMappingRows = (europaceDocuments ?? []) as Array<{
+    local_document_id?: string | null
+    category?: string | null
+    assignment_id?: string | null
+    release_status?: string | null
+    upload_status?: string | null
+  }>
+
+  const concreteEuropaceUploadTargets = deriveConcreteUploadTargets({
+    requests: europaceRequestRows,
+    uploadTargets: europaceUploadTargets,
+    documents: europaceLocalDocumentRows,
+    europaceDocuments: europaceDocumentMappingRows,
+  })
+  const concreteEuropaceDocumentProgress = deriveConcreteUploadProgress({
+    requests: europaceRequestRows,
+    uploadTargets: europaceUploadTargets,
+    documents: europaceLocalDocumentRows,
+    europaceDocuments: europaceDocumentMappingRows,
+  })
+  const baseEuropaceFlow = deriveEuropaceFlowSummary({
+    meta:
+      (normalizedEuropaceMeta as {
+        annahme_job_id?: string | null
+        antragsnummer?: string | null
+        last_export_snapshot?: unknown
+      } | null) ?? null,
+    offers: (europaceOffers ?? []) as Array<{
+      accepted_at?: string | null
+      superseded_at?: string | null
+      machbarkeit_status?: string | null
+      vollstaendigkeit_status?: string | null
+      angebot_snapshot?: {
+        sofortkredit?: boolean | null
+        digitalisierungsmerkmale?: {
+          accountCheck?: {
+            modus?: string | null
+          } | null
+        } | null
+      } | null
+      angebot_id?: string | null
+      calculated_at?: string | null
+      created_at?: string | null
+    }>,
+    applications: europaceApplications,
+    documents: europaceDocumentMappingRows,
+    uploadTargets: concreteEuropaceUploadTargets,
+    localDocuments: (docs ?? []) as Array<{
+      id?: string | null
+      file_name?: string | null
+      file_path?: string | null
+      mime_type?: string | null
+      size_bytes?: number | null
+      created_at?: string | null
+    }>,
+    documentProgress: {
+      requiredDocumentCount: concreteEuropaceDocumentProgress.requiredCount,
+      uploadedDocumentCount: concreteEuropaceDocumentProgress.uploadedCount,
+      releasedDocumentCount: concreteEuropaceDocumentProgress.releasedCount,
+      missingDocumentCount: concreteEuropaceDocumentProgress.missingCount,
+    },
+  })
+  const visibleEuropaceOffers = selectVisibleEuropaceOffers(
+    (europaceOffers ?? []) as Array<{
+      angebot_id?: string | null
+      angebot_snapshot?: unknown
+      machbarkeit_status?: string | null
+      vollstaendigkeit_status?: string | null
+      calculated_at?: string | null
+      accepted_at?: string | null
+      superseded_at?: string | null
+      created_at?: string | null
+    }>,
+    { hasRejectedApplication: baseEuropaceFlow.hasRejectedApplication }
+  )
+
+  const europaceFlow = deriveEuropaceFlowSummary({
+    meta:
+      (normalizedEuropaceMeta as {
+        annahme_job_id?: string | null
+        antragsnummer?: string | null
+        last_export_snapshot?: unknown
+      } | null) ?? null,
+    offers: visibleEuropaceOffers as Array<{
+      accepted_at?: string | null
+      superseded_at?: string | null
+      machbarkeit_status?: string | null
+      vollstaendigkeit_status?: string | null
+      angebot_snapshot?: {
+        sofortkredit?: boolean | null
+        digitalisierungsmerkmale?: {
+          accountCheck?: {
+            modus?: string | null
+          } | null
+        } | null
+      } | null
+    }>,
+    applications: europaceApplications,
+    documents: europaceDocumentMappingRows,
+    uploadTargets: concreteEuropaceUploadTargets,
+    localDocuments: (docs ?? []) as Array<{
+      id?: string | null
+      file_name?: string | null
+      file_path?: string | null
+      mime_type?: string | null
+      size_bytes?: number | null
+      created_at?: string | null
+    }>,
+    documentProgress: {
+      requiredDocumentCount: concreteEuropaceDocumentProgress.requiredCount,
+      uploadedDocumentCount: concreteEuropaceDocumentProgress.uploadedCount,
+      releasedDocumentCount: concreteEuropaceDocumentProgress.releasedCount,
+      missingDocumentCount: concreteEuropaceDocumentProgress.missingCount,
+    },
+  })
 
   let advisor: any = null
   if (c.assigned_advisor_id) {
@@ -266,12 +630,19 @@ export async function GET(req: Request) {
     applicants: applicants ?? [],
     additional: additional ?? null,
     children: children ?? [],
+    liabilities: liabilities ?? [],
     offer_previews: previewsWithProvider ?? [],
     offers: offersWithProvider,
     documents: docs ?? [],
     document_requests: docRequests ?? [],
     chat: notes ?? [],
     advisor,
+    europace: europacePayload,
+    europace_applications: europaceApplications,
+    europace_flow: europaceFlow,
+    europace_offers: visibleEuropaceOffers,
+    europace_documents: europaceDocuments ?? [],
+    europace_upload_targets: concreteEuropaceUploadTargets,
     recommended_by: tippgeberReferrer ?? null,
     viewer_role: role ?? null,
   })

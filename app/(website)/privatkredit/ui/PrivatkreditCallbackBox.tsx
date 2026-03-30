@@ -14,7 +14,15 @@ const INITIAL_STATE: CallbackState = {
   callbackTime: "",
 }
 
-export default function PrivatkreditCallbackBox() {
+type PrivatkreditCallbackBoxProps = {
+  successSource?: string
+  pagePath?: string
+}
+
+export default function PrivatkreditCallbackBox({
+  successSource = "privatkredit",
+  pagePath = "/privatkredit/anfrage",
+}: PrivatkreditCallbackBoxProps = {}) {
   const router = useRouter()
   const [form, setForm] = useState<CallbackState>(INITIAL_STATE)
   const [busy, setBusy] = useState(false)
@@ -42,6 +50,7 @@ export default function PrivatkreditCallbackBox() {
           requestType: "callback",
           phone: form.phone,
           callbackTime: form.callbackTime,
+          pagePath,
         }),
       })
       const json = await res.json().catch(() => ({}))
@@ -52,7 +61,7 @@ export default function PrivatkreditCallbackBox() {
 
       setForm(INITIAL_STATE)
       const params = new URLSearchParams({
-        source: "privatkredit",
+        source: successSource,
         conversion: GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO,
       })
       if (json?.leadId) params.set("leadId", String(json.leadId))

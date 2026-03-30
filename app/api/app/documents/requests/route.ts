@@ -9,7 +9,7 @@ type SupabaseClient = Awaited<ReturnType<typeof getUserAndRole>>["supabase"]
 async function canAccessCase(supabase: SupabaseClient, caseId: string, userId: string, role: string | null) {
   const { data: c } = await supabase
     .from("cases")
-    .select("id,customer_id,assigned_advisor_id")
+    .select("id,customer_id,assigned_advisor_id,case_type")
     .eq("id", caseId)
     .maybeSingle()
   if (!c) return false
@@ -31,6 +31,18 @@ export async function POST(req: Request) {
 
   const allowed = await canAccessCase(supabase, caseId, user.id, role)
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+  const { data: caseRow } = await supabase
+    .from("cases")
+    .select("case_type")
+    .eq("id", caseId)
+    .maybeSingle()
+  if (String(caseRow?.case_type ?? "").trim().toLowerCase() === "konsum") {
+    return NextResponse.json(
+      { error: "Manuelle lokale Dokumentanforderungen sind fuer Privatkredit deaktiviert. Bitte Europace-Zuordnungen verwenden." },
+      { status: 409 }
+    )
+  }
 
   const { data, error } = await supabase
     .from("document_requests")

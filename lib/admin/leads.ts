@@ -27,11 +27,18 @@ export type LeadRow = {
   product_price: number | null
   loan_purpose: string | null
   loan_amount_total: number | null
+  loan_term_months?: number | null
   property_zip: string | null
   property_city: string | null
   property_type: string | null
   property_purchase_price: number | null
   notes: string | null
+}
+
+function isMissingTermMonthsColumnError(error: unknown) {
+  const err = error as { message?: string } | null
+  const message = String(err?.message ?? "").toLowerCase()
+  return message.includes("term_months") && (message.includes("column") || message.includes("schema cache"))
 }
 
 export type InviteRecommendationContact = {
@@ -284,6 +291,7 @@ export async function ensureCustomerAccount(opts: {
   firstName?: string | null
   lastName?: string | null
   recommendedBy?: InviteRecommendationContact | null
+  deferInvite?: boolean
 }) {
   const { admin, req, firstName, lastName } = opts
   const email = opts.email.trim().toLowerCase()
@@ -304,28 +312,55 @@ export async function ensureCustomerAccount(opts: {
   let passwordInviteSent = false
 
   if (!userId) {
-    const invite = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo,
-      data: {
-        first_name: firstName ?? undefined,
-        last_name: lastName ?? undefined,
-        source: "webhook_lead",
-      },
-    })
+    if (opts.deferInvite) {
+      const created = await admin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        user_metadata: {
+          first_name: firstName ?? undefined,
+          last_name: lastName ?? undefined,
+          source: "webhook_lead",
+        },
+      })
 
-    if (invite.error) {
-      const again = await findUserIdByEmail(admin, email)
-      if (again) {
-        userId = again
-        existingAccount = true
+      if (created.error) {
+        const again = await findUserIdByEmail(admin, email)
+        if (again) {
+          userId = again
+          existingAccount = true
+        } else {
+          throw new Error(created.error.message)
+        }
       } else {
-        throw new Error(invite.error.message)
+        userId = created.data.user?.id ?? null
+        if (!userId) throw new Error("User konnte nicht erstellt werden.")
+        invited = false
+        existingAccount = false
       }
     } else {
-      userId = invite.data.user?.id ?? null
-      if (!userId) throw new Error("User konnte nicht erstellt werden.")
-      invited = true
-      existingAccount = false
+      const invite = await admin.auth.admin.inviteUserByEmail(email, {
+        redirectTo,
+        data: {
+          first_name: firstName ?? undefined,
+          last_name: lastName ?? undefined,
+          source: "webhook_lead",
+        },
+      })
+
+      if (invite.error) {
+        const again = await findUserIdByEmail(admin, email)
+        if (again) {
+          userId = again
+          existingAccount = true
+        } else {
+          throw new Error(invite.error.message)
+        }
+      } else {
+        userId = invite.data.user?.id ?? null
+        if (!userId) throw new Error("User konnte nicht erstellt werden.")
+        invited = true
+        existingAccount = false
+      }
     }
   }
 
@@ -353,7 +388,7 @@ export async function ensureCustomerAccount(opts: {
 
   const passwordSetAt = await getPasswordSetAt(admin, userId)
   const needsPasswordSetup = !passwordSetAt
-  if (needsPasswordSetup) {
+  if (needsPasswordSetup && !opts.deferInvite) {
     const actionLink = await generatePasswordActionLink(admin, email, redirectTo)
     if (actionLink) {
       const inviteHtml = buildPasswordInviteEmailHtml(actionLink, firstName, opts.recommendedBy, siteOrigin)
@@ -443,6 +478,7 @@ export async function createCaseFromLead(opts: {
           case_id: caseId,
           purpose: trimOrNull(lead.loan_purpose) ?? trimOrNull(lead.product_name),
           loan_amount_requested: baseLoanAmount,
+          term_months: numberOrNull(lead.loan_term_months),
         }
       : {
           case_id: caseId,
@@ -458,7 +494,18 @@ export async function createCaseFromLead(opts: {
     ([key, value]) => key !== "case_id" && value !== null && value !== ""
   )
   if (hasDetails) {
-    const { error: detailsErr } = await admin.from("case_baufi_details").insert(detailsForCase)
+    let { error: detailsErr } = await admin.from("case_baufi_details").insert(detailsForCase)
+    if (
+      detailsErr &&
+      caseType === "konsum" &&
+      "term_months" in detailsForCase &&
+      isMissingTermMonthsColumnError(detailsErr)
+    ) {
+      const fallbackPayload = { ...detailsForCase }
+      delete (fallbackPayload as { term_months?: unknown }).term_months
+      const fallback = await admin.from("case_baufi_details").insert(fallbackPayload)
+      detailsErr = fallback.error ?? null
+    }
     if (detailsErr) throw detailsErr
   }
 
@@ -498,6 +545,17 @@ export async function createCaseFromLead(opts: {
     type: "lead_imported",
     title: "Lead übernommen",
     body: `Lead #${lead.external_lead_id} wurde als ${productLabel}-Fall übernommen.`,
+    notifyCustomer: false,
+  })
+  await logCaseEvent({
+    caseId,
+    actorRole: "admin",
+    type: "lead_imported",
+    title: advisorId ? "Berater zugewiesen" : "Antrag angelegt",
+    body: advisorId
+      ? `Dein ${productLabel}-Fall wurde angelegt und einem Berater zugewiesen.`
+      : `Dein ${productLabel}-Fall wurde angelegt und wird jetzt weiter bearbeitet.`,
+    notifyAdvisor: false,
   })
 
   return { caseId, caseRef }

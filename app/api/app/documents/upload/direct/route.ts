@@ -2,6 +2,7 @@
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
+import { syncLocalDocumentToEuropace } from "@/lib/europace/documents"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
 
@@ -293,6 +294,8 @@ export async function POST(req: Request) {
       const caseId = String(bodyRaw.caseId ?? "").trim()
       const path = String(bodyRaw.path ?? "").trim()
       const requestId = String(bodyRaw.requestId ?? "").trim() || null
+      const europaceCategory = String(bodyRaw.europaceCategory ?? "").trim() || null
+      const europaceAssignmentId = String(bodyRaw.europaceAssignmentId ?? "").trim() || null
       const fileName = String(bodyRaw.fileName ?? "").trim()
       const mimeTypeRaw = String(bodyRaw.mimeType ?? "").trim().toLowerCase()
       const sizeParsed = Number(bodyRaw.sizeBytes ?? 0)
@@ -336,16 +339,54 @@ export async function POST(req: Request) {
       }
 
       const mimeType = mimeTypeRaw || inferMimeTypeFromMeta(fileName, "")
-      const { error: docErr } = await admin.from("documents").insert({
-        case_id: caseId,
-        request_id: requestId,
-        uploaded_by: user.id,
-        file_path: path,
-        file_name: fileName,
-        mime_type: mimeType || null,
-        size_bytes: sizeBytes,
-      })
+      const { data: insertedDoc, error: docErr } = await admin
+        .from("documents")
+        .insert({
+          case_id: caseId,
+          request_id: requestId,
+          uploaded_by: user.id,
+          file_path: path,
+          file_name: fileName,
+          mime_type: mimeType || null,
+          size_bytes: sizeBytes,
+        })
+        .select("id")
+        .single()
       if (docErr) throw docErr
+
+      const localDocumentId = String((insertedDoc as { id?: string | null } | null)?.id ?? "").trim() || null
+      let europaceSync:
+        | {
+            attempted: boolean
+            ok: boolean
+            reason: string | null
+            europaceDocumentId: string | null
+          }
+        | undefined
+
+      if (localDocumentId) {
+        const { data: europaceMeta } = await admin
+          .from("case_europace")
+          .select("antragsnummer")
+          .eq("case_id", caseId)
+          .maybeSingle()
+
+        europaceSync = await syncLocalDocumentToEuropace(admin, {
+          caseId,
+          localDocumentId,
+          filePath: path,
+          fileName,
+          siteOrigin: resolveSiteOrigin(req),
+          category: europaceCategory,
+          assignmentId: europaceAssignmentId,
+          antragsnummer: String(europaceMeta?.antragsnummer ?? "").trim() || null,
+        }).catch((error) => ({
+          attempted: true,
+          ok: false,
+          reason: error instanceof Error ? error.message : "Europace-Unterlagensync fehlgeschlagen.",
+          europaceDocumentId: null,
+        }))
+      }
 
       await notifyAdvisorAboutCustomerUpload({
         req,
@@ -356,7 +397,7 @@ export async function POST(req: Request) {
         requestIdFinal: requestId,
       })
 
-      return NextResponse.json({ ok: true, request_id: requestId ?? null })
+      return NextResponse.json({ ok: true, request_id: requestId ?? null, europaceSync: europaceSync ?? null })
     }
 
     return NextResponse.json({ error: "invalid_action" }, { status: 400 })
