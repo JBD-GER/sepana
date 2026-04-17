@@ -12,6 +12,7 @@ type DashboardResp = {
   openCases: number
   assignedAdvisorEmail: string | null
   tip: string
+  latestCaseId?: string | null
 }
 
 type AppointmentMini = {
@@ -95,10 +96,9 @@ function formatDateTime(value?: string | null) {
 export default async function CustomerDashboard() {
   await requireCustomer()
 
-  const [res, apptRes, missingRes, latestKonsumRes] = await Promise.all([
+  const [res, apptRes, latestKonsumRes] = await Promise.all([
     authFetch("/api/app/dashboard").catch(() => null),
     authFetch("/api/app/appointments?upcoming=1&limit=1").catch(() => null),
-    authFetch("/api/app/cases/missing-summary").catch(() => null),
     authFetch("/api/app/cases/list?caseType=konsum&limit=1&page=1").catch(() => null),
   ])
 
@@ -113,15 +113,9 @@ export default async function CustomerDashboard() {
 
   const nextAppointment: AppointmentMini | null =
     apptRes && apptRes.ok ? (await apptRes.json())?.items?.[0] ?? null : null
-  const missingSummary: MissingSummaryResp | null = missingRes && missingRes.ok ? await missingRes.json() : null
-  const missingCount = missingSummary?.missingCount ?? 0
-  const missingCaseId = missingSummary?.caseId ?? null
-  const missingTab = missingSummary?.firstTab ?? "contact"
-  const missingHref = missingCaseId
-    ? `/app/faelle/${missingCaseId}?open=1&tab=${encodeURIComponent(missingTab)}#live-case-panel-${missingCaseId}`
-    : null
   const latestKonsumList: CaseListMiniResp | null = latestKonsumRes && latestKonsumRes.ok ? await latestKonsumRes.json() : null
   const latestKonsumCase = latestKonsumList?.cases?.[0] ?? null
+  const currentCaseHref = data.latestCaseId ? `/app/faelle/${data.latestCaseId}` : "/app/faelle"
 
   let latestKonsumJourney:
     | ReturnType<typeof derivePrivatkreditJourney>
@@ -172,14 +166,12 @@ export default async function CustomerDashboard() {
             </p>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-            {missingCount > 0 && missingHref ? (
-              <Link
-                href={missingHref}
-                className="inline-flex w-full items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100 sm:w-auto"
-              >
-                {missingCount === 1 ? "1 offene Angabe ausfüllen" : `${missingCount} offene Angaben ausfüllen`}
-              </Link>
-            ) : null}
+            <Link
+              href={currentCaseHref}
+              className="inline-flex w-full items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100 sm:w-auto"
+            >
+              Zum aktuellen Fall
+            </Link>
             <Link
               href="/app/faelle"
               className="inline-flex w-full items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20 sm:w-auto"

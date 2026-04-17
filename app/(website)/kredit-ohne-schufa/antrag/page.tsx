@@ -95,6 +95,7 @@ export default async function SchufaFreeApplicationPage({
     caseResult,
     applicantResult,
     detailsResult,
+    customerAuthResult,
     requestsResult,
     documentsResult,
     syncResult,
@@ -104,6 +105,9 @@ export default async function SchufaFreeApplicationPage({
     admin.from("cases").select("id,case_ref,status").eq("id", caseId).maybeSingle(),
     admin.from("case_applicants").select("*").eq("case_id", caseId).eq("role", "primary").maybeSingle(),
     admin.from("case_schufa_free_details").select("*").eq("case_id", caseId).maybeSingle(),
+    access.caseRow.customer_id
+      ? admin.auth.admin.getUserById(access.caseRow.customer_id)
+      : Promise.resolve({ data: null as { user?: { email?: string | null } | null } | null }),
     admin
       .from("document_requests")
       .select("id,title,required")
@@ -131,6 +135,7 @@ export default async function SchufaFreeApplicationPage({
   const caseRow = caseResult.data ?? null
   const applicant = applicantResult.data ?? null
   const details = detailsResult.data ?? null
+  const customerAuthEmail = customerAuthResult?.data?.user?.email ?? null
   const requests = (
     (requestsResult.data ?? []) as Array<{ id: string; title: string; required?: boolean | null }>
   ).map((request) => normalizeSchufaFreeDocumentRequest(request))
@@ -147,7 +152,7 @@ export default async function SchufaFreeApplicationPage({
   const initialForm = {
     firstName: applicant?.first_name ?? "",
     lastName: applicant?.last_name ?? "",
-    email: details?.email ?? applicant?.email ?? "",
+    email: customerAuthEmail ?? details?.email ?? applicant?.email ?? "",
     phonePrimary: details?.phone_primary ?? applicant?.phone ?? "",
     phoneSecondary: details?.phone_secondary ?? "",
     gender: details?.gender ?? 1,

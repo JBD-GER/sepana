@@ -6,6 +6,7 @@ import { processSkagLead } from "@/lib/skag/client"
 import { hasDedicatedSkagVariantCredentials, type SkagApiVariant } from "@/lib/skag/config"
 import { buildSkagOpenLeadPayload } from "@/lib/skag/openMapper"
 import { buildSkagStandardLeadPayload } from "@/lib/skag/standardMapper"
+import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import {
   getSchufaFreeFamilyLabel,
   getSchufaFreeProfessionLabel,
@@ -65,6 +66,16 @@ function normalizeNationality(value: unknown) {
     .toUpperCase()
     .replace(/[^A-Z]/g, "")
   return normalized.length === 2 ? normalized : null
+}
+
+function resolveSiteOrigin(req: Request) {
+  const configured = trimOrNull(process.env.NEXT_PUBLIC_SITE_URL)
+  if (configured) {
+    try {
+      return new URL(configured).origin
+    } catch {}
+  }
+  return new URL(req.url).origin
 }
 
 function isEmail(value: string | null) {
@@ -179,7 +190,7 @@ const REQUIRED_FIELD_LABELS: Record<string, string> = {
   employerZipcode: "Arbeitgeber PLZ",
   employerCity: "Arbeitgeber Ort",
   netIncomeMonthly: "Nettoeinkommen monatlich",
-  bankName: "Bankname",
+  bankName: "Kontoinhaber",
   iban: "IBAN",
   spouseFirstName: "Vorname Ehepartner",
   spouseBirthDate: "Geburtsdatum Ehepartner",
@@ -212,6 +223,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Link ungueltig oder abgelaufen." }, { status: access.status })
     }
 
+    const [existingDetailsResult, existingApplicantResult, customerAuthResult] = await Promise.all([
+      admin.from("case_schufa_free_details").select("email").eq("case_id", caseId).maybeSingle(),
+      admin.from("case_applicants").select("email").eq("case_id", caseId).eq("role", "primary").maybeSingle(),
+      access.caseRow.customer_id
+        ? admin.auth.admin.getUserById(access.caseRow.customer_id)
+        : Promise.resolve({ data: null as { user?: { email?: string | null } | null } | null }),
+    ])
+
+    const customerAuthEmail = trimOrNull(customerAuthResult?.data?.user?.email)?.toLowerCase() ?? null
+    if (existingDetailsResult.error) throw existingDetailsResult.error
+    if (existingApplicantResult.error) throw existingApplicantResult.error
+    const existingDetailsEmail = trimOrNull(existingDetailsResult.data?.email)?.toLowerCase() ?? null
+    const existingApplicantEmail = trimOrNull(existingApplicantResult.data?.email)?.toLowerCase() ?? null
+
     const gender = integerOrNull(form.gender)
     const firstName = trimOrNull(form.firstName)
     const lastName = trimOrNull(form.lastName)
@@ -231,7 +256,8 @@ export async function POST(req: Request) {
     const city = trimOrNull(form.city)
     const phonePrimary = digitsOnly(form.phonePrimary)
     const phoneSecondary = digitsOnly(form.phoneSecondary)
-    const email = trimOrNull(form.email)?.toLowerCase() ?? null
+    const submittedEmail = trimOrNull(form.email)?.toLowerCase() ?? null
+    const email = customerAuthEmail ?? existingDetailsEmail ?? existingApplicantEmail ?? submittedEmail
     const residenceType = integerOrNull(form.residenceType)
     const rentMonthly = moneyOrNull(form.rentMonthly)
     const residentSince = asIsoDate(form.residentSince)
@@ -508,6 +534,50 @@ export async function POST(req: Request) {
 
     const documentSyncResults = await syncPendingCaseDocumentsToSkag(admin, caseId)
     const uploadedDocumentCount = documentSyncResults.filter((entry) => entry.ok).length
+    const siteOrigin = resolveSiteOrigin(req)
+    const customerDashboardUrl = `${siteOrigin}/app/faelle/${caseId}#schufa-dokumente`
+
+    let emailSent = false
+    let emailError: string | null = null
+
+    if (email) {
+      const html = buildEmailHtml({
+        title: "Antrag erfolgreich abgeschickt",
+        intro: caseRef
+          ? `Ihr Antrag für den Fall ${caseRef} wurde erfolgreich an SEPANA übermittelt.`
+          : "Ihr Antrag wurde erfolgreich an SEPANA übermittelt.",
+        bodyHtml: `
+          <p style="margin:0 0 14px 0; font-size:15px; line-height:24px; color:#0f172a;">
+            Der nächste Schritt ist jetzt der Upload Ihrer Unterlagen im Kundendashboard. Sobald die Dokumente
+            vollständig vorliegen, prüft Ihr Berater die Angaben und begleitet den Fall weiter.
+          </p>
+        `,
+        steps: [
+          "Laden Sie jetzt Ihre Unterlagen im Dokumentebereich hoch.",
+          "Danach prüft Ihr Berater Ihre Angaben.",
+          "Sobald es weitergeht, erhalten Sie automatisch die nächste Rückmeldung.",
+        ],
+        ctaLabel: "Unterlagen jetzt hochladen",
+        ctaUrl: customerDashboardUrl,
+        preheader: "Ihr Antrag wurde erfolgreich übermittelt. Als Nächstes laden Sie bitte Ihre Unterlagen hoch.",
+        eyebrow: "SEPANA - Antrag erfolgreich",
+        supportNote: "Der Dokumentebereich ist direkt über den Button im Kundendashboard erreichbar.",
+      })
+
+      const emailResult = await sendEmail({
+        to: email,
+        subject: "Ihr Antrag wurde erfolgreich abgeschickt",
+        html,
+      }).catch((error) => ({
+        ok: false as const,
+        error: error instanceof Error ? error.message : "mail_failed",
+      }))
+
+      emailSent = Boolean(emailResult?.ok)
+      emailError = emailSent ? null : String(emailResult?.error ?? "mail_failed")
+    } else {
+      emailError = "missing_customer_email"
+    }
 
     return NextResponse.json({
       ok: true,
@@ -515,6 +585,8 @@ export async function POST(req: Request) {
       clientId: skagResult.clientId,
       uploadedDocumentCount,
       ratenschutzOptIn,
+      emailSent,
+      emailError,
     })
   } catch (error) {
     console.error("[schufa-frei/application] unexpected error", error)

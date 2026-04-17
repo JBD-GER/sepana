@@ -12,7 +12,7 @@ export async function GET() {
 
   const admin = supabaseAdmin()
 
-  const [{ count: openCasesCount }, { data: latestAssigned }] = await Promise.all([
+  const [{ count: openCasesCount }, { data: latestAssigned }, { data: latestCase }] = await Promise.all([
     admin
       .from("cases")
       .select("id", { count: "exact", head: true })
@@ -23,6 +23,13 @@ export async function GET() {
       .select("assigned_advisor_id")
       .eq("customer_id", user.id)
       .not("assigned_advisor_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    admin
+      .from("cases")
+      .select("id")
+      .eq("customer_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -45,6 +52,7 @@ export async function GET() {
     openCases,
     assignedAdvisorEmail,
     tip,
+    latestCaseId: latestCase?.id ?? null,
   })
 }
 

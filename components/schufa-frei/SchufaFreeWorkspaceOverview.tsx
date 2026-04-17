@@ -246,12 +246,115 @@ export default function SchufaFreeWorkspaceOverview({
     },
   ] as const
 
+  const summaryItems =
+    mode === "advisor"
+      ? [
+          {
+            label: "SEPANA Credit ID",
+            value: sync?.skag_credit_id ?? "-",
+            hint: "",
+          },
+          {
+            label: "Offene Pflichtunterlagen",
+            value: String(openRequiredCount),
+            hint: "",
+          },
+          {
+            label: "Vorauszahlung",
+            value: getSchufaFreeProvisionStatusLabel(invoiceStatus),
+            hint: "",
+          },
+          {
+            label: "Vertrag / Signatur",
+            value: signatures.length ? `${completedSignatureCount}/${signatures.length} erledigt` : "Noch nicht gestartet",
+            hint: "",
+          },
+          {
+            label: "PostIdent",
+            value: payoutReached
+              ? "Ausgezahlt"
+              : postidentCompleted
+                ? "Abgeschlossen"
+                : postidentLinkReady
+                  ? "Link hinterlegt"
+                  : "Noch offen",
+            hint: "",
+          },
+          {
+            label: "Chat",
+            value: `${chatCount} Nachrichten`,
+            hint: "",
+          },
+        ]
+      : [
+          {
+            label: "Unterlagen",
+            value:
+              requiredRequestIds.size > 0
+                ? `${uploadedRequiredRequestIds.size}/${requiredRequestIds.size} erledigt`
+                : `${documents.length} Dokumente hochgeladen`,
+            hint:
+              openRequiredCount > 0
+                ? `${openRequiredCount} Pflichtunterlagen fehlen noch.`
+                : "Alle aktuell angeforderten Unterlagen liegen vor.",
+          },
+          {
+            label: "Vorauszahlung",
+            value: getSchufaFreeProvisionStatusLabel(invoiceStatus),
+            hint: !provisionRequested
+              ? "Sobald alle Unterlagen geprüft sind, erscheint hier die nächste Freigabe."
+              : provisionPaid
+                ? "Zahlung bestätigt. Der Fall geht jetzt in den Vertragsbereich."
+                : "Es geht weiter, sobald der Zahlungseingang bestätigt ist.",
+          },
+          {
+            label: "Vertrag",
+            value: !provisionPaid
+              ? "Wartet auf Vorauszahlung"
+              : signatures.length === 0
+                ? "Wird vorbereitet"
+                : openSignatureCount > 0
+                  ? `${completedSignatureCount}/${signatures.length} Schritte erledigt`
+                  : "Abgeschlossen",
+            hint: !provisionPaid
+              ? "Der Vertrag wird erst nach bestätigter Vorauszahlung freigeschaltet."
+              : signatures.length === 0
+                ? "Dein Berater bereitet den Vertrag für dich vor."
+                : openSignatureCount > 0
+                  ? "Prüfe den Vertrag und unterschreibe digital."
+                  : "Der Vertrag ist unterschrieben.",
+          },
+          {
+            label: "PostIdent",
+            value: payoutReached
+              ? "Ausgezahlt"
+              : postidentCompleted
+                ? "Abgeschlossen"
+                : postidentLinkReady
+                  ? "Link ist bereit"
+                  : "Wird vorbereitet",
+            hint: payoutReached
+              ? "Die wesentlichen Schritte sind abgeschlossen."
+              : postidentCompleted
+                ? "Die Legitimation ist erledigt."
+                : postidentLinkReady
+                  ? "Dein Link liegt im Fall bereit."
+                  : "Der Link folgt nach dem Vertragsabschluss.",
+          },
+        ]
+
   return (
     <section className="relative overflow-hidden rounded-[30px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_34%),radial-gradient(circle_at_right,rgba(14,165,233,0.14),transparent_26%),linear-gradient(135deg,#f8fafc,#ffffff)] p-5 shadow-sm sm:rounded-[36px] sm:p-7">
       <div className="pointer-events-none absolute -right-12 top-0 h-36 w-36 rounded-full bg-cyan-100/70 blur-3xl" />
       <div className="pointer-events-none absolute -left-12 bottom-0 h-36 w-36 rounded-full bg-emerald-100/70 blur-3xl" />
       <div className="relative space-y-5">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div
+          className={
+            mode === "advisor"
+              ? "flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between"
+              : "flex flex-col gap-4"
+          }
+        >
           <div className="max-w-4xl">
             <div className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">
               {mode === "advisor" ? "SEPANA Berater-Workspace" : "SEPANA Kunden-Dashboard"} - Kredit ohne Schufa
@@ -266,7 +369,7 @@ export default function SchufaFreeWorkspaceOverview({
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:w-[360px] xl:grid-cols-1">
+          <div className={mode === "advisor" ? "grid gap-3 sm:grid-cols-2 xl:w-[360px] xl:grid-cols-1" : "grid gap-3"}>
             <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-4 shadow-sm">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Aktueller Status</div>
               <div className="mt-2 text-lg font-semibold text-slate-900">{statusMeta?.title ?? translateCaseStatus(caseStatus)}</div>
@@ -288,52 +391,44 @@ export default function SchufaFreeWorkspaceOverview({
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <div className="text-xs text-slate-500">SEPANA Credit ID</div>
-            <div className="mt-1 text-sm font-semibold text-slate-900">{sync?.skag_credit_id ?? "-"}</div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <div className="text-xs text-slate-500">Offene Pflichtunterlagen</div>
-            <div className="mt-1 text-sm font-semibold text-slate-900">{openRequiredCount}</div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <div className="text-xs text-slate-500">Vorauszahlung</div>
-            <div className="mt-1 text-sm font-semibold text-slate-900">{getSchufaFreeProvisionStatusLabel(invoiceStatus)}</div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <div className="text-xs text-slate-500">Vertrag / Signatur</div>
-            <div className="mt-1 text-sm font-semibold text-slate-900">
-              {signatures.length ? `${completedSignatureCount}/${signatures.length} erledigt` : "Noch nicht gestartet"}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <div className="text-xs text-slate-500">PostIdent</div>
-            <div className="mt-1 text-sm font-semibold text-slate-900">
-              {payoutReached
-                ? "Ausgezahlt"
-                : postidentCompleted
-                  ? "Abgeschlossen"
-                  : postidentLinkReady
-                    ? "Link hinterlegt"
-                    : "Noch offen"}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <div className="text-xs text-slate-500">Chat</div>
-            <div className="mt-1 text-sm font-semibold text-slate-900">{chatCount} Nachrichten</div>
-          </div>
-        </div>
-
-        <div className="grid gap-3 xl:grid-cols-7">
-          {stepItems.map((item) => (
-            <div key={item.number} className={`rounded-2xl border px-4 py-4 shadow-sm ${stepBadgeClass(item.state)}`}>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] opacity-80">Schritt {item.number}</div>
-              <div className="mt-2 text-base font-semibold">{item.title}</div>
-              <div className="mt-2 text-sm leading-relaxed opacity-90">{item.text}</div>
+        <div className={mode === "advisor" ? "grid gap-3 md:grid-cols-2 xl:grid-cols-6" : "grid gap-3"}>
+          {summaryItems.map((item) => (
+            <div key={item.label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <div className="text-xs text-slate-500">{item.label}</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">{item.value}</div>
+              {item.hint ? <div className="mt-2 text-xs leading-relaxed text-slate-500">{item.hint}</div> : null}
             </div>
           ))}
         </div>
+
+        {mode === "advisor" ? (
+          <div className="grid gap-3 xl:grid-cols-7">
+            {stepItems.map((item) => (
+              <div key={item.number} className={`rounded-2xl border px-4 py-4 shadow-sm ${stepBadgeClass(item.state)}`}>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] opacity-80">Schritt {item.number}</div>
+                <div className="mt-2 text-base font-semibold">{item.title}</div>
+                <div className="mt-2 text-sm leading-relaxed opacity-90">{item.text}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {stepItems.map((item) => (
+              <div key={item.number} className={`rounded-2xl border px-4 py-4 shadow-sm ${stepBadgeClass(item.state)}`}>
+                <div className="flex items-start gap-4">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-current/15 bg-white/70 text-sm font-semibold">
+                    {item.number}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] opacity-80">Schritt {item.number}</div>
+                    <div className="mt-1 text-base font-semibold">{item.title}</div>
+                    <div className="mt-2 text-sm leading-relaxed opacity-90">{item.text}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2">
           {[

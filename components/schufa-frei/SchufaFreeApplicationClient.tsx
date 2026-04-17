@@ -230,7 +230,7 @@ function validate(form: FormState, allowTaxClassSix: boolean) {
   if (employerRequired && !/^\d{5}$/.test(form.employerZipcode)) employment.push("Arbeitgeber PLZ")
   if (employerRequired && !form.employerCity.trim()) employment.push("Arbeitgeber Ort")
 
-  if (!form.bankName.trim()) bank.push("Bankname")
+  if (!form.bankName.trim()) bank.push("Kontoinhaber")
   if (!looksLikeIban(form.iban)) bank.push("IBAN")
 
   return { person, residence, employment, bank }
@@ -276,6 +276,7 @@ export default function SchufaFreeApplicationClient({
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState<{ tone: "error" | "success"; text: string } | null>(null)
   const [draftReady, setDraftReady] = useState(false)
+  const lockedEmail = fieldValue(initialForm, "email").trim()
 
   const storageKey = `schufa_free_application_draft_${caseId}`
   const issues = validate(form, allowTaxClassSix)
@@ -300,6 +301,7 @@ export default function SchufaFreeApplicationClient({
           nationality: String(parsed.nationality ?? current.nationality).toUpperCase(),
           iban: normalizeIbanInput(parsed.iban ?? current.iban),
           childrenTaxAllowance: normalizeTaxAllowanceValue(parsed.childrenTaxAllowance ?? current.childrenTaxAllowance),
+          email: current.email,
         }))
       }
     } catch {
@@ -311,7 +313,8 @@ export default function SchufaFreeApplicationClient({
 
   useEffect(() => {
     if (!draftReady || hasSubmittedToSkag) return
-    window.localStorage.setItem(storageKey, JSON.stringify(form))
+    const draftForm = Object.fromEntries(Object.entries(form).filter(([key]) => key !== "email"))
+    window.localStorage.setItem(storageKey, JSON.stringify(draftForm))
   }, [draftReady, form, hasSubmittedToSkag, storageKey])
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -442,7 +445,20 @@ export default function SchufaFreeApplicationClient({
             <Field label="Geburtsdatum"><Input type="date" value={form.dateOfBirth} onChange={(e) => update("dateOfBirth", e.target.value)} /></Field>
             <Field label="Telefon"><Input value={form.phonePrimary} onChange={(e) => update("phonePrimary", e.target.value)} /></Field>
             <Field label="Alternative Telefon-Nr."><Input value={form.phoneSecondary} onChange={(e) => update("phoneSecondary", e.target.value)} placeholder="optional" /></Field>
-            <Field label="E-Mail" className="sm:col-span-2"><Input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} /></Field>
+            <Field label="E-Mail" className="sm:col-span-2">
+              <Input
+                type="email"
+                value={form.email}
+                readOnly
+                aria-readonly="true"
+                className="cursor-not-allowed bg-slate-50 text-slate-500"
+              />
+              {lockedEmail ? (
+                <div className="mt-2 text-xs text-slate-500">
+                  Diese E-Mail-Adresse wurde aus Ihrer Vorprüfung übernommen und kann hier nicht mehr geändert werden.
+                </div>
+              ) : null}
+            </Field>
             <Field label="Familienstand"><Select value={form.familySituation} onChange={(e) => update("familySituation", e.target.value)}>{SCHUFA_FREE_FAMILY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</Select></Field>
             <Field label="Unterhaltspflichtige Kinder"><Select value={form.numberOfChildren} onChange={(e) => { const count = Number(e.target.value); update("numberOfChildren", e.target.value); update("childrenAgesCsv", joinChildAges(parseChildAges(form.childrenAgesCsv, count))) }}>{[0,1,2,3,4,5,6,7,8,9,10].map((option) => <option key={option} value={option}>{option}</option>)}</Select></Field>
             <Field label="Geburtsname" className="sm:col-span-2"><Input value={form.birthName} onChange={(e) => update("birthName", e.target.value)} placeholder="optional" /></Field>
@@ -515,7 +531,7 @@ export default function SchufaFreeApplicationClient({
         {step === "bank" ? (
           <div className="space-y-5">
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Bankname"><Input value={form.bankName} onChange={(e) => update("bankName", e.target.value)} /></Field>
+              <Field label="Kontoinhaber"><Input value={form.bankName} onChange={(e) => update("bankName", e.target.value)} /></Field>
               <Field label="IBAN"><Input value={formatIban(form.iban)} onChange={(e) => update("iban", normalizeIbanInput(e.target.value))} className="uppercase tracking-[0.08em]" /></Field>
             </div>
             <div className="grid gap-3">
@@ -582,7 +598,7 @@ export default function SchufaFreeApplicationClient({
                   <div className="mt-1">{form.email || "-"}</div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-xs text-slate-500">Einkommen / Bank</div>
+                  <div className="text-xs text-slate-500">Einkommen / Konto</div>
                   <div className="mt-1 font-semibold text-slate-900">{formatMoney(form.netIncomeMonthly) || "-"}</div>
                   <div className="mt-1">{form.bankName || "-"} / {formatIban(form.iban) || "-"}</div>
                 </div>
