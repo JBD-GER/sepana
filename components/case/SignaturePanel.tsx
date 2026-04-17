@@ -760,10 +760,14 @@ function SignatureRequestCard({
           {canOpenSign ? (
             <button
               onClick={() => setSignOpen(true)}
-              className="w-full rounded-full border border-slate-900 bg-slate-900 px-3 py-2 text-[11px] font-semibold text-white disabled:opacity-60 sm:w-auto sm:py-1"
+              className={`w-full rounded-2xl border px-4 py-3 text-sm font-semibold shadow-sm transition sm:min-w-[180px] sm:w-auto sm:py-2 ${
+                alreadySigned
+                  ? "border-emerald-600 bg-emerald-600 text-white shadow-emerald-100"
+                  : "border-slate-900 bg-slate-900 text-white ring-4 ring-slate-100 hover:bg-slate-800"
+              } disabled:cursor-default disabled:opacity-100`}
               disabled={alreadySigned}
             >
-              {alreadySigned ? "Bereits unterschrieben" : "Unterschreiben"}
+              {alreadySigned ? "Bereits unterschrieben" : "Jetzt unterschreiben"}
             </button>
           ) : (
             <span className="w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 sm:w-auto sm:py-1">
@@ -1394,7 +1398,6 @@ function SignatureSignModal({
     .filter((f) => f.owner === actor)
     .slice()
     .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x)
-  const actorFieldPages = Array.from(new Set(actorFields.map((f) => f.page))).sort((a, b) => a - b)
   const pageFields = fields.filter((f) => f.page === page)
   const valuesByRole = req.values_by_role ?? {}
   const advisorValues = valuesByRole.advisor ?? {}
@@ -1530,13 +1533,13 @@ function SignatureSignModal({
               </div>
             </div>
             <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 lg:hidden">
-              <span>Prüfen Sie hier die markierten Bereiche im Dokument.</span>
+              <span>Prüfen Sie hier das Dokument und springen Sie danach zum Signieren.</span>
               <button
                 type="button"
                 onClick={() => setMobileView("fields")}
-                className="rounded-full border border-slate-300 bg-white px-2.5 py-1 font-semibold text-slate-700"
+                className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 font-semibold text-sky-700 shadow-sm animate-[pulse_3.2s_ease-in-out_infinite]"
               >
-                Zu Ausfüllen
+                Jetzt unterzeichnen
               </button>
             </div>
 
@@ -1564,7 +1567,7 @@ function SignatureSignModal({
                   </button>
                 </div>
                 <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {(actorFieldPages.length ? actorFieldPages : Array.from({ length: pageCount }, (_, i) => i + 1)).map((p) => {
+                  {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => {
                     const hasField = pagesWithFields.has(p)
                     const active = p === page
                     return (
@@ -1852,6 +1855,7 @@ function SignaturePad({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const drawingRef = useRef(false)
   const activePointerIdRef = useRef<number | null>(null)
+  const activeRectRef = useRef<DOMRect | null>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -1880,11 +1884,11 @@ function SignaturePad({
     }
   }, [value])
 
-  function getPoint(e: ReactPointerEvent<HTMLCanvasElement>) {
-    const rect = e.currentTarget.getBoundingClientRect()
+  function getPoint(e: ReactPointerEvent<HTMLCanvasElement>, rect?: DOMRect | null) {
+    const bounds = rect ?? activeRectRef.current ?? e.currentTarget.getBoundingClientRect()
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: Math.min(bounds.width, Math.max(0, e.clientX - bounds.left)),
+      y: Math.min(bounds.height, Math.max(0, e.clientY - bounds.top)),
     }
   }
 
@@ -1896,10 +1900,11 @@ function SignaturePad({
     if (!e.isPrimary) return
     e.preventDefault()
     activePointerIdRef.current = e.pointerId
+    activeRectRef.current = canvas.getBoundingClientRect()
     try {
       canvas.setPointerCapture(e.pointerId)
     } catch {}
-    const p = getPoint(e)
+    const p = getPoint(e, activeRectRef.current)
     drawingRef.current = true
     ctx.beginPath()
     ctx.moveTo(p.x, p.y)
@@ -1912,9 +1917,11 @@ function SignaturePad({
     const ctx = canvas?.getContext("2d")
     if (!canvas || !ctx) return
     e.preventDefault()
-    const p = getPoint(e)
+    const p = getPoint(e, activeRectRef.current)
     ctx.lineTo(p.x, p.y)
     ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(p.x, p.y)
   }
 
   function onPointerUp() {
@@ -1927,6 +1934,7 @@ function SignaturePad({
       } catch {}
     }
     activePointerIdRef.current = null
+    activeRectRef.current = null
     if (canvas) onChange(canvas.toDataURL("image/png"))
   }
 
@@ -1943,6 +1951,7 @@ function SignaturePad({
       <canvas
         ref={canvasRef}
         className="h-[180px] w-full touch-none rounded-lg bg-white sm:h-[120px]"
+        style={{ touchAction: "none" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
