@@ -407,7 +407,13 @@ export default function SchufaFreeWorkspaceOverview({
           </div>
         )}
 
-        <div className={mode === "advisor" ? "grid gap-3 md:grid-cols-2 xl:grid-cols-6" : "grid gap-3"}>
+        <div
+          className={
+            mode === "advisor"
+              ? "grid gap-3 md:grid-cols-2 xl:grid-cols-6"
+              : "grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+          }
+        >
           {summaryItems.map((item) => (
             <div key={item.label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
               <div className="text-xs text-slate-500">{item.label}</div>
@@ -428,9 +434,12 @@ export default function SchufaFreeWorkspaceOverview({
             ))}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {stepItems.map((item) => (
-              <div key={item.number} className={`rounded-2xl border px-4 py-4 shadow-sm ${stepBadgeClass(item.state)}`}>
+              <div
+                key={item.number}
+                className={`rounded-2xl border px-4 py-4 shadow-sm ${stepBadgeClass(item.state)} min-h-[132px]`}
+              >
                 <div className="flex items-start gap-4">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-current/15 bg-white/70 text-sm font-semibold">
                     {item.number}
