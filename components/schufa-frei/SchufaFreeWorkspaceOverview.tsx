@@ -319,9 +319,9 @@ export default function SchufaFreeWorkspaceOverview({
             hint: !provisionPaid
               ? "Der Vertrag wird erst nach bestätigter Vorauszahlung freigeschaltet."
               : signatures.length === 0
-                ? "Dein Berater bereitet den Vertrag für dich vor."
+                ? "Ihr Berater bereitet den Vertrag für Sie vor."
                 : openSignatureCount > 0
-                  ? "Prüfe den Vertrag und unterschreibe digital."
+                  ? "Prüfen Sie den Vertrag und unterschreiben Sie digital."
                   : "Der Vertrag ist unterschrieben.",
           },
           {
@@ -338,7 +338,7 @@ export default function SchufaFreeWorkspaceOverview({
               : postidentCompleted
                 ? "Die Legitimation ist erledigt."
                 : postidentLinkReady
-                  ? "Dein Link liegt im Fall bereit."
+                  ? "Ihr Link liegt im Fall bereit."
                   : "Der Link folgt nach dem Vertragsabschluss.",
           },
         ]
@@ -347,49 +347,65 @@ export default function SchufaFreeWorkspaceOverview({
     <section className="relative overflow-hidden rounded-[30px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_34%),radial-gradient(circle_at_right,rgba(14,165,233,0.14),transparent_26%),linear-gradient(135deg,#f8fafc,#ffffff)] p-5 shadow-sm sm:rounded-[36px] sm:p-7">
       <div className="pointer-events-none absolute -right-12 top-0 h-36 w-36 rounded-full bg-cyan-100/70 blur-3xl" />
       <div className="pointer-events-none absolute -left-12 bottom-0 h-36 w-36 rounded-full bg-emerald-100/70 blur-3xl" />
-      <div className="relative space-y-5">
-        <div
-          className={
-            mode === "advisor"
-              ? "flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between"
-              : "flex flex-col gap-4"
-          }
-        >
-          <div className="max-w-4xl">
-            <div className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">
-              {mode === "advisor" ? "SEPANA Berater-Workspace" : "SEPANA Kunden-Dashboard"} - Kredit ohne Schufa
-            </div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-              Fall {caseRef || "Schufa-frei"} im klaren Ablauf von Unterlagen bis Auszahlung.
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600 sm:text-base">
-              {mode === "advisor"
-                ? "Diese Ansicht bündelt Status, Dokumente, Vorauszahlung, Vertrag, PostIdent und Auszahlung in einem klaren operativen Ablauf."
-                : "Diese Ansicht zeigt dir jederzeit den nächsten Schritt: Unterlagen hochladen, Vorauszahlung leisten, Vertrag unterschreiben, PostIdent abschließen und den weiteren Status verfolgen."}
-            </p>
-          </div>
 
-          <div className={mode === "advisor" ? "grid gap-3 sm:grid-cols-2 xl:w-[360px] xl:grid-cols-1" : "grid gap-3"}>
-            <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-4 shadow-sm">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Aktueller Status</div>
-              <div className="mt-2 text-lg font-semibold text-slate-900">{statusMeta?.title ?? translateCaseStatus(caseStatus)}</div>
-              <div className="mt-2 text-sm leading-relaxed text-slate-600">
-                {mode === "advisor"
-                  ? statusMeta?.advisorMessage ?? statusMeta?.customerMessage ?? "Der Fall wird aktuell bearbeitet."
-                  : statusMeta?.customerMessage ?? statusMeta?.advisorMessage ?? "Der Fall wird aktuell bearbeitet."}
+      <div className="relative space-y-5">
+        {mode === "advisor" ? (
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="max-w-4xl">
+              <div className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">
+                SEPANA Berater-Workspace - Kredit ohne Schufa
+              </div>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                Fall {caseRef || "Schufa-frei"} im klaren Ablauf von Unterlagen bis Auszahlung.
+              </h1>
+              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600 sm:text-base">
+                Diese Ansicht bündelt Status, Dokumente, Vorauszahlung, Vertrag, PostIdent und Auszahlung in einem klaren operativen Ablauf.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:w-[360px] xl:grid-cols-1">
+              <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-4 shadow-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Aktueller Status</div>
+                <div className="mt-2 text-lg font-semibold text-slate-900">{statusMeta?.title ?? translateCaseStatus(caseStatus)}</div>
+                <div className="mt-2 text-sm leading-relaxed text-slate-600">
+                  {statusMeta?.advisorMessage ?? statusMeta?.customerMessage ?? "Der Fall wird aktuell bearbeitet."}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-4 text-white shadow-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">Nächster Schritt</div>
+                <div className="mt-2 text-sm font-semibold leading-relaxed">{nextAction}</div>
+                {counterpartName ? (
+                  <div className="mt-3 text-xs text-slate-300">
+                    Kunde: <span className="font-semibold text-white">{counterpartName}</span>
+                  </div>
+                ) : null}
               </div>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-4 text-white shadow-sm">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">Nächster Schritt</div>
-              <div className="mt-2 text-sm font-semibold leading-relaxed">{nextAction}</div>
-              {counterpartName ? (
-                <div className="mt-3 text-xs text-slate-300">
-                  {mode === "advisor" ? "Kunde" : "Berater"}: <span className="font-semibold text-white">{counterpartName}</span>
-                </div>
-              ) : null}
+          </div>
+        ) : (
+          <div className="rounded-[26px] border border-slate-200/80 bg-white/88 p-5 shadow-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-3xl">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Ihr weiterer Ablauf</div>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">So geht es jetzt Schritt für Schritt weiter.</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  Unterlagen, Vorauszahlung, Vertrag, PostIdent und Auszahlung werden hier ruhig und nacheinander angezeigt.
+                </p>
+                {counterpartName ? (
+                  <div className="mt-3 text-sm text-slate-600">
+                    Ihr Ansprechpartner: <span className="font-semibold text-slate-900">{counterpartName}</span>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-4 text-white shadow-sm lg:max-w-md">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">Nächster Schritt</div>
+                <div className="mt-2 text-sm font-semibold leading-relaxed">{nextAction}</div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className={mode === "advisor" ? "grid gap-3 md:grid-cols-2 xl:grid-cols-6" : "grid gap-3"}>
           {summaryItems.map((item) => (
@@ -432,7 +448,6 @@ export default function SchufaFreeWorkspaceOverview({
 
         <div className="flex flex-wrap gap-2">
           {[
-            { href: "#schufa-status", label: "Status" },
             { href: "#schufa-dokumente", label: "Dokumente" },
             { href: "#schufa-vorauszahlung", label: "Vorauszahlung" },
             { href: "#schufa-signatur", label: "Vertrag & Signatur" },

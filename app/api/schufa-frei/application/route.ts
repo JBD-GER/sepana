@@ -6,7 +6,7 @@ import { processSkagLead } from "@/lib/skag/client"
 import { hasDedicatedSkagVariantCredentials, type SkagApiVariant } from "@/lib/skag/config"
 import { buildSkagOpenLeadPayload } from "@/lib/skag/openMapper"
 import { buildSkagStandardLeadPayload } from "@/lib/skag/standardMapper"
-import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
+import { buildEmailHtml, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
 import {
   getSchufaFreeFamilyLabel,
   getSchufaFreeProfessionLabel,
@@ -578,6 +578,22 @@ export async function POST(req: Request) {
     } else {
       emailError = "missing_customer_email"
     }
+
+    await logCaseEvent({
+      caseId,
+      actorRole: "system",
+      type: "schufa_free_application_submitted",
+      title: "Antrag erfolgreich abgeschickt",
+      body: emailSent
+        ? "Ihr Antrag wurde an SEPANA übermittelt. Als Nächstes laden Sie bitte Ihre Unterlagen im Dashboard hoch."
+        : "Ihr Antrag wurde an SEPANA übermittelt. Als Nächstes laden Sie bitte Ihre Unterlagen im Dashboard hoch.",
+      meta: {
+        customer_dashboard_url: customerDashboardUrl,
+        uploaded_document_count: uploadedDocumentCount,
+        email_sent: emailSent,
+      },
+      notifyAdvisor: false,
+    })
 
     return NextResponse.json({
       ok: true,

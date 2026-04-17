@@ -1,4 +1,5 @@
 ﻿// app/(app)/app/faelle/[id]/page.tsx
+import Image from "next/image"
 import Link from "next/link"
 import { requireCustomer } from "@/lib/app/requireCustomer"
 import { authFetch } from "@/lib/app/authFetch"
@@ -20,8 +21,6 @@ import type { EuropaceFlowSummary } from "@/lib/europace/flow"
 import { isImportedBankDocumentPath } from "@/lib/europace/flow"
 import { getOnlinekreditAccountCheckRestrictionReason } from "@/lib/onlinekredit/accountCheckPolicy"
 import { getOnlinekreditDocumentPin } from "@/lib/onlinekredit/documentPin"
-import SchufaFreeStatusOverview from "@/components/schufa-frei/SchufaFreeStatusOverview"
-import SchufaFreeDetailsOverview from "@/components/schufa-frei/SchufaFreeDetailsOverview"
 import SchufaFreePostIdentPanel from "@/components/schufa-frei/SchufaFreePostIdentPanel"
 import SchufaFreeProvisionPanel from "@/components/schufa-frei/SchufaFreeProvisionPanel"
 import SchufaFreeWorkspaceOverview from "@/components/schufa-frei/SchufaFreeWorkspaceOverview"
@@ -502,10 +501,23 @@ export default async function CaseDetailPage({
   const provisionInvoice = schufaData?.invoice ?? null
   const provisionPaid = isSchufaFreeProvisionPaid(provisionInvoice?.status ?? null)
   const documentCount = (data.documents ?? []).length
-  const requestCount = (data.document_requests ?? []).length
+  const requiredRequestIds = new Set(
+    (data.document_requests ?? [])
+      .filter((request) => Boolean(request.required))
+      .map((request) => String(request.id ?? "").trim())
+      .filter(Boolean)
+  )
+  const uploadedRequiredRequestIds = new Set(
+    (data.documents ?? [])
+      .map((document) => String(document.request_id ?? "").trim())
+      .filter((requestId) => requiredRequestIds.has(requestId))
+  )
+  const openRequiredCount = Array.from(requiredRequestIds).filter((requestId) => !uploadedRequiredRequestIds.has(requestId)).length
   const requestedVariant = `${formatEUR(schufaData?.details?.loan_amount_requested ?? null)} / ${schufaData?.details?.term_months ?? "-"} Monate`
   const nextCustomerStep = !provisionInvoice?.id
-    ? "Unterlagen vollständig halten"
+    ? openRequiredCount > 0
+      ? "Unterlagen hochladen"
+      : "Unterlagen werden geprüft"
     : !provisionPaid
       ? "Vorauszahlung überweisen"
       : signatureItems.length === 0
@@ -514,7 +526,9 @@ export default async function CaseDetailPage({
           ? "PostIdent wird vorbereitet"
           : "PostIdent abschließen"
   const nextCustomerHint = !provisionInvoice?.id
-    ? "Sobald alle Unterlagen vollständig geprüft sind, erscheint hier die nächste Freigabe."
+    ? openRequiredCount > 0
+      ? "Lade jetzt die noch fehlenden Unterlagen hoch. Danach prüft dein Berater die Angaben."
+      : "Deine Unterlagen liegen vor und werden jetzt geprüft."
     : !provisionPaid
       ? "Der Vertrag wird freigeschaltet, sobald die Vorauszahlung bei uns eingegangen ist."
       : signatureItems.length === 0
@@ -551,36 +565,13 @@ export default async function CaseDetailPage({
       <div className="w-full overflow-x-clip space-y-6">
         <ClearSignatureHash />
         <div className="rounded-[32px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.15),transparent_32%),radial-gradient(circle_at_right,rgba(16,185,129,0.12),transparent_30%),linear-gradient(135deg,#f8fafc,#ffffff)] p-5 shadow-sm sm:rounded-[36px] sm:p-7">
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.18fr)_minmax(320px,0.82fr)]">
-            <div className="max-w-3xl">
-              <Link href="/app/faelle?product=schufa_frei" className="text-sm font-medium text-slate-900 underline underline-offset-4">
-                {"<-"} Zurück zum Schufa-frei Bereich
-              </Link>
-              <div className="mt-4 inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-800">
-                Kundenbereich · Kredit ohne Schufa
-              </div>
-              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-                Dein Antrag mit klarem nächsten Schritt.
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-                Hier siehst du auf einen Blick, was bereits erledigt ist und welcher Schritt als Nächstes ansteht.
-              </p>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-              <SchufaFreeHeroMetric
-                label="Aktueller Status"
-                value={translateCaseStatus(c.status_display ?? c.status)}
-                hint="Die detaillierten Schritte findest du direkt darunter im Dashboard."
-                tone="dark"
-              />
-              <SchufaFreeHeroMetric
-                label="Antrag"
-                value={c.case_ref || "Kredit ohne Schufa"}
-                hint={`Erstellt am ${dt(c.created_at)}`}
-                tone="accent"
-              />
-            </div>
+          <div className="max-w-4xl">
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+              Dein Antrag mit klarem nächsten Schritt.
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+              Hier siehst du auf einen Blick, was bereits erledigt ist und welcher Schritt als Nächstes ansteht.
+            </p>
           </div>
 
           <div className="mt-6 grid gap-3 lg:grid-cols-3">
@@ -593,7 +584,11 @@ export default async function CaseDetailPage({
             <SchufaFreeHeroMetric
               label="Variante"
               value={requestedVariant}
-              hint={`${documentCount} Unterlagen hochgeladen · ${requestCount} Anforderungen`}
+              hint={
+                openRequiredCount > 0
+                  ? `${documentCount} Unterlagen hochgeladen · ${openRequiredCount} noch offen`
+                  : `${documentCount} Unterlagen hochgeladen · aktuell vollständig`
+              }
             />
             <SchufaFreeHeroMetric
               label="Betreuung"
@@ -640,111 +635,95 @@ export default async function CaseDetailPage({
           <CaseAppointmentPanel caseId={c.id} />
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)] 2xl:grid-cols-[minmax(0,1.12fr)_minmax(360px,0.88fr)]">
-          <div className="space-y-8">
-            <section id="schufa-dokumente" className="space-y-3">
-              <SchufaFreeIntroCard
-                eyebrow="Unterlagen"
-                title="Dokumente und Nachweise hochladen"
-                description="Lade fehlende Unterlagen direkt hier hoch. Den aktuellen Übertragungsstatus siehst du pro Datei."
-                tone="slate"
-              />
-              <DocumentPanel
-                caseId={c.id}
-                requests={data.document_requests ?? []}
-                documents={data.documents ?? []}
-                europaceDocuments={[]}
-                europaceUploadTargets={[]}
-                skagDocuments={schufaData?.skagDocuments ?? []}
-                documentPin={null}
-                caseType={caseType}
-                canCreateRequest={data.viewer_role === "advisor" || data.viewer_role === "admin"}
-                caseCustomerId={c.customer_id ?? null}
-                caseAdvisorId={c.assigned_advisor_id ?? null}
-                hideTechnicalBranding
-              />
-            </section>
-
-            <section id="schufa-vorauszahlung" className="space-y-3">
-              <SchufaFreeIntroCard
-                eyebrow="Vorauszahlung"
-                title="Vorauszahlung vor dem Vertrag"
-                description="Nach vollständiger Unterlagenprüfung erhältst du hier die Vorauszahlungsrechnung. Es geht erst weiter, wenn die Zahlung bei uns eingegangen ist."
-                tone="cyan"
-              />
-              <SchufaFreeProvisionPanel
-                mode="customer"
-                caseRef={c.case_ref}
-                loanAmount={schufaData?.details?.loan_amount_requested ?? null}
-                invoice={provisionInvoice}
-              />
-            </section>
-
-            <section id="schufa-signatur" className="space-y-3">
-              <SchufaFreeIntroCard
-                eyebrow="Vertrag & Signatur"
-                title="Kreditvertrag prüfen und unterschreiben"
-                description="Sobald dein Berater den Vertrag vorbereitet hat, erscheint er hier für die digitale Prüfung und Unterschrift."
-                tone="emerald"
-              />
-              {!provisionPaid ? (
-                <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">Noch gesperrt</div>
-                  <p className="mt-2 text-sm leading-relaxed text-amber-900">
-                    Der Vertrag wird erst freigeschaltet, wenn deine Vorauszahlung bei uns eingegangen ist.
-                  </p>
-                </div>
-              ) : signatureItems.length === 0 ? (
-                <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Noch nicht freigegeben</div>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                    Der Vertrag wird aktuell vorbereitet. Sobald die Unterschrift möglich ist, erscheint das Dokument direkt in diesem Bereich.
-                  </p>
-                </div>
-              ) : null}
-              {provisionPaid ? <SignaturePanel caseId={c.id} canEdit={false} fixedProviderName="SIGMA Kreditbank AG" /> : null}
-            </section>
-
-            <section id="schufa-postident" className="space-y-3">
-              <SchufaFreeIntroCard
-                eyebrow="PostIdent"
-                title="Legitimation nach dem Vertrag"
-                description="Nach der Vertragsunterschrift findest du hier deinen PostIdent-Link. Sobald die Legitimation erledigt ist, folgt als nächster Schritt die Auszahlung."
-                tone="slate"
-              />
-              <SchufaFreePostIdentPanel
-                mode="customer"
-                postidentUrl={schufaData?.sync?.postident_url ?? null}
-                postidentAddedAt={schufaData?.sync?.postident_added_at ?? null}
-                postidentNotifiedAt={schufaData?.sync?.postident_notified_at ?? null}
-                statusAlias={schufaData?.sync?.last_status_alias ?? schufaData?.pushEvents?.[0]?.status_alias ?? null}
-              />
-            </section>
-
-            <section id="schufa-chat" className="space-y-3">
-              <SchufaFreeIntroCard
-                eyebrow="Direkter Austausch"
-                title="Chat mit deinem Berater"
-                description="Nutze den Chat für Rückfragen zu Unterlagen, Vertrag, PostIdent oder dem aktuellen Bearbeitungsstand."
-                tone="slate"
-              />
-              <CaseChat caseId={c.id} currentUserId={user.id} initialMessages={data.chat ?? []} />
-            </section>
-          </div>
-
-          <aside className="space-y-6 self-start xl:sticky xl:top-6">
-            <SchufaFreeStatusOverview
-              caseStatus={c.status_display ?? c.status}
-              sync={schufaData?.sync ?? null}
-              pushEvents={schufaData?.pushEvents ?? []}
-              documentCount={(data.documents ?? []).length}
-              requestCount={(data.document_requests ?? []).length}
+        <div className="space-y-8">
+          <section id="schufa-dokumente" className="space-y-3">
+            <SchufaFreeIntroCard
+              eyebrow="Unterlagen"
+              title="Dokumente und Nachweise hochladen"
+              description="Lade fehlende Unterlagen direkt hier hoch. Den aktuellen Übertragungsstatus siehst du pro Datei."
+              tone="slate"
             />
+            <DocumentPanel
+              caseId={c.id}
+              requests={data.document_requests ?? []}
+              documents={data.documents ?? []}
+              europaceDocuments={[]}
+              europaceUploadTargets={[]}
+              skagDocuments={schufaData?.skagDocuments ?? []}
+              documentPin={null}
+              caseType={caseType}
+              canCreateRequest={data.viewer_role === "advisor" || data.viewer_role === "admin"}
+              caseCustomerId={c.customer_id ?? null}
+              caseAdvisorId={c.assigned_advisor_id ?? null}
+              hideTechnicalBranding
+            />
+          </section>
 
-            <SchufaFreeDetailsOverview applicant={schufaData?.applicant ?? data.applicants?.[0] ?? null} details={schufaData?.details ?? null} />
+          <section id="schufa-vorauszahlung" className="space-y-3">
+            <SchufaFreeIntroCard
+              eyebrow="Vorauszahlung"
+              title="Vorauszahlung vor dem Vertrag"
+              description="Nach vollständiger Unterlagenprüfung erhältst du hier die Vorauszahlungsrechnung. Es geht erst weiter, wenn die Zahlung bei uns eingegangen ist."
+              tone="cyan"
+            />
+            <SchufaFreeProvisionPanel
+              mode="customer"
+              caseRef={c.case_ref}
+              loanAmount={schufaData?.details?.loan_amount_requested ?? null}
+              invoice={provisionInvoice}
+            />
+          </section>
 
-            <RecommendedByCard recommendedBy={data.recommended_by} />
-          </aside>
+          <section id="schufa-signatur" className="space-y-3">
+            <SchufaFreeIntroCard
+              eyebrow="Vertrag & Signatur"
+              title="Kreditvertrag prüfen und unterschreiben"
+              description="Sobald dein Berater den Vertrag vorbereitet hat, erscheint er hier für die digitale Prüfung und Unterschrift."
+              tone="emerald"
+            />
+            {!provisionPaid ? (
+              <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">Noch gesperrt</div>
+                <p className="mt-2 text-sm leading-relaxed text-amber-900">
+                  Der Vertrag wird erst freigeschaltet, wenn deine Vorauszahlung bei uns eingegangen ist.
+                </p>
+              </div>
+            ) : signatureItems.length === 0 ? (
+              <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Noch nicht freigegeben</div>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  Der Vertrag wird aktuell vorbereitet. Sobald die Unterschrift möglich ist, erscheint das Dokument direkt in diesem Bereich.
+                </p>
+              </div>
+            ) : null}
+            {provisionPaid ? <SignaturePanel caseId={c.id} canEdit={false} fixedProviderName="SIGMA Kreditbank AG" /> : null}
+          </section>
+
+          <section id="schufa-postident" className="space-y-3">
+            <SchufaFreeIntroCard
+              eyebrow="PostIdent"
+              title="Legitimation nach dem Vertrag"
+              description="Nach der Vertragsunterschrift findest du hier deinen PostIdent-Link. Sobald die Legitimation erledigt ist, folgt als nächster Schritt die Auszahlung."
+              tone="slate"
+            />
+            <SchufaFreePostIdentPanel
+              mode="customer"
+              postidentUrl={schufaData?.sync?.postident_url ?? null}
+              postidentAddedAt={schufaData?.sync?.postident_added_at ?? null}
+              postidentNotifiedAt={schufaData?.sync?.postident_notified_at ?? null}
+              statusAlias={schufaData?.sync?.last_status_alias ?? schufaData?.pushEvents?.[0]?.status_alias ?? null}
+            />
+          </section>
+
+          <section id="schufa-chat" className="space-y-3">
+            <SchufaFreeIntroCard
+              eyebrow="Direkter Austausch"
+              title="Chat mit deinem Berater"
+              description="Nutze den Chat für Rückfragen zu Unterlagen, Vertrag, PostIdent oder dem aktuellen Bearbeitungsstand."
+              tone="slate"
+            />
+            <CaseChat caseId={c.id} currentUserId={user.id} initialMessages={data.chat ?? []} />
+          </section>
         </div>
       </div>
     )
@@ -842,7 +821,14 @@ export default async function CaseDetailPage({
               </p>
             </div>
             {previewLogoUrl ? (
-              <img src={previewLogoUrl} alt="" className="h-10 w-auto max-w-[160px] object-contain" loading="lazy" />
+              <Image
+                src={previewLogoUrl}
+                alt=""
+                width={160}
+                height={40}
+                className="h-10 w-auto max-w-[160px] object-contain"
+                unoptimized
+              />
             ) : null}
           </div>
 

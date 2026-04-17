@@ -41,6 +41,11 @@ type CaseListResp = {
   totalPages?: number
 }
 
+type DashboardResp = {
+  openCases?: number
+  latestCaseType?: string | null
+}
+
 type ProductTab = "baufi" | "konsum" | "schufa_frei"
 
 function dt(d: string) {
@@ -102,12 +107,17 @@ function parsePage(raw: string | string[] | undefined) {
   return Math.floor(num)
 }
 
-function parseProduct(raw: string | string[] | undefined): ProductTab {
-  const value = Array.isArray(raw) ? raw[0] : raw
-  const normalized = String(value ?? "").trim().toLowerCase()
+function normalizeProduct(raw: string | null | undefined): ProductTab | null {
+  const normalized = String(raw ?? "").trim().toLowerCase()
   if (normalized === "konsum") return "konsum"
   if (normalized === "schufa_frei" || normalized === "schufafrei") return "schufa_frei"
-  return "baufi"
+  if (normalized === "baufi") return "baufi"
+  return null
+}
+
+function parseProduct(raw: string | string[] | undefined): ProductTab | null {
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return normalizeProduct(value)
 }
 
 function productHref(product: ProductTab) {
@@ -128,6 +138,14 @@ function continueCaseHref(caseId: string, product: ProductTab) {
   return product === "konsum" ? `/app/faelle/${caseId}#privatkredit-journey` : `/app/faelle/${caseId}`
 }
 
+function schufaFreeNextStepLabel(c: CaseRow) {
+  const normalizedStatus = String(c.status_display ?? c.status ?? "").trim().toLowerCase()
+  if (normalizedStatus === "completed" || normalizedStatus === "closed") return "Abgeschlossen"
+  if (c.docsCount === 0) return "Unterlagen hochladen"
+  if (normalizedStatus.includes("submitted") || normalizedStatus.includes("übermittelt")) return "Berater prüft Angaben"
+  return "Im Fall weiter"
+}
+
 export default async function CasesPage({
   searchParams,
 }: {
@@ -137,7 +155,13 @@ export default async function CasesPage({
   const resolvedSearchParams = searchParams ? await searchParams : undefined
 
   const requestedPage = parsePage(resolvedSearchParams?.page)
-  const product = parseProduct(resolvedSearchParams?.product)
+  const requestedProduct = parseProduct(resolvedSearchParams?.product)
+  const dashboardRes = await authFetch("/api/app/dashboard").catch(() => null)
+  const dashboardData: DashboardResp | null = dashboardRes && dashboardRes.ok ? await dashboardRes.json() : null
+  const product =
+    requestedProduct ??
+    ((dashboardData?.openCases ?? 0) === 1 ? normalizeProduct(dashboardData?.latestCaseType ?? null) : null) ??
+    "baufi"
   const productLabel = product === "konsum" ? "Privatkredit" : product === "schufa_frei" ? "Kredit ohne Schufa" : "Baufinanzierung"
   const res = await authFetch(`/api/app/cases/list?limit=10&page=${requestedPage}&caseType=${product}`).catch(() => null)
   const data: CaseListResp = res && res.ok ? await res.json() : { cases: [], page: 1, pageSize: 10, total: 0, totalPages: 1 }
@@ -145,6 +169,7 @@ export default async function CasesPage({
   const page = Math.max(1, Number(data.page ?? requestedPage))
   const totalPages = Math.max(1, Number(data.totalPages ?? 1))
   const total = Number(data.total ?? data.cases.length) || 0
+  const showProductTabs = (dashboardData?.openCases ?? total) > 1
 
   return (
     <div className="w-full overflow-x-clip space-y-6">
@@ -176,30 +201,32 @@ export default async function CasesPage({
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-200/70 bg-white p-3 shadow-sm">
-        <div className="flex flex-wrap gap-2">
-          {([
-            { id: "baufi" as const, label: "Baufinanzierung" },
-            { id: "konsum" as const, label: "Privatkredit" },
-            { id: "schufa_frei" as const, label: "Kredit ohne Schufa" },
-          ] as const).map((tab) => {
-            const active = product === tab.id
-            return (
-              <Link
-                key={tab.id}
-                href={productHref(tab.id)}
-                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                  active
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-                }`}
-              >
-                {tab.label}
-              </Link>
-            )
-          })}
-        </div>
-      </section>
+      {showProductTabs ? (
+        <section className="rounded-3xl border border-slate-200/70 bg-white p-3 shadow-sm">
+          <div className="flex flex-wrap gap-2">
+            {([
+              { id: "baufi" as const, label: "Baufinanzierung" },
+              { id: "konsum" as const, label: "Privatkredit" },
+              { id: "schufa_frei" as const, label: "Kredit ohne Schufa" },
+            ] as const).map((tab) => {
+              const active = product === tab.id
+              return (
+                <Link
+                  key={tab.id}
+                  href={productHref(tab.id)}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                    active
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                  }`}
+                >
+                  {tab.label}
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid grid-cols-1 gap-3 lg:hidden">
         {data.cases.map((c) => {
@@ -210,6 +237,7 @@ export default async function CasesPage({
           const badgeLabel = mobileCaseBadge(c, hasComparison)
           const acceptedBadge = badgeLabel === "Angebot angenommen"
           const rejectedBadge = badgeLabel === "Angebot abgelehnt"
+          const schufaNextStep = schufaFreeNextStepLabel(c)
 
           return (
             <Link
@@ -240,7 +268,18 @@ export default async function CasesPage({
                 </div>
               </div>
 
-              {s ? (
+              {product === "schufa_frei" ? (
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4">
+                    <div className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Status</div>
+                    <div className="mt-1 text-sm font-semibold text-slate-900">{translateCaseStatus(c.status_display ?? c.status)}</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4">
+                    <div className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Nächster Schritt</div>
+                    <div className="mt-1 text-sm font-semibold text-slate-900">{schufaNextStep}</div>
+                  </div>
+                </div>
+              ) : s ? (
                 <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -290,9 +329,15 @@ export default async function CasesPage({
                 <span>
                   Unterlagen: <span className="font-medium text-slate-900">{c.docsCount}</span>
                 </span>
-                <span>
-                  {offerCountLabel(c.offersCount)}: <span className="font-medium text-slate-900">{c.offersCount}</span>
-                </span>
+                {product !== "schufa_frei" ? (
+                  <span>
+                    {offerCountLabel(c.offersCount)}: <span className="font-medium text-slate-900">{c.offersCount}</span>
+                  </span>
+                ) : (
+                  <span>
+                    Schritt: <span className="font-medium text-slate-900">{schufaNextStep}</span>
+                  </span>
+                )}
               </div>
 
               {product === "konsum" || product === "schufa_frei" ? (
@@ -327,14 +372,15 @@ export default async function CasesPage({
               <tr className="border-b border-slate-200/70">
                 <th className="px-4 py-3 font-medium text-slate-700">Fall</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Status</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Bank</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Darlehen</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Rate</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Effektivzins</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Zinsbindung</th>
+                {product !== "schufa_frei" ? <th className="px-4 py-3 font-medium text-slate-700">Bank</th> : null}
+                {product !== "schufa_frei" ? <th className="px-4 py-3 font-medium text-slate-700">Darlehen</th> : null}
+                {product !== "schufa_frei" ? <th className="px-4 py-3 font-medium text-slate-700">Rate</th> : null}
+                {product !== "schufa_frei" ? <th className="px-4 py-3 font-medium text-slate-700">Effektivzins</th> : null}
+                {product !== "schufa_frei" ? <th className="px-4 py-3 font-medium text-slate-700">Zinsbindung</th> : null}
                 <th className="px-4 py-3 font-medium text-slate-700">Unterlagen</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Angebote</th>
-                {product === "konsum" ? <th className="px-4 py-3 font-medium text-slate-700">Weiter</th> : null}
+                {product === "schufa_frei" ? <th className="px-4 py-3 font-medium text-slate-700">Nächster Schritt</th> : null}
+                {product !== "schufa_frei" ? <th className="px-4 py-3 font-medium text-slate-700">Angebote</th> : null}
+                {product === "konsum" || product === "schufa_frei" ? <th className="px-4 py-3 font-medium text-slate-700">Weiter</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -342,6 +388,7 @@ export default async function CasesPage({
                 const s = c.bestOffer ?? c.comparison
                 const bankLogo = s?.provider_logo_path ? logoSrc(s.provider_logo_path) : null
                 const label = providerLabel(c, s)
+                const schufaNextStep = schufaFreeNextStepLabel(c)
 
                 return (
                   <tr key={c.id} className="border-b border-slate-200/60 last:border-0 hover:bg-slate-50/60">
@@ -356,58 +403,77 @@ export default async function CasesPage({
                         {translateCaseStatus(c.status_display ?? c.status)}
                       </Link>
                     </td>
-                    <td className="px-4 py-3">
-                      <Link href={continueCaseHref(c.id, product)} className="flex items-center gap-2">
-                        <span className="max-w-[170px] truncate text-slate-900">{label}</span>
-                        {bankLogo ? (
-                          <Image
-                            src={bankLogo}
-                            alt=""
-                            width={100}
-                            height={24}
-                            className="h-6 w-auto max-w-[100px] object-contain"
-                            unoptimized
-                          />
-                        ) : null}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      <Link href={continueCaseHref(c.id, product)} className="block">
-                        {formatEUR(s?.loan_amount ?? null)}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      <Link href={continueCaseHref(c.id, product)} className="block">
-                        {formatEUR(s?.rate_monthly ?? null)}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      <Link href={continueCaseHref(c.id, product)} className="block">
-                        {formatPct(s?.apr_effective ?? null)}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      <Link href={continueCaseHref(c.id, product)} className="block">
-                        {s?.zinsbindung_years ? `${s.zinsbindung_years} J.` : "-"}
-                      </Link>
-                    </td>
+                    {product !== "schufa_frei" ? (
+                      <td className="px-4 py-3">
+                        <Link href={continueCaseHref(c.id, product)} className="flex items-center gap-2">
+                          <span className="max-w-[170px] truncate text-slate-900">{label}</span>
+                          {bankLogo ? (
+                            <Image
+                              src={bankLogo}
+                              alt=""
+                              width={100}
+                              height={24}
+                              className="h-6 w-auto max-w-[100px] object-contain"
+                              unoptimized
+                            />
+                          ) : null}
+                        </Link>
+                      </td>
+                    ) : null}
+                    {product !== "schufa_frei" ? (
+                      <td className="px-4 py-3 text-slate-700">
+                        <Link href={continueCaseHref(c.id, product)} className="block">
+                          {formatEUR(s?.loan_amount ?? null)}
+                        </Link>
+                      </td>
+                    ) : null}
+                    {product !== "schufa_frei" ? (
+                      <td className="px-4 py-3 text-slate-700">
+                        <Link href={continueCaseHref(c.id, product)} className="block">
+                          {formatEUR(s?.rate_monthly ?? null)}
+                        </Link>
+                      </td>
+                    ) : null}
+                    {product !== "schufa_frei" ? (
+                      <td className="px-4 py-3 text-slate-700">
+                        <Link href={continueCaseHref(c.id, product)} className="block">
+                          {formatPct(s?.apr_effective ?? null)}
+                        </Link>
+                      </td>
+                    ) : null}
+                    {product !== "schufa_frei" ? (
+                      <td className="px-4 py-3 text-slate-700">
+                        <Link href={continueCaseHref(c.id, product)} className="block">
+                          {s?.zinsbindung_years ? `${s.zinsbindung_years} J.` : "-"}
+                        </Link>
+                      </td>
+                    ) : null}
                     <td className="px-4 py-3 text-slate-700">
                       <Link href={continueCaseHref(c.id, product)} className="block">
                         {c.docsCount}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      <Link href={continueCaseHref(c.id, product)} className="block">
-                        {c.offersCount}
-                      </Link>
-                    </td>
-                    {product === "konsum" ? (
+                    {product === "schufa_frei" ? (
+                      <td className="px-4 py-3 text-slate-700">
+                        <Link href={continueCaseHref(c.id, product)} className="block">
+                          {schufaNextStep}
+                        </Link>
+                      </td>
+                    ) : null}
+                    {product !== "schufa_frei" ? (
+                      <td className="px-4 py-3 text-slate-700">
+                        <Link href={continueCaseHref(c.id, product)} className="block">
+                          {c.offersCount}
+                        </Link>
+                      </td>
+                    ) : null}
+                    {product === "konsum" || product === "schufa_frei" ? (
                       <td className="px-4 py-3">
                         <Link
                           href={continueCaseHref(c.id, product)}
                           className="inline-flex items-center rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
                         >
-                          Fortsetzen
+                          {product === "schufa_frei" ? "Öffnen" : "Fortsetzen"}
                         </Link>
                       </td>
                     ) : null}
@@ -417,7 +483,10 @@ export default async function CasesPage({
 
               {data.cases.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-slate-500" colSpan={product === "konsum" ? 10 : 9}>
+                  <td
+                    className="px-4 py-6 text-slate-500"
+                    colSpan={product === "schufa_frei" ? 5 : product === "konsum" ? 10 : 9}
+                  >
                     Noch keine Fälle in {productLabel} vorhanden.
                   </td>
                 </tr>

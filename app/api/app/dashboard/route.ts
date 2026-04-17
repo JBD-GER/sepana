@@ -28,7 +28,7 @@ export async function GET() {
       .maybeSingle(),
     admin
       .from("cases")
-      .select("id")
+      .select("id,case_type")
       .eq("customer_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -53,6 +53,7 @@ export async function GET() {
     assignedAdvisorEmail,
     tip,
     latestCaseId: latestCase?.id ?? null,
+    latestCaseType: latestCase?.case_type ?? null,
   })
 }
 
