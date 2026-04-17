@@ -43,7 +43,7 @@ const HERO_CHIPS = [
 const TRUST_ITEMS = [
   { label: "Bewertung", value: "4,9 / 5", note: "starker Gesamteindruck" },
   { label: "Vertrauen", value: "+10.000", note: "zufriedene Kunden" },
-  { label: "Ablauf", value: "2 Schritte", note: "erst prüfen, dann Antrag" },
+  { label: "Auszahlung", value: "In 1-2 Tagen", note: "Digitaler Abschluss mit persönlicher Beratung." },
 ] as const
 
 const BENEFIT_ITEMS = [
@@ -241,8 +241,10 @@ export default async function SchufaFreeLandingPage() {
               Trotz negativer Schufa.
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-100/95 sm:text-lg">
-              Für Fälle, in denen keine klassische Schufa-Abfrage aus dem üblichen Anfrageprozess gewünscht ist. Die
-              Vorprüfung startet diskret und führt Schritt für Schritt durch den Fall.
+              Sie erhalten bei Banken nur Absagen auf Ihren Kreditwunsch?
+              <br />
+              Für Fälle, in denen keine klassische Schufa-Abfrage im üblichen Anfrageprozess gewünscht ist. Die
+              Vorprüfung startet diskret und prüft Schritt für Schritt, welche Möglichkeiten bestehen.
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2 text-xs text-slate-100/95">
@@ -283,10 +285,10 @@ export default async function SchufaFreeLandingPage() {
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-900/15 to-transparent" />
                 <div className="absolute inset-x-3 bottom-3 rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200">
-                    Diskreter Start
+                    Kredit trotz negativer Schufa
                   </div>
                   <div className="mt-1 text-sm font-semibold text-white">
-                    Erst die Vorprüfung, danach erst der vollständige Antrag
+                    Sie erhalten nur Ablehnungen bei den Banken? Bei uns nicht.
                   </div>
                 </div>
               </div>

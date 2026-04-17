@@ -1,5 +1,6 @@
 import "server-only"
 
+import { unstable_noStore as noStore } from "next/cache"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const WEBSITE_REVIEW_CATEGORIES = ["baufi", "privatkredit", "schufa_frei"] as const
@@ -44,6 +45,9 @@ type ReviewRow = {
 
 function toCategory(value: string): WebsiteReviewCategory | null {
   const normalized = String(value ?? "").trim().toLowerCase()
+  if (normalized === "schufafrei" || normalized === "schufa-frei" || normalized === "kredit-ohne-schufa") {
+    return "schufa_frei"
+  }
   if (WEBSITE_REVIEW_CATEGORIES.includes(normalized as WebsiteReviewCategory)) {
     return normalized as WebsiteReviewCategory
   }
@@ -104,11 +108,13 @@ export function buildWebsiteReviewSummarySet(reviews: WebsiteReview[]): WebsiteR
 }
 
 export async function getPublishedWebsiteReviewSummarySet(): Promise<WebsiteReviewSummarySet> {
+  noStore()
   const reviews = await getPublishedWebsiteReviews()
   return buildWebsiteReviewSummarySet(reviews)
 }
 
 export async function getPublishedWebsiteReviews(): Promise<WebsiteReview[]> {
+  noStore()
   try {
     const supabase = supabaseAdmin()
     const { data, error } = await supabase

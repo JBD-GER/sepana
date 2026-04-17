@@ -9,6 +9,7 @@ type AdsWindow = Window & { gtag?: GtagEventFn }
 
 export const GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO = "AW-17928656455/EYB-CLGemfobEMeshuVC"
 export const GOOGLE_ADS_BAUFINANZIERUNG_LEAD_SEND_TO = "AW-17928656455/etJbCJvh-fEbEMeshuVC"
+export const GOOGLE_ADS_SCHUFA_FREI_LEAD_SEND_TO = "AW-17928656455/BJFoCJHq750cEMeshuVC"
 
 export function trackGoogleAdsConversion(sendTo: string, value = 1.0, currency = "EUR") {
   if (typeof window === "undefined") return false
@@ -26,4 +27,8 @@ export function trackGoogleAdsConversion(sendTo: string, value = 1.0, currency =
 
 export function trackPrivatkreditLeadConversion() {
   return trackGoogleAdsConversion(GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO)
+}
+
+export function trackSchufaFreiLeadConversion() {
+  return trackGoogleAdsConversion(GOOGLE_ADS_SCHUFA_FREI_LEAD_SEND_TO)
 }

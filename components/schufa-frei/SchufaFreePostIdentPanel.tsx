@@ -132,6 +132,45 @@ export default function SchufaFreePostIdentPanel({
     }
   }
 
+  async function markCompleted() {
+    if (mode !== "advisor") return
+    if (!caseId) {
+      setFeedback({ type: "error", text: "Fall-ID fehlt." })
+      return
+    }
+
+    setBusy(true)
+    setFeedback(null)
+
+    try {
+      const res = await fetch("/api/app/cases/schufa-frei/postident-complete", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ caseId }),
+      })
+
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(json?.error || "PostIdent-Abschluss konnte nicht gespeichert werden.")
+      }
+
+      setFeedback({
+        type: json?.emailSent ? "success" : "warning",
+        text: json?.emailSent
+          ? "PostIdent als erfolgreich abgeschlossen markiert und Kunde per E-Mail informiert."
+          : "PostIdent als erfolgreich abgeschlossen markiert. Die E-Mail konnte nicht versendet werden.",
+      })
+      startTransition(() => router.refresh())
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        text: error instanceof Error ? error.message : "PostIdent-Abschluss konnte nicht gespeichert werden.",
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (mode === "advisor") {
     return (
       <div className={`rounded-[28px] border p-5 shadow-sm sm:p-6 ${shellClass}`}>
@@ -165,6 +204,20 @@ export default function SchufaFreePostIdentPanel({
                 >
                   {busy ? "Übermittle..." : "PostIdent übermitteln"}
                 </button>
+                {!postidentCompleted ? (
+                  <button
+                    type="button"
+                    onClick={markCompleted}
+                    disabled={busy || !currentUrl}
+                    className="inline-flex w-full items-center justify-center rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 shadow-sm transition hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                  >
+                    PostIdent erfolgreich abgeschlossen
+                  </button>
+                ) : (
+                  <div className="inline-flex w-full items-center justify-center rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 shadow-sm sm:w-auto">
+                    PostIdent abgeschlossen
+                  </div>
+                )}
                 {currentUrl ? (
                   <a
                     href={currentUrl}

@@ -8,6 +8,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react"
+import { useRouter } from "next/navigation"
 
 type ProviderItem = {
   provider: { id: string; name: string }
@@ -33,6 +34,12 @@ type SignatureDoc = {
   size_bytes: number | null
   created_at: string
   document_kind: "signature_original" | "signature_signed"
+}
+
+type SkagDocumentStatus = {
+  local_document_id?: string | null
+  upload_status?: string | null
+  last_error?: string | null
 }
 
 type SignatureRequest = {
@@ -273,12 +280,17 @@ export default function SignaturePanel({
   canEdit,
   fixedProviderName,
   providerProduct = "baufi",
+  advisorSignedDocumentActionLabel,
+  skagDocumentStatuses = [],
 }: {
   caseId: string
   canEdit: boolean
   fixedProviderName?: string
   providerProduct?: "baufi" | "konsum"
+  advisorSignedDocumentActionLabel?: string
+  skagDocumentStatuses?: SkagDocumentStatus[]
 }) {
+  const router = useRouter()
   const [items, setItems] = useState<SignatureRequest[]>([])
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -418,6 +430,28 @@ export default function SignaturePanel({
     } catch (e: any) {
       setMsg(e?.message ?? "Fehler")
       return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function submitSignedDocumentToSkag(requestId: string, documentId: string) {
+    if (!canEdit || !advisorSignedDocumentActionLabel) return
+    setBusy(true)
+    setMsg(null)
+    try {
+      const res = await fetch("/api/app/cases/schufa-frei/submit-signed-contract", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ caseId, requestId, documentId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Übermittlung fehlgeschlagen")
+      setMsg(String(json?.message ?? "Dokument erfolgreich an SKAG übermittelt."))
+      await refresh()
+      router.refresh()
+    } catch (e: any) {
+      setMsg(e?.message ?? "Übermittlung fehlgeschlagen")
     } finally {
       setBusy(false)
     }
@@ -573,9 +607,12 @@ export default function SignaturePanel({
             canEdit={canEdit}
             busy={busy}
             fallbackProviderName={lockedProviderLabel || undefined}
+            advisorSignedDocumentActionLabel={advisorSignedDocumentActionLabel}
+            skagDocumentStatuses={skagDocumentStatuses}
             onSaveFields={saveFields}
             onUploadSigned={uploadSigned}
             onSubmitDigital={submitDigital}
+            onSubmitSignedDocumentToSkag={submitSignedDocumentToSkag}
             onDeleteSignedDocument={deleteSignedDocument}
             onDeleteRequest={deleteSignatureRequest}
           />
@@ -596,9 +633,12 @@ function SignatureRequestCard({
   canEdit,
   busy,
   fallbackProviderName,
+  advisorSignedDocumentActionLabel,
+  skagDocumentStatuses,
   onSaveFields,
   onUploadSigned,
   onSubmitDigital,
+  onSubmitSignedDocumentToSkag,
   onDeleteSignedDocument,
   onDeleteRequest,
 }: {
@@ -606,9 +646,12 @@ function SignatureRequestCard({
   canEdit: boolean
   busy: boolean
   fallbackProviderName?: string
+  advisorSignedDocumentActionLabel?: string
+  skagDocumentStatuses: SkagDocumentStatus[]
   onSaveFields: (id: string, fields: SignatureField[], opts?: SaveFieldsOptions) => Promise<void>
   onUploadSigned: (id: string, files: FileList) => Promise<void>
   onSubmitDigital: (id: string, values: Record<string, any>) => Promise<boolean>
+  onSubmitSignedDocumentToSkag: (requestId: string, documentId: string) => Promise<void>
   onDeleteSignedDocument: (id: string) => Promise<void>
   onDeleteRequest: (id: string) => Promise<void>
 }) {
@@ -636,6 +679,11 @@ function SignatureRequestCard({
   const advisorLabel = advisorRequired ? (req.advisor_signed_at ? shortIso(req.advisor_signed_at) : "--") : "nicht erforderlich"
   const canOpenSign = canEdit ? advisorRequired : customerRequired
   const providerLabel = req.provider_name || fallbackProviderName || "--"
+  const finalDocSync = finalDoc
+    ? skagDocumentStatuses.find((item) => String(item.local_document_id ?? "").trim() === finalDoc.id)
+    : null
+  const finalDocUploaded = String(finalDocSync?.upload_status ?? "").trim().toLowerCase() === "uploaded"
+  const finalDocUploadError = String(finalDocSync?.last_error ?? "").trim() || null
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -681,6 +729,24 @@ function SignatureRequestCard({
                     >
                       PDF herunterladen
                     </a>
+                    {canEdit && advisorSignedDocumentActionLabel ? (
+                      finalDocUploaded ? (
+                        <div className="inline-flex w-full items-center justify-center rounded-full border border-cyan-300 bg-cyan-50 px-3 py-2 text-[11px] font-semibold text-cyan-800 shadow-sm sm:w-auto">
+                          An SKAG übermittelt
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (finalDoc) void onSubmitSignedDocumentToSkag(req.id, finalDoc.id)
+                          }}
+                          disabled={busy || !finalDoc}
+                          className="inline-flex w-full items-center justify-center rounded-full border border-cyan-300 bg-cyan-50 px-3 py-2 text-[11px] font-semibold text-cyan-800 shadow-sm transition hover:border-cyan-400 disabled:opacity-60 sm:w-auto"
+                        >
+                          {advisorSignedDocumentActionLabel}
+                        </button>
+                      )
+                    ) : null}
                     {canEdit ? (
                       <button
                         type="button"
@@ -725,6 +791,9 @@ function SignatureRequestCard({
               <div className="mt-2 text-[11px] text-emerald-700">
                 Enthält Protokoll (Audit-Log) der Unterschriften.
               </div>
+              {canEdit && advisorSignedDocumentActionLabel && finalDocUploadError && !finalDocUploaded ? (
+                <div className="mt-2 text-[11px] text-rose-700">SKAG-Uploadfehler: {finalDocUploadError}</div>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -1532,12 +1601,14 @@ function SignatureSignModal({
                 Seite {page}
               </div>
             </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 lg:hidden">
-              <span>Prüfen Sie hier das Dokument und springen Sie danach zum Signieren.</span>
+            <div className="mt-2 flex items-start justify-between gap-3 text-[11px] text-slate-500 lg:hidden">
+              <span className="max-w-[110px] leading-[1.45]">
+                Prüfen Sie hier das Dokument und springen Sie danach zum Signieren.
+              </span>
               <button
                 type="button"
                 onClick={() => setMobileView("fields")}
-                className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 font-semibold text-sky-700 shadow-sm animate-[pulse_3.2s_ease-in-out_infinite]"
+                className="inline-flex min-w-[176px] justify-center rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 font-semibold text-sky-700 shadow-sm animate-[pulse_3.2s_ease-in-out_infinite]"
               >
                 Jetzt unterzeichnen
               </button>

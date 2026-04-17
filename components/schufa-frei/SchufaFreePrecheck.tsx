@@ -580,6 +580,31 @@ export default function SchufaFreePrecheck() {
             </div>
 
             <div className="mt-6">
+              <div className="rounded-[26px] border border-emerald-200 bg-[linear-gradient(135deg,rgba(236,253,245,0.98),rgba(209,250,229,0.92))] px-5 py-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="max-w-3xl">
+                    <div className="inline-flex items-center rounded-full border border-emerald-300 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-800">
+                      Geld-zurück-Garantie
+                    </div>
+                    <div className="mt-3 text-xl font-semibold tracking-tight text-emerald-950">
+                      Keine Auszahlung oder keine positive Rückmeldung? Dann wird die Vorauszahlung vollständig erstattet.
+                    </div>
+                    <div className="mt-2 text-sm leading-relaxed text-emerald-900/85">
+                      Gleiches gilt auch, wenn der Kreditvertrag fristgerecht widerrufen wurde.
+                    </div>
+                  </div>
+
+                  <div className="rounded-[22px] border border-emerald-300/80 bg-white/80 px-4 py-4 shadow-sm lg:w-[260px]">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                      100 % Erstattung
+                    </div>
+                    <div className="mt-2 text-sm leading-relaxed text-slate-700">
+                      Die Regelung ist Teil der Vereinbarung und gilt für diese Sonderstrecke verbindlich.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {provisionOverview.map((item) => (
                   <div key={item.amount} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 shadow-sm">
@@ -596,7 +621,7 @@ export default function SchufaFreePrecheck() {
 
               <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
                 <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4 shadow-sm">
-                  <div className="text-sm font-semibold text-slate-900">Erstattung</div>
+                  <div className="text-sm font-semibold text-slate-900">Wann Sie Ihr Geld zurückbekommen</div>
                   <div className="mt-3 space-y-2 text-sm leading-relaxed text-slate-600">
                     {getSchufaFreeProvisionRefundLines().map((line) => (
                       <div key={line}>{line}</div>
@@ -605,7 +630,7 @@ export default function SchufaFreePrecheck() {
                 </div>
 
                 <div className="rounded-[24px] border border-cyan-200 bg-cyan-50/70 px-4 py-4 shadow-sm">
-                  <div className="text-sm font-semibold text-slate-900">Wichtiger Hinweis</div>
+                  <div className="text-sm font-semibold text-slate-900">Abrechnung & Verwendungszweck</div>
                   <div className="mt-3 space-y-2 text-sm leading-relaxed text-slate-600">
                     <div>Der konkrete Verwendungszweck entspricht später Ihrer Fallnummer, z. B. SF-000123.</div>
                     <div>Die vollständigen Zahlungsdaten und die Rechnung erhalten Sie nach positiver Vorprüfung im weiteren Prozess.</div>

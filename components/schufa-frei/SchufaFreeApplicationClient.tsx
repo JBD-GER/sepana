@@ -1,8 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react"
+import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react"
 import { looksLikeIban, normalizeIbanInput } from "@/lib/banking/iban"
+import { GOOGLE_ADS_SCHUFA_FREI_LEAD_SEND_TO, trackGoogleAdsConversion } from "@/lib/ads/googleAds"
 import {
   SCHUFA_FREE_FAMILY_OPTIONS,
   SCHUFA_FREE_PROFESSION_OPTIONS,
@@ -69,6 +70,9 @@ const STEP_META: Array<{ id: StepId; title: string; subtitle: string }> = [
   { id: "employment", title: "Einkommen", subtitle: "Beruf und Arbeitgeber" },
   { id: "bank", title: "Auszahlung", subtitle: "Bankdaten und Versand" },
 ]
+
+const SCHUFA_FREE_CONVERSION_PENDING_PREFIX = "sepana:ads-conversion:schufa-frei-final-submit:pending"
+const SCHUFA_FREE_CONVERSION_DONE_PREFIX = "sepana:ads-conversion:schufa-frei-final-submit:done"
 
 const CHILD_TAX_ALLOWANCE_OPTIONS = Array.from({ length: 21 }, (_, index) => index * 0.5)
 const INPUT_CLASS = "mt-1 block h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm"
@@ -277,8 +281,11 @@ export default function SchufaFreeApplicationClient({
   const [feedback, setFeedback] = useState<{ tone: "error" | "success"; text: string } | null>(null)
   const [draftReady, setDraftReady] = useState(false)
   const lockedEmail = fieldValue(initialForm, "email").trim()
+  const conversionSentRef = useRef(false)
 
   const storageKey = `schufa_free_application_draft_${caseId}`
+  const conversionPendingKey = `${SCHUFA_FREE_CONVERSION_PENDING_PREFIX}:${caseId}`
+  const conversionDoneKey = `${SCHUFA_FREE_CONVERSION_DONE_PREFIX}:${caseId}`
   const issues = validate(form, allowTaxClassSix)
   const stepIndex = Math.max(0, STEP_META.findIndex((entry) => entry.id === step))
   const stepIssues = issues[step]
@@ -316,6 +323,51 @@ export default function SchufaFreeApplicationClient({
     const draftForm = Object.fromEntries(Object.entries(form).filter(([key]) => key !== "email"))
     window.localStorage.setItem(storageKey, JSON.stringify(draftForm))
   }, [draftReady, form, hasSubmittedToSkag, storageKey])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    if (!hasSubmittedToSkag) return
+    if (conversionSentRef.current) return
+
+    let pending: string | null = null
+    let done: string | null = null
+    try {
+      pending = window.sessionStorage.getItem(conversionPendingKey)
+      done = window.sessionStorage.getItem(conversionDoneKey)
+    } catch {
+      return
+    }
+    if (pending !== "1" || done === "1") return
+
+    let cancelled = false
+    let attempts = 0
+
+    const tryTrack = () => {
+      if (cancelled || conversionSentRef.current) return
+      const tracked = trackGoogleAdsConversion(GOOGLE_ADS_SCHUFA_FREI_LEAD_SEND_TO)
+      if (tracked) {
+        conversionSentRef.current = true
+        try {
+          window.sessionStorage.setItem(conversionDoneKey, "1")
+          window.sessionStorage.removeItem(conversionPendingKey)
+        } catch {
+          // ignore storage edge cases after successful tracking
+        }
+        return
+      }
+
+      attempts += 1
+      if (attempts < 10) {
+        window.setTimeout(tryTrack, 400)
+      }
+    }
+
+    tryTrack()
+
+    return () => {
+      cancelled = true
+    }
+  }, [conversionDoneKey, conversionPendingKey, hasSubmittedToSkag])
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }))
@@ -385,6 +437,13 @@ export default function SchufaFreeApplicationClient({
       }
       successParts.push("Die Seite aktualisiert sich jetzt.")
       const successText = successParts.join(" ")
+      if (typeof window !== "undefined") {
+        try {
+          window.sessionStorage.setItem(conversionPendingKey, "1")
+        } catch {
+          // ignore storage edge cases
+        }
+      }
       setFeedback({ tone: "success", text: successText })
       window.setTimeout(() => window.location.reload(), 1200)
     } catch (error) {

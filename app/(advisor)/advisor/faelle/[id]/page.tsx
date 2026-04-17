@@ -654,7 +654,14 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
                     in den Signaturbereich übernommen werden soll.
                   </div>
                 ) : null}
-                <SignaturePanel caseId={c.id} canEdit fixedProviderName="SIGMA Kreditbank AG" providerProduct="konsum" />
+                <SignaturePanel
+                  caseId={c.id}
+                  canEdit
+                  fixedProviderName="SIGMA Kreditbank AG"
+                  providerProduct="konsum"
+                  advisorSignedDocumentActionLabel="An SKAG übermitteln"
+                  skagDocumentStatuses={schufaData?.skagDocuments ?? []}
+                />
               </>
             )}
           </section>
