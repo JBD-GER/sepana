@@ -535,7 +535,7 @@ export async function POST(req: Request) {
     const documentSyncResults = await syncPendingCaseDocumentsToSkag(admin, caseId)
     const uploadedDocumentCount = documentSyncResults.filter((entry) => entry.ok).length
     const siteOrigin = resolveSiteOrigin(req)
-    const customerDashboardUrl = `${siteOrigin}/app/faelle/${caseId}#schufa-dokumente`
+    const customerDashboardUrl = new URL(`/app/faelle/${encodeURIComponent(caseId)}#schufa-dokumente`, siteOrigin).toString()
 
     let emailSent = false
     let emailError: string | null = null

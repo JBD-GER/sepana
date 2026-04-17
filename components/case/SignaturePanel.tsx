@@ -262,6 +262,12 @@ function signatureFieldTypeLabel(type: SignatureField["type"]) {
   return "Eingabe"
 }
 
+function isFieldFilled(field: SignatureField, value: unknown) {
+  if (field.type === "checkbox") return value === true
+  if (field.type === "signature") return typeof value === "string" && value.trim().length > 0
+  return String(value ?? "").trim().length > 0
+}
+
 export default function SignaturePanel({
   caseId,
   canEdit,
@@ -1216,8 +1222,8 @@ function SignatureEditorModal({
 
           </div>
 
-          <div className="w-full border-t border-slate-200 bg-slate-50 p-3 sm:p-4 xl:w-[360px] xl:border-l xl:border-t-0">
-            <div className="flex items-center justify-between">
+          <div className="flex w-full min-h-0 flex-col border-t border-slate-200 bg-slate-50 p-3 sm:p-4 xl:w-[360px] xl:border-l xl:border-t-0">
+            <div className="flex shrink-0 items-center justify-between">
               <div className="text-sm font-semibold text-slate-900">Felder</div>
               {canEditFields ? (
                 <button
@@ -1229,7 +1235,7 @@ function SignatureEditorModal({
               ) : null}
             </div>
 
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 flex-1 space-y-2 overflow-y-auto pr-1">
               {fields
                 .filter((f) => f.owner === tab)
                 .map((f) => (
@@ -1345,6 +1351,7 @@ function SignatureSignModal({
   const actor: "advisor" | "customer" = canEdit ? "advisor" : "customer"
   const [values, setValues] = useState<Record<string, any>>(req.my_values ?? {})
   const [page, setPage] = useState(1)
+  const [mobileView, setMobileView] = useState<"document" | "fields">("document")
   const [pdfPassword, setPdfPassword] = useState("")
   const [pdfError, setPdfError] = useState<"password_required" | "load_failed" | null>(null)
   const [pdfErrorDetail, setPdfErrorDetail] = useState<string | null>(null)
@@ -1383,7 +1390,11 @@ function SignatureSignModal({
   const pageCount = pdfPageCount ?? Math.max(1, ...fields.map((f) => Number(f.page || 1)))
   const showPagePicker = pageCount > 1
   const pagesWithFields = new Set(fields.map((f) => f.page))
-  const actorFields = fields.filter((f) => f.owner === actor)
+  const actorFields = fields
+    .filter((f) => f.owner === actor)
+    .slice()
+    .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x)
+  const actorFieldPages = Array.from(new Set(actorFields.map((f) => f.page))).sort((a, b) => a - b)
   const pageFields = fields.filter((f) => f.page === page)
   const valuesByRole = req.values_by_role ?? {}
   const advisorValues = valuesByRole.advisor ?? {}
@@ -1399,6 +1410,7 @@ function SignatureSignModal({
   const signCount =
     (advisorRequired && req.advisor_signed_at ? 1 : 0) + (customerRequired && req.customer_signed_at ? 1 : 0)
   const advisorLabel = advisorRequired ? (req.advisor_signed_at ? shortIso(req.advisor_signed_at) : "--") : "nicht erforderlich"
+  const allActorFieldsFilled = actorFields.length > 0 && actorFields.every((field) => isFieldFilled(field, fieldValue(field)))
 
   useEffect(() => {
     setValues(req.my_values ?? {})
@@ -1418,11 +1430,22 @@ function SignatureSignModal({
     return customerValues[f.id]
   }
 
+  const filledActorFieldCount = actorFields.filter((field) => isFieldFilled(field, fieldValue(field))).length
+
+  function openFieldArea(targetPage: number) {
+    setPage(targetPage)
+    setMobileView("document")
+  }
+
+  function setClampedPage(nextPage: number) {
+    setPage(Math.min(pageCount, Math.max(1, nextPage)))
+  }
+
   return (
     <div className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-slate-900/45 p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
       <div className="flex h-[100dvh] w-full flex-col overflow-y-auto bg-white shadow-2xl sm:h-[85vh] sm:max-w-[1200px] sm:overflow-hidden sm:rounded-3xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5 sm:px-5 sm:py-3">
-          <div>
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-3 py-2.5 sm:px-5 sm:py-3">
+          <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-900">Unterschrift: {req.title}</div>
             <div className="text-xs text-slate-500">
               Fortschritt {signCount}/{signTotal} · Berater: {advisorLabel} · Kunde:{" "}
@@ -1437,9 +1460,41 @@ function SignatureSignModal({
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-0 xl:flex-row">
+        <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 lg:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMobileView("document")}
+                className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${
+                  mobileView === "document"
+                    ? "border border-slate-900 bg-slate-900 text-white"
+                    : "border border-slate-200 bg-white text-slate-700"
+                }`}
+              >
+                Dokument
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileView("fields")}
+                className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${
+                  mobileView === "fields"
+                    ? "border border-slate-900 bg-slate-900 text-white"
+                    : "border border-slate-200 bg-white text-slate-700"
+                }`}
+              >
+                Ausfüllen {actorFields.length ? `(${filledActorFieldCount}/${actorFields.length})` : ""}
+              </button>
+            </div>
+            <div className="shrink-0 text-[11px] font-medium text-slate-500">
+              {actorFields.length ? `${filledActorFieldCount}/${actorFields.length} erledigt` : `Seite ${page}`}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-0 lg:flex-row">
           {showPagePicker ? (
-            <div className="flex w-full items-center gap-2 border-b border-slate-200 bg-slate-50 p-3 xl:w-[180px] xl:flex-col xl:items-stretch xl:border-b-0 xl:border-r">
+            <div className="hidden w-full items-center gap-2 border-b border-slate-200 bg-slate-50 p-3 xl:flex xl:w-[180px] xl:flex-col xl:items-stretch xl:border-b-0 xl:border-r">
               <div className="shrink-0 text-[11px] font-semibold text-slate-600">Seiten</div>
               <div className="flex flex-1 gap-2 overflow-x-auto py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:mt-2 xl:max-h-[70vh] xl:flex-col xl:overflow-auto">
                 {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => {
@@ -1465,7 +1520,7 @@ function SignatureSignModal({
             </div>
           ) : null}
 
-          <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
+          <div className={`${mobileView === "fields" ? "hidden lg:flex" : "flex"} min-h-0 flex-1 flex-col p-3 sm:p-4`}>
             <div className="flex items-center justify-between text-xs text-slate-600">
               <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] text-slate-700">
                 {actor === "advisor" ? "Berater" : "Kunde"}
@@ -1474,6 +1529,65 @@ function SignatureSignModal({
                 Seite {page}
               </div>
             </div>
+            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 lg:hidden">
+              <span>Prüfen Sie hier die markierten Bereiche im Dokument.</span>
+              <button
+                type="button"
+                onClick={() => setMobileView("fields")}
+                className="rounded-full border border-slate-300 bg-white px-2.5 py-1 font-semibold text-slate-700"
+              >
+                Zu Ausfüllen
+              </button>
+            </div>
+
+            {showPagePicker ? (
+              <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-2.5 xl:hidden">
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setClampedPage(page - 1)}
+                    disabled={page <= 1}
+                    className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 disabled:opacity-50"
+                  >
+                    Zurück
+                  </button>
+                  <div className="text-[11px] font-semibold text-slate-700">
+                    Seite {page} von {pageCount}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setClampedPage(page + 1)}
+                    disabled={page >= pageCount}
+                    className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 disabled:opacity-50"
+                  >
+                    Weiter
+                  </button>
+                </div>
+                <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {(actorFieldPages.length ? actorFieldPages : Array.from({ length: pageCount }, (_, i) => i + 1)).map((p) => {
+                    const hasField = pagesWithFields.has(p)
+                    const active = p === page
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPage(p)}
+                        className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold ${
+                          active
+                            ? "border-slate-900 bg-slate-900 text-white"
+                            : "border-slate-200 bg-white text-slate-700"
+                        }`}
+                      >
+                        Seite {p}
+                        {hasField ? (
+                          <span className="ml-1 inline-block h-2 w-2 rounded-full bg-emerald-500 align-middle" />
+                        ) : null}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
 
             <div
               ref={pageFrameRef}
@@ -1595,8 +1709,13 @@ function SignatureSignModal({
             ) : null}
           </div>
 
-          <div className="w-full border-t border-slate-200 bg-slate-50 p-3 sm:p-4 xl:w-[360px] xl:border-l xl:border-t-0">
-            <div className="text-sm font-semibold text-slate-900">Ausfuellen</div>
+          <div
+            className={`${mobileView === "document" ? "hidden lg:flex" : "flex"} w-full min-h-0 flex-1 flex-col border-t border-slate-200 bg-slate-50 p-3 sm:p-4 xl:w-[360px] xl:flex-none xl:border-l xl:border-t-0`}
+          >
+            <div className="shrink-0 text-sm font-semibold text-slate-900">Ausfuellen</div>
+            <div className="mt-1 text-[11px] text-slate-500 lg:hidden">
+              Füllen Sie die Felder nacheinander aus. Über `Bereich anzeigen` springen Sie direkt zur passenden Stelle im Dokument.
+            </div>
             {req.requires_wet_signature ? (
               <div className="mt-3">
                 <div className="text-xs text-slate-600">
@@ -1617,14 +1736,28 @@ function SignatureSignModal({
                 </label>
               </div>
             ) : (
-              <div className="mt-3 space-y-3">
+              <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                 {actorFields.length === 0 ? (
                   <div className="text-xs text-slate-500">Keine Felder vorhanden.</div>
                 ) : null}
                 {actorFields.map((f) => (
                   <div key={f.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                    <div className="text-xs font-medium text-slate-700">
-                      {f.label || (f.type === "signature" ? "Unterschrift" : f.type === "checkbox" ? "Checkbox" : "Eingabe")}
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                      <div>
+                        <div className="text-xs font-medium text-slate-700">
+                          {f.label || (f.type === "signature" ? "Unterschrift" : f.type === "checkbox" ? "Checkbox" : "Eingabe")}
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-500">
+                          Seite {f.page} {page === f.page ? "· aktuell sichtbar" : ""}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openFieldArea(f.page)}
+                        className="shrink-0 self-start rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700"
+                      >
+                        Bereich anzeigen
+                      </button>
                     </div>
                     {f.type === "checkbox" ? (
                       <label className="mt-2 flex items-center gap-2 text-xs text-slate-600">
@@ -1656,24 +1789,50 @@ function SignatureSignModal({
               </div>
             )}
 
-            <button
-              onClick={async () => {
-                const ok = await onSubmitDigital(req.id, values)
-                if (ok) onClose()
-              }}
-              disabled={busy || alreadySigned || req.requires_wet_signature || !canSign}
-              className="mt-4 w-full rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
-            >
-              {canEdit ? "Speichern & senden" : "Unterschreiben"}
-            </button>
-            {!canEdit && customerRequired && advisorRequired && !req.advisor_signed_at ? (
-              <div className="mt-2 text-xs text-slate-500">Der Berater muss zuerst unterschreiben.</div>
-            ) : null}
-            {alreadySigned ? (
-              <div className="mt-2 text-xs text-slate-500">
-                {canEdit ? "Berater unterschrieben." : "Kunde unterschrieben."}
+            <div className="mt-4 shrink-0 border-t border-slate-200 pt-3">
+              {!req.requires_wet_signature ? (
+                <div className="mb-3 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-600 lg:hidden">
+                  <span>Fortschritt</span>
+                  <span className="font-semibold text-slate-900">
+                    {filledActorFieldCount}/{actorFields.length || 0} Felder erledigt
+                  </span>
+                </div>
+              ) : null}
+              {!req.requires_wet_signature && !allActorFieldsFilled ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-relaxed text-amber-800">
+                  Bitte zuerst alle Unterschriften und Felder vollständig ausfüllen. Danach erscheint der Abschluss-Button.
+                </div>
+              ) : null}
+              {!req.requires_wet_signature && allActorFieldsFilled ? (
+                <button
+                  onClick={async () => {
+                    const ok = await onSubmitDigital(req.id, values)
+                    if (ok) onClose()
+                  }}
+                  disabled={busy || alreadySigned || !canSign}
+                  className="w-full rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                >
+                  {canEdit ? "Speichern & senden" : "Unterschreiben"}
+                </button>
+              ) : null}
+              {!canEdit && customerRequired && advisorRequired && !req.advisor_signed_at ? (
+                <div className="mt-2 text-xs text-slate-500">Der Berater muss zuerst unterschreiben.</div>
+              ) : null}
+              {alreadySigned ? (
+                <div className="mt-2 text-xs text-slate-500">
+                  {canEdit ? "Berater unterschrieben." : "Kunde unterschrieben."}
+                </div>
+              ) : null}
+              <div className="mt-3 flex justify-end lg:hidden">
+                <button
+                  type="button"
+                  onClick={() => setMobileView("document")}
+                  className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700"
+                >
+                  Dokument ansehen
+                </button>
               </div>
-            ) : null}
+            </div>
           </div>
         </div>
       </div>

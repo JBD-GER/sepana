@@ -33,6 +33,22 @@ function resolveSiteUrl() {
   }
 }
 
+function buildCustomerCaseSectionUrl(siteUrl: string, caseId: string, caseType: string | null | undefined, section: "signatures" | "documents") {
+  const normalizedCaseType = String(caseType ?? "").trim().toLowerCase()
+  const hash =
+    section === "documents"
+      ? normalizedCaseType === "schufa_frei"
+        ? "#schufa-dokumente"
+        : "#privatkredit-unterlagen"
+      : normalizedCaseType === "schufa_frei"
+        ? "#schufa-signatur"
+        : normalizedCaseType === "konsum"
+          ? "#privatkredit-unterschrift"
+          : "#unterschriften"
+
+  return new URL(`/app/faelle/${encodeURIComponent(caseId)}${hash}`, siteUrl).toString()
+}
+
 async function canAccessCase(admin: any, caseId: string, userId: string, role: string | null) {
   const { data: c } = await admin
     .from("cases")
@@ -376,9 +392,10 @@ export async function PATCH(req: Request) {
 
     if (shouldSendCustomerMail) {
       const caseMeta = await getCaseMeta(reqRow.case_id)
+      const { data: caseRow } = await admin.from("cases").select("case_type").eq("id", reqRow.case_id).maybeSingle()
       if (caseMeta?.customer_email) {
         const siteUrl = resolveSiteUrl()
-        const ctaUrl = `${siteUrl}/signatur?caseId=${encodeURIComponent(reqRow.case_id)}`
+        const ctaUrl = buildCustomerCaseSectionUrl(siteUrl, reqRow.case_id, caseRow?.case_type ?? null, "signatures")
         const isReopen = shouldSendReopenCustomerMail
         const html = buildEmailHtml({
           title: isReopen ? "Weitere Unterschrift erforderlich" : "Unterschrift angefordert",
@@ -388,11 +405,13 @@ export async function PATCH(req: Request) {
           steps: isReopen
             ? [
                 "Loggen Sie sich ins Portal ein und öffnen Sie den Fall.",
+                "Öffnen Sie direkt den Bereich Vertrag und Signatur.",
                 "Prüfen Sie das Dokument und unterschreiben Sie das neu hinzugefügte Feld.",
                 "Bereits vorhandene Eingaben bleiben erhalten.",
               ]
             : [
                 "Loggen Sie sich ins Portal ein und öffnen Sie den Fall.",
+                "Öffnen Sie direkt den Bereich Vertrag und Signatur.",
                 "Unterzeichnen Sie das Dokument direkt online.",
                 "Wir informieren Sie nach Abschluss über die nächsten Schritte.",
               ],
