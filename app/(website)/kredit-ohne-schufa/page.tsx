@@ -215,7 +215,7 @@ export default async function SchufaFreeLandingPage() {
   const trustItems = [
     { ...TRUST_ITEMS[0], value: `${formatScore(reviewStats.average)} / 5` },
     TRUST_ITEMS[1],
-    { ...TRUST_ITEMS[2], value: "2 Schritte" },
+    TRUST_ITEMS[2],
   ]
 
   const productOverview = SCHUFA_FREE_AMOUNT_OPTIONS.map((amount) => ({
@@ -260,7 +260,7 @@ export default async function SchufaFreeLandingPage() {
                 href="#vorpruefung"
                 className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100"
               >
-                Jetzt Vorprüfung starten
+                Kredit beantragen
               </a>
               <a
                 href="#fragen"

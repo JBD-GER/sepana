@@ -605,7 +605,7 @@ export default function SchufaFreePrecheck() {
                 </div>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {provisionOverview.map((item) => (
                   <div key={item.amount} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 shadow-sm">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Kreditsumme</div>
