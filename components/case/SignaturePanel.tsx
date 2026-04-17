@@ -891,7 +891,6 @@ function SignatureEditorModal({
 
   function addField(type: SignatureField["type"], pos?: { x: number; y: number }) {
     const count = fields.filter((f) => f.type === type && f.owner === tab).length
-    if (count >= 3) return
     const nextIndex = count + 1
     const width = type === "checkbox" ? 3 : type === "signature" ? 18 : 12
     const height = type === "checkbox" ? 3 : type === "signature" ? 6 : 4
