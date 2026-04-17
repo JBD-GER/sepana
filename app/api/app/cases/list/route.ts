@@ -10,10 +10,11 @@ function readPositiveInt(raw: string | null, fallback: number) {
   return Math.floor(value)
 }
 
-function normalizeCaseType(raw: string | null): "baufi" | "konsum" | null {
+function normalizeCaseType(raw: string | null): "baufi" | "konsum" | "schufa_frei" | null {
   const value = String(raw ?? "").trim().toLowerCase()
   if (value === "baufi") return "baufi"
   if (value === "konsum" || value === "privatkredit") return "konsum"
+  if (value === "schufa_frei" || value === "schufafrei" || value === "kredit-ohne-schufa") return "schufa_frei"
   return null
 }
 

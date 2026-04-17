@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { verifyPublicCaseAccessToken } from "@/lib/onlinekredit/publicAccess"
+import type { SupportedCaseType } from "@/lib/caseTypes"
 
 type MinimalSupabase = Pick<SupabaseClient, "from">
 
@@ -34,7 +35,7 @@ export async function resolvePublicOnlinekreditCaseAccess(
     caseId: string
     caseRef: string
     accessToken: string
-    expectedCaseType?: "konsum" | "baufi"
+    expectedCaseType?: SupportedCaseType
   }
 ): Promise<PublicCaseAccessResult> {
   const caseId = trimOrNull(input.caseId)

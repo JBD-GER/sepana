@@ -9,7 +9,7 @@ type NotificationInput = {
   type: string
   title: string
   body: string
-  meta?: any
+  meta?: Record<string, unknown> | null
 }
 
 type CaseMeta = {
@@ -31,6 +31,11 @@ type AdvisorCardMeta = {
   languages: string[]
   photo_path: string | null
 }
+
+type NameParts = {
+  first_name?: string | null
+  last_name?: string | null
+} | null
 
 function escapeHtml(value: string) {
   return value
@@ -85,7 +90,7 @@ async function getAdvisorCardMeta(advisorId: string): Promise<AdvisorCardMeta> {
     : Array.isArray(meta?.languages)
       ? meta.languages
       : []
-  const languages = langsRaw.map((x: any) => cleanText(x)).filter(Boolean).slice(0, 8)
+  const languages = langsRaw.map((x: unknown) => cleanText(x)).filter(Boolean).slice(0, 8)
 
   return {
     display_name: displayName || null,
@@ -97,7 +102,7 @@ async function getAdvisorCardMeta(advisorId: string): Promise<AdvisorCardMeta> {
   }
 }
 
-function buildName(row: any) {
+function buildName(row: NameParts) {
   const first = String(row?.first_name || "").trim()
   const last = String(row?.last_name || "").trim()
   const full = `${first} ${last}`.trim()
@@ -117,12 +122,16 @@ export async function getCaseMeta(caseId: string): Promise<CaseMeta | null> {
     admin.from("case_applicants").select("first_name,last_name").eq("case_id", caseId).eq("role", "primary").maybeSingle(),
     c.assigned_advisor_id
       ? admin.from("advisor_profiles").select("display_name").eq("user_id", c.assigned_advisor_id).maybeSingle()
-      : Promise.resolve({ data: null as any }),
+      : Promise.resolve({ data: null as { display_name?: string | null } | null }),
   ])
 
   const [customerAuth, advisorAuth] = await Promise.all([
-    c.customer_id ? admin.auth.admin.getUserById(c.customer_id) : Promise.resolve({ data: null as any }),
-    c.assigned_advisor_id ? admin.auth.admin.getUserById(c.assigned_advisor_id) : Promise.resolve({ data: null as any }),
+    c.customer_id
+      ? admin.auth.admin.getUserById(c.customer_id)
+      : Promise.resolve({ data: null as { user?: { email?: string | null } | null } | null }),
+    c.assigned_advisor_id
+      ? admin.auth.admin.getUserById(c.assigned_advisor_id)
+      : Promise.resolve({ data: null as { user?: { email?: string | null } | null } | null }),
   ])
 
   return {
@@ -150,7 +159,7 @@ export async function logCaseEvent(opts: {
   type: string
   title: string
   body: string
-  meta?: any
+  meta?: Record<string, unknown> | null
   notifyCustomer?: boolean
   notifyAdvisor?: boolean
 }) {
@@ -515,7 +524,17 @@ export async function sendAdvisorAssignedEmail(opts: { caseId: string }) {
   })
 }
 
-export async function sendEmail(opts: { to: string; subject: string; html: string }) {
+type EmailAttachment = {
+  filename: string
+  content: string
+}
+
+export async function sendEmail(opts: {
+  to: string
+  subject: string
+  html: string
+  attachments?: EmailAttachment[]
+}) {
   const key = process.env.RESEND_API_KEY
   const from = process.env.RESEND_FROM
   if (!key || !from) return { ok: false, error: "missing_resend_env" }
@@ -535,6 +554,7 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
       to: opts.to,
       subject: opts.subject,
       html: opts.html,
+      attachments: Array.isArray(opts.attachments) && opts.attachments.length > 0 ? opts.attachments : undefined,
     }),
   })
 

@@ -91,6 +91,26 @@ function shortIso(ts?: string | null) {
   }
 }
 
+function normalizeProviderName(value?: string | null) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+function providerMatchesName(candidate?: string | null, expected?: string | null) {
+  const normalizedCandidate = normalizeProviderName(candidate)
+  const normalizedExpected = normalizeProviderName(expected)
+  if (!normalizedCandidate || !normalizedExpected) return false
+  return (
+    normalizedCandidate === normalizedExpected ||
+    normalizedCandidate.includes(normalizedExpected) ||
+    normalizedExpected.includes(normalizedCandidate)
+  )
+}
+
 function uuidLike() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
   return `${Date.now()}_${Math.random().toString(36).slice(2)}`
@@ -245,9 +265,13 @@ function signatureFieldTypeLabel(type: SignatureField["type"]) {
 export default function SignaturePanel({
   caseId,
   canEdit,
+  fixedProviderName,
+  providerProduct = "baufi",
 }: {
   caseId: string
   canEdit: boolean
+  fixedProviderName?: string
+  providerProduct?: "baufi" | "konsum"
 }) {
   const [items, setItems] = useState<SignatureRequest[]>([])
   const [busy, setBusy] = useState(false)
@@ -258,6 +282,11 @@ export default function SignaturePanel({
   const [providerId, setProviderId] = useState("")
   const [requiresWet, setRequiresWet] = useState(false)
   const [file, setFile] = useState<File | null>(null)
+  const lockedProviderLabel = fixedProviderName?.trim() ?? ""
+  const lockedProvider = lockedProviderLabel
+    ? providers.find((entry) => providerMatchesName(entry.provider?.name, lockedProviderLabel)) ?? null
+    : null
+  const lockedProviderId = lockedProvider?.provider?.id ?? ""
 
   useEffect(() => {
     ;(async () => {
@@ -270,12 +299,18 @@ export default function SignaturePanel({
   useEffect(() => {
     if (!canEdit) return
     ;(async () => {
-      const res = await fetch("/api/baufi/providers?product=baufi")
+      const res = await fetch(`/api/baufi/providers?product=${providerProduct}`)
       const json = await res.json().catch(() => ({}))
       const list = Array.isArray(json?.items) ? json.items : []
       setProviders(list)
     })()
-  }, [canEdit])
+  }, [canEdit, providerProduct])
+
+  useEffect(() => {
+    if (!lockedProviderLabel || !lockedProviderId) return
+    if (providerId === lockedProviderId) return
+    setProviderId(lockedProviderId)
+  }, [lockedProviderId, lockedProviderLabel, providerId])
 
   useEffect(() => {
     const providerName = providers.find((p) => p.provider.id === providerId)?.provider?.name ?? ""
@@ -308,7 +343,7 @@ export default function SignaturePanel({
       const json = await res.json().catch(() => ({}))
       if (!res.ok || !json?.ok) throw new Error(json?.error || "Fehler")
       setTitle("")
-      setProviderId("")
+      setProviderId(lockedProviderId)
       setRequiresWet(false)
       setFile(null)
       await refresh()
@@ -439,61 +474,86 @@ export default function SignaturePanel({
       })
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-medium text-slate-900">Unterschriften</div>
+    <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Signaturbereich</div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">Unterschriften</div>
+        </div>
         {canEdit ? <div className="text-xs text-slate-500">Berater / Admin</div> : null}
       </div>
 
       {canEdit ? (
-        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[1fr_200px_160px_140px]">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Dokument-Titel (z.B. Kreditvertrag)"
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
-          />
-          <select
-            value={providerId}
-            onChange={(e) => setProviderId(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
-          >
-            <option value="">Bank wählen</option>
-            {providers.map((p) => (
-              <option key={p.provider.id} value={p.provider.id}>
-                {p.provider.name}
-              </option>
-            ))}
-          </select>
-          <label className="flex items-center gap-2 text-xs text-slate-700">
-            <input
-              type="checkbox"
-              checked={requiresWet}
-              onChange={(e) => setRequiresWet(e.target.checked)}
-              className="h-4 w-4"
-            />
-            Original noetig
-          </label>
-          <label className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm">
-            Datei wählen
-            <input
-              type="file"
-              className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
-        </div>
-      ) : null}
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+            <div className="min-w-0 flex-1">
+              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Dokument</div>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Dokument-Titel (z.B. Kreditvertrag)"
+                className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+              />
+            </div>
 
-      {canEdit ? (
-        <div className="mt-2 flex justify-end">
-          <button
-            onClick={createRequest}
-            disabled={busy}
-            className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white shadow-md disabled:opacity-60"
-          >
-            Unterschrift anfordern
-          </button>
+            <div className="xl:w-[240px]">
+              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Bank</div>
+              {lockedProviderLabel ? (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
+                  <div className="text-sm font-semibold text-emerald-950">{lockedProviderLabel}</div>
+                  <div className="mt-0.5 text-xs text-emerald-700">Fest für Schufa-frei hinterlegt</div>
+                </div>
+              ) : (
+                <select
+                  value={providerId}
+                  onChange={(e) => setProviderId(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+                >
+                  <option value="">Bank wählen</option>
+                  {providers.map((p) => (
+                    <option key={p.provider.id} value={p.provider.id}>
+                      {p.provider.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div className="xl:w-[180px]">
+              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Original</div>
+              <label className="flex h-[50px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 shadow-sm">
+                <input
+                  type="checkbox"
+                  checked={requiresWet}
+                  onChange={(e) => setRequiresWet(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                Original nötig
+              </label>
+            </div>
+
+            <div className="xl:w-[210px]">
+              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Datei</div>
+              <label className="flex h-[50px] cursor-pointer items-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 shadow-sm">
+                <span className="truncate">{file?.name || "Datei wählen"}</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+            </div>
+
+            <div className="xl:w-[210px]">
+              <button
+                onClick={createRequest}
+                disabled={busy}
+                className="flex h-[50px] w-full items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-md transition hover:bg-slate-800 disabled:opacity-60"
+              >
+                Unterschrift anfordern
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -506,6 +566,7 @@ export default function SignaturePanel({
             req={req}
             canEdit={canEdit}
             busy={busy}
+            fallbackProviderName={lockedProviderLabel || undefined}
             onSaveFields={saveFields}
             onUploadSigned={uploadSigned}
             onSubmitDigital={submitDigital}
@@ -515,7 +576,7 @@ export default function SignaturePanel({
         ))}
 
         {visibleItems.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
             Noch keine Unterschriften angefordert.
           </div>
         ) : null}
@@ -528,6 +589,7 @@ function SignatureRequestCard({
   req,
   canEdit,
   busy,
+  fallbackProviderName,
   onSaveFields,
   onUploadSigned,
   onSubmitDigital,
@@ -537,6 +599,7 @@ function SignatureRequestCard({
   req: SignatureRequest
   canEdit: boolean
   busy: boolean
+  fallbackProviderName?: string
   onSaveFields: (id: string, fields: SignatureField[], opts?: SaveFieldsOptions) => Promise<void>
   onUploadSigned: (id: string, files: FileList) => Promise<void>
   onSubmitDigital: (id: string, values: Record<string, any>) => Promise<boolean>
@@ -566,6 +629,7 @@ function SignatureRequestCard({
   const alreadySigned = canEdit ? !!req.advisor_signed_at : !!req.customer_signed_at
   const advisorLabel = advisorRequired ? (req.advisor_signed_at ? shortIso(req.advisor_signed_at) : "--") : "nicht erforderlich"
   const canOpenSign = canEdit ? advisorRequired : customerRequired
+  const providerLabel = req.provider_name || fallbackProviderName || "--"
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -580,7 +644,7 @@ function SignatureRequestCard({
             ) : null}
           </div>
           <div className="text-xs text-slate-500">
-            Bank: {req.provider_name || "--"} - Status: {statusLabel} - Erstellt: {shortIso(req.created_at)}
+            Bank: {providerLabel} - Status: {statusLabel} - Erstellt: {shortIso(req.created_at)}
           </div>
           <div className="mt-1 text-xs text-slate-500">
             Berater: {advisorLabel} · Kunde: {req.customer_signed_at ? shortIso(req.customer_signed_at) : "--"}
@@ -708,6 +772,7 @@ function SignatureRequestCard({
           req={req}
           canEdit={canEdit}
           busy={busy}
+          fallbackProviderName={fallbackProviderName}
           onClose={() => setEditorOpen(false)}
           onSaveFields={onSaveFields}
         />
@@ -731,12 +796,14 @@ function SignatureEditorModal({
   req,
   canEdit,
   busy,
+  fallbackProviderName,
   onClose,
   onSaveFields,
 }: {
   req: SignatureRequest
   canEdit: boolean
   busy: boolean
+  fallbackProviderName?: string
   onClose: () => void
   onSaveFields: (id: string, fields: SignatureField[], opts?: SaveFieldsOptions) => Promise<void>
 }) {
@@ -796,6 +863,7 @@ function SignatureEditorModal({
     canEdit &&
     ((!req.advisor_signed_at && !req.customer_signed_at) || canReopenCustomerSignature)
   const tabFields = fields.filter((f) => f.owner === tab && f.page === page)
+  const providerLabel = req.provider_name || fallbackProviderName || "--"
 
   useEffect(() => {
     if (canReopenCustomerSignature && tab !== "customer") setTab("customer")
@@ -925,7 +993,7 @@ function SignatureEditorModal({
           <div>
             <div className="text-sm font-semibold text-slate-900">{req.title}</div>
             <div className="text-xs text-slate-500">
-              Bank: {req.provider_name || "--"} · Berater: {req.advisor_signed_at ? shortIso(req.advisor_signed_at) : "--"} · Kunde:{" "}
+              Bank: {providerLabel} · Berater: {req.advisor_signed_at ? shortIso(req.advisor_signed_at) : "--"} · Kunde:{" "}
               {req.customer_signed_at ? shortIso(req.customer_signed_at) : "--"}
             </div>
           </div>

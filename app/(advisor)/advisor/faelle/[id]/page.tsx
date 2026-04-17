@@ -2,7 +2,7 @@
 import Link from "next/link"
 import { requireAdvisor } from "@/lib/advisor/requireAdvisor"
 import { authFetch } from "@/lib/app/authFetch"
-import { translateCaseStatus, translateOfferStatus } from "@/lib/caseStatus"
+import { translateCaseStatus } from "@/lib/caseStatus"
 import OfferList from "@/components/case/OfferList"
 import OfferEditor from "@/components/case/OfferEditor"
 import CaseChat from "@/components/case/CaseChat"
@@ -20,6 +20,94 @@ import EuropaceDocumentsCard from "./ui/EuropaceDocumentsCard"
 import EuropaceOffersCard from "./ui/EuropaceOffersCard"
 import EuropaceSyncCard from "./ui/EuropaceSyncCard"
 import AdvisorCaseStatusSelect from "../ui/AdvisorCaseStatusSelect"
+import SchufaFreeStatusOverview from "@/components/schufa-frei/SchufaFreeStatusOverview"
+import SchufaFreeDetailsOverview from "@/components/schufa-frei/SchufaFreeDetailsOverview"
+import SchufaFreePrecheckDecisionPanel from "@/components/schufa-frei/SchufaFreePrecheckDecisionPanel"
+import SchufaFreePostIdentPanel from "@/components/schufa-frei/SchufaFreePostIdentPanel"
+import SchufaFreeProvisionPanel from "@/components/schufa-frei/SchufaFreeProvisionPanel"
+import SchufaFreeWorkspaceOverview from "@/components/schufa-frei/SchufaFreeWorkspaceOverview"
+import { isSchufaFreeProvisionPaid } from "@/lib/schufa-frei/provisionInvoice"
+
+type CaseApplicant = {
+  first_name?: string | null
+  last_name?: string | null
+  email?: string | null
+  phone?: string | null
+  employment_type?: string | null
+}
+
+type CaseDetails = {
+  purpose?: string | null
+}
+
+type PreviewProvider = {
+  name?: string | null
+  logo_path?: string | null
+  logoPath?: string | null
+  logo?: unknown
+}
+
+type PreviewPayload = {
+  provider?: PreviewProvider | null
+  computed?: {
+    rateMonthly?: number | null
+    aprEffective?: number | null
+    zinsbindung?: string | null
+    specialRepayment?: string | null
+  } | null
+  inputs?: {
+    loanAmount?: number | null
+    years?: number | null
+  } | null
+  caseRef?: string | null
+}
+
+type SchufaDetails = {
+  loan_amount_requested?: number | null
+  term_months?: number | null
+  net_income_monthly?: number | null
+  nationality_group?: string | null
+  sigma_existing_customer?: boolean | null
+  employment_mode?: string | null
+  employment_months_current?: number | null
+  street?: string | null
+  house_number?: string | null
+  zipcode?: string | null
+  city?: string | null
+  employer_name?: string | null
+  bank_name?: string | null
+  iban?: string | null
+}
+
+type SchufaSync = {
+  skag_credit_id?: string | null
+  skag_client_id?: string | null
+  last_status_alias?: string | null
+  last_status_description?: string | null
+  last_submit_at?: string | null
+  last_document_upload_at?: string | null
+  last_error?: string | null
+  postident_url?: string | null
+  postident_added_at?: string | null
+  postident_notified_at?: string | null
+}
+
+type SchufaPushEvent = {
+  status_alias?: string | null
+  status_description?: string | null
+  created_at?: string | null
+}
+
+type SchufaInvoice = {
+  id: string
+  invoice_number?: string | null
+  status?: string | null
+  amount_total?: number | null
+  loan_amount?: number | null
+  sent_at?: string | null
+  paid_at?: string | null
+  refunded_at?: string | null
+}
 
 type Resp = {
   case: {
@@ -36,8 +124,8 @@ type Resp = {
     customer_id: string | null
     assigned_advisor_id: string | null
   }
-  baufi_details: any | null
-  applicants: any[]
+  baufi_details: CaseDetails | null
+  applicants: CaseApplicant[]
   offer_previews: Array<{
     id: string
     created_at: string
@@ -45,7 +133,7 @@ type Resp = {
     provider_name?: string | null
     provider_logo_path?: string | null
     product_type: string
-    payload: any
+    payload: PreviewPayload | string | null
   }>
   offers: Array<{
     id: string
@@ -124,7 +212,7 @@ type Resp = {
   europace_flow?: EuropaceFlowSummary | null
   europace_offers?: Array<{
     angebot_id: string
-    angebot_snapshot?: any
+    angebot_snapshot?: Record<string, unknown> | null
     machbarkeit_status: string | null
     vollstaendigkeit_status: string | null
     calculated_at: string | null
@@ -157,6 +245,19 @@ type Resp = {
   viewer_role: string | null
 }
 
+type SignatureResp = {
+  items: Array<{
+    id: string
+    title: string | null
+    requires_wet_signature: boolean | null
+    advisor_signed_at: string | null
+    customer_signed_at: string | null
+    status: string | null
+    fields?: Array<{ owner?: "advisor" | "customer" | string | null }> | null
+    documents?: Array<{ document_kind?: "signature_original" | "signature_signed" | string | null }> | null
+  }>
+}
+
 function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(d))
 }
@@ -176,13 +277,13 @@ function normalizeLogoPath(input: unknown): string | null {
     return s ? s : null
   }
   if (typeof input === "object") {
-    const anyObj = input as any
+    const objectInput = input as Record<string, unknown>
     const candidate =
-      anyObj?.path ??
-      anyObj?.logo_path ??
-      anyObj?.logoPath ??
-      anyObj?.key ??
-      anyObj?.name ??
+      objectInput.path ??
+      objectInput.logo_path ??
+      objectInput.logoPath ??
+      objectInput.key ??
+      objectInput.name ??
       null
     if (typeof candidate === "string" && candidate.trim()) return candidate.trim()
   }
@@ -196,6 +297,63 @@ function logoSrc(pathLike?: unknown) {
   return `/api/baufi/logo?bucket=logo_banken&path=${encodeURIComponent(path)}`
 }
 
+function SchufaFreeIntroCard({
+  eyebrow,
+  title,
+  description,
+  tone = "slate",
+}: {
+  eyebrow: string
+  title: string
+  description: string
+  tone?: "slate" | "cyan" | "emerald"
+}) {
+  const toneClass =
+    tone === "cyan"
+      ? "border-cyan-200/80 bg-[linear-gradient(135deg,rgba(236,254,255,0.95),rgba(255,255,255,0.92))]"
+      : tone === "emerald"
+        ? "border-emerald-200/80 bg-[linear-gradient(135deg,rgba(236,253,245,0.95),rgba(255,255,255,0.92))]"
+        : "border-slate-200/80 bg-[linear-gradient(135deg,rgba(248,250,252,0.98),rgba(255,255,255,0.94))]"
+
+  return (
+    <div className={`rounded-[26px] border p-5 shadow-sm ${toneClass}`}>
+      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{eyebrow}</div>
+      <h2 className="mt-2 text-xl font-semibold text-slate-900">{title}</h2>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">{description}</p>
+    </div>
+  )
+}
+
+function SchufaFreeHeroMetric({
+  label,
+  value,
+  hint,
+  tone = "default",
+}: {
+  label: string
+  value: string
+  hint?: string
+  tone?: "default" | "dark" | "accent"
+}) {
+  const toneClass =
+    tone === "dark"
+      ? "border-slate-900/80 bg-slate-950 text-white"
+      : tone === "accent"
+        ? "border-cyan-200/80 bg-cyan-50/80 text-slate-900"
+        : "border-white/70 bg-white/85 text-slate-900"
+
+  const hintClass = tone === "dark" ? "text-slate-300" : "text-slate-500"
+  const labelClass = tone === "dark" ? "text-slate-400" : "text-slate-500"
+
+  return (
+    <div className={`rounded-[24px] border px-4 py-4 shadow-sm backdrop-blur ${toneClass}`}>
+      <div className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${labelClass}`}>{label}</div>
+      <div className="mt-2 text-lg font-semibold">{value}</div>
+      {hint ? <div className={`mt-2 text-sm leading-relaxed ${hintClass}`}>{hint}</div> : null}
+    </div>
+  )
+}
+
 // OK Status-Übersetzung (Case)
 
 // OK Status-Übersetzung (Offer)
@@ -204,8 +362,21 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   const { user } = await requireAdvisor()
   const { id } = await params
 
-  const res = await authFetch(`/api/app/cases/get?id=${encodeURIComponent(id)}`).catch(() => null)
+  const [res, schufaRes, signaturesRes] = await Promise.all([
+    authFetch(`/api/app/cases/get?id=${encodeURIComponent(id)}`).catch(() => null),
+    authFetch(`/api/app/cases/schufa-frei?caseId=${encodeURIComponent(id)}`).catch(() => null),
+    authFetch(`/api/app/signatures?caseId=${encodeURIComponent(id)}`).catch(() => null),
+  ])
   const data: Resp | null = res && res.ok ? await res.json() : null
+  const schufaData: {
+    details?: SchufaDetails | null
+    applicant?: CaseApplicant | null
+    sync?: SchufaSync | null
+    invoice?: SchufaInvoice | null
+    pushEvents?: SchufaPushEvent[]
+    skagDocuments?: Array<{ local_document_id?: string | null; upload_status?: string | null; last_error?: string | null }>
+  } | null = schufaRes && schufaRes.ok ? await schufaRes.json() : null
+  const signatureData: SignatureResp | null = signaturesRes && signaturesRes.ok ? await signaturesRes.json() : null
 
   if (!data) {
     return (
@@ -221,16 +392,20 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   }
 
   const c = data.case
-  const caseType = String(c.case_type ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
+  const rawCaseType = String(c.case_type ?? "").trim().toLowerCase()
+  const caseType = rawCaseType === "konsum" ? "konsum" : rawCaseType === "schufa_frei" ? "schufa_frei" : "baufi"
   const isKonsum = caseType === "konsum"
+  const isSchufaFree = caseType === "schufa_frei"
   const previewRow = data.offer_previews?.[0] ?? null
-  let previewPayload: any = previewRow?.payload ?? null
-  if (typeof previewPayload === "string") {
+  let previewPayload: PreviewPayload | null = null
+  if (typeof previewRow?.payload === "string") {
     try {
-      previewPayload = JSON.parse(previewPayload)
+      previewPayload = JSON.parse(previewRow.payload) as PreviewPayload
     } catch {
       previewPayload = null
     }
+  } else if (previewRow?.payload && typeof previewRow.payload === "object") {
+    previewPayload = previewRow.payload
   }
   const advisor = data.advisor
   const advisorStatus = (() => {
@@ -255,6 +430,265 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     ? `/api/baufi/logo?bucket=advisor_avatars&width=256&height=256&quality=100&resize=cover&path=${encodeURIComponent(advisor.photo_path)}`
     : null
   const bankCaseDocuments = (data.documents ?? []).filter((document) => isImportedBankDocumentPath(document.file_path))
+  const signatureItems = signatureData?.items ?? []
+  const leadApplicant = schufaData?.applicant ?? data.applicants?.[0] ?? null
+  const counterpartName =
+    [leadApplicant?.first_name, leadApplicant?.last_name].filter((value) => String(value ?? "").trim()).join(" ").trim() ||
+    leadApplicant?.email ||
+    null
+  const provisionInvoice = schufaData?.invoice ?? null
+  const provisionPaid = isSchufaFreeProvisionPaid(provisionInvoice?.status ?? null)
+  const documentCount = (data.documents ?? []).length
+  const requestCount = (data.document_requests ?? []).length
+  const requestedVariant = `${formatEUR(schufaData?.details?.loan_amount_requested ?? null)} / ${schufaData?.details?.term_months ?? "-"} Monate`
+  const advisorFocus = !provisionPaid
+    ? "Vorauszahlung bestätigen"
+    : signatureItems.length === 0
+      ? "Vertrag vorbereiten"
+      : !String(schufaData?.sync?.postident_url ?? "").trim()
+        ? "PostIdent hinterlegen"
+        : "Auszahlung beobachten"
+  const advisorFocusHint = !provisionPaid
+    ? "Der Vertrag bleibt gesperrt, bis der Zahlungseingang bestätigt ist."
+    : signatureItems.length === 0
+      ? "Sobald der Vertrag angelegt ist, kann der Signaturprozess starten."
+      : !String(schufaData?.sync?.postident_url ?? "").trim()
+        ? "Nach dem Vertrag fehlt als Nächstes noch der PostIdent-Link."
+        : "Die operativen Schritte sind angelegt, jetzt den SEPANA-Status weiter verfolgen."
+
+  if (isSchufaFree) {
+    return (
+      <div className="w-full overflow-x-clip space-y-6">
+        <ClearSignatureHash />
+        <div className="rounded-[32px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.15),transparent_32%),radial-gradient(circle_at_right,rgba(16,185,129,0.12),transparent_30%),linear-gradient(135deg,#f8fafc,#ffffff)] p-5 shadow-sm sm:rounded-[36px] sm:p-7">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+            <div>
+              <Link href="/advisor/faelle" className="text-sm font-medium text-slate-900 underline underline-offset-4">
+                {"<-"} Zurück zu Fälle
+              </Link>
+              <div className="mt-4 inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-800">
+                Berateransicht · Kredit ohne Schufa
+              </div>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                Fall {c.case_ref || c.id.slice(0, 8)} klar steuern.
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+                Alles Relevante für Prüfung, Dokumente, Vorauszahlung, Vertrag, PostIdent und Auszahlung in einem sauberen Arbeitsbereich.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <SchufaFreeHeroMetric
+                label="Fallstatus"
+                value={translateCaseStatus(c.status_display ?? c.status)}
+                hint={`Erstellt am ${dt(c.created_at)}`}
+                tone="dark"
+              />
+              <SchufaFreeHeroMetric
+                label="Technische Referenz"
+                value={c.case_ref || "Schufa-frei"}
+                hint={`Fall-ID: ${c.id}`}
+                tone="accent"
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 lg:grid-cols-3">
+            <SchufaFreeHeroMetric
+              label="Kunde"
+              value={counterpartName || "Noch ohne Namen"}
+              hint={leadApplicant?.phone ?? leadApplicant?.email ?? "Kontaktdaten im Fall hinterlegt"}
+            />
+            <SchufaFreeHeroMetric
+              label="Variante"
+              value={requestedVariant}
+              hint={`${documentCount} Dokumente · ${requestCount} Anforderungen`}
+            />
+            <SchufaFreeHeroMetric label="Nächster Fokus" value={advisorFocus} hint={advisorFocusHint} tone="accent" />
+          </div>
+
+          <div className="mt-5 grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+            <div className="rounded-[24px] border border-white/80 bg-white/85 p-4 shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Interne Referenz</div>
+              <div className="mt-3">
+                <AdvisorCaseRefEditor caseId={c.id} initialValue={c.advisor_case_ref ?? null} variant="inline" />
+              </div>
+            </div>
+            {c.customer_id ? (
+              <div className="rounded-[24px] border border-white/80 bg-white/85 p-4 shadow-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Kundenzugang</div>
+                <div className="mt-3">
+                  <ResendCustomerInviteButton caseId={c.id} />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <SchufaFreeWorkspaceOverview
+          mode="advisor"
+          caseRef={c.case_ref}
+          caseStatus={c.status_display ?? c.status}
+          sync={schufaData?.sync ?? null}
+          invoice={provisionInvoice}
+          pushEvents={schufaData?.pushEvents ?? []}
+          requests={data.document_requests ?? []}
+          documents={data.documents ?? []}
+          signatures={signatureItems}
+          chatCount={(data.chat ?? []).length}
+          counterpartName={counterpartName}
+        />
+
+        <div className="space-y-6">
+          <div className="rounded-[30px] border border-slate-200/70 bg-[linear-gradient(135deg,rgba(248,250,252,0.98),rgba(236,254,255,0.96))] p-6 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Interner Status</div>
+            <div className="mt-3 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div className="max-w-2xl">
+                <h2 className="text-xl font-semibold text-slate-900">Fall intern steuern</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  Beratungsstatus, Priorität und der operative Fokus bleiben hier an einer zentralen Stelle gebündelt.
+                </p>
+              </div>
+              <div className="w-full max-w-sm">
+                <AdvisorCaseStatusSelect caseId={c.id} value={advisorStatus} />
+              </div>
+            </div>
+          </div>
+
+          <AdvisorPrivateNoteEditor caseId={c.id} initialValue={c.advisor_private_note ?? null} />
+
+          <SchufaFreeStatusOverview
+            caseStatus={c.status_display ?? c.status}
+            sync={schufaData?.sync ?? null}
+            pushEvents={schufaData?.pushEvents ?? []}
+            documentCount={(data.documents ?? []).length}
+            requestCount={(data.document_requests ?? []).length}
+          />
+
+          <SchufaFreeDetailsOverview applicant={leadApplicant} details={schufaData?.details ?? null} />
+
+          <section id="schufa-vorpruefung" className="space-y-3">
+            <SchufaFreeIntroCard
+              eyebrow="Vorprüfung"
+              title="Rückmeldung zur Vorprüfung versenden"
+              description="Versenden Sie hier direkt die positive oder negative Rückmeldung an den Kunden. Die positive Mail enthält bereits die nächsten Schritte bis Serviceprovision, Vertrag und Auszahlung."
+              tone="slate"
+            />
+            <SchufaFreePrecheckDecisionPanel caseId={c.id} />
+          </section>
+
+          <RecommendedByCard recommendedBy={data.recommended_by} />
+
+          {advisor ? (
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-start gap-4">
+                <div className="h-16 w-16 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                  {advisorAvatar ? <img src={advisorAvatar} alt="" className="h-full w-full object-cover" /> : null}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs text-slate-500">Zuständiger Berater</div>
+                  <div className="text-lg font-semibold text-slate-900">{advisor.display_name ?? "-"}</div>
+                  <div className="mt-1 text-sm text-slate-700">{advisor.bio ?? "-"}</div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600">
+                    {advisor.phone ? <span>Tel: {advisor.phone}</span> : null}
+                    {advisor.email ? <span>E-Mail: {advisor.email}</span> : null}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <section id="schufa-dokumente" className="space-y-3">
+            <SchufaFreeIntroCard
+              eyebrow="Dokumente & Prüfung"
+              title="Unterlagen und Nachforderungen"
+              description="Fordern Sie Unterlagen gezielt an, prüfen Sie neue Uploads und behalten Sie den SEPANA-Übertragungsstatus pro Datei direkt im Blick."
+              tone="slate"
+            />
+            <DocumentPanel
+              caseId={c.id}
+              requests={data.document_requests ?? []}
+              documents={data.documents ?? []}
+              europaceDocuments={[]}
+              europaceUploadTargets={[]}
+              skagDocuments={schufaData?.skagDocuments ?? []}
+              caseType={caseType}
+              canCreateRequest={data.viewer_role === "advisor" || data.viewer_role === "admin"}
+              caseCustomerId={c.customer_id ?? null}
+              caseAdvisorId={c.assigned_advisor_id ?? null}
+            />
+          </section>
+
+          <section id="schufa-vorauszahlung" className="space-y-3">
+            <SchufaFreeIntroCard
+              eyebrow="Vorauszahlung"
+              title="Vorauszahlungsrechnung bereitstellen"
+              description="Nach vollständigem Dokumenteneingang wird zuerst die Vorauszahlungsrechnung versendet. Der Vertrag folgt erst nach bestätigtem Zahlungseingang."
+              tone="cyan"
+            />
+            <SchufaFreeProvisionPanel
+              mode="advisor"
+              caseId={c.id}
+              caseRef={c.case_ref}
+              loanAmount={schufaData?.details?.loan_amount_requested ?? null}
+              invoice={provisionInvoice}
+            />
+          </section>
+
+          <section id="schufa-signatur" className="space-y-3">
+            <SchufaFreeIntroCard
+              eyebrow="Vertrag & Signatur"
+              title="Kreditvertrag unterschriftsreif machen"
+              description="Laden Sie hier den finalen Kreditvertrag hoch, setzen Sie Berater- und Kundenfelder und starten Sie den Signaturprozess direkt aus dem Fall."
+              tone="emerald"
+            />
+            {!provisionPaid ? (
+              <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 shadow-sm">
+                Der Vertragsbereich bleibt gesperrt, bis die Vorauszahlung im Fall als eingegangen markiert wurde.
+              </div>
+            ) : (
+              <>
+                {bankCaseDocuments.length > 0 ? (
+                  <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 shadow-sm">
+                    Es liegen bereits importierte Bankdokumente im Fall vor. Prüfen Sie, ob der Kreditvertrag davon
+                    in den Signaturbereich übernommen werden soll.
+                  </div>
+                ) : null}
+                <SignaturePanel caseId={c.id} canEdit fixedProviderName="SIGMA Kreditbank AG" providerProduct="konsum" />
+              </>
+            )}
+          </section>
+
+          <section id="schufa-postident" className="space-y-3">
+            <SchufaFreeIntroCard
+              eyebrow="PostIdent"
+              title="PostIdent-Link bereitstellen"
+              description="Fügen Sie hier den Link aus dem SKAG-Partnerbereich ein. Beim Übermitteln landet er direkt im Kundendashboard und der Kunde erhält zusätzlich eine E-Mail-Benachrichtigung."
+              tone="slate"
+            />
+            <SchufaFreePostIdentPanel
+              mode="advisor"
+              caseId={c.id}
+              postidentUrl={schufaData?.sync?.postident_url ?? null}
+              postidentAddedAt={schufaData?.sync?.postident_added_at ?? null}
+              postidentNotifiedAt={schufaData?.sync?.postident_notified_at ?? null}
+              statusAlias={schufaData?.sync?.last_status_alias ?? schufaData?.pushEvents?.[0]?.status_alias ?? null}
+            />
+          </section>
+        </div>
+
+        <section id="schufa-chat" className="space-y-3">
+          <SchufaFreeIntroCard
+            eyebrow="Direkter Austausch"
+            title="Chat mit dem Kunden"
+            description="Nutzen Sie den Chat für Rückfragen, Dokumentenhinweise und die Begleitung bis zu PostIdent und Auszahlung."
+            tone="slate"
+          />
+          <CaseChat caseId={c.id} currentUserId={user.id} initialMessages={data.chat ?? []} />
+        </section>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

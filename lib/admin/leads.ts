@@ -1,7 +1,10 @@
 ﻿import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { buildEmailHtml, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
+import { getCaseRefPrefix, getCaseTypeLabel } from "@/lib/caseTypes"
+import { getLegacyCompatibleCaseStatus, isCaseStatusConstraintError } from "@/lib/caseStatusCompat"
+import { getSchufaFreeDocumentDisplayTitle, getSchufaFreeDocumentRequired } from "@/lib/schufa-frei/documentRecommendations"
 
-export type CaseType = "baufi" | "konsum"
+export type CaseType = "baufi" | "konsum" | "schufa_frei"
 
 export type LeadRow = {
   id: string
@@ -55,6 +58,10 @@ export function inferCaseTypeFromProduct(productName: string | null) {
   const value = String(productName ?? "").trim().toLowerCase()
   if (!value) return null
 
+  if (value.includes("ohne schufa") || value.includes("schufa-frei") || value.includes("schufafrei") || value.includes("sigma")) {
+    return "schufa_frei" as const
+  }
+
   if (value.includes("privatkredit") || value.includes("ratenkredit") || value.includes("konsum")) {
     return "konsum" as const
   }
@@ -100,7 +107,7 @@ function numberOrNull(value: number | string | null | undefined) {
 }
 
 function caseRefPrefix(caseType: CaseType) {
-  return caseType === "konsum" ? "PK" : "BF"
+  return getCaseRefPrefix(caseType)
 }
 
 function buildRecommendationCardHtml(
@@ -434,20 +441,42 @@ export async function createCaseFromLead(opts: {
 
   const caseRef = await nextCaseRef(admin, caseType)
 
-  const { data: createdCase, error: caseErr } = await admin
+  const baseCaseInsert = {
+    case_type: caseType,
+    customer_id: customerId,
+    assigned_advisor_id: advisorId,
+    entry_channel: entryChannel,
+    language,
+    is_email_verified: false,
+    case_ref: caseRef,
+  }
+
+  let requestedStatus = initialStatus
+  let caseInsert = await admin
     .from("cases")
     .insert({
-      case_type: caseType,
-      status: initialStatus,
-      customer_id: customerId,
-      assigned_advisor_id: advisorId,
-      entry_channel: entryChannel,
-      language,
-      is_email_verified: false,
-      case_ref: caseRef,
+      ...baseCaseInsert,
+      status: requestedStatus,
     })
     .select("id")
     .single()
+
+  if (caseInsert.error) {
+    const fallbackStatus = getLegacyCompatibleCaseStatus(requestedStatus)
+    if (fallbackStatus !== requestedStatus && isCaseStatusConstraintError(caseInsert.error)) {
+      requestedStatus = fallbackStatus
+      caseInsert = await admin
+        .from("cases")
+        .insert({
+          ...baseCaseInsert,
+          status: requestedStatus,
+        })
+        .select("id")
+        .single()
+    }
+  }
+
+  const { data: createdCase, error: caseErr } = caseInsert
   if (caseErr) throw caseErr
   const caseId = String(createdCase.id)
 
@@ -480,6 +509,14 @@ export async function createCaseFromLead(opts: {
           loan_amount_requested: baseLoanAmount,
           term_months: numberOrNull(lead.loan_term_months),
         }
+      : caseType === "schufa_frei"
+        ? {
+            case_id: caseId,
+            loan_amount_requested: baseLoanAmount,
+            term_months: numberOrNull(lead.loan_term_months),
+            precheck_reason: trimOrNull(lead.notes),
+            net_income_monthly: numberOrNull(lead.net_income_monthly),
+          }
       : {
           case_id: caseId,
           purpose: trimOrNull(lead.loan_purpose),
@@ -494,7 +531,9 @@ export async function createCaseFromLead(opts: {
     ([key, value]) => key !== "case_id" && value !== null && value !== ""
   )
   if (hasDetails) {
-    let { error: detailsErr } = await admin.from("case_baufi_details").insert(detailsForCase)
+    let { error: detailsErr } = await admin
+      .from(caseType === "schufa_frei" ? "case_schufa_free_details" : "case_baufi_details")
+      .insert(detailsForCase)
     if (
       detailsErr &&
       caseType === "konsum" &&
@@ -530,15 +569,21 @@ export async function createCaseFromLead(opts: {
     const templateRows = (templates ?? []) as Array<{ title: string | null; required: boolean | null }>
     const rows = templateRows.map((t) => ({
       case_id: caseId,
-      title: t.title,
-      required: !!t.required,
+      title:
+        caseType === "schufa_frei"
+          ? getSchufaFreeDocumentDisplayTitle(t.title) ?? t.title
+          : t.title,
+      required:
+        caseType === "schufa_frei"
+          ? getSchufaFreeDocumentRequired(t.title, t.required)
+          : !!t.required,
       created_by: advisorId ?? customerId,
     }))
     const { error: requestErr } = await admin.from("document_requests").insert(rows)
     if (requestErr) throw requestErr
   }
 
-  const productLabel = caseType === "konsum" ? "Privatkredit" : "Baufinanzierung"
+  const productLabel = getCaseTypeLabel(caseType)
   await logCaseEvent({
     caseId,
     actorRole: "admin",

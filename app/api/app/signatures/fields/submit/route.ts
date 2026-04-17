@@ -2,6 +2,7 @@
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
+import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { renderSignedPdf } from "@/lib/signatures/renderSignedPdf"
 import { logCaseEvent } from "@/lib/notifications/notify"
@@ -238,16 +239,37 @@ export async function POST(req: Request) {
               await admin.storage
                 .from("case_documents")
                 .upload(path, finalBytes, { upsert: true, contentType: "application/pdf" })
-              await admin.from("documents").insert({
-                case_id: reqFull.case_id,
-                signature_request_id: requestId,
-                document_kind: "signature_signed",
-                uploaded_by: user.id,
-                file_path: path,
-                file_name: finalName,
-                mime_type: "application/pdf",
-                size_bytes: finalBytes.length,
-              })
+              const { data: insertedDoc } = await admin
+                .from("documents")
+                .insert({
+                  case_id: reqFull.case_id,
+                  signature_request_id: requestId,
+                  document_kind: "signature_signed",
+                  uploaded_by: user.id,
+                  file_path: path,
+                  file_name: finalName,
+                  mime_type: "application/pdf",
+                  size_bytes: finalBytes.length,
+                })
+                .select("id")
+                .single()
+
+              const localDocumentId = String((insertedDoc as { id?: string | null } | null)?.id ?? "").trim()
+              if (localDocumentId) {
+                const { data: caseMeta } = await admin
+                  .from("cases")
+                  .select("case_type")
+                  .eq("id", reqFull.case_id)
+                  .maybeSingle()
+                if (String(caseMeta?.case_type ?? "").trim().toLowerCase() === "schufa_frei") {
+                  await syncLocalDocumentToSkag(admin, {
+                    caseId: reqFull.case_id,
+                    localDocumentId,
+                    filePath: path,
+                    fileName: finalName,
+                  }).catch(() => null)
+                }
+              }
             }
           }
         }

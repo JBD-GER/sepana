@@ -104,7 +104,7 @@ export default function CaseChat({
         throw new Error(json?.error || "Senden fehlgeschlagen")
       }
       refresh()
-    } catch (e) {
+    } catch {
       setText(msg)
     } finally {
       setBusy(false)
@@ -142,7 +142,7 @@ export default function CaseChat({
         )}
       </div>
 
-      <div className="mt-3 flex items-end gap-2">
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -152,7 +152,7 @@ export default function CaseChat({
         <button
           onClick={send}
           disabled={busy}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-md disabled:opacity-60"
+          className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-md disabled:opacity-60 sm:w-auto"
         >
           Senden
         </button>

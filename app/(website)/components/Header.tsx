@@ -51,6 +51,11 @@ const PRIVATEKREDIT_NAV: PortalNavItem[] = [
     featured: true,
   },
   {
+    href: "/kredit-ohne-schufa",
+    label: "Kredit ohne Schufa",
+    description: "Kredit trotz negativer Schufa, Online abschließbar.",
+  },
+  {
     href: "/privatkredit/hochzeitskredit",
     label: "Hochzeitskredit",
     description: "Budgetrechner und Finanzierung für die Hochzeit",
@@ -186,7 +191,8 @@ export default function Header({ reviewStats = null }: HeaderProps) {
     setMenuOpen(false)
     setMobileSectionsOpen({
       baufi: pathname.startsWith("/baufinanzierung"),
-      privatkredit: pathname.startsWith("/privatkredit") || pathname.startsWith("/onlinekredit"),
+      privatkredit:
+        pathname.startsWith("/privatkredit") || pathname.startsWith("/onlinekredit") || pathname.startsWith("/kredit-ohne-schufa"),
     })
     blurActiveElement()
   }, [pathname])

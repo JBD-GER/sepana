@@ -8,6 +8,7 @@ import { deriveEuropaceFlowSummary } from "@/lib/europace/flow"
 import { selectVisibleEuropaceOffers } from "@/lib/europace/offerVisibility"
 import { normalizeEuropaceApplications } from "@/lib/europace/status"
 import { deriveConcreteUploadProgress, deriveConcreteUploadTargets } from "@/lib/europace/uploadRequirements"
+import { normalizeSchufaFreeDocumentRequest } from "@/lib/schufa-frei/documentRecommendations"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { getTippgeberBrandForCase } from "@/lib/tippgeber/service"
 
@@ -624,6 +625,13 @@ export async function GET(req: Request) {
     }
   }
 
+  const normalizedDocumentRequests =
+    String(c.case_type ?? "").trim().toLowerCase() === "schufa_frei"
+      ? ((docRequests ?? []) as Array<{ id?: string | null; case_id?: string | null; title?: string | null; required?: boolean | null; created_at?: string | null; created_by?: string | null }>).map(
+          (request) => normalizeSchufaFreeDocumentRequest(request)
+        )
+      : docRequests ?? []
+
   return NextResponse.json({
     case: { ...casePayload, status_display: statusDisplay },
     baufi_details: details ?? null,
@@ -634,7 +642,7 @@ export async function GET(req: Request) {
     offer_previews: previewsWithProvider ?? [],
     offers: offersWithProvider,
     documents: docs ?? [],
-    document_requests: docRequests ?? [],
+    document_requests: normalizedDocumentRequests,
     chat: notes ?? [],
     advisor,
     europace: europacePayload,

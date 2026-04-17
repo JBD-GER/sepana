@@ -2,6 +2,7 @@
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
+import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { logCaseEvent, buildEmailHtml, sendEmail, getCaseMeta } from "@/lib/notifications/notify"
 
@@ -256,17 +257,34 @@ export async function POST(req: Request) {
       .upload(path, file, { upsert: true, contentType: file.type || "application/octet-stream" })
     if (upErr) throw upErr
 
-    const { error: docErr } = await admin.from("documents").insert({
-      case_id: caseId,
-      signature_request_id: created.id,
-      document_kind: "signature_original",
-      uploaded_by: user.id,
-      file_path: path,
-      file_name: file.name,
-      mime_type: file.type || null,
-      size_bytes: file.size || null,
-    })
+    const { data: insertedDoc, error: docErr } = await admin
+      .from("documents")
+      .insert({
+        case_id: caseId,
+        signature_request_id: created.id,
+        document_kind: "signature_original",
+        uploaded_by: user.id,
+        file_path: path,
+        file_name: file.name,
+        mime_type: file.type || null,
+        size_bytes: file.size || null,
+      })
+      .select("id")
+      .single()
     if (docErr) throw docErr
+
+    const localDocumentId = String((insertedDoc as { id?: string | null } | null)?.id ?? "").trim()
+    if (localDocumentId) {
+      const { data: caseMeta } = await admin.from("cases").select("case_type").eq("id", caseId).maybeSingle()
+      if (String(caseMeta?.case_type ?? "").trim().toLowerCase() === "schufa_frei") {
+        await syncLocalDocumentToSkag(admin, {
+          caseId,
+          localDocumentId,
+          filePath: path,
+          fileName: file.name,
+        }).catch(() => null)
+      }
+    }
 
     await logCaseEvent({
       caseId,

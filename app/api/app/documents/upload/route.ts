@@ -6,6 +6,7 @@ import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { syncLocalDocumentToEuropace } from "@/lib/europace/documents"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
+import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 
 function safeFileName(name: string) {
   return name.replace(/[^\w.-]+/g, "_").slice(0, 160)
@@ -253,6 +254,8 @@ export async function POST(req: Request) {
     if (docErr) throw docErr
 
     const localDocumentId = String((insertedDoc as { id?: string | null } | null)?.id ?? "").trim() || null
+    const { data: caseMetaRow } = await admin.from("cases").select("case_type").eq("id", caseId).maybeSingle()
+    const caseType = String(caseMetaRow?.case_type ?? "").trim().toLowerCase()
     let europaceSync:
       | {
           attempted: boolean
@@ -261,8 +264,15 @@ export async function POST(req: Request) {
           europaceDocumentId: string | null
         }
       | undefined
+    let skagSync:
+      | {
+          attempted: boolean
+          ok: boolean
+          reason: string | null
+        }
+      | undefined
 
-    if (localDocumentId) {
+    if (localDocumentId && caseType === "konsum") {
       const { data: europaceMeta } = await admin
         .from("case_europace")
         .select("antragsnummer")
@@ -284,6 +294,15 @@ export async function POST(req: Request) {
         reason: error instanceof Error ? error.message : "Europace-Unterlagensync fehlgeschlagen.",
         europaceDocumentId: null,
       }))
+    }
+
+    if (localDocumentId && caseType === "schufa_frei") {
+      skagSync = await syncLocalDocumentToSkag(admin, {
+        caseId,
+        localDocumentId,
+        filePath: path,
+        fileName: originalName,
+      })
     }
 
     const eventMeta = await logCaseEvent({
@@ -318,7 +337,13 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ ok: true, path, request_id: requestIdFinal, europaceSync: europaceSync ?? null })
+    return NextResponse.json({
+      ok: true,
+      path,
+      request_id: requestIdFinal,
+      europaceSync: europaceSync ?? null,
+      skagSync: skagSync ?? null,
+    })
   } catch (e: unknown) {
     const raw = e instanceof Error ? e.message : String(e ?? "")
     const classified = classifyUploadError(raw)

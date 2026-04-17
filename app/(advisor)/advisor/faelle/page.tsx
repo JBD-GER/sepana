@@ -22,7 +22,7 @@ type CaseRow = {
 }
 
 type CaseListResp = { cases: CaseRow[] }
-type ProductTab = "baufi" | "konsum"
+type ProductTab = "baufi" | "konsum" | "schufa_frei"
 
 function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(d))
@@ -54,11 +54,16 @@ function statusLabel(value: string) {
 
 function normalizeProduct(value: string | string[] | undefined): ProductTab {
   const raw = Array.isArray(value) ? value[0] : value
-  return String(raw ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
+  const normalized = String(raw ?? "").trim().toLowerCase()
+  if (normalized === "konsum") return "konsum"
+  if (normalized === "schufa_frei" || normalized === "schufafrei") return "schufa_frei"
+  return "baufi"
 }
 
 function productHref(product: ProductTab) {
-  return product === "konsum" ? "/advisor/faelle?product=konsum" : "/advisor/faelle?product=baufi"
+  if (product === "konsum") return "/advisor/faelle?product=konsum"
+  if (product === "schufa_frei") return "/advisor/faelle?product=schufa_frei"
+  return "/advisor/faelle?product=baufi"
 }
 
 function statusHref(product: ProductTab, status: string) {
@@ -79,7 +84,7 @@ export default async function CasesPage({
 
   const resolvedSearchParams = await searchParams
   const product = normalizeProduct(resolvedSearchParams?.product)
-  const productLabel = product === "konsum" ? "Privatkredit" : "Baufinanzierung"
+  const productLabel = product === "konsum" ? "Privatkredit" : product === "schufa_frei" ? "Kredit ohne Schufa" : "Baufinanzierung"
   const [activeRes, confirmedRes] = await Promise.all([
     authFetch(`/api/app/cases/list?advisorBucket=all&limit=1000&caseType=${product}`).catch(() => null),
     authFetch(`/api/app/cases/list?advisorBucket=confirmed&limit=1&caseType=${product}`).catch(() => null),
@@ -133,6 +138,7 @@ export default async function CasesPage({
           {([
             { id: "baufi" as const, label: "Baufinanzierung" },
             { id: "konsum" as const, label: "Privatkredit" },
+            { id: "schufa_frei" as const, label: "Kredit ohne Schufa" },
           ] as const).map((tab) => {
             const active = product === tab.id
             return (

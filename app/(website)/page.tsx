@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { headers } from "next/headers"
+import { redirect } from "next/navigation"
 import FinanzpartnerLanding, { type BankPartnerLogo } from "./components/marketing/FinanzpartnerLanding"
 
 export const metadata: Metadata = {
@@ -24,6 +25,17 @@ type ProviderItem = {
 type ProvidersResponse = {
   ok: boolean
   items: ProviderItem[]
+}
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? null : value ?? null
+}
+
+function authModeFromType(type: string | null) {
+  if (type === "invite") return "invite"
+  if (type === "recovery") return "reset"
+  if (type === "signup") return "signup"
+  return null
 }
 
 function logoSrc(provider: Provider) {
@@ -66,7 +78,27 @@ async function fetchHomeBankPartnerLogos(): Promise<BankPartnerLogo[]> {
   }
 }
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
+  const type = firstParam(resolvedSearchParams?.type)
+  const mode = authModeFromType(type)
+  const code = firstParam(resolvedSearchParams?.code)
+  const tokenHash = firstParam(resolvedSearchParams?.token_hash)
+
+  if (mode && (code || tokenHash)) {
+    const params = new URLSearchParams()
+    for (const [key, rawValue] of Object.entries(resolvedSearchParams ?? {})) {
+      const value = firstParam(rawValue)
+      if (value) params.set(key, value)
+    }
+    if (!params.get("mode")) params.set("mode", mode)
+    redirect(`/auth/confirm?${params.toString()}`)
+  }
+
   const bankPartnerLogos = await fetchHomeBankPartnerLogos()
   return <FinanzpartnerLanding bankPartnerLogos={bankPartnerLogos} />
 }

@@ -41,7 +41,7 @@ type CaseListResp = {
   totalPages?: number
 }
 
-type ProductTab = "baufi" | "konsum"
+type ProductTab = "baufi" | "konsum" | "schufa_frei"
 
 function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(d))
@@ -104,11 +104,16 @@ function parsePage(raw: string | string[] | undefined) {
 
 function parseProduct(raw: string | string[] | undefined): ProductTab {
   const value = Array.isArray(raw) ? raw[0] : raw
-  return String(value ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
+  const normalized = String(value ?? "").trim().toLowerCase()
+  if (normalized === "konsum") return "konsum"
+  if (normalized === "schufa_frei" || normalized === "schufafrei") return "schufa_frei"
+  return "baufi"
 }
 
 function productHref(product: ProductTab) {
-  return product === "baufi" ? "/app/faelle?product=baufi" : "/app/faelle?product=konsum"
+  if (product === "konsum") return "/app/faelle?product=konsum"
+  if (product === "schufa_frei") return "/app/faelle?product=schufa_frei"
+  return "/app/faelle?product=baufi"
 }
 
 function pageHref(page: number, product: ProductTab) {
@@ -133,7 +138,7 @@ export default async function CasesPage({
 
   const requestedPage = parsePage(resolvedSearchParams?.page)
   const product = parseProduct(resolvedSearchParams?.product)
-  const productLabel = product === "konsum" ? "Privatkredit" : "Baufinanzierung"
+  const productLabel = product === "konsum" ? "Privatkredit" : product === "schufa_frei" ? "Kredit ohne Schufa" : "Baufinanzierung"
   const res = await authFetch(`/api/app/cases/list?limit=10&page=${requestedPage}&caseType=${product}`).catch(() => null)
   const data: CaseListResp = res && res.ok ? await res.json() : { cases: [], page: 1, pageSize: 10, total: 0, totalPages: 1 }
 
@@ -153,16 +158,18 @@ export default async function CasesPage({
               <p className="mt-2 max-w-2xl text-sm text-slate-600">
                 {product === "konsum"
                   ? "Hier fuehren Sie Ihren Privatkredit Schritt fuer Schritt weiter: Angaben, Live-Angebote, Unterlagen und Abschluss."
-                  : `Hier sehen Sie den aktuellen Stand Ihrer ${productLabel} inklusive Unterlagen und Angeboten.`}
+                  : product === "schufa_frei"
+                    ? "Hier sehen Sie den aktuellen Stand Ihrer Schufa-frei Anfrage inklusive Unterlagen und SEPANA-Status."
+                    : `Hier sehen Sie den aktuellen Stand Ihrer ${productLabel} inklusive Unterlagen und Angeboten.`}
               </p>
             </div>
 
-            {product === "konsum" && data.cases[0] ? (
+            {(product === "konsum" || product === "schufa_frei") && data.cases[0] ? (
               <Link
                 href={continueCaseHref(data.cases[0].id, product)}
                 className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
               >
-                Aktuellen Antrag fortsetzen
+                {product === "konsum" ? "Aktuellen Antrag fortsetzen" : "Aktuellen Fall oeffnen"}
               </Link>
             ) : null}
           </div>
@@ -174,6 +181,7 @@ export default async function CasesPage({
           {([
             { id: "baufi" as const, label: "Baufinanzierung" },
             { id: "konsum" as const, label: "Privatkredit" },
+            { id: "schufa_frei" as const, label: "Kredit ohne Schufa" },
           ] as const).map((tab) => {
             const active = product === tab.id
             return (
@@ -287,10 +295,10 @@ export default async function CasesPage({
                 </span>
               </div>
 
-              {product === "konsum" ? (
+              {product === "konsum" || product === "schufa_frei" ? (
                 <div className="mt-4">
                   <span className="inline-flex items-center rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white">
-                    Antrag fortsetzen
+                    {product === "konsum" ? "Antrag fortsetzen" : "Details ansehen"}
                   </span>
                 </div>
               ) : null}

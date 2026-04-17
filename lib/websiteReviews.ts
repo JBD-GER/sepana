@@ -2,7 +2,7 @@ import "server-only"
 
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
-export const WEBSITE_REVIEW_CATEGORIES = ["baufi", "privatkredit"] as const
+export const WEBSITE_REVIEW_CATEGORIES = ["baufi", "privatkredit", "schufa_frei"] as const
 
 export type WebsiteReviewCategory = (typeof WEBSITE_REVIEW_CATEGORIES)[number]
 export type WebsiteReviewTab = WebsiteReviewCategory | "overall"
@@ -28,9 +28,7 @@ export type WebsiteReviewStats = {
 
 export type WebsiteReviewSummarySet = {
   overall: WebsiteReviewStats
-  baufi: WebsiteReviewStats
-  privatkredit: WebsiteReviewStats
-}
+} & Record<WebsiteReviewCategory, WebsiteReviewStats>
 
 type ReviewRow = {
   id: string
@@ -45,7 +43,10 @@ type ReviewRow = {
 }
 
 function toCategory(value: string): WebsiteReviewCategory | null {
-  if (value === "baufi" || value === "privatkredit") return value
+  const normalized = String(value ?? "").trim().toLowerCase()
+  if (WEBSITE_REVIEW_CATEGORIES.includes(normalized as WebsiteReviewCategory)) {
+    return normalized as WebsiteReviewCategory
+  }
   return null
 }
 
@@ -89,13 +90,16 @@ function buildStats(reviews: WebsiteReview[]): WebsiteReviewStats {
 }
 
 export function buildWebsiteReviewSummarySet(reviews: WebsiteReview[]): WebsiteReviewSummarySet {
-  const baufi = reviews.filter((item) => item.category === "baufi")
-  const privatkredit = reviews.filter((item) => item.category === "privatkredit")
+  const byCategory = Object.fromEntries(
+    WEBSITE_REVIEW_CATEGORIES.map((category) => [
+      category,
+      buildStats(reviews.filter((item) => item.category === category)),
+    ]),
+  ) as Record<WebsiteReviewCategory, WebsiteReviewStats>
 
   return {
     overall: buildStats(reviews),
-    baufi: buildStats(baufi),
-    privatkredit: buildStats(privatkredit),
+    ...byCategory,
   }
 }
 

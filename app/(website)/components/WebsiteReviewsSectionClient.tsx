@@ -20,17 +20,41 @@ type WebsiteReviewsSectionClientProps = {
   ctaLabel?: string | null
 }
 
-const TAB_ORDER: WebsiteReviewTab[] = ["overall", "baufi", "privatkredit"]
+const CATEGORY_ORDER: WebsiteReviewCategory[] = ["baufi", "privatkredit", "schufa_frei"]
+const TAB_ORDER: WebsiteReviewTab[] = ["overall", ...CATEGORY_ORDER]
 
 const TAB_LABELS: Record<WebsiteReviewTab, string> = {
   overall: "Insgesamt",
   baufi: "Baufinanzierung",
   privatkredit: "Privatkredit",
+  schufa_frei: "Kredit ohne Schufa",
 }
 
 const CATEGORY_LABELS: Record<WebsiteReviewCategory, string> = {
   baufi: "Baufinanzierung",
   privatkredit: "Privatkredit",
+  schufa_frei: "Kredit ohne Schufa",
+}
+
+const CATEGORY_ACCENTS: Record<
+  WebsiteReviewCategory,
+  {
+    cardClassName: string
+    badgeClassName: string
+  }
+> = {
+  baufi: {
+    cardClassName: "border-cyan-100 bg-cyan-50/70 text-cyan-700",
+    badgeClassName: "bg-cyan-50 text-cyan-700",
+  },
+  privatkredit: {
+    cardClassName: "border-emerald-100 bg-emerald-50/70 text-emerald-700",
+    badgeClassName: "bg-emerald-50 text-emerald-700",
+  },
+  schufa_frei: {
+    cardClassName: "border-amber-100 bg-amber-50/70 text-amber-700",
+    badgeClassName: "bg-amber-50 text-amber-700",
+  },
 }
 
 const STAR_FILLED = "\u2605"
@@ -65,8 +89,7 @@ function percent(part: number, total: number) {
 
 function reviewStatsForTab(summary: WebsiteReviewSummarySet, tab: WebsiteReviewTab) {
   if (tab === "overall") return summary.overall
-  if (tab === "baufi") return summary.baufi
-  return summary.privatkredit
+  return summary[tab]
 }
 
 export default function WebsiteReviewsSectionClient({
@@ -85,6 +108,7 @@ export default function WebsiteReviewsSectionClient({
     overall: expandAllTabsByDefault,
     baufi: expandAllTabsByDefault,
     privatkredit: expandAllTabsByDefault,
+    schufa_frei: expandAllTabsByDefault,
   })
   const tablistId = useId()
   const activeTabButtonId = `${tablistId}-${activeTab}`
@@ -115,7 +139,7 @@ export default function WebsiteReviewsSectionClient({
               </h2>
               <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600 sm:text-base">
                 {description ??
-                  "Transparente Abläufe, persönliche Ansprechpartner und ein sauberer digitaler Prozess sind die Punkte, die Kundinnen und Kunden bei SEPANA am häufigsten hervorheben."}
+                  "Transparente Abläufe, persönliche Ansprechpartner und ein sauberer digitaler Prozess sind die Punkte, die Kundinnen und Kunden bei SEPANA in Baufinanzierung, Privatkredit und Kredit ohne Schufa am häufigsten hervorheben."}
               </p>
 
               <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600">
@@ -167,13 +191,13 @@ export default function WebsiteReviewsSectionClient({
                   ) : null}
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {(["baufi", "privatkredit"] as const).map((category) => {
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {CATEGORY_ORDER.map((category) => {
                     const stats = summary[category]
                     return (
                       <article
                         key={category}
-                        className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4"
+                        className={`rounded-2xl border p-4 ${CATEGORY_ACCENTS[category].cardClassName}`}
                       >
                         <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                           {CATEGORY_LABELS[category]}
@@ -191,7 +215,7 @@ export default function WebsiteReviewsSectionClient({
                     )
                   })}
 
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:col-span-2">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:col-span-3">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                       Häufig gelobt
                     </div>
@@ -273,8 +297,8 @@ export default function WebsiteReviewsSectionClient({
           </div>
 
           {activeTab === "overall" ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              {(["baufi", "privatkredit"] as const).map((category) => {
+            <div className="grid gap-3 md:grid-cols-3">
+              {CATEGORY_ORDER.map((category) => {
                 const stats = summary[category]
                 return (
                   <article key={category} className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -317,11 +341,7 @@ export default function WebsiteReviewsSectionClient({
                       <div className="text-sm font-semibold text-cyan-700">{stars(review.rating)}</div>
                       {activeTab === "overall" ? (
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                            review.category === "baufi"
-                              ? "bg-cyan-50 text-cyan-700"
-                              : "bg-emerald-50 text-emerald-700"
-                          }`}
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${CATEGORY_ACCENTS[review.category].badgeClassName}`}
                         >
                           {CATEGORY_LABELS[review.category]}
                         </span>

@@ -4,7 +4,7 @@ import WebsiteReviewsSection from "../components/WebsiteReviewsSection"
 export const metadata: Metadata = {
   title: "Bewertungen | SEPANA",
   description:
-    "Alle veröffentlichten Kundenbewertungen zu SEPANA im Überblick: Gesamtbewertung sowie Stimmen aus Baufinanzierung und Privatkredit.",
+    "Alle veröffentlichten Kundenbewertungen zu SEPANA im Überblick: Gesamtbewertung sowie Stimmen aus Baufinanzierung, Privatkredit und Kredit ohne Schufa.",
   alternates: { canonical: "/bewertungen" },
 }
 
@@ -16,7 +16,7 @@ export default function BewertungenPage() {
         expandAllTabsByDefault
         eyebrow="Bewertungen"
         title="Alle veröffentlichten Bewertungen"
-        description="Hier finden Sie alle veröffentlichten Kundenstimmen zu SEPANA. Sie können zwischen Gesamtansicht, Baufinanzierung und Privatkredit wechseln."
+        description="Hier finden Sie alle veröffentlichten Kundenstimmen zu SEPANA. Sie können zwischen Gesamtansicht, Baufinanzierung, Privatkredit und Kredit ohne Schufa wechseln."
         ctaHref="/kreditanfrage"
         ctaLabel="Kreditanfrage starten"
       />

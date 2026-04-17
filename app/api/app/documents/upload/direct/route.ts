@@ -5,6 +5,7 @@ import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { syncLocalDocumentToEuropace } from "@/lib/europace/documents"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
+import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 
 const MAX_DOCUMENT_UPLOAD_BYTES = 20 * 1024 * 1024
 
@@ -355,6 +356,8 @@ export async function POST(req: Request) {
       if (docErr) throw docErr
 
       const localDocumentId = String((insertedDoc as { id?: string | null } | null)?.id ?? "").trim() || null
+      const { data: caseMetaRow } = await admin.from("cases").select("case_type").eq("id", caseId).maybeSingle()
+      const caseType = String(caseMetaRow?.case_type ?? "").trim().toLowerCase()
       let europaceSync:
         | {
             attempted: boolean
@@ -363,8 +366,15 @@ export async function POST(req: Request) {
             europaceDocumentId: string | null
           }
         | undefined
+      let skagSync:
+        | {
+            attempted: boolean
+            ok: boolean
+            reason: string | null
+          }
+        | undefined
 
-      if (localDocumentId) {
+      if (localDocumentId && caseType === "konsum") {
         const { data: europaceMeta } = await admin
           .from("case_europace")
           .select("antragsnummer")
@@ -388,6 +398,15 @@ export async function POST(req: Request) {
         }))
       }
 
+      if (localDocumentId && caseType === "schufa_frei") {
+        skagSync = await syncLocalDocumentToSkag(admin, {
+          caseId,
+          localDocumentId,
+          filePath: path,
+          fileName,
+        })
+      }
+
       await notifyAdvisorAboutCustomerUpload({
         req,
         role,
@@ -397,7 +416,12 @@ export async function POST(req: Request) {
         requestIdFinal: requestId,
       })
 
-      return NextResponse.json({ ok: true, request_id: requestId ?? null, europaceSync: europaceSync ?? null })
+      return NextResponse.json({
+        ok: true,
+        request_id: requestId ?? null,
+        europaceSync: europaceSync ?? null,
+        skagSync: skagSync ?? null,
+      })
     }
 
     return NextResponse.json({ error: "invalid_action" }, { status: 400 })

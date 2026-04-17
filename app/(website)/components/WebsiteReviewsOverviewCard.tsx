@@ -35,7 +35,7 @@ function stars(value: number | null) {
 export default async function WebsiteReviewsOverviewCard({
   eyebrow = "Bewertungen",
   title = "Kundenzufriedenheit auf einen Blick",
-  description = "Gesamtbewertung über alle veröffentlichten Stimmen aus Baufinanzierung und Privatkredit. Die komplette Liste finden Sie auf der Bewertungsseite.",
+  description = "Gesamtbewertung über alle veröffentlichten Stimmen aus Baufinanzierung, Privatkredit und Kredit ohne Schufa. Die komplette Liste finden Sie auf der Bewertungsseite.",
   ctaHref = "/bewertungen",
   ctaLabel = "Alle Bewertungen ansehen",
   summary,

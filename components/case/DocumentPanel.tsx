@@ -182,6 +182,12 @@ type EuropaceUploadTarget = {
   assignment_role_name?: string | null
 }
 
+type SkagDocumentRow = {
+  local_document_id?: string | null
+  upload_status?: string | null
+  last_error?: string | null
+}
+
 type RequestSourceRow = {
   id: string
   title: string
@@ -437,12 +443,23 @@ function translateEuropaceReleaseStatus(value: string | null | undefined) {
   return normalized
 }
 
+function translateSkagUploadStatus(value: string | null | undefined) {
+  const normalized = String(value ?? "").trim().toLowerCase()
+  if (!normalized) return null
+  if (normalized === "uploaded") return "an SEPANA übermittelt"
+  if (normalized === "pending_credit_id") return "wartet auf SEPANA-Fall"
+  if (normalized === "pending") return "wird vorbereitet"
+  if (normalized === "error") return "Upload prüfen"
+  return normalized
+}
+
 export default function DocumentPanel({
   caseId,
   requests,
   documents,
   europaceDocuments = [],
   europaceUploadTargets = [],
+  skagDocuments = [],
   documentPin = null,
   caseType,
   canCreateRequest,
@@ -455,6 +472,7 @@ export default function DocumentPanel({
   documents: DocumentRow[]
   europaceDocuments?: EuropaceDocumentRow[]
   europaceUploadTargets?: EuropaceUploadTarget[]
+  skagDocuments?: SkagDocumentRow[]
   documentPin?: string | null
   caseType?: string | null
   canCreateRequest: boolean
@@ -475,9 +493,11 @@ export default function DocumentPanel({
   const flashTimerRef = useRef<number | null>(null)
   const reloadTimerRef = useRef<number | null>(null)
   const normalizedCaseType = String(caseType ?? "").trim().toLowerCase()
-  const isBaufi = normalizedCaseType !== "konsum"
-  const usesEuropaceTargets = !isBaufi && (europaceUploadTargets?.length ?? 0) > 0
-  const canCreateManualRequest = canCreateRequest && isBaufi
+  const isKonsum = normalizedCaseType === "konsum"
+  const isSchufaFree = normalizedCaseType === "schufa_frei"
+  const isBaufi = !isKonsum && !isSchufaFree
+  const usesEuropaceTargets = isKonsum && (europaceUploadTargets?.length ?? 0) > 0
+  const canCreateManualRequest = canCreateRequest && (isBaufi || isSchufaFree)
   const bankDocuments = useMemo(
     () => (documents ?? []).filter((row) => isImportedBankDocumentPath(row.file_path)),
     [documents]
@@ -495,6 +515,15 @@ export default function DocumentPanel({
     }
     return map
   }, [europaceDocuments])
+  const skagDocumentMap = useMemo(() => {
+    const map = new Map<string, SkagDocumentRow>()
+    for (const row of skagDocuments ?? []) {
+      const localDocumentId = String(row?.local_document_id ?? "").trim()
+      if (!localDocumentId || map.has(localDocumentId)) continue
+      map.set(localDocumentId, row)
+    }
+    return map
+  }, [skagDocuments])
   const documentById = useMemo(() => {
     const map = new Map<string, DocumentRow>()
     for (const row of managedDocuments ?? []) {
@@ -537,7 +566,7 @@ export default function DocumentPanel({
 
   const concreteEuropaceRequirements = useMemo(
     () =>
-      !isBaufi
+      isKonsum
         ? deriveConcreteUploadRequirements({
             requests,
             uploadTargets: europaceUploadTargets,
@@ -545,9 +574,9 @@ export default function DocumentPanel({
             europaceDocuments,
           })
         : [],
-    [managedDocuments, europaceDocuments, europaceUploadTargets, isBaufi, requests]
+    [managedDocuments, europaceDocuments, europaceUploadTargets, isKonsum, requests]
   )
-  const hasConcreteEuropaceRequirements = !isBaufi && concreteEuropaceRequirements.length > 0
+  const hasConcreteEuropaceRequirements = isKonsum && concreteEuropaceRequirements.length > 0
 
   const requestSourceRows = useMemo(() => {
     if (hasConcreteEuropaceRequirements) {
@@ -827,6 +856,7 @@ export default function DocumentPanel({
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {list.map((d) => {
           const europaceDocument = europaceDocumentMap.get(d.id) ?? null
+          const skagDocument = skagDocumentMap.get(d.id) ?? null
           const uploadStatusLabel = translateEuropaceUploadStatus(europaceDocument?.upload_status)
           const releaseStatusLabel = translateEuropaceReleaseStatus(europaceDocument?.release_status)
           const syncLabel = hideTechnicalBranding ? "Uebertragung" : "Europace"
@@ -835,6 +865,8 @@ export default function DocumentPanel({
             Boolean(releaseStatusLabel) ||
             Boolean(europaceDocument?.europace_document_id) ||
             Boolean(europaceDocument?.last_error)
+          const skagStatusLabel = translateSkagUploadStatus(skagDocument?.upload_status)
+          const hasSkagState = Boolean(skagStatusLabel) || Boolean(skagDocument?.last_error)
 
           return (
             <div key={d.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2">
@@ -860,7 +892,7 @@ export default function DocumentPanel({
                 {uploaderLabel(d) ? (
                   <div className="mt-1 text-[11px] text-slate-500">Von: {uploaderLabel(d)}</div>
                 ) : null}
-                {!isBaufi ? (
+                {isKonsum ? (
                   <div className="mt-1 space-y-1">
                     {hasEuropaceState ? (
                       <>
@@ -893,6 +925,30 @@ export default function DocumentPanel({
                       <div className="text-[11px] text-slate-500">
                         {syncLabel}: {hideTechnicalBranding ? "wird vorbereitet" : "noch nicht synchronisiert"}
                       </div>
+                    )}
+                  </div>
+                ) : null}
+                {isSchufaFree ? (
+                  <div className="mt-1 space-y-1">
+                    {hasSkagState ? (
+                      <>
+                        <div className="flex flex-wrap gap-1">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                              String(skagDocument?.upload_status ?? "").trim().toLowerCase() === "error"
+                                ? "bg-rose-100 text-rose-700"
+                                : "bg-cyan-100 text-cyan-800"
+                            }`}
+                          >
+                            SEPANA: {skagStatusLabel ?? "unbekannt"}
+                          </span>
+                        </div>
+                        {skagDocument?.last_error ? (
+                          <div className="text-[11px] text-rose-600">{skagDocument.last_error}</div>
+                        ) : null}
+                      </>
+                    ) : (
+                      <div className="text-[11px] text-slate-500">SEPANA: wird nach der Fallübergabe synchronisiert</div>
                     )}
                   </div>
                 ) : null}
@@ -1455,9 +1511,11 @@ export default function DocumentPanel({
       <div className="mt-1 text-[11px] text-slate-500">PDF, DOC, DOCX oder Bilder bis {formatBytes(MAX_UPLOAD_BYTES)} pro Datei.</div>
       {!isBaufi ? (
         <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
-          {hideTechnicalBranding
-            ? "Neue Uploads werden direkt fuer deinen Antrag uebernommen. Den Uebertragungsstatus siehst du pro Datei."
-            : "Neue Uploads werden zusaetzlich an Europace gespiegelt. Der Sync-Status wird pro Datei angezeigt."}
+          {isKonsum
+            ? hideTechnicalBranding
+              ? "Neue Uploads werden direkt fuer deinen Antrag uebernommen. Den Uebertragungsstatus siehst du pro Datei."
+              : "Neue Uploads werden zusaetzlich an Europace gespiegelt. Der Sync-Status wird pro Datei angezeigt."
+            : "Neue Uploads werden direkt im SEPANA-Fall gespeichert und bei Schufa-frei anschließend im SEPANA-Prozess weiterverarbeitet. Den Status sehen Sie pro Datei."}
         </div>
       ) : null}
 
@@ -1540,7 +1598,9 @@ export default function DocumentPanel({
 
         {generalRequests.length ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="text-xs font-semibold uppercase tracking-widest text-slate-600">Allgemeine Unterlagen</div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-600">
+              {isSchufaFree ? "Pflichtunterlagen" : "Allgemeine Unterlagen"}
+            </div>
             <div className="mt-2 space-y-3">{generalRequests.map((r) => renderRequestCard(r))}</div>
           </div>
         ) : null}
@@ -1555,7 +1615,9 @@ export default function DocumentPanel({
 
         {otherRequests.length ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="text-xs font-semibold uppercase tracking-widest text-slate-600">Weitere Unterlagen</div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-600">
+              {isSchufaFree ? "Weitere Unterlagen und Rueckfragen" : "Weitere Unterlagen"}
+            </div>
             <div className="mt-3 space-y-3">{otherRequests.map((r) => renderRequestCard(r))}</div>
           </div>
         ) : null}

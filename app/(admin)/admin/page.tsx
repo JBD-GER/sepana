@@ -16,7 +16,9 @@ export default async function AdminDashboard() {
   const { user } = await requireAdmin()
   const admin = supabaseAdmin()
   const nowIso = new Date().toISOString()
-  const last7DaysIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const last7DaysDate = new Date(nowIso)
+  last7DaysDate.setUTCDate(last7DaysDate.getUTCDate() - 7)
+  const last7DaysIso = last7DaysDate.toISOString()
 
   const [
     { data: offers },
@@ -99,6 +101,12 @@ export default async function AdminDashboard() {
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
             >
               Fälle & Unterlagen
+            </Link>
+            <Link
+              href="/admin/rechnungen"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
+            >
+              Rechnungen
             </Link>
           </div>
         </div>
@@ -189,6 +197,12 @@ export default async function AdminDashboard() {
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
             >
               Termine verwalten
+            </Link>
+            <Link
+              href="/admin/rechnungen"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
+            >
+              Rechnungen öffnen
             </Link>
             <Link
               href="/admin/logs"

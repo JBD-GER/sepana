@@ -194,19 +194,19 @@ export default function CaseAppointmentPanel({ caseId }: { caseId: string }) {
                   ))}
                 </select>
               </label>
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <button
                   type="button"
                   onClick={book}
                   disabled={busy}
-                  className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-60"
+                  className="w-full rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-60 sm:w-auto"
                 >
                   {busy ? "Bucht..." : "Termin buchen"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedSlot(null)}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm sm:w-auto"
                 >
                   Abbrechen
                 </button>

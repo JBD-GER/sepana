@@ -34,6 +34,7 @@ export default function AdminHeader() {
           <NavItem href="/admin/banken" label="Banken" />
           <NavItem href="/admin/berater" label="Berater" />
           <NavItem href="/admin/faelle" label="Fälle & Unterlagen" />
+          <NavItem href="/admin/rechnungen" label="Rechnungen" />
           <NavItem href="/admin/termine" label="Termine" />
           <NavItem href="/admin/seo" label="SEO" />
           <NavItem href="/admin/logs" label="Logs" />
