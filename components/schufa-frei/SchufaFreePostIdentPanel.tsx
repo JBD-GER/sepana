@@ -281,8 +281,8 @@ export default function SchufaFreePostIdentPanel({
     : postidentCompleted
       ? "Die Legitimation wurde erfolgreich abgeschlossen. Als Nächstes folgt die Auszahlung."
       : currentUrl
-        ? "Dein Vertrag ist unterschrieben. Bitte öffne jetzt den bereitgestellten PostIdent-Link und schließe die Legitimation vollständig ab."
-        : "Sobald dein Berater den PostIdent-Link aus dem SKAG-Partnerbereich hinterlegt, erscheint er hier automatisch. Danach folgt die Auszahlung."
+        ? "Dein Vertrag ist unterschrieben. Bitte öffne jetzt den bereitgestellten PostIdent-Link und schließe die Legitimation vollständig ab. Der Ablauf läuft über unseren Partner SKAG Vertriebs GmbH."
+        : "Sobald dein Berater den PostIdent-Link aus dem SKAG-Partnerbereich hinterlegt, erscheint er hier automatisch. Die Legitimation läuft über unseren Partner SKAG Vertriebs GmbH. Danach folgt die Auszahlung."
 
   return (
     <div className={`rounded-[28px] border p-5 shadow-sm sm:p-6 ${shellClass}`}>
@@ -290,6 +290,11 @@ export default function SchufaFreePostIdentPanel({
         <div className="max-w-2xl">
           <div className="text-sm font-semibold text-slate-900">{customerTitle}</div>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">{customerText}</p>
+          {!postidentCompleted ? (
+            <div className="mt-3 rounded-2xl border border-cyan-200 bg-cyan-50/80 px-4 py-3 text-sm leading-relaxed text-cyan-900">
+              Transparenzhinweis: Der PostIdent-Schritt wird über unseren Partner <span className="font-semibold">SKAG Vertriebs GmbH</span> abgewickelt.
+            </div>
+          ) : null}
           {currentUrl ? (
             <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
               <a

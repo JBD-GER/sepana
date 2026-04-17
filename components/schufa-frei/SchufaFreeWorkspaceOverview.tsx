@@ -171,8 +171,8 @@ export default function SchufaFreeWorkspaceOverview({
                   ? "Der PostIdent-Link ist hinterlegt. Behalten Sie jetzt Legitimation und Auszahlung im Blick."
                   : "Hinterlegen Sie jetzt den PostIdent-Link aus dem SKAG-Partnerbereich und benachrichtigen Sie den Kunden."
                 : postidentLinkReady
-                  ? "Dein PostIdent-Link ist bereit. Öffne ihn unten im Dashboard und schließe die Legitimation ab."
-                  : "Dein Vertrag ist abgeschlossen. Als Nächstes hinterlegen wir hier deinen PostIdent-Link."
+                  ? "Dein PostIdent-Link ist bereit. Die Legitimation läuft über unseren Partner SKAG Vertriebs GmbH. Öffne den Link unten im Dashboard und schließe den Schritt ab."
+                  : "Dein Vertrag ist abgeschlossen. Als Nächstes hinterlegen wir hier deinen PostIdent-Link über unseren Partner SKAG Vertriebs GmbH."
               : payoutReached
                 ? "Die Auszahlung wurde bestätigt. Alle wesentlichen Schritte sind abgeschlossen."
                 : mode === "advisor"
@@ -338,8 +338,8 @@ export default function SchufaFreeWorkspaceOverview({
               : postidentCompleted
                 ? "Die Legitimation ist erledigt."
                 : postidentLinkReady
-                  ? "Ihr Link liegt im Fall bereit."
-                  : "Der Link folgt nach dem Vertragsabschluss.",
+                  ? "Ihr Link liegt im Fall bereit und führt zur Legitimation über unseren Partner SKAG Vertriebs GmbH."
+                  : "Der Link über unseren Partner SKAG Vertriebs GmbH folgt nach dem Vertragsabschluss.",
           },
         ]
 

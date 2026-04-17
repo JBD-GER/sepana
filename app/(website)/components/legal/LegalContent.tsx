@@ -132,6 +132,13 @@ export function DatenschutzContent() {
           Daten können an technische Dienstleister (Hosting, Authentifizierung, Kommunikations- und Analysedienste)
           sowie an eingebundene Partner weitergegeben werden, soweit dies für den jeweiligen Zweck erforderlich ist.
         </p>
+        <p>
+          Bei Anfragen im Bereich <span className="font-medium text-slate-900">Kredit ohne Schufa</span> übermitteln
+          wir die von Ihnen bereitgestellten Daten im erforderlichen Umfang auch an unseren Partner{" "}
+          <span className="font-medium text-slate-900">SKAG Vertriebs GmbH</span> sowie an die{" "}
+          <span className="font-medium text-slate-900">SIGMA Kreditbank AG</span>, soweit dies für Vorprüfung,
+          weitere Bearbeitung, Vertragsprozess, Legitimation und Auszahlung notwendig ist.
+        </p>
       </Section>
 
       <Section title="5. Speicherdauer">

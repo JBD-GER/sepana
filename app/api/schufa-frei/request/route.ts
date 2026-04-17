@@ -242,6 +242,7 @@ export async function POST(req: Request) {
     const employmentMode = normalizeEmploymentMode(body?.employmentMode)
     const employmentStartDate = trimOrNull(body?.employmentStartDate)
     const netIncomeMonthly = parseAmount(body?.netIncomeMonthly)
+    const acceptsPrivacyPolicy = Boolean(body?.acceptsPrivacyPolicy)
     const acceptsProvisionAgreement = Boolean(body?.acceptsProvisionAgreement)
     const deferCustomerInvite = Boolean(body?.deferCustomerInvite)
 
@@ -256,6 +257,9 @@ export async function POST(req: Request) {
     }
     if (!desiredAmount || !termMonths || !employmentStartDate) {
       return NextResponse.json({ ok: false, error: "Bitte alle Vorpruefungsfelder ausfuellen." }, { status: 400 })
+    }
+    if (!acceptsPrivacyPolicy) {
+      return NextResponse.json({ ok: false, error: "Bitte Datenschutz bestaetigen." }, { status: 400 })
     }
     if (!acceptsProvisionAgreement) {
       return NextResponse.json({ ok: false, error: "Bitte die Provisionsvereinbarung bestaetigen." }, { status: 400 })
@@ -337,6 +341,7 @@ export async function POST(req: Request) {
         precheck_eligible: precheck.eligible,
         precheck_reason: precheck.reason,
         precheck_income_pending: precheck.incomeCheckPending,
+        privacy_accepted: acceptsPrivacyPolicy,
       },
     }
 

@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import Link from "next/link"
 import { useEffect, useState } from "react"
 import { SCHUFA_FREE_FAMILY_OPTIONS } from "@/lib/schufa-frei/application"
 import {
@@ -92,11 +93,13 @@ export default function SchufaFreePrecheck() {
     sigmaExistingCustomer: false,
     employmentMode: "salary",
     employmentStartDate: "",
+    acceptsPrivacyPolicy: false,
     acceptsProvisionAgreement: false,
   })
   const [busy, setBusy] = useState(false)
   const [resultModal, setResultModal] = useState<ResultModalState | null>(null)
   const [showProvisionAgreement, setShowProvisionAgreement] = useState(false)
+  const [privacyError, setPrivacyError] = useState<string | null>(null)
   const [agreementError, setAgreementError] = useState<string | null>(null)
 
   const amount = Number(form.desiredAmount)
@@ -138,6 +141,11 @@ export default function SchufaFreePrecheck() {
   }, [busy, resultModal, showProvisionAgreement])
 
   async function submit() {
+    if (!form.acceptsPrivacyPolicy) {
+      setPrivacyError("Bitte bestätigen Sie zuerst den Datenschutz.")
+      return
+    }
+
     if (!form.acceptsProvisionAgreement) {
       setAgreementError("Bitte bestätigen Sie zuerst die Provisionsvereinbarung.")
       return
@@ -145,6 +153,7 @@ export default function SchufaFreePrecheck() {
 
     setBusy(true)
     setResultModal(null)
+    setPrivacyError(null)
     setAgreementError(null)
 
     const minimumDelay = new Promise((resolve) => window.setTimeout(resolve, 3000))
@@ -158,6 +167,7 @@ export default function SchufaFreePrecheck() {
           desiredAmount: Number(form.desiredAmount),
           termMonths: Number(form.termMonths),
           dependentChildrenCount: Number(form.dependentChildrenCount),
+          acceptsPrivacyPolicy: form.acceptsPrivacyPolicy,
           acceptsProvisionAgreement: form.acceptsProvisionAgreement,
         }),
       })
@@ -368,6 +378,30 @@ export default function SchufaFreePrecheck() {
             <label className="flex items-start gap-3 text-sm text-slate-700">
               <input
                 type="checkbox"
+                checked={form.acceptsPrivacyPolicy}
+                onChange={(event) => {
+                  setForm((current) => ({ ...current, acceptsPrivacyPolicy: event.target.checked }))
+                  setPrivacyError(null)
+                }}
+                className="mt-0.5 h-4 w-4"
+              />
+              <span>
+                Ich stimme der Verarbeitung meiner Angaben gemäß{" "}
+                <Link
+                  href="/datenschutz"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-slate-900 underline underline-offset-2"
+                >
+                  Datenschutzerklärung
+                </Link>{" "}
+                zu.
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
                 checked={form.acceptsProvisionAgreement}
                 onChange={(event) => {
                   setForm((current) => ({ ...current, acceptsProvisionAgreement: event.target.checked }))
@@ -415,6 +449,12 @@ export default function SchufaFreePrecheck() {
                 </div>
               </div>
             </div>
+
+            {privacyError ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                {privacyError}
+              </div>
+            ) : null}
 
             {agreementError ? (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">

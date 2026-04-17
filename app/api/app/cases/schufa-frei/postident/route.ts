@@ -132,9 +132,14 @@ export async function POST(req: Request) {
           Bitte öffnen Sie jetzt den bereitgestellten Link und schließen Sie die Legitimation vollständig ab.
           Den Link finden Sie zusätzlich jederzeit in Ihrem SEPANA-Kundendashboard.
         </p>
+        <p style="margin:0 0 14px 0; font-size:15px; line-height:24px; color:#0f172a;">
+          Wichtiger Hinweis: Der PostIdent-Prozess läuft über unseren Partner SKAG Vertriebs GmbH.
+          Bitte wundern Sie sich daher nicht, wenn Sie beim Öffnen des Links auf eine entsprechende SKAG-Seite weitergeleitet werden.
+        </p>
       `,
       steps: [
         "Öffnen Sie jetzt den bereitgestellten PostIdent-Link.",
+        "Die Legitimation läuft über unseren Partner SKAG Vertriebs GmbH.",
         "Schließen Sie die Legitimation vollständig ab.",
         "Danach begleitet SEPANA den Fall bis zur Auszahlung weiter.",
       ],
@@ -142,7 +147,7 @@ export async function POST(req: Request) {
       ctaUrl: postidentUrl,
       preheader: "Ihr PostIdent-Link ist verfügbar.",
       eyebrow: "SEPANA - PostIdent",
-      supportNote: "Den Link finden Sie zusätzlich auch in Ihrem Kundendashboard.",
+      supportNote: "Der Link liegt zusätzlich in Ihrem Kundendashboard bereit und führt zur Legitimation über SKAG Vertriebs GmbH.",
       sideNote: "Sicherheitshinweis: Link nur für Sie bestimmt.",
     })
 

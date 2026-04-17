@@ -534,8 +534,8 @@ export default async function CaseDetailPage({
       : signatureItems.length === 0
         ? "Dein Berater stellt nun den Vertrag für die digitale Unterschrift bereit."
         : !String(schufaData?.sync?.postident_url ?? "").trim()
-          ? "Nach dem Vertrag folgt noch dein persönlicher PostIdent-Link."
-          : "Dein Link ist hinterlegt. Danach geht der Fall in Richtung Auszahlung weiter."
+          ? "Nach dem Vertrag folgt noch dein persönlicher PostIdent-Link über unseren Partner SKAG Vertriebs GmbH."
+          : "Dein Link ist hinterlegt. Die Legitimation läuft über unseren Partner SKAG Vertriebs GmbH. Danach geht der Fall in Richtung Auszahlung weiter."
   const bankCaseDocuments = (data.documents ?? []).filter((document) => isImportedBankDocumentPath(document.file_path))
   const documentPin = getOnlinekreditDocumentPin(data.europace?.vorgangsnummer)
   const privatkreditJourney = isKonsum
@@ -703,7 +703,7 @@ export default async function CaseDetailPage({
             <SchufaFreeIntroCard
               eyebrow="PostIdent"
               title="Legitimation nach dem Vertrag"
-              description="Nach der Vertragsunterschrift findest du hier deinen PostIdent-Link. Sobald die Legitimation erledigt ist, folgt als nächster Schritt die Auszahlung."
+              description="Nach der Vertragsunterschrift findest du hier deinen PostIdent-Link. Die Legitimation läuft über unseren Partner SKAG Vertriebs GmbH. Sobald dieser Schritt erledigt ist, folgt als nächster Schritt die Auszahlung."
               tone="slate"
             />
             <SchufaFreePostIdentPanel
