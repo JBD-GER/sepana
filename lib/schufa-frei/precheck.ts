@@ -6,7 +6,6 @@ export type SchufaFreePrecheckInput = {
   termMonths: number
   dependentChildrenCount: number
   nationalityGroup: SchufaFreeNationalityGroup
-  sigmaExistingCustomer: boolean
   employmentMode: SchufaFreeEmploymentMode
   employmentMonthsCurrent?: number | null
   employmentStartDate?: string | null
@@ -18,9 +17,6 @@ export type SchufaFreeVariantKey =
   | "5000_40"
   | "7500_40"
   | "10000_40"
-  | "3500_58"
-  | "5000_58"
-  | "7500_58"
 
 export type SchufaFreePrecheckResult = {
   eligible: boolean
@@ -39,16 +35,13 @@ export type SchufaFreePrecheckOptions = {
 }
 
 export const SCHUFA_FREE_AMOUNT_OPTIONS = [3500, 5000, 7500, 10000] as const
-export const SCHUFA_FREE_TERM_OPTIONS = [40, 58] as const
+export const SCHUFA_FREE_TERM_OPTIONS = [40] as const
 
 const INCOME_MATRIX: Record<SchufaFreeVariantKey, number[]> = {
   "3500_40": [1870, 2360, 2740, 3160, 3670, 4530],
   "5000_40": [2000, 2460, 2860, 3310, 3900],
   "7500_40": [2220, 2610, 3050, 3570, 4290],
   "10000_40": [2450, 2770, 3250, 3830, 4670],
-  "3500_58": [1680, 2310, 2680, 3070, 3530, 4260],
-  "5000_58": [1890, 2380, 2760, 3190, 3710],
-  "7500_58": [2060, 2490, 2910, 3380, 4010],
 }
 
 const RATE_MATRIX: Record<SchufaFreeVariantKey, number> = {
@@ -56,9 +49,6 @@ const RATE_MATRIX: Record<SchufaFreeVariantKey, number> = {
   "5000_40": 155.1,
   "7500_40": 232.7,
   "10000_40": 310.25,
-  "3500_58": 81.55,
-  "5000_58": 116.55,
-  "7500_58": 174.8,
 }
 
 function normalizeInteger(value: unknown) {
@@ -127,23 +117,8 @@ function resolveEmploymentMonthsCurrent(input: SchufaFreePrecheckInput) {
 function employmentRequirementText(input: {
   variantKey: SchufaFreeVariantKey
   nationalityGroup: SchufaFreeNationalityGroup
-  sigmaExistingCustomer: boolean
-  employmentMode: SchufaFreeEmploymentMode
 }) {
-  const { variantKey, nationalityGroup, sigmaExistingCustomer, employmentMode } = input
-
-  if (sigmaExistingCustomer) {
-    if (variantKey === "10000_40") {
-      return "Mindestens 12 Monate beim aktuellen Arbeitgeber."
-    }
-    return employmentMode === "hourly"
-      ? "Mindestens 4 Monate beim aktuellen Arbeitgeber im Stundenlohn."
-      : "Mindestens 7 Monate beim aktuellen Arbeitgeber im Gehalt."
-  }
-
-  if (variantKey.endsWith("_58")) {
-    return "58 Monate sind nur fuer Sigma-Bestandskunden verfuegbar."
-  }
+  const { variantKey, nationalityGroup } = input
 
   if (nationalityGroup === "de") {
     return variantKey === "10000_40"
@@ -161,19 +136,11 @@ function employmentRequirementText(input: {
 function meetsEmploymentRequirement(input: {
   variantKey: SchufaFreeVariantKey
   nationalityGroup: SchufaFreeNationalityGroup
-  sigmaExistingCustomer: boolean
-  employmentMode: SchufaFreeEmploymentMode
   employmentMonthsCurrent: number
 }) {
-  const { variantKey, nationalityGroup, sigmaExistingCustomer, employmentMode } = input
+  const { variantKey, nationalityGroup } = input
   const months = normalizeInteger(input.employmentMonthsCurrent)
 
-  if (sigmaExistingCustomer) {
-    if (variantKey === "10000_40") return months >= 12
-    return employmentMode === "hourly" ? months >= 4 : months >= 7
-  }
-
-  if (variantKey.endsWith("_58")) return false
   if (nationalityGroup === "de") {
     return variantKey === "10000_40" ? months >= 36 : months >= 12
   }
@@ -221,7 +188,7 @@ export function runSchufaFreePrecheck(
       minimumIncomeRequired: null,
       employmentRequirementText: null,
       incomeCheckPending: !requireIncomeCheck,
-      reason: "Diese Kombination aus Kreditsumme und Laufzeit ist fuer Sigma derzeit nicht verfuegbar.",
+      reason: "Diese Kombination aus Kreditsumme und Laufzeit ist derzeit nicht verfuegbar.",
     }
   }
 
@@ -229,8 +196,6 @@ export function runSchufaFreePrecheck(
   const employmentText = employmentRequirementText({
     variantKey,
     nationalityGroup: input.nationalityGroup,
-    sigmaExistingCustomer: input.sigmaExistingCustomer,
-    employmentMode: input.employmentMode,
   })
 
   if (minimumIncomeRequired === null) {
@@ -264,8 +229,6 @@ export function runSchufaFreePrecheck(
   if (!meetsEmploymentRequirement({
     variantKey,
     nationalityGroup: input.nationalityGroup,
-    sigmaExistingCustomer: input.sigmaExistingCustomer,
-    employmentMode: input.employmentMode,
     employmentMonthsCurrent,
   })) {
     return {

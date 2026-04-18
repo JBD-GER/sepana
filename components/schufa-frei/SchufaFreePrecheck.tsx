@@ -79,6 +79,14 @@ function formatRate(value: number | null | undefined) {
   }).format(Number(value))} p.M.`
 }
 
+const FIELD_CLASS =
+  "mt-1 h-14 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-4 focus:ring-cyan-100 sm:h-12 sm:text-sm"
+const CHECKBOX_CLASS = "mt-1 h-5 w-5 shrink-0 rounded border-slate-300 accent-slate-900"
+const PRIMARY_BUTTON_CLASS =
+  "inline-flex min-h-14 w-full items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#0f172a,#0f766e)] px-5 py-4 text-base font-semibold text-white shadow-[0_18px_34px_rgba(15,23,42,0.18)] transition disabled:opacity-60 sm:min-h-12 sm:text-sm"
+const SECONDARY_BUTTON_CLASS =
+  "inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition sm:w-auto"
+
 export default function SchufaFreePrecheck() {
   const [form, setForm] = useState({
     firstName: "",
@@ -90,7 +98,6 @@ export default function SchufaFreePrecheck() {
     termMonths: "40",
     dependentChildrenCount: "0",
     nationalityGroup: "de",
-    sigmaExistingCustomer: false,
     employmentMode: "salary",
     employmentStartDate: "",
     acceptsPrivacyPolicy: false,
@@ -119,7 +126,6 @@ export default function SchufaFreePrecheck() {
       dependentChildrenCount: childrenCount,
       nationalityGroup:
         form.nationalityGroup === "eu_ch" ? "eu_ch" : form.nationalityGroup === "other" ? "other" : "de",
-      sigmaExistingCustomer: form.sigmaExistingCustomer,
       employmentMode: form.employmentMode === "hourly" ? "hourly" : "salary",
       employmentStartDate: form.employmentStartDate,
     },
@@ -198,8 +204,8 @@ export default function SchufaFreePrecheck() {
         tone: "success",
         title: "Erste Vorprüfung positiv",
         description:
-          "Ihre Eckdaten passen grundsätzlich für diese Strecke. Sie können jetzt direkt mit dem vollständigen Antrag fortfahren.",
-        actionLabel: "Zum vollständigen Antrag",
+          "Ihre Eckdaten passen fuer den naechsten Schritt. Sie koennen den vollstaendigen Antrag jetzt direkt ohne Neustart fortsetzen.",
+        actionLabel: "Vollstaendigen Antrag starten",
         applicationHref,
         precheck,
       })
@@ -226,8 +232,8 @@ export default function SchufaFreePrecheck() {
 
   return (
     <>
-      <div className="space-y-6">
-        <section className="rounded-[28px] border border-slate-200/70 bg-white p-5 shadow-sm sm:rounded-[34px] sm:p-7">
+      <div className="space-y-5 sm:space-y-6">
+        <section className="rounded-[28px] border border-slate-200/70 bg-white p-4 shadow-sm sm:rounded-[34px] sm:p-7">
           <div className="max-w-3xl">
             <div className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-800">
               Diskrete Vorprüfung
@@ -240,46 +246,51 @@ export default function SchufaFreePrecheck() {
             </p>
           </div>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <label className="text-sm text-slate-700">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <label className="min-w-0 text-sm text-slate-700">
               Vorname
               <input
                 value={form.firstName}
+                autoComplete="given-name"
                 onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))}
-                className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm"
+                className={FIELD_CLASS}
               />
             </label>
-            <label className="text-sm text-slate-700">
+            <label className="min-w-0 text-sm text-slate-700">
               Nachname
               <input
                 value={form.lastName}
+                autoComplete="family-name"
                 onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))}
-                className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm"
+                className={FIELD_CLASS}
               />
             </label>
-            <label className="text-sm text-slate-700">
+            <label className="min-w-0 text-sm text-slate-700">
               E-Mail
               <input
                 type="email"
+                autoComplete="email"
                 value={form.email}
                 onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-                className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm"
+                className={FIELD_CLASS}
               />
             </label>
-            <label className="text-sm text-slate-700">
+            <label className="min-w-0 text-sm text-slate-700">
               Telefon
               <input
                 value={form.phone}
+                autoComplete="tel"
+                inputMode="tel"
                 onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
-                className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm"
+                className={FIELD_CLASS}
               />
             </label>
-            <label className="text-sm text-slate-700">
+            <label className="min-w-0 text-sm text-slate-700">
               Kreditsumme
               <select
                 value={form.desiredAmount}
                 onChange={(event) => setForm((current) => ({ ...current, desiredAmount: event.target.value }))}
-                className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm"
+                className={FIELD_CLASS}
               >
                 {SCHUFA_FREE_AMOUNT_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -288,12 +299,12 @@ export default function SchufaFreePrecheck() {
                 ))}
               </select>
             </label>
-            <label className="text-sm text-slate-700">
+            <label className="min-w-0 text-sm text-slate-700">
               Laufzeit
               <select
                 value={form.termMonths}
                 onChange={(event) => setForm((current) => ({ ...current, termMonths: event.target.value }))}
-                className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm"
+                className={FIELD_CLASS}
               >
                 {SCHUFA_FREE_TERM_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -302,12 +313,12 @@ export default function SchufaFreePrecheck() {
                 ))}
               </select>
             </label>
-            <label className="text-sm text-slate-700">
+            <label className="min-w-0 text-sm text-slate-700">
               Familienstand
               <select
                 value={form.familySituation}
                 onChange={(event) => setForm((current) => ({ ...current, familySituation: event.target.value }))}
-                className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm"
+                className={FIELD_CLASS}
               >
                 {SCHUFA_FREE_FAMILY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -316,12 +327,12 @@ export default function SchufaFreePrecheck() {
                 ))}
               </select>
             </label>
-            <label className="text-sm text-slate-700">
+            <label className="min-w-0 text-sm text-slate-700">
               Unterhaltspflichtige Kinder
               <select
                 value={form.dependentChildrenCount}
                 onChange={(event) => setForm((current) => ({ ...current, dependentChildrenCount: event.target.value }))}
-                className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm"
+                className={FIELD_CLASS}
               >
                 {[0, 1, 2, 3, 4, 5, 6].map((option) => (
                   <option key={option} value={option}>
@@ -330,52 +341,42 @@ export default function SchufaFreePrecheck() {
                 ))}
               </select>
             </label>
-            <label className="text-sm text-slate-700">
+            <label className="min-w-0 text-sm text-slate-700">
               Staatsangehörigkeit
               <select
                 value={form.nationalityGroup}
                 onChange={(event) => setForm((current) => ({ ...current, nationalityGroup: event.target.value }))}
-                className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm"
+                className={FIELD_CLASS}
               >
                 <option value="de">DE-Bürger</option>
                 <option value="eu_ch">CH- / EU-Bürger</option>
                 <option value="other">Andere</option>
               </select>
             </label>
-            <label className="text-sm text-slate-700">
+            <label className="min-w-0 text-sm text-slate-700">
               Beschäftigungsart
               <select
                 value={form.employmentMode}
                 onChange={(event) => setForm((current) => ({ ...current, employmentMode: event.target.value }))}
-                className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm"
+                className={FIELD_CLASS}
               >
                 <option value="salary">Gehalt</option>
                 <option value="hourly">Stundenlohn</option>
               </select>
             </label>
-            <label className="text-sm text-slate-700 sm:col-span-2">
+            <label className="min-w-0 text-sm text-slate-700 sm:col-span-2">
               Beim aktuellen Arbeitgeber seit
               <input
                 type="date"
                 value={form.employmentStartDate}
                 onChange={(event) => setForm((current) => ({ ...current, employmentStartDate: event.target.value }))}
-                className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm"
+                className={FIELD_CLASS}
               />
             </label>
           </div>
 
           <div className="mt-5 space-y-3">
-            <label className="flex items-start gap-3 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={form.sigmaExistingCustomer}
-                onChange={(event) => setForm((current) => ({ ...current, sigmaExistingCustomer: event.target.checked }))}
-                className="mt-0.5 h-4 w-4"
-              />
-              <span>Ich bin bereits Sigma-Bestandskunde</span>
-            </label>
-
-            <label className="flex items-start gap-3 text-sm text-slate-700">
+            <label className="flex items-start gap-3 rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 shadow-sm">
               <input
                 type="checkbox"
                 checked={form.acceptsPrivacyPolicy}
@@ -383,9 +384,9 @@ export default function SchufaFreePrecheck() {
                   setForm((current) => ({ ...current, acceptsPrivacyPolicy: event.target.checked }))
                   setPrivacyError(null)
                 }}
-                className="mt-0.5 h-4 w-4"
+                className={CHECKBOX_CLASS}
               />
-              <span>
+              <span className="min-w-0 leading-relaxed">
                 Ich stimme der Verarbeitung meiner Angaben gemäß{" "}
                 <Link
                   href="/datenschutz"
@@ -399,7 +400,7 @@ export default function SchufaFreePrecheck() {
               </span>
             </label>
 
-            <label className="flex items-start gap-3 text-sm text-slate-700">
+            <label className="flex items-start gap-3 rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 shadow-sm">
               <input
                 type="checkbox"
                 checked={form.acceptsProvisionAgreement}
@@ -407,16 +408,18 @@ export default function SchufaFreePrecheck() {
                   setForm((current) => ({ ...current, acceptsProvisionAgreement: event.target.checked }))
                   setAgreementError(null)
                 }}
-                className="mt-0.5 h-4 w-4"
+                className={CHECKBOX_CLASS}
               />
-              <span>Ich bin mit der Provisionsvereinbarung für den weiteren Verlauf einverstanden.</span>
+              <span className="min-w-0 leading-relaxed">
+                Ich bin mit der Provisionsvereinbarung für den weiteren Verlauf einverstanden.
+              </span>
             </label>
 
-            <div className="pl-7">
+            <div>
               <button
                 type="button"
                 onClick={() => setShowProvisionAgreement(true)}
-                className="text-sm text-slate-700 underline underline-offset-4"
+                className={SECONDARY_BUTTON_CLASS}
               >
                 Provisionsvereinbarung ansehen
               </button>
@@ -468,7 +471,7 @@ export default function SchufaFreePrecheck() {
               type="button"
               onClick={submit}
               disabled={busy}
-              className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f172a,#0f766e)] px-5 text-sm font-semibold text-white shadow-[0_18px_34px_rgba(15,23,42,0.18)] disabled:opacity-60"
+              className={PRIMARY_BUTTON_CLASS}
             >
               {busy ? "Vorprüfung läuft..." : "Erste Vorprüfung starten"}
             </button>
@@ -476,7 +479,7 @@ export default function SchufaFreePrecheck() {
         </section>
 
         <div className="space-y-5">
-          <section className="rounded-[28px] border border-slate-200/70 bg-white p-5 shadow-sm sm:p-6">
+          <section className="rounded-[28px] border border-slate-200/70 bg-white p-4 shadow-sm sm:p-6">
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Live-Einschätzung</div>
             <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
               So sieht Ihre aktuelle Variante aus
@@ -581,14 +584,14 @@ export default function SchufaFreePrecheck() {
 
       {showProvisionAgreement ? (
         <div
-          className="fixed inset-0 z-[92] overflow-y-auto bg-slate-950/70 px-4 py-4 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:py-6"
+          className="fixed inset-0 z-[92] overflow-y-auto bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:px-4 sm:py-6"
           onClick={() => setShowProvisionAgreement(false)}
         >
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="provision-agreement-title"
-            className="mx-auto w-full max-w-4xl overflow-hidden rounded-[32px] border border-slate-200 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.32)] sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto sm:p-7"
+            className="mx-auto w-full max-w-4xl overflow-hidden rounded-[28px] border border-slate-200 bg-white p-4 shadow-[0_30px_90px_rgba(15,23,42,0.32)] sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto sm:rounded-[32px] sm:p-7"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 py-5 backdrop-blur sm:py-6">
@@ -612,7 +615,7 @@ export default function SchufaFreePrecheck() {
                 <button
                   type="button"
                   onClick={() => setShowProvisionAgreement(false)}
-                  className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm"
+                  className={SECONDARY_BUTTON_CLASS}
                 >
                   Schließen
                 </button>
@@ -682,7 +685,7 @@ export default function SchufaFreePrecheck() {
                 <button
                   type="button"
                   onClick={() => setShowProvisionAgreement(false)}
-                  className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white shadow-sm"
+                  className={`${PRIMARY_BUTTON_CLASS} sm:w-auto`}
                 >
                   Verstanden
                 </button>
@@ -693,8 +696,8 @@ export default function SchufaFreePrecheck() {
       ) : null}
 
       {busy ? (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/72 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(8,47,73,0.98))] px-6 py-8 text-white shadow-[0_28px_80px_rgba(15,23,42,0.45)]">
+        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/72 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4">
+          <div className="w-full max-w-lg rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(8,47,73,0.98))] px-5 py-7 text-white shadow-[0_28px_80px_rgba(15,23,42,0.45)] sm:rounded-[32px] sm:px-6 sm:py-8">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/5">
               <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/20 border-t-emerald-300" />
             </div>
@@ -717,18 +720,18 @@ export default function SchufaFreePrecheck() {
       ) : null}
 
       {resultModal ? (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[95] flex items-end justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="schufa-precheck-result-title"
-            className={`w-full max-w-2xl rounded-[32px] border p-6 shadow-[0_30px_90px_rgba(15,23,42,0.32)] sm:p-7 ${resultToneClass}`}
+            className={`w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-[28px] border p-4 shadow-[0_30px_90px_rgba(15,23,42,0.32)] sm:rounded-[32px] sm:p-7 ${resultToneClass}`}
           >
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
               {resultModal.tone === "success"
-                ? "Erste Vorprüfung positiv"
+                ? "Erste Vorpruefung positiv"
                 : resultModal.tone === "rejected"
-                  ? "Erste Vorprüfung negativ"
+                  ? "Erste Vorpruefung negativ"
                   : "Technischer Hinweis"}
             </div>
             <h3
@@ -739,12 +742,47 @@ export default function SchufaFreePrecheck() {
             </h3>
             <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">{resultModal.description}</p>
 
+            {resultModal.tone === "success" ? (
+              <div className="mt-5 rounded-[26px] border border-emerald-200 bg-[linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.96))] p-4 shadow-sm sm:p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-emerald-900 text-lg font-semibold uppercase tracking-[0.12em] text-white shadow-sm">
+                    OK
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
+                      Naechster Schritt freigeschaltet
+                    </div>
+                    <div className="mt-1 text-lg font-semibold text-slate-900">
+                      Der vollstaendige Antrag ist jetzt direkt fuer Sie bereit.
+                    </div>
+                    <div className="mt-2 text-sm leading-relaxed text-slate-700">
+                      Sie muessen nichts neu starten. Die Vorpruefungsdaten werden direkt in den naechsten Schritt uebernommen.
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                  {[
+                    "Antrag oeffnen",
+                    "Restliche Angaben ergaenzen",
+                    "Danach Unterlagen hochladen",
+                  ].map((item) => (
+                    <div
+                      key={item}
+                      className="rounded-2xl border border-emerald-200/80 bg-white/90 px-3 py-3 text-sm font-semibold text-slate-900"
+                    >
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             {resultModal.precheck ? (
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 shadow-sm">
-                  Nächster Schritt
+                  Naechster Schritt
                   <div className="mt-2 text-lg font-semibold text-slate-900">
-                    {resultModal.tone === "success" ? "Vollständigen Antrag ausfüllen" : "Daten prüfen und anpassen"}
+                    {resultModal.tone === "success" ? "Vollstaendigen Antrag ausfuellen" : "Daten pruefen und anpassen"}
                   </div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 shadow-sm">
@@ -758,7 +796,7 @@ export default function SchufaFreePrecheck() {
 
             {resultModal.precheck?.incomeCheckPending ? (
               <div className="mt-4 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
-                Hinweis: Diese erste Vorprüfung basiert bewusst nur auf den wichtigsten Eckdaten.
+                Hinweis: Diese erste Vorpruefung basiert bewusst nur auf den wichtigsten Eckdaten.
               </div>
             ) : null}
 
@@ -772,7 +810,7 @@ export default function SchufaFreePrecheck() {
               {resultModal.applicationHref ? (
                 <a
                   href={resultModal.applicationHref}
-                  className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white shadow-sm"
+                  className={`${PRIMARY_BUTTON_CLASS} flex-1`}
                 >
                   {resultModal.actionLabel}
                 </a>
@@ -780,7 +818,7 @@ export default function SchufaFreePrecheck() {
                 <button
                   type="button"
                   onClick={() => setResultModal(null)}
-                  className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white shadow-sm"
+                  className={`${PRIMARY_BUTTON_CLASS} flex-1`}
                 >
                   {resultModal.actionLabel}
                 </button>

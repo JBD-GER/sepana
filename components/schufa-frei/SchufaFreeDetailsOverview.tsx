@@ -10,7 +10,6 @@ type DetailsRow = {
   term_months?: number | null
   net_income_monthly?: number | null
   nationality_group?: string | null
-  sigma_existing_customer?: boolean | null
   employment_mode?: string | null
   employment_months_current?: number | null
   street?: string | null
@@ -96,7 +95,7 @@ export default function SchufaFreeDetailsOverview({
   const ratenschutzSelected = Boolean(details?.ratenschutz_opt_in || details?.ratenschutz_opt_in_at)
   const applicantName = [applicant?.first_name, applicant?.last_name].filter(Boolean).join(" ").trim() || "-"
   const variantValue = `${formatCurrency(details?.loan_amount_requested)} / ${details?.term_months ?? "-"} Monate`
-  const precheckValue = details?.sigma_existing_customer ? "Sigma-Bestandskunde" : "Neukunde"
+  const precheckValue = "Vorpruefung erfasst"
   const precheckHint = `${details?.nationality_group ?? "-"} · ${details?.employment_mode ?? "-"} · ${details?.employment_months_current ?? "-"} Monate`
 
   return (

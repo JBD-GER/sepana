@@ -238,7 +238,6 @@ export async function POST(req: Request) {
     const termMonths = Number(body?.termMonths ?? 0)
     const dependentChildrenCount = Number(body?.dependentChildrenCount ?? 0)
     const nationalityGroup = normalizeNationalityGroup(body?.nationalityGroup)
-    const sigmaExistingCustomer = Boolean(body?.sigmaExistingCustomer)
     const employmentMode = normalizeEmploymentMode(body?.employmentMode)
     const employmentStartDate = trimOrNull(body?.employmentStartDate)
     const netIncomeMonthly = parseAmount(body?.netIncomeMonthly)
@@ -279,7 +278,6 @@ export async function POST(req: Request) {
         termMonths,
         dependentChildrenCount,
         nationalityGroup,
-        sigmaExistingCustomer,
         employmentMode,
         employmentStartDate,
         employmentMonthsCurrent,
@@ -328,7 +326,7 @@ export async function POST(req: Request) {
         origin: "website",
         page: "/kredit-ohne-schufa",
         nationality_group: nationalityGroup,
-        sigma_existing_customer: sigmaExistingCustomer,
+        sigma_existing_customer: false,
         employment_mode: employmentMode,
         employment_start_date: employmentStartDate,
         employment_months_current: employmentMonthsCurrent,
@@ -445,7 +443,7 @@ export async function POST(req: Request) {
         precheck_reason: precheck.reason,
         minimum_income_required: precheck.minimumIncomeRequired,
         nationality_group: nationalityGroup,
-        sigma_existing_customer: sigmaExistingCustomer,
+        sigma_existing_customer: false,
         employment_mode: employmentMode,
         employment_months_current: employmentMonthsCurrent,
         net_income_monthly: null,

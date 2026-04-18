@@ -17,6 +17,7 @@ type DocumentRow = { id: string; file_name: string; created_at: string; request_
 type SkagDocumentRow = { local_document_id?: string | null; upload_status?: string | null; last_error?: string | null }
 type InitialForm = Record<string, string | number | boolean | null | undefined>
 type StepId = "person" | "residence" | "employment" | "bank"
+type FeedbackState = { tone: "error" | "success"; text: string; title?: string }
 
 type FormState = {
   gender: string
@@ -75,7 +76,13 @@ const SCHUFA_FREE_CONVERSION_PENDING_PREFIX = "sepana:ads-conversion:schufa-frei
 const SCHUFA_FREE_CONVERSION_DONE_PREFIX = "sepana:ads-conversion:schufa-frei-final-submit:done"
 
 const CHILD_TAX_ALLOWANCE_OPTIONS = Array.from({ length: 21 }, (_, index) => index * 0.5)
-const INPUT_CLASS = "mt-1 block h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm"
+const INPUT_CLASS =
+  "mt-1 block h-14 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-4 focus:ring-cyan-100 sm:h-12 sm:text-sm"
+const CHECKBOX_CLASS = "mt-1 h-5 w-5 shrink-0 rounded border-slate-300 accent-slate-900"
+const PRIMARY_BUTTON_CLASS =
+  "inline-flex min-h-14 w-full items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#0f172a,#0f766e)] px-5 py-4 text-base font-semibold text-white shadow-[0_18px_34px_rgba(15,23,42,0.18)] transition disabled:opacity-60 sm:min-h-12 sm:w-auto sm:text-sm"
+const SECONDARY_BUTTON_CLASS =
+  "inline-flex min-h-14 w-full items-center justify-center rounded-[20px] border border-slate-200 bg-white px-5 py-4 text-base font-semibold text-slate-700 shadow-sm transition disabled:opacity-50 sm:min-h-12 sm:w-auto sm:text-sm"
 
 function fieldValue(initialForm: InitialForm, key: string, fallback = "") {
   const value = initialForm[key]
@@ -241,7 +248,7 @@ function validate(form: FormState, allowTaxClassSix: boolean) {
 }
 
 function Field({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
-  return <label className={`block text-sm text-slate-700 ${className}`}><span>{label}</span>{children}</label>
+  return <label className={`block min-w-0 text-sm text-slate-700 ${className}`}><span className="block leading-6">{label}</span>{children}</label>
 }
 
 function Input(props: InputHTMLAttributes<HTMLInputElement>) {
@@ -278,7 +285,7 @@ export default function SchufaFreeApplicationClient({
   const [form, setForm] = useState<FormState>(() => buildInitialForm(initialForm))
   const [step, setStep] = useState<StepId>("person")
   const [busy, setBusy] = useState(false)
-  const [feedback, setFeedback] = useState<{ tone: "error" | "success"; text: string } | null>(null)
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null)
   const [draftReady, setDraftReady] = useState(false)
   const lockedEmail = fieldValue(initialForm, "email").trim()
   const conversionSentRef = useRef(false)
@@ -426,16 +433,16 @@ export default function SchufaFreeApplicationClient({
       if (!response.ok || !json?.ok) throw new Error(String(json?.error ?? "Antrag konnte nicht übermittelt werden."))
       window.localStorage.removeItem(storageKey)
       const uploadedDocumentCount = Number(json?.uploadedDocumentCount ?? 0)
-      const successParts = ["Antrag erfolgreich an SEPANA übermittelt."]
+      const successParts = ["Ihr Antrag ist sicher bei SEPANA eingegangen."]
       if (form.ratenschutzOptIn) {
-        successParts.push("Der Wunsch nach Ratenschutz wurde für den Fall vorgemerkt.")
+        successParts.push("Der Wunsch nach Ratenschutz wurde fuer den Fall vorgemerkt.")
       }
       if (uploadedDocumentCount > 0) {
         successParts.push(
           `${uploadedDocumentCount} Dokument${uploadedDocumentCount === 1 ? "" : "e"} wurde${uploadedDocumentCount === 1 ? "" : "n"} direkt weitergeleitet.`
         )
       }
-      successParts.push("Die Seite aktualisiert sich jetzt.")
+      successParts.push("Status und Upload-Bereich werden jetzt fuer Sie geladen.")
       const successText = successParts.join(" ")
       if (typeof window !== "undefined") {
         try {
@@ -444,8 +451,8 @@ export default function SchufaFreeApplicationClient({
           // ignore storage edge cases
         }
       }
-      setFeedback({ tone: "success", text: successText })
-      window.setTimeout(() => window.location.reload(), 1200)
+      setFeedback({ tone: "success", title: "Antrag erfolgreich uebermittelt", text: successText })
+      window.setTimeout(() => window.location.reload(), 2200)
     } catch (error) {
       setFeedback({ tone: "error", text: error instanceof Error ? error.message : "Serverfehler" })
     } finally {
@@ -468,21 +475,21 @@ export default function SchufaFreeApplicationClient({
 
   return (
     <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-white shadow-sm sm:rounded-[32px]">
-      <div className="border-b border-slate-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.15),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] px-5 py-5 sm:px-6">
+      <div className="border-b border-slate-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.15),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] px-4 py-4 sm:px-6 sm:py-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Finale Prüfung</div>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Antrag in vier klaren Schritten</h2>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">Die Vorprüfungsdaten sind übernommen. Ergänzen Sie jetzt nur noch die wichtigen Angaben und senden Sie den Antrag dann direkt an SEPANA.</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+          <div className="w-full rounded-[22px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm lg:w-[250px]">
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Schritt {stepIndex + 1} von {STEP_META.length}</div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[linear-gradient(90deg,#0f172a,#0f766e)]" style={{ width: `${Math.round(((stepIndex + 1) / STEP_META.length) * 100)}%` }} /></div>
           </div>
         </div>
-        <div className="mt-5 grid gap-2 md:grid-cols-4">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {STEP_META.map((entry, index) => (
-            <button key={entry.id} type="button" onClick={() => { setFeedback(null); setStep(entry.id) }} className={`rounded-2xl border px-4 py-3 text-left ${entry.id === step ? "border-slate-900 bg-slate-900 text-white" : issues[entry.id].length && index < stepIndex ? "border-amber-200 bg-amber-50 text-amber-900" : index < stepIndex ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>
+            <button key={entry.id} type="button" onClick={() => { setFeedback(null); setStep(entry.id) }} className={`min-w-0 rounded-[22px] border px-4 py-4 text-left shadow-sm transition ${entry.id === step ? "border-slate-900 bg-slate-900 text-white" : issues[entry.id].length && index < stepIndex ? "border-amber-200 bg-amber-50 text-amber-900" : index < stepIndex ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] opacity-80">Schritt {index + 1}</div>
               <div className="mt-1 text-sm font-semibold">{entry.title}</div>
               <div className="mt-1 text-xs opacity-80">{entry.subtitle}</div>
@@ -491,12 +498,27 @@ export default function SchufaFreeApplicationClient({
         </div>
       </div>
 
-      <div className="px-5 py-5 sm:px-6">
-        {feedback ? <div className={`mb-5 rounded-2xl border px-4 py-3 text-sm ${feedback.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}>{feedback.text}</div> : null}
+      <div className="px-4 py-4 sm:px-6 sm:py-5">
+        {feedback ? feedback.tone === "success" ? (
+          <div className="mb-5 overflow-hidden rounded-[26px] border border-emerald-200 bg-[linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.96))] p-4 shadow-sm sm:p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-emerald-900 text-sm font-semibold uppercase tracking-[0.12em] text-white shadow-sm">
+                OK
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">Status aktualisiert</div>
+                <div className="mt-1 text-lg font-semibold text-slate-900">{feedback.title ?? "Antrag erfolgreich uebermittelt"}</div>
+                <div className="mt-2 text-sm leading-relaxed text-slate-700">{feedback.text}</div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{feedback.text}</div>
+        ) : null}
         {stepIssues.length ? <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">In diesem Schritt fehlen noch: {stepIssues.join(", ")}.</div> : null}
 
         {step === "person" ? (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Anrede"><Select value={form.gender} onChange={(e) => update("gender", e.target.value)}><option value="1">Herr</option><option value="2">Frau</option></Select></Field>
             <Field label="Staatsangehörigkeit (ISO2)"><Input value={form.nationality} onChange={(e) => update("nationality", e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2))} placeholder="DE" /></Field>
             <Field label="Vorname"><Input value={form.firstName} onChange={(e) => update("firstName", e.target.value)} /></Field>
@@ -531,7 +553,7 @@ export default function SchufaFreeApplicationClient({
                 <div className="mt-1 text-xs leading-relaxed text-slate-600">
                   Vorname, Geburtsname und Geburtsdatum werden zusammen mit den restlichen Antragsdaten an SEPANA übermittelt.
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <Field label="Vorname Ehegatte">
                     <Input value={form.spouseFirstName} onChange={(e) => update("spouseFirstName", e.target.value)} />
                   </Field>
@@ -558,7 +580,7 @@ export default function SchufaFreeApplicationClient({
         ) : null}
 
         {step === "residence" ? (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Straße"><Input value={form.street} onChange={(e) => update("street", e.target.value)} /></Field>
             <Field label="Hausnummer"><Input value={form.houseNumber} onChange={(e) => update("houseNumber", e.target.value)} /></Field>
             <Field label="PLZ"><Input value={form.zipcode} onChange={(e) => update("zipcode", digitsOnly(e.target.value).slice(0, 5))} inputMode="numeric" /></Field>
@@ -570,7 +592,7 @@ export default function SchufaFreeApplicationClient({
         ) : null}
 
         {step === "employment" ? (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Steuerklasse"><Select value={form.taxClass} onChange={(e) => update("taxClass", e.target.value)}>{(allowTaxClassSix ? [1,2,3,4,5,6] : [1,2,3,4,5]).map((option) => <option key={option} value={option}>{`Steuerklasse ${option}`}</option>)}</Select></Field>
             <Field label="Beruf"><Select value={form.profession} onChange={(e) => update("profession", e.target.value)}>{SCHUFA_FREE_PROFESSION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</Select></Field>
             <Field label="Im Beruf seit"><Input type="date" value={form.professionBeginDate} onChange={(e) => update("professionBeginDate", e.target.value)} /></Field>
@@ -589,13 +611,13 @@ export default function SchufaFreeApplicationClient({
 
         {step === "bank" ? (
           <div className="space-y-5">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Kontoinhaber"><Input value={form.bankName} onChange={(e) => update("bankName", e.target.value)} /></Field>
               <Field label="IBAN"><Input value={formatIban(form.iban)} onChange={(e) => update("iban", normalizeIbanInput(e.target.value))} className="uppercase tracking-[0.08em]" /></Field>
             </div>
             <div className="grid gap-3">
-              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"><input type="checkbox" checked={form.employmentRelationshipLimited} onChange={(e) => update("employmentRelationshipLimited", e.target.checked)} className="mt-0.5 h-4 w-4" /><span>Arbeitsverhältnis ist befristet oder gekündigt</span></label>
-              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"><input type="checkbox" checked={form.wageGarnishmentAssignment} onChange={(e) => update("wageGarnishmentAssignment", e.target.checked)} className="mt-0.5 h-4 w-4" /><span>Lohnpfändung / Abtretung vorhanden</span></label>
+              <label className="flex items-start gap-3 rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700"><input type="checkbox" checked={form.employmentRelationshipLimited} onChange={(e) => update("employmentRelationshipLimited", e.target.checked)} className={CHECKBOX_CLASS} /><span className="min-w-0 leading-relaxed">Arbeitsverhältnis ist befristet oder gekündigt</span></label>
+              <label className="flex items-start gap-3 rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700"><input type="checkbox" checked={form.wageGarnishmentAssignment} onChange={(e) => update("wageGarnishmentAssignment", e.target.checked)} className={CHECKBOX_CLASS} /><span className="min-w-0 leading-relaxed">Lohnpfändung / Abtretung vorhanden</span></label>
             </div>
             <div className="space-y-3">
               <div className="rounded-[24px] border border-cyan-200 bg-[linear-gradient(180deg,rgba(236,254,255,0.95),rgba(255,255,255,0.98))] px-4 py-4">
@@ -627,9 +649,9 @@ export default function SchufaFreeApplicationClient({
                     type="checkbox"
                     checked={form.ratenschutzOptIn}
                     onChange={(e) => update("ratenschutzOptIn", e.target.checked)}
-                    className="mt-1 h-4 w-4"
+                    className={CHECKBOX_CLASS}
                   />
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-semibold text-slate-900">Ratenschutz im Antrag vormerken</span>
                       <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-900">dringend empfohlen</span>
@@ -704,8 +726,8 @@ export default function SchufaFreeApplicationClient({
         ) : null}
 
         <div className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" onClick={prev} disabled={stepIndex === 0 || busy} className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm disabled:opacity-50">Zurück</button>
-          {step !== "bank" ? <button type="button" onClick={next} disabled={busy} className="inline-flex h-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f172a,#0f766e)] px-5 text-sm font-semibold text-white shadow-[0_18px_34px_rgba(15,23,42,0.18)] disabled:opacity-60">Weiter</button> : <button type="button" onClick={submit} disabled={busy} className="inline-flex h-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f172a,#0f766e)] px-5 text-sm font-semibold text-white shadow-[0_18px_34px_rgba(15,23,42,0.18)] disabled:opacity-60">{busy ? "Wird übermittelt..." : "Antrag jetzt an SEPANA übermitteln"}</button>}
+          <button type="button" onClick={prev} disabled={stepIndex === 0 || busy} className={SECONDARY_BUTTON_CLASS}>Zurück</button>
+          {step !== "bank" ? <button type="button" onClick={next} disabled={busy} className={PRIMARY_BUTTON_CLASS}>Weiter</button> : <button type="button" onClick={submit} disabled={busy} className={PRIMARY_BUTTON_CLASS}>{busy ? "Wird übermittelt..." : "Antrag jetzt an SEPANA übermitteln"}</button>}
         </div>
       </div>
     </section>
