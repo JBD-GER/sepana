@@ -28,7 +28,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/kreditanfrage", changeFrequency: "weekly", priority: 0.9 },
     { path: "/onlinekredit", changeFrequency: "weekly", priority: 0.9 },
     { path: "/kredit-ohne-schufa", changeFrequency: "weekly", priority: 0.9 },
-    { path: "/kredit-ohne-schufa/landingpage", changeFrequency: "weekly", priority: 0.85 },
+    { path: "/kredit-ohne-schufa/geldnot-geloest", changeFrequency: "weekly", priority: 0.85 },
     { path: "/scheidung-kredit", changeFrequency: "weekly", priority: 0.8 },
     { path: "/baufinanzierung", changeFrequency: "weekly", priority: 0.9 },
     { path: "/baufinanzierung/anschlussfinanzierung", changeFrequency: "weekly", priority: 0.8 },
