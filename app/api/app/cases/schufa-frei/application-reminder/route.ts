@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
 import { createPublicCaseAccessToken } from "@/lib/onlinekredit/publicAccess"
+import { getSchufaFreeCompletedOtherApplicationsByCaseIds } from "@/lib/schufa-frei/applicationReminder"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const runtime = "nodejs"
@@ -80,6 +81,19 @@ export async function POST(req: Request) {
 
   if (detailsRow?.completed_application_at || detailsRow?.submitted_to_skag_at) {
     return NextResponse.json({ ok: false, error: "application_already_completed" }, { status: 409 })
+  }
+
+  const otherCompletedApplicationByCaseId = await getSchufaFreeCompletedOtherApplicationsByCaseIds(admin, [caseId])
+  const otherCompletedApplication = otherCompletedApplicationByCaseId.get(caseId) ?? null
+  if (otherCompletedApplication) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "application_already_completed_for_other_request",
+        otherCase: otherCompletedApplication,
+      },
+      { status: 409 }
+    )
   }
 
   const caseRef = trimOrNull(caseRow.case_ref)

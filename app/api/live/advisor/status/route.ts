@@ -17,12 +17,15 @@ export async function GET() {
     .maybeSingle()
   const isOnline = profile?.is_online === true
 
-  const { data: active } = await supabase
+  const { data: activeTicket } = await supabase
     .from("live_queue_tickets")
     .select("id")
     .eq("advisor_id", user.id)
     .eq("status", "active")
-  const busy = (active ?? []).length > 0
+    .order("accepted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const busy = !!activeTicket
 
-  return NextResponse.json({ ok: true, isOnline, busy })
+  return NextResponse.json({ ok: true, isOnline, busy, activeTicketId: activeTicket?.id ?? null })
 }

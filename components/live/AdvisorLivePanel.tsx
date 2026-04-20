@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
 type QueueItem = {
@@ -88,7 +88,7 @@ export default function AdvisorLivePanel() {
   const [actionBusy, setActionBusy] = useState<string | null>(null)
   const [notAllowed, setNotAllowed] = useState(false)
 
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     try {
       const [sRes, qRes] = await Promise.all([fetch("/api/live/advisor/status"), fetch("/api/live/queue")])
       const sJson = await sRes.json().catch(() => ({}))
@@ -106,6 +106,10 @@ export default function AdvisorLivePanel() {
       if (sJson?.ok) {
         setOnline(!!sJson.isOnline)
         setBusy(!!sJson.busy)
+        if (typeof sJson.activeTicketId === "string" && sJson.activeTicketId.trim()) {
+          router.push(`/live/${sJson.activeTicketId}`)
+          return
+        }
       }
       if (qJson?.ok) {
         setQueue(Array.isArray(qJson.items) ? qJson.items : [])
@@ -113,11 +117,11 @@ export default function AdvisorLivePanel() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
 
   useEffect(() => {
     loadAll()
-  }, [])
+  }, [loadAll])
 
   useEffect(() => {
     if (notAllowed) return
@@ -125,7 +129,7 @@ export default function AdvisorLivePanel() {
       loadAll()
     }, 5000)
     return () => clearInterval(id)
-  }, [notAllowed])
+  }, [notAllowed, loadAll])
 
   async function toggleOnline(next: boolean) {
     setActionBusy("online")
@@ -136,7 +140,15 @@ export default function AdvisorLivePanel() {
         body: JSON.stringify({ online: next }),
       })
       const json = await res.json().catch(() => ({}))
-      if (json?.ok) setOnline(next)
+      if (json?.ok) {
+        setOnline(next)
+        if (next && json?.ticket?.id) {
+          setBusy(true)
+          router.push(`/live/${json.ticket.id}`)
+          return
+        }
+        await loadAll()
+      }
     } finally {
       setActionBusy(null)
     }

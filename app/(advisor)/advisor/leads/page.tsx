@@ -1,6 +1,10 @@
 import Link from "next/link"
 import SchufaFreeApplicationReminderCard from "@/components/schufa-frei/SchufaFreeApplicationReminderCard"
 import { requireAdvisor } from "@/lib/advisor/requireAdvisor"
+import {
+  getSchufaFreeCompletedOtherApplicationsByCaseIds,
+  type SchufaFreeCompletedOtherApplication,
+} from "@/lib/schufa-frei/applicationReminder"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 type ProductTab = "baufi" | "konsum" | "schufa_frei"
@@ -109,6 +113,7 @@ function eur(value: number | null | undefined) {
 function resolveSchufaLeadProgress(
   lead: Pick<LeadRow, "linked_case_id" | "status">,
   details: SchufaDetailsRow | null | undefined,
+  otherCompletedApplication: SchufaFreeCompletedOtherApplication | null | undefined,
 ) {
   const status = String(lead.status ?? "").trim().toLowerCase()
 
@@ -141,6 +146,17 @@ function resolveSchufaLeadProgress(
       label: "Zweitformular abgeschlossen",
       hint: `Vom Kunden ausgefüllt: ${dt(details.completed_application_at)}`,
       toneClass: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    }
+  }
+
+  if (otherCompletedApplication) {
+    const finishedAt = otherCompletedApplication.submittedToSkagAt ?? otherCompletedApplication.completedApplicationAt ?? null
+    return {
+      label: "Bereits andere Anfrage abgeschlossen",
+      hint: otherCompletedApplication.caseRef
+        ? `Mit derselben E-Mail wurde ${otherCompletedApplication.caseRef}${finishedAt ? ` am ${dt(finishedAt)}` : ""} bereits abgeschlossen.`
+        : `Mit derselben E-Mail wurde bereits eine andere Anfrage${finishedAt ? ` am ${dt(finishedAt)}` : ""} abgeschlossen.`,
+      toneClass: "border-slate-200 bg-slate-100 text-slate-900",
     }
   }
 
@@ -208,7 +224,7 @@ export default async function AdvisorLeadsPage({
     })
   }
 
-  const [schufaDetailsResult, reminderLogResult] =
+  const [schufaDetailsResult, reminderLogResult, otherCompletedApplicationByCaseId] =
     product === "schufa_frei" && linkedCaseIds.length
       ? await Promise.all([
           admin
@@ -221,10 +237,12 @@ export default async function AdvisorLeadsPage({
             .eq("type", "schufa_free_application_reminder_sent")
             .in("case_id", linkedCaseIds)
             .order("created_at", { ascending: false }),
+          getSchufaFreeCompletedOtherApplicationsByCaseIds(admin, linkedCaseIds),
         ])
       : [
           { data: [] as SchufaDetailsRow[], error: null as { message?: string } | null },
           { data: [] as ReminderLogRow[], error: null as { message?: string } | null },
+          new Map<string, SchufaFreeCompletedOtherApplication>(),
         ]
 
   const schufaDetailsByCaseId = new Map<string, SchufaDetailsRow>()
@@ -317,7 +335,13 @@ export default async function AdvisorLeadsPage({
                 const caseMeta = lead.linked_case_id ? caseById.get(lead.linked_case_id) : null
                 const caseRef = caseMeta?.case_ref ?? (lead.linked_case_id ? lead.linked_case_id.slice(0, 8) : null)
                 const schufaDetails = lead.linked_case_id ? schufaDetailsByCaseId.get(lead.linked_case_id) ?? null : null
-                const schufaProgress = product === "schufa_frei" ? resolveSchufaLeadProgress(lead, schufaDetails) : null
+                const otherCompletedApplication = lead.linked_case_id
+                  ? otherCompletedApplicationByCaseId.get(lead.linked_case_id) ?? null
+                  : null
+                const schufaProgress =
+                  product === "schufa_frei"
+                    ? resolveSchufaLeadProgress(lead, schufaDetails, otherCompletedApplication)
+                    : null
                 const lastReminderAt = lead.linked_case_id ? lastReminderByCaseId.get(lead.linked_case_id) ?? null : null
 
                 return (
@@ -373,6 +397,7 @@ export default async function AdvisorLeadsPage({
                             completedApplicationAt={schufaDetails?.completed_application_at ?? null}
                             submittedToSkagAt={schufaDetails?.submitted_to_skag_at ?? null}
                             lastSentAt={lastReminderAt}
+                            otherCompletedApplication={otherCompletedApplication}
                             compact
                           />
                         ) : (

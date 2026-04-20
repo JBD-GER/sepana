@@ -1,11 +1,24 @@
 ﻿import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
+import {
+  autoAcceptWaitingLiveTicket,
+  getCurrentLiveTicketForCase,
+  getLiveQueueCapacity,
+} from "@/lib/live/matchmaking"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 
 export const runtime = "nodejs"
 
 const DEFAULT_ALERT_RECIPIENT = "c.pfad@flaaq.com"
+
+type QueueTicket = {
+  id: string
+  status: string
+  created_at: string | null
+  room_name: string | null
+  guest_token: string | null
+}
 
 function parseAlertRecipients() {
   const input = String(process.env.LIVE_QUEUE_ALERT_TO ?? "").trim()
@@ -82,7 +95,9 @@ async function sendQueueAlert(opts: {
       .select("purpose")
       .eq("case_id", opts.caseId)
       .maybeSingle(),
-    opts.customerId ? admin.auth.admin.getUserById(opts.customerId) : Promise.resolve({ data: { user: null as any } }),
+    opts.customerId
+      ? admin.auth.admin.getUserById(opts.customerId)
+      : Promise.resolve({ data: { user: null as { email?: string | null } | null } }),
   ])
 
   const primary = primaryRes.data
@@ -134,7 +149,7 @@ async function sendQueueAlert(opts: {
     )
   )
 
-  const successCount = results.filter((r: any) => r?.ok).length
+  const successCount = results.filter((r: { ok?: boolean | null }) => r?.ok).length
   return {
     ok: successCount > 0,
     successCount,
@@ -183,20 +198,14 @@ export async function POST(req: Request) {
     .in("status", ["waiting", "active"])
     .order("created_at", { ascending: false })
 
-  const list = Array.isArray(existingList) ? existingList : []
-  const activeTicket = list.find((t: any) => t.status === "active") ?? null
-  const waitingTickets = list.filter((t: any) => t.status === "waiting")
+  const list: QueueTicket[] = Array.isArray(existingList) ? existingList : []
+  const activeTicket = list.find((t) => t.status === "active") ?? null
+  const waitingTickets = list.filter((t) => t.status === "waiting")
 
-  const { data: online } = await admin.from("advisor_profiles").select("user_id").eq("is_online", true)
-  const onlineIds = (online ?? []).map((x: any) => x.user_id).filter(Boolean)
-  const onlineCount = onlineIds.length
-  const { data: active } = await admin.from("live_queue_tickets").select("advisor_id").eq("status", "active")
-  const busy = new Set((active ?? []).map((x: any) => x.advisor_id).filter(Boolean))
-  const availableCount = onlineIds.filter((id) => !busy.has(id)).length
-  const waitMinutes = onlineCount > 0 && availableCount === 0 ? 15 : 0
+  const { onlineCount, availableCount, waitMinutes } = await getLiveQueueCapacity(admin)
 
   if (activeTicket) {
-    const dropIds = waitingTickets.map((x: any) => x.id).filter(Boolean)
+    const dropIds = waitingTickets.map((x) => x.id).filter(Boolean)
     if (dropIds.length) {
       await admin
         .from("live_queue_tickets")
@@ -220,7 +229,7 @@ export async function POST(req: Request) {
 
   if (waitingTickets.length) {
     const keep = waitingTickets[0]
-    const dropIds = waitingTickets.slice(1).map((x: any) => x.id).filter(Boolean)
+    const dropIds = waitingTickets.slice(1).map((x) => x.id).filter(Boolean)
     if (dropIds.length) {
       await admin
         .from("live_queue_tickets")
@@ -233,11 +242,23 @@ export async function POST(req: Request) {
       await admin.from("live_queue_tickets").update({ guest_token: tokenToReturn }).eq("id", keep.id)
     }
 
+    let effectiveTicket = keep
+    if (availableCount > 0) {
+      const accepted = await autoAcceptWaitingLiveTicket(admin, { ticketId: keep.id })
+      if (accepted.ok) {
+        effectiveTicket = accepted.ticket
+      } else {
+        const current = await getCurrentLiveTicketForCase(admin, caseId)
+        if (current) effectiveTicket = current
+      }
+      tokenToReturn = effectiveTicket.guest_token ?? tokenToReturn ?? null
+    }
+
     return NextResponse.json({
       ok: true,
-      ticket: keep,
+      ticket: effectiveTicket,
       guestToken: tokenToReturn,
-      waitMinutes,
+      waitMinutes: effectiveTicket.status === "waiting" ? waitMinutes : 0,
       onlineCount,
       availableCount,
     })
@@ -265,10 +286,10 @@ export async function POST(req: Request) {
     .eq("status", "waiting")
     .order("created_at", { ascending: true })
 
-  const waitingList = Array.isArray(waitingNow) ? waitingNow : []
+  const waitingList: QueueTicket[] = Array.isArray(waitingNow) ? waitingNow : []
   if (waitingList.length > 1) {
     const keep = waitingList[0]
-    const dropIds = waitingList.slice(1).map((x: any) => x.id).filter(Boolean)
+    const dropIds = waitingList.slice(1).map((x) => x.id).filter(Boolean)
     if (dropIds.length) {
       await admin
         .from("live_queue_tickets")
@@ -285,7 +306,18 @@ export async function POST(req: Request) {
     await admin.from("live_queue_tickets").update({ guest_token: tokenToReturn }).eq("id", effectiveTicket.id)
   }
 
-  if (shouldSendAlert) {
+  if (availableCount > 0 && effectiveTicket?.status === "waiting") {
+    const accepted = await autoAcceptWaitingLiveTicket(admin, { ticketId: effectiveTicket.id })
+    if (accepted.ok) {
+      effectiveTicket = accepted.ticket
+    } else {
+      const current = await getCurrentLiveTicketForCase(admin, caseId)
+      if (current) effectiveTicket = current
+    }
+    tokenToReturn = effectiveTicket?.guest_token ?? tokenToReturn ?? null
+  }
+
+  if (shouldSendAlert && effectiveTicket?.status === "waiting") {
     try {
       const alert = await sendQueueAlert({
         caseId,
@@ -309,7 +341,7 @@ export async function POST(req: Request) {
     ok: true,
     ticket: effectiveTicket,
     guestToken: tokenToReturn,
-    waitMinutes,
+    waitMinutes: effectiveTicket?.status === "waiting" ? waitMinutes : 0,
     onlineCount,
     availableCount,
   })

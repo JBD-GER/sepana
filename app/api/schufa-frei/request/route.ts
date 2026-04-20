@@ -15,7 +15,6 @@ import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 export const runtime = "nodejs"
 
 const SOURCE = "website_schufa_frei"
-const DEFAULT_ADMIN_RECIPIENT = "info@sepana.de"
 
 function trimOrNull(value: unknown) {
   const trimmed = String(value ?? "").trim()
@@ -47,27 +46,6 @@ function normalizeNationalityGroup(value: unknown): SchufaFreeNationalityGroup {
 
 function normalizeEmploymentMode(value: unknown): SchufaFreeEmploymentMode {
   return String(value ?? "").trim().toLowerCase() === "hourly" ? "hourly" : "salary"
-}
-
-function parseAdminRecipients() {
-  const configured = [
-    process.env.PRIVATKREDIT_NOTIFY_TO,
-    process.env.ADMIN_NOTIFY_TO,
-    process.env.LIVE_QUEUE_ALERT_TO,
-    process.env.INVITE_ACCEPTED_NOTIFY_TO,
-  ]
-    .map((entry) => String(entry ?? "").trim())
-    .filter(Boolean)
-    .join(" ")
-
-  return Array.from(
-    new Set(
-      `${configured} ${DEFAULT_ADMIN_RECIPIENT}`
-        .split(/[;,\s]+/g)
-        .map((entry) => entry.trim().replace(/^["'<]+|[>"']+$/g, "").toLowerCase())
-        .filter((entry) => entry.includes("@"))
-    )
-  )
 }
 
 function nextExternalLeadId() {
@@ -149,57 +127,6 @@ async function updateLeadWithFallback(
 
     return query
   }
-}
-
-async function notifyAdmin(input: {
-  fullName: string
-  email: string
-  phone: string
-  birthDate: string
-  desiredAmount: number
-  termMonths: number
-  minimumIncomeRequired: number | null
-  eligible: boolean
-  incomeCheckPending: boolean
-  reason: string | null
-}) {
-  const recipients = parseAdminRecipients()
-  if (!recipients.length) return
-
-  const steps = [
-    `Ergebnis: ${input.eligible ? "positiv" : "negativ"}`,
-    `Name: ${input.fullName}`,
-    `E-Mail: ${input.email}`,
-    `Telefon: ${input.phone}`,
-    `Geburtsdatum: ${input.birthDate}`,
-    `Variante: ${input.desiredAmount.toLocaleString("de-DE")} EUR / ${input.termMonths} Monate`,
-    input.minimumIncomeRequired
-      ? `Erforderliches Mindestnetto: ${input.minimumIncomeRequired.toLocaleString("de-DE")} EUR`
-      : "Mindestnetto: laut Precheck nicht aufgeloest",
-    input.incomeCheckPending ? "Einkommen wird erst im Vollantrag abgefragt." : null,
-    input.reason ? `Begruendung: ${input.reason}` : null,
-  ].filter((entry): entry is string => Boolean(entry))
-
-  const html = buildEmailHtml({
-    title: input.eligible ? "Neue Vorpruefung: Kredit ohne Schufa" : "Negative Vorpruefung: Kredit ohne Schufa",
-    intro: input.eligible
-      ? "Es wurde eine neue erste Vorpruefung fuer Kredit ohne Schufa angelegt."
-      : "Es wurde eine neue Anfrage fuer Kredit ohne Schufa in der Vorpruefung abgelehnt.",
-    steps,
-    ctaLabel: "Zu den Faellen",
-    ctaUrl: `${String(process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.sepana.de").replace(/\/$/, "")}/advisor/faelle?product=schufa_frei`,
-    eyebrow: input.eligible ? "SEPANA - Neue Schufa-frei Anfrage" : "SEPANA - Negative Schufa-frei Vorpruefung",
-  })
-
-  await Promise.all(
-    recipients.map((to) =>
-      sendEmail({
-        to,
-        subject: input.eligible ? "Neue Vorpruefung: Kredit ohne Schufa" : "Negative Vorpruefung: Kredit ohne Schufa",
-        html,
-      }).catch(() => null)
-    )
-  )
 }
 
 async function notifyCustomer(input: { email: string; firstName: string | null }) {
@@ -365,21 +292,6 @@ export async function POST(req: Request) {
         console.error("Failed to persist rejected schufa-free precheck lead", insertedRejectedLead.error)
       }
 
-      await Promise.all([
-        notifyAdmin({
-          fullName: `${firstName} ${lastName}`.trim(),
-          email,
-          phone,
-          birthDate,
-          desiredAmount,
-          termMonths,
-          minimumIncomeRequired: precheck.minimumIncomeRequired,
-          eligible: false,
-          incomeCheckPending: precheck.incomeCheckPending,
-          reason: precheck.reason,
-        }),
-      ])
-
       return NextResponse.json(
         {
           ok: false,
@@ -499,18 +411,6 @@ export async function POST(req: Request) {
     const applicationHref = `/kredit-ohne-schufa/antrag?caseId=${encodeURIComponent(createdCase.caseId)}&caseRef=${encodeURIComponent(createdCase.caseRef)}&access=${encodeURIComponent(accessToken)}${account.existingAccount ? "&existing=1" : ""}`
 
     await Promise.all([
-      notifyAdmin({
-        fullName: `${firstName} ${lastName}`.trim(),
-        email,
-        phone,
-        birthDate,
-        desiredAmount,
-        termMonths,
-        minimumIncomeRequired: precheck.minimumIncomeRequired,
-        eligible: true,
-        incomeCheckPending: precheck.incomeCheckPending,
-        reason: null,
-      }),
       notifyCustomer({
         email,
         firstName,

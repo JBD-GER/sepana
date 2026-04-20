@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
+import { autoAcceptWaitingLiveTicket } from "@/lib/live/matchmaking"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const runtime = "nodejs"
@@ -28,5 +29,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true, isOnline: online })
+  let matchedTicket = null
+  if (online) {
+    const accepted = await autoAcceptWaitingLiveTicket(admin, { advisorId: user.id })
+    if (accepted.ok) {
+      matchedTicket = accepted.ticket
+    }
+  }
+
+  return NextResponse.json({ ok: true, isOnline: online, ticket: matchedTicket })
 }

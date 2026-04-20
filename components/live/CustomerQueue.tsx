@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
@@ -81,7 +81,7 @@ export default function CustomerQueue({
   const finalFactsTitle = factsTitle || "25 wissenswerte Infos zur Baufinanzierung"
   const finalFacts = Array.isArray(facts) && facts.length > 0 ? facts : BAUFI_FACTS
 
-  function fireWaitingRoomConversion() {
+  const fireWaitingRoomConversion = useCallback(() => {
     if (!trackWaitingRoomConversion) return
     if (conversionSentRef.current) return
     if (typeof window === "undefined") return
@@ -99,9 +99,9 @@ export default function CustomerQueue({
       trackPrivatkreditLeadConversion()
       conversionSentRef.current = true
     }
-  }
+  }, [caseId, trackWaitingRoomConversion])
 
-  async function joinQueue() {
+  const joinQueue = useCallback(async () => {
     const res = await fetch("/api/live/queue/join", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -132,7 +132,7 @@ export default function CustomerQueue({
     }
 
     return nextTicket
-  }
+  }, [caseId, fireWaitingRoomConversion, router])
 
   useEffect(() => {
     if (!caseId) return
@@ -146,18 +146,7 @@ export default function CustomerQueue({
     return () => {
       alive = false
     }
-  }, [caseId])
-
-  useEffect(() => {
-    if (ticket?.id && !guestToken) {
-      try {
-        const stored = localStorage.getItem(`live_guest_${ticket.id}`)
-        if (stored) setGuestToken(stored)
-      } catch {
-        // ignore
-      }
-    }
-  }, [ticket?.id, guestToken])
+  }, [caseId, joinQueue])
 
   useEffect(() => {
     leftRef.current = false
@@ -207,7 +196,17 @@ export default function CustomerQueue({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [supabase, ticket?.id, guestToken, router])
+  }, [supabase, ticket?.id, guestToken, router, joinQueue])
+
+  useEffect(() => {
+    if (!caseId || ticket?.status !== "waiting") return
+    const id = window.setInterval(() => {
+      void joinQueue()
+    }, 4000)
+    return () => {
+      window.clearInterval(id)
+    }
+  }, [caseId, ticket?.status, joinQueue])
 
   async function leaveQueue() {
     if (!ticket?.id) return

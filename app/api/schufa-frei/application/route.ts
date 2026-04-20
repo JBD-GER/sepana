@@ -16,6 +16,7 @@ import { syncPendingCaseDocumentsToSkag } from "@/lib/skag/sync"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const runtime = "nodejs"
+const DEFAULT_ADMIN_RECIPIENT = "info@sepana.de"
 
 function trimOrNull(value: unknown) {
   const trimmed = String(value ?? "").trim()
@@ -68,6 +69,27 @@ function normalizeNationality(value: unknown) {
   return normalized.length === 2 ? normalized : null
 }
 
+function parseAdminRecipients() {
+  const configured = [
+    process.env.PRIVATKREDIT_NOTIFY_TO,
+    process.env.ADMIN_NOTIFY_TO,
+    process.env.LIVE_QUEUE_ALERT_TO,
+    process.env.INVITE_ACCEPTED_NOTIFY_TO,
+  ]
+    .map((entry) => String(entry ?? "").trim())
+    .filter(Boolean)
+    .join(" ")
+
+  return Array.from(
+    new Set(
+      `${configured} ${DEFAULT_ADMIN_RECIPIENT}`
+        .split(/[;,\s]+/g)
+        .map((entry) => entry.trim().replace(/^["'<]+|[>"']+$/g, "").toLowerCase())
+        .filter((entry) => entry.includes("@"))
+    )
+  )
+}
+
 function resolveSiteOrigin(req: Request) {
   const configured = trimOrNull(process.env.NEXT_PUBLIC_SITE_URL)
   if (configured) {
@@ -76,6 +98,64 @@ function resolveSiteOrigin(req: Request) {
     } catch {}
   }
   return new URL(req.url).origin
+}
+
+async function notifyAdminSubmitted(input: {
+  caseId: string
+  caseRef: string | null
+  firstName: string
+  lastName: string
+  email: string
+  phonePrimary: string
+  dateOfBirth: string
+  loanAmountRequested: number | null
+  termMonths: number | null
+  netIncomeMonthly: number | null
+  professionLabel: string
+  uploadedDocumentCount: number
+  advisorCaseUrl: string
+}) {
+  const recipients = parseAdminRecipients()
+  if (!recipients.length) return
+
+  const steps = [
+    input.caseRef ? `Fall: ${input.caseRef}` : `Fall-ID: ${input.caseId}`,
+    `Name: ${`${input.firstName} ${input.lastName}`.trim()}`,
+    `E-Mail: ${input.email}`,
+    `Telefon: ${input.phonePrimary}`,
+    `Geburtsdatum: ${input.dateOfBirth}`,
+    input.loanAmountRequested && input.termMonths
+      ? `Anfrage: ${input.loanAmountRequested.toLocaleString("de-DE")} EUR / ${input.termMonths} Monate`
+      : null,
+    input.netIncomeMonthly ? `Nettoeinkommen: ${input.netIncomeMonthly.toLocaleString("de-DE")} EUR` : null,
+    input.professionLabel ? `Beruf: ${input.professionLabel}` : null,
+    `Dokumente bereits synchronisiert: ${input.uploadedDocumentCount}`,
+    "Der Vollantrag wurde erfolgreich abgesendet und an SEPANA uebermittelt.",
+  ].filter((entry): entry is string => Boolean(entry))
+
+  const html = buildEmailHtml({
+    title: "Neuer Vollantrag: Kredit ohne Schufa",
+    intro: input.caseRef
+      ? `Der Vollantrag fuer den Fall ${input.caseRef} wurde erfolgreich abgeschlossen.`
+      : "Ein Vollantrag fuer Kredit ohne Schufa wurde erfolgreich abgeschlossen.",
+    steps,
+    ctaLabel: "Fall ansehen",
+    ctaUrl: input.advisorCaseUrl,
+    eyebrow: "SEPANA - Schufa-frei Vollantrag",
+    supportNote: "Diese Nachricht wurde automatisch nach dem Abschluss des zweiten Formulars versendet.",
+  })
+
+  await Promise.all(
+    recipients.map((to) =>
+      sendEmail({
+        to,
+        subject: input.caseRef
+          ? `Neuer Vollantrag: Kredit ohne Schufa (${input.caseRef})`
+          : "Neuer Vollantrag: Kredit ohne Schufa",
+        html,
+      }).catch(() => null)
+    )
+  )
 }
 
 function isEmail(value: string | null) {
@@ -535,6 +615,7 @@ export async function POST(req: Request) {
     const documentSyncResults = await syncPendingCaseDocumentsToSkag(admin, caseId)
     const uploadedDocumentCount = documentSyncResults.filter((entry) => entry.ok).length
     const siteOrigin = resolveSiteOrigin(req)
+    const advisorCaseUrl = new URL(`/advisor/faelle/${encodeURIComponent(caseId)}`, siteOrigin).toString()
     const customerDashboardUrl = new URL(`/app/faelle/${encodeURIComponent(caseId)}#schufa-dokumente`, siteOrigin).toString()
 
     let emailSent = false
@@ -578,6 +659,22 @@ export async function POST(req: Request) {
     } else {
       emailError = "missing_customer_email"
     }
+
+    await notifyAdminSubmitted({
+      caseId,
+      caseRef,
+      firstName: String(firstName ?? ""),
+      lastName: String(lastName ?? ""),
+      email: String(email ?? ""),
+      phonePrimary: String(phonePrimary ?? ""),
+      dateOfBirth: String(dateOfBirth ?? ""),
+      loanAmountRequested: integerOrNull(mergedDetails.loan_amount_requested),
+      termMonths: integerOrNull(mergedDetails.term_months),
+      netIncomeMonthly,
+      professionLabel,
+      uploadedDocumentCount,
+      advisorCaseUrl,
+    }).catch(() => null)
 
     await logCaseEvent({
       caseId,

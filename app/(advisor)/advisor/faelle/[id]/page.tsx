@@ -27,7 +27,9 @@ import SchufaFreePostIdentPanel from "@/components/schufa-frei/SchufaFreePostIde
 import SchufaFreeProvisionPanel from "@/components/schufa-frei/SchufaFreeProvisionPanel"
 import SchufaFreeWorkspaceOverview from "@/components/schufa-frei/SchufaFreeWorkspaceOverview"
 import SchufaFreeApplicationReminderCard from "@/components/schufa-frei/SchufaFreeApplicationReminderCard"
+import { getSchufaFreeCompletedOtherApplicationsByCaseIds } from "@/lib/schufa-frei/applicationReminder"
 import { isSchufaFreeProvisionPaid } from "@/lib/schufa-frei/provisionInvoice"
+import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 type CaseApplicant = {
   first_name?: string | null
@@ -399,6 +401,9 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   const caseType = rawCaseType === "konsum" ? "konsum" : rawCaseType === "schufa_frei" ? "schufa_frei" : "baufi"
   const isKonsum = caseType === "konsum"
   const isSchufaFree = caseType === "schufa_frei"
+  const otherCompletedApplication = isSchufaFree
+    ? (await getSchufaFreeCompletedOtherApplicationsByCaseIds(supabaseAdmin(), [c.id])).get(c.id) ?? null
+    : null
   const previewRow = data.offer_previews?.[0] ?? null
   let previewPayload: PreviewPayload | null = null
   if (typeof previewRow?.payload === "string") {
@@ -581,6 +586,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
               caseId={c.id}
               completedApplicationAt={schufaData?.details?.completed_application_at ?? null}
               submittedToSkagAt={schufaData?.details?.submitted_to_skag_at ?? null}
+              otherCompletedApplication={otherCompletedApplication}
             />
           </section>
 
