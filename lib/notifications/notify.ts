@@ -381,7 +381,7 @@ export function buildEmailHtml(opts: {
                                 >
                                   <span style="white-space:nowrap;">
                                     Telefon:
-                                    <span style="color:#0f172a; font-weight:700; white-space:nowrap;">05035&nbsp;3169996</span>
+                                    <span style="color:#0f172a; font-weight:700; white-space:nowrap;">+49&nbsp;5761&nbsp;8429660</span>
                                   </span>
                                   <br />
                                   <span style="white-space:nowrap;">

@@ -115,8 +115,8 @@ export default function PvQuickStartForm() {
       </p>
       <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
         Alternativ direkt anrufen:{" "}
-        <a href="tel:050353169996" className="font-semibold underline underline-offset-2">
-          05035 3169996
+        <a href="tel:+4957618429660" className="font-semibold underline underline-offset-2">
+          +49 5761 8429660
         </a>
       </div>
 

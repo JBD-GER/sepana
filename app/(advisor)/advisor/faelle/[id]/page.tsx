@@ -26,6 +26,7 @@ import SchufaFreePrecheckDecisionPanel from "@/components/schufa-frei/SchufaFree
 import SchufaFreePostIdentPanel from "@/components/schufa-frei/SchufaFreePostIdentPanel"
 import SchufaFreeProvisionPanel from "@/components/schufa-frei/SchufaFreeProvisionPanel"
 import SchufaFreeWorkspaceOverview from "@/components/schufa-frei/SchufaFreeWorkspaceOverview"
+import SchufaFreeApplicationReminderCard from "@/components/schufa-frei/SchufaFreeApplicationReminderCard"
 import { isSchufaFreeProvisionPaid } from "@/lib/schufa-frei/provisionInvoice"
 
 type CaseApplicant = {
@@ -77,6 +78,8 @@ type SchufaDetails = {
   employer_name?: string | null
   bank_name?: string | null
   iban?: string | null
+  completed_application_at?: string | null
+  submitted_to_skag_at?: string | null
 }
 
 type SchufaSync = {
@@ -566,6 +569,20 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           />
 
           <SchufaFreeDetailsOverview applicant={leadApplicant} details={schufaData?.details ?? null} />
+
+          <section id="schufa-antrag-erinnerung" className="space-y-3">
+            <SchufaFreeIntroCard
+              eyebrow="Antrag fortsetzen"
+              title="Offenes Zweitformular erinnern"
+              description="Wenn der Kunde nach positiver Vorprüfung das zweite Formular noch nicht abgeschlossen hat, können Sie hier direkt eine Erinnerung mit Link zum offenen Antrag versenden."
+              tone="slate"
+            />
+            <SchufaFreeApplicationReminderCard
+              caseId={c.id}
+              completedApplicationAt={schufaData?.details?.completed_application_at ?? null}
+              submittedToSkagAt={schufaData?.details?.submitted_to_skag_at ?? null}
+            />
+          </section>
 
           <section id="schufa-vorpruefung" className="space-y-3">
             <SchufaFreeIntroCard

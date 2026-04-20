@@ -116,8 +116,8 @@ export default function WeddingQuickStartForm() {
 
       <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50/70 px-4 py-3 text-sm text-rose-900">
         Alternativ direkt anrufen:{" "}
-        <a href="tel:050353169996" className="font-semibold underline underline-offset-2">
-          05035 3169996
+        <a href="tel:+4957618429660" className="font-semibold underline underline-offset-2">
+          +49 5761 8429660
         </a>
       </div>
 

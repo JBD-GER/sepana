@@ -3,6 +3,7 @@ import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import { createCaseFromLead, ensureCustomerAccount, pickStickyAdvisorId, type LeadRow } from "@/lib/admin/leads"
 import { createPublicCaseAccessToken } from "@/lib/onlinekredit/publicAccess"
 import {
+  getSchufaFreeAgeYears,
   getSchufaFreeEmploymentMonthsSince,
   runSchufaFreePrecheck,
   type SchufaFreeEmploymentMode,
@@ -154,6 +155,7 @@ async function notifyAdmin(input: {
   fullName: string
   email: string
   phone: string
+  birthDate: string
   desiredAmount: number
   termMonths: number
   minimumIncomeRequired: number | null
@@ -169,6 +171,7 @@ async function notifyAdmin(input: {
     `Name: ${input.fullName}`,
     `E-Mail: ${input.email}`,
     `Telefon: ${input.phone}`,
+    `Geburtsdatum: ${input.birthDate}`,
     `Variante: ${input.desiredAmount.toLocaleString("de-DE")} EUR / ${input.termMonths} Monate`,
     input.minimumIncomeRequired
       ? `Erforderliches Mindestnetto: ${input.minimumIncomeRequired.toLocaleString("de-DE")} EUR`
@@ -234,6 +237,7 @@ export async function POST(req: Request) {
     const spouseFirstName = spouseRelevant ? trimOrNull(body?.spouseFirstName) : null
     const spouseBirthName = spouseRelevant ? trimOrNull(body?.spouseBirthName) : null
     const spouseBirthDate = spouseRelevant ? trimOrNull(body?.spouseBirthDate) : null
+    const birthDate = trimOrNull(body?.birthDate)
     const desiredAmount = parseAmount(body?.desiredAmount)
     const termMonths = Number(body?.termMonths ?? 0)
     const dependentChildrenCount = Number(body?.dependentChildrenCount ?? 0)
@@ -254,7 +258,7 @@ export async function POST(req: Request) {
     if (!isPhone(phone)) {
       return NextResponse.json({ ok: false, error: "Telefonnummer ist ungueltig." }, { status: 400 })
     }
-    if (!desiredAmount || !termMonths || !employmentStartDate) {
+    if (!desiredAmount || !termMonths || !employmentStartDate || !birthDate) {
       return NextResponse.json({ ok: false, error: "Bitte alle Vorpruefungsfelder ausfuellen." }, { status: 400 })
     }
     if (!acceptsPrivacyPolicy) {
@@ -271,6 +275,13 @@ export async function POST(req: Request) {
         { status: 400 }
       )
     }
+    const applicantAgeYears = getSchufaFreeAgeYears(birthDate)
+    if (applicantAgeYears === null) {
+      return NextResponse.json(
+        { ok: false, error: "Bitte ein gueltiges Geburtsdatum angeben." },
+        { status: 400 }
+      )
+    }
 
     const precheck = runSchufaFreePrecheck(
       {
@@ -279,6 +290,7 @@ export async function POST(req: Request) {
         dependentChildrenCount,
         nationalityGroup,
         employmentMode,
+        birthDate,
         employmentStartDate,
         employmentMonthsCurrent,
         netIncomeMonthly,
@@ -290,6 +302,8 @@ export async function POST(req: Request) {
     const now = new Date().toISOString()
     const notes = [
       `Vorpruefung ${precheck.eligible ? "positiv" : "negativ"} fuer ${desiredAmount.toLocaleString("de-DE")} EUR / ${termMonths} Monate`,
+      `Geburtsdatum: ${birthDate}`,
+      `Alter zum Zeitpunkt der Vorpruefung: ${applicantAgeYears} Jahre`,
       precheck.minimumIncomeRequired
         ? `Mindestnetto: ${precheck.minimumIncomeRequired.toLocaleString("de-DE")} EUR`
         : null,
@@ -315,6 +329,7 @@ export async function POST(req: Request) {
       email,
       phone,
       phone_mobile: phone,
+      birth_date: birthDate,
       product_name: "Kredit ohne Schufa",
       lead_case_type: "schufa_frei",
       product_price: desiredAmount,
@@ -327,6 +342,7 @@ export async function POST(req: Request) {
         page: "/kredit-ohne-schufa",
         nationality_group: nationalityGroup,
         sigma_existing_customer: false,
+        birth_date: birthDate,
         employment_mode: employmentMode,
         employment_start_date: employmentStartDate,
         employment_months_current: employmentMonthsCurrent,
@@ -354,6 +370,7 @@ export async function POST(req: Request) {
           fullName: `${firstName} ${lastName}`.trim(),
           email,
           phone,
+          birthDate,
           desiredAmount,
           termMonths,
           minimumIncomeRequired: precheck.minimumIncomeRequired,
@@ -403,7 +420,7 @@ export async function POST(req: Request) {
       phone,
         phone_mobile: phone,
         phone_work: null,
-        birth_date: null,
+        birth_date: birthDate,
         marital_status: null,
         employment_status: null,
         employment_type: employmentMode,
@@ -451,6 +468,7 @@ export async function POST(req: Request) {
         family_situation: familySituation,
         profession: resolveSchufaFreeProfessionFromEmploymentMode(employmentMode),
         profession_begin_date: employmentStartDate,
+        date_of_birth: birthDate,
         nationality: nationalityGroup === "de" ? "DE" : null,
         email,
         phone_primary: phone,
@@ -485,6 +503,7 @@ export async function POST(req: Request) {
         fullName: `${firstName} ${lastName}`.trim(),
         email,
         phone,
+        birthDate,
         desiredAmount,
         termMonths,
         minimumIncomeRequired: precheck.minimumIncomeRequired,

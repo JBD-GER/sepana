@@ -29,7 +29,7 @@ export default function AgbPage() {
       <Section title="1. Anbieter">
         <p>Flaaq Holding GmbH, Dammstr. 6G, 30890 Barsinghausen</p>
         <p>E-Mail: info@sepana.de</p>
-        <p>Telefon: 05035 3169996</p>
+        <p>Telefon: +49 5761 8429660</p>
       </Section>
 
       <Section title="2. Geltungsbereich">

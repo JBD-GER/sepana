@@ -316,20 +316,20 @@ async function sendCustomerConfirmation(opts: {
         opts.callbackTime
           ? `Wir orientieren uns an Ihrer Wunschzeit: ${opts.callbackTime}.`
           : "Wir melden uns in der Regel zeitnah telefonisch bei Ihnen.",
-        "Bei Rückfragen erreichen Sie uns auch direkt unter 05035 3169996.",
+        "Bei Rückfragen erreichen Sie uns auch direkt unter +49 5761 8429660.",
       ]
     }
     if (opts.requestType === "quick_start") {
       return [
         "Wir sichten Ihre Schnellstart-Anfrage und melden uns in der Regel innerhalb von 24 Stunden.",
         "Falls eine Telefonnummer vorliegt, stimmen wir die nächsten Schritte gern direkt telefonisch ab.",
-        "Bei Rückfragen erreichen Sie uns unter 05035 3169996.",
+        "Bei Rückfragen erreichen Sie uns unter +49 5761 8429660.",
       ]
     }
     return [
       "Wir prüfen Ihre Angaben und melden uns mit einer klaren Einschätzung.",
       "Auf Wunsch prüfen wir Ihre Anfrage direkt live und beantragen ohne Umwege.",
-      "Bei Rückfragen erreichen Sie uns unter 05035 3169996.",
+      "Bei Rückfragen erreichen Sie uns unter +49 5761 8429660.",
     ]
   })()
 

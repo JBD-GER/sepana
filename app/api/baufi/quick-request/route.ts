@@ -188,7 +188,7 @@ async function sendCustomerConfirmation(email: string) {
     steps: [
       "Wir melden uns zeitnah bei Ihnen.",
       "Im Gespräch klären wir Restschuld, Timing und Forward-Optionen.",
-      "Bei Rückfragen erreichen Sie uns unter 05035 3169996.",
+      "Bei Rückfragen erreichen Sie uns unter +49 5761 8429660.",
     ],
     preheader: subject,
     eyebrow: "SEPANA - Bestätigung",

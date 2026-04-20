@@ -226,7 +226,7 @@ const EMPTY_QUICK_EDIT: QuickEditState = {
   bank_bic: "",
 }
 
-const DEFAULT_CUSTOMER_CONTACT_PHONE = "05035 3169996"
+const DEFAULT_CUSTOMER_CONTACT_PHONE = "+49 5761 8429660"
 
 function trimOrNull(value: unknown) {
   const trimmed = String(value ?? "").trim()

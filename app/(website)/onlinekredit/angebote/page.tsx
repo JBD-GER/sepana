@@ -427,7 +427,7 @@ export default async function OnlinekreditOffersPage({
         accountCheckRestrictedReason={accountCheckRestrictedReason}
         initialAccountCheckCompleted={accountCheckCompleted}
         initialTechnicallyBlockedOfferIds={technicalBlockedOfferIds}
-        contactPhone="05035 3169996"
+        contactPhone="+49 5761 8429660"
         surface="public_onlinekredit"
         emptyStateMessage="Aktuell liegt noch kein auswählbares SEPANA-Angebot vor. Passe deine Angaben an und berechne danach erneut."
       />

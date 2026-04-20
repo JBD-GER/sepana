@@ -95,7 +95,7 @@ const PARTNER_CONTACT = {
   name: "Hr. Pfad",
   role: "Ansprechpartner Tippgeber-Partnerschaften",
   email: "c.pfad@sepana.de",
-  phone: "05035 3169996",
+  phone: "+49 5761 8429660",
   response: "Rückmeldung i. d. R. innerhalb von 48 Stunden",
   imageSrc: "/pfad.png",
   imageAlt: "Herr Pfad",

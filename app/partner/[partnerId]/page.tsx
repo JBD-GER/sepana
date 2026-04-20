@@ -7,7 +7,7 @@ import { getActiveTippgeberProfileByUserId } from "@/lib/tippgeber/service"
 import PartnerLegalFooter from "./PartnerLegalFooter"
 
 const CONTACT_EMAIL = "info@sepana.de"
-const CONTACT_PHONE = "05035 3169996"
+const CONTACT_PHONE = "+49 5761 8429660"
 
 const TEAM_MEMBERS = [
   {

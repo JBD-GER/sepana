@@ -7,6 +7,7 @@ export type SchufaFreePrecheckInput = {
   dependentChildrenCount: number
   nationalityGroup: SchufaFreeNationalityGroup
   employmentMode: SchufaFreeEmploymentMode
+  birthDate?: string | null
   employmentMonthsCurrent?: number | null
   employmentStartDate?: string | null
   netIncomeMonthly?: number | null
@@ -36,6 +37,7 @@ export type SchufaFreePrecheckOptions = {
 
 export const SCHUFA_FREE_AMOUNT_OPTIONS = [3500, 5000, 7500, 10000] as const
 export const SCHUFA_FREE_TERM_OPTIONS = [40] as const
+export const SCHUFA_FREE_MAX_AGE_YEARS = 65
 
 const INCOME_MATRIX: Record<SchufaFreeVariantKey, number[]> = {
   "3500_40": [1870, 2360, 2740, 3160, 3670, 4530],
@@ -96,6 +98,26 @@ export function getSchufaFreeEmploymentMonthsSince(value: unknown, referenceDate
   if (referenceDay < startDay) diffMonths -= 1
 
   return diffMonths >= 0 ? diffMonths : null
+}
+
+export function getSchufaFreeAgeYears(value: unknown, referenceDate = new Date()) {
+  const isoDate = normalizeIsoDate(value)
+  if (!isoDate) return null
+
+  const [yearRaw, monthRaw, dayRaw] = isoDate.split("-")
+  const birthYear = Number(yearRaw)
+  const birthMonth = Number(monthRaw)
+  const birthDay = Number(dayRaw)
+  const referenceYear = referenceDate.getUTCFullYear()
+  const referenceMonth = referenceDate.getUTCMonth() + 1
+  const referenceDay = referenceDate.getUTCDate()
+
+  let ageYears = referenceYear - birthYear
+  if (referenceMonth < birthMonth || (referenceMonth === birthMonth && referenceDay < birthDay)) {
+    ageYears -= 1
+  }
+
+  return ageYears >= 0 ? ageYears : null
 }
 
 function resolveVariantKey(amount: number, termMonths: number): SchufaFreeVariantKey | null {
@@ -175,6 +197,7 @@ export function runSchufaFreePrecheck(
     input.netIncomeMonthly === null || input.netIncomeMonthly === undefined
       ? null
       : normalizeInteger(input.netIncomeMonthly)
+  const applicantAgeYears = getSchufaFreeAgeYears(input.birthDate)
   const variantKey = resolveVariantKey(desiredAmount, termMonths)
   const employmentMonthsCurrent = resolveEmploymentMonthsCurrent(input)
 
@@ -197,6 +220,34 @@ export function runSchufaFreePrecheck(
     variantKey,
     nationalityGroup: input.nationalityGroup,
   })
+
+  if (applicantAgeYears === null) {
+    return {
+      eligible: false,
+      variantKey,
+      normalizedAmount: desiredAmount,
+      normalizedTermMonths: termMonths,
+      employmentMonthsCurrent,
+      minimumIncomeRequired,
+      employmentRequirementText: employmentText,
+      incomeCheckPending: !requireIncomeCheck,
+      reason: "Bitte das Geburtsdatum gueltig angeben.",
+    }
+  }
+
+  if (applicantAgeYears > SCHUFA_FREE_MAX_AGE_YEARS) {
+    return {
+      eligible: false,
+      variantKey,
+      normalizedAmount: desiredAmount,
+      normalizedTermMonths: termMonths,
+      employmentMonthsCurrent,
+      minimumIncomeRequired,
+      employmentRequirementText: employmentText,
+      incomeCheckPending: !requireIncomeCheck,
+      reason: `Diese Vorpruefung ist nur bis einschliesslich ${SCHUFA_FREE_MAX_AGE_YEARS} Jahre moeglich.`,
+    }
+  }
 
   if (minimumIncomeRequired === null) {
     return {

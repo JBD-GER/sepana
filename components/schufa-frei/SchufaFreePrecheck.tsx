@@ -93,6 +93,7 @@ export default function SchufaFreePrecheck() {
     lastName: "",
     email: "",
     phone: "",
+    birthDate: "",
     familySituation: "1",
     desiredAmount: "3500",
     termMonths: "40",
@@ -127,6 +128,7 @@ export default function SchufaFreePrecheck() {
       nationalityGroup:
         form.nationalityGroup === "eu_ch" ? "eu_ch" : form.nationalityGroup === "other" ? "other" : "de",
       employmentMode: form.employmentMode === "hourly" ? "hourly" : "salary",
+      birthDate: form.birthDate,
       employmentStartDate: form.employmentStartDate,
     },
     { requireIncomeCheck: false },
@@ -286,6 +288,16 @@ export default function SchufaFreePrecheck() {
               />
             </label>
             <label className="min-w-0 text-sm text-slate-700">
+              Geburtsdatum
+              <input
+                type="date"
+                value={form.birthDate}
+                autoComplete="bday"
+                onChange={(event) => setForm((current) => ({ ...current, birthDate: event.target.value }))}
+                className={FIELD_CLASS}
+              />
+            </label>
+            <label className="min-w-0 text-sm text-slate-700">
               Kreditsumme
               <select
                 value={form.desiredAmount}
@@ -364,7 +376,7 @@ export default function SchufaFreePrecheck() {
                 <option value="hourly">Stundenlohn</option>
               </select>
             </label>
-            <label className="min-w-0 text-sm text-slate-700 sm:col-span-2">
+            <label className="min-w-0 text-sm text-slate-700">
               Beim aktuellen Arbeitgeber seit
               <input
                 type="date"

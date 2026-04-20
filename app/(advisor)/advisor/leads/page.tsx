@@ -1,8 +1,9 @@
-﻿import Link from "next/link"
+import Link from "next/link"
+import SchufaFreeApplicationReminderCard from "@/components/schufa-frei/SchufaFreeApplicationReminderCard"
 import { requireAdvisor } from "@/lib/advisor/requireAdvisor"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
-type ProductTab = "baufi" | "konsum"
+type ProductTab = "baufi" | "konsum" | "schufa_frei"
 
 type LeadRow = {
   id: string
@@ -26,6 +27,24 @@ type LeadRow = {
   notes: string | null
 }
 
+type LinkedCaseRow = {
+  id: string
+  case_ref: string | null
+  status: string | null
+  case_type: string | null
+}
+
+type SchufaDetailsRow = {
+  case_id: string
+  completed_application_at: string | null
+  submitted_to_skag_at: string | null
+}
+
+type ReminderLogRow = {
+  case_id: string | null
+  created_at: string
+}
+
 function isMissingLeadCaseTypeColumnError(error: unknown) {
   const anyError = error as { code?: string; message?: string } | null
   if (!anyError) return false
@@ -34,23 +53,45 @@ function isMissingLeadCaseTypeColumnError(error: unknown) {
   return msg.includes("lead_case_type") && (msg.includes("column") || msg.includes("exist"))
 }
 
+function isMissingNotificationLogTableError(error: unknown) {
+  const anyError = error as { code?: string; message?: string } | null
+  if (!anyError) return false
+  if (anyError.code === "42P01") return true
+  const msg = String(anyError.message ?? "").toLowerCase()
+  return msg.includes("notification_log") && (msg.includes("relation") || msg.includes("table") || msg.includes("exist"))
+}
+
 function normalizeProduct(raw: string | string[] | undefined): ProductTab {
   const value = Array.isArray(raw) ? raw[0] : raw
-  return String(value ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
+  const normalized = String(value ?? "").trim().toLowerCase()
+  if (normalized === "konsum") return "konsum"
+  if (normalized === "schufa_frei" || normalized === "schufa-frei") return "schufa_frei"
+  return "baufi"
 }
 
 function resolveLeadType(lead: Pick<LeadRow, "lead_case_type" | "product_name">): ProductTab {
   const explicit = String(lead.lead_case_type ?? "").trim().toLowerCase()
+  if (explicit === "schufa_frei" || explicit === "schufa-frei") return "schufa_frei"
   if (explicit === "konsum") return "konsum"
   if (explicit === "baufi") return "baufi"
 
   const product = String(lead.product_name ?? "").trim().toLowerCase()
+  if (
+    product.includes("ohne schufa") ||
+    product.includes("schufa-frei") ||
+    product.includes("schufafrei") ||
+    product.includes("sigma")
+  ) {
+    return "schufa_frei"
+  }
   if (product.includes("privatkredit") || product.includes("ratenkredit") || product.includes("konsum")) return "konsum"
   return "baufi"
 }
 
 function productLabel(type: ProductTab) {
-  return type === "konsum" ? "Privatkredit" : "Baufinanzierung"
+  if (type === "konsum") return "Privatkredit"
+  if (type === "schufa_frei") return "Kredit ohne Schufa"
+  return "Baufinanzierung"
 }
 
 function dt(value: string | null | undefined) {
@@ -63,6 +104,51 @@ function eur(value: number | null | undefined) {
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(
     Number(value)
   )
+}
+
+function resolveSchufaLeadProgress(
+  lead: Pick<LeadRow, "linked_case_id" | "status">,
+  details: SchufaDetailsRow | null | undefined,
+) {
+  const status = String(lead.status ?? "").trim().toLowerCase()
+
+  if (!lead.linked_case_id) {
+    if (status === "precheck_rejected") {
+      return {
+        label: "Vorprüfung negativ",
+        hint: "Für diesen Lead wurde kein weiterer Schufa-frei-Fall angelegt.",
+        toneClass: "border-rose-200 bg-rose-50 text-rose-900",
+      }
+    }
+
+    return {
+      label: "Noch kein Fall verknüpft",
+      hint: "Die Vorprüfung hat noch keinen weiterführenden Fall erzeugt.",
+      toneClass: "border-amber-200 bg-amber-50 text-amber-900",
+    }
+  }
+
+  if (details?.submitted_to_skag_at) {
+    return {
+      label: "Antrag abgeschlossen",
+      hint: `An SEPANA übermittelt: ${dt(details.submitted_to_skag_at)}`,
+      toneClass: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    }
+  }
+
+  if (details?.completed_application_at) {
+    return {
+      label: "Zweitformular abgeschlossen",
+      hint: `Vom Kunden ausgefüllt: ${dt(details.completed_application_at)}`,
+      toneClass: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    }
+  }
+
+  return {
+    label: "Zweitformular offen",
+    hint: "Der Kunde hat den Schufa-frei-Antrag nach der Vorprüfung noch nicht vervollständigt.",
+    toneClass: "border-amber-200 bg-amber-50 text-amber-900",
+  }
 }
 
 export default async function AdvisorLeadsPage({
@@ -108,13 +194,50 @@ export default async function AdvisorLeadsPage({
 
   const typedLeads = leadsRaw.filter((lead) => resolveLeadType(lead) === product)
   const linkedCaseIds = Array.from(new Set(typedLeads.map((lead) => lead.linked_case_id).filter(Boolean))) as string[]
+
   const { data: linkedCases } = linkedCaseIds.length
     ? await admin.from("cases").select("id,case_ref,status,case_type").in("id", linkedCaseIds)
-    : { data: [] as Array<{ id: string; case_ref: string | null; status: string | null; case_type: string | null }> }
+    : { data: [] as LinkedCaseRow[] }
 
   const caseById = new Map<string, { case_ref: string | null; status: string | null; case_type: string | null }>()
-  for (const row of linkedCases ?? []) {
-    caseById.set(row.id, { case_ref: row.case_ref ?? null, status: row.status ?? null, case_type: row.case_type ?? null })
+  for (const row of (linkedCases ?? []) as LinkedCaseRow[]) {
+    caseById.set(row.id, {
+      case_ref: row.case_ref ?? null,
+      status: row.status ?? null,
+      case_type: row.case_type ?? null,
+    })
+  }
+
+  const [schufaDetailsResult, reminderLogResult] =
+    product === "schufa_frei" && linkedCaseIds.length
+      ? await Promise.all([
+          admin
+            .from("case_schufa_free_details")
+            .select("case_id,completed_application_at,submitted_to_skag_at")
+            .in("case_id", linkedCaseIds),
+          admin
+            .from("notification_log")
+            .select("case_id,created_at")
+            .eq("type", "schufa_free_application_reminder_sent")
+            .in("case_id", linkedCaseIds)
+            .order("created_at", { ascending: false }),
+        ])
+      : [
+          { data: [] as SchufaDetailsRow[], error: null as { message?: string } | null },
+          { data: [] as ReminderLogRow[], error: null as { message?: string } | null },
+        ]
+
+  const schufaDetailsByCaseId = new Map<string, SchufaDetailsRow>()
+  for (const row of (schufaDetailsResult.data ?? []) as SchufaDetailsRow[]) {
+    schufaDetailsByCaseId.set(row.case_id, row)
+  }
+
+  const lastReminderByCaseId = new Map<string, string>()
+  if (!reminderLogResult.error || isMissingNotificationLogTableError(reminderLogResult.error)) {
+    for (const row of (reminderLogResult.data ?? []) as ReminderLogRow[]) {
+      if (!row.case_id || lastReminderByCaseId.has(row.case_id)) continue
+      lastReminderByCaseId.set(row.case_id, row.created_at)
+    }
   }
 
   return (
@@ -155,6 +278,16 @@ export default async function AdvisorLeadsPage({
           >
             Privatkredit
           </Link>
+          <Link
+            href="/advisor/leads?product=schufa_frei"
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+              product === "schufa_frei"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            Kredit ohne Schufa
+          </Link>
         </div>
       </div>
 
@@ -174,6 +307,7 @@ export default async function AdvisorLeadsPage({
                 <th className="px-4 py-3 font-medium text-slate-700">Produkt</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Status</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Fall</th>
+                {product === "schufa_frei" ? <th className="px-4 py-3 font-medium text-slate-700">Aktion</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -182,6 +316,9 @@ export default async function AdvisorLeadsPage({
                 const phone = lead.phone_mobile || lead.phone || lead.phone_work || "-"
                 const caseMeta = lead.linked_case_id ? caseById.get(lead.linked_case_id) : null
                 const caseRef = caseMeta?.case_ref ?? (lead.linked_case_id ? lead.linked_case_id.slice(0, 8) : null)
+                const schufaDetails = lead.linked_case_id ? schufaDetailsByCaseId.get(lead.linked_case_id) ?? null : null
+                const schufaProgress = product === "schufa_frei" ? resolveSchufaLeadProgress(lead, schufaDetails) : null
+                const lastReminderAt = lead.linked_case_id ? lastReminderByCaseId.get(lead.linked_case_id) ?? null : null
 
                 return (
                   <tr key={lead.id} className="border-b border-slate-200/60 last:border-0 align-top hover:bg-slate-50/60">
@@ -202,8 +339,16 @@ export default async function AdvisorLeadsPage({
                       {lead.loan_purpose ? <div className="text-xs text-slate-500">{lead.loan_purpose}</div> : null}
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      <div className="font-medium text-slate-900">{lead.status || "new"}</div>
+                      <div className="font-medium text-slate-900">
+                        {product === "schufa_frei" ? schufaProgress?.label ?? (lead.status || "new") : lead.status || "new"}
+                      </div>
                       <div className="text-xs text-slate-500">Letztes Event: {dt(lead.last_event_at)}</div>
+                      {schufaProgress ? (
+                        <div className={`mt-2 rounded-xl border px-3 py-2 text-xs ${schufaProgress.toneClass}`}>
+                          <div className="font-semibold">{schufaProgress.label}</div>
+                          <div className="mt-1">{schufaProgress.hint}</div>
+                        </div>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3 text-slate-700">
                       {caseRef && lead.linked_case_id ? (
@@ -220,13 +365,28 @@ export default async function AdvisorLeadsPage({
                         <span className="text-xs text-amber-700">Noch kein Fall verknüpft</span>
                       )}
                     </td>
+                    {product === "schufa_frei" ? (
+                      <td className="px-4 py-3 text-slate-700">
+                        {lead.linked_case_id ? (
+                          <SchufaFreeApplicationReminderCard
+                            caseId={lead.linked_case_id}
+                            completedApplicationAt={schufaDetails?.completed_application_at ?? null}
+                            submittedToSkagAt={schufaDetails?.submitted_to_skag_at ?? null}
+                            lastSentAt={lastReminderAt}
+                            compact
+                          />
+                        ) : (
+                          <span className="text-xs text-slate-400">Keine Aktion möglich</span>
+                        )}
+                      </td>
+                    ) : null}
                   </tr>
                 )
               })}
 
               {typedLeads.length === 0 && !error ? (
                 <tr>
-                  <td className="px-4 py-6 text-slate-500" colSpan={5}>
+                  <td className="px-4 py-6 text-slate-500" colSpan={product === "schufa_frei" ? 6 : 5}>
                     Keine zugewiesenen Leads in {productLabel(product)} gefunden.
                   </td>
                 </tr>
@@ -238,5 +398,3 @@ export default async function AdvisorLeadsPage({
     </div>
   )
 }
-
-

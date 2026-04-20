@@ -13,7 +13,7 @@ export const SCHUFA_FREE_PROVISION_COMPANY = {
   street: "Dammstr. 6G",
   city: "30890 Barsinghausen",
   email: "info@sepana.de",
-  phone: "05035 3169996",
+  phone: "+49 5761 8429660",
   vatId: "DE352217621",
   registrationNumber: "D-W-133-TNSL-07",
 } as const

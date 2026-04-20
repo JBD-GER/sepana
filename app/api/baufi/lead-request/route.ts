@@ -322,7 +322,7 @@ async function sendCustomerConfirmation(opts: {
     steps: [
       `Wir prüfen Ihren Finanzierungsbedarf von ${formatAmount(opts.financingNeed)} (${PURPOSE_LABELS[opts.purpose]}).`,
       "Ein Berater meldet sich zeitnah mit einer ersten Einschätzung bei Ihnen.",
-      "Wenn Sie Rückfragen haben, erreichen Sie uns unter 05035 3169996.",
+      "Wenn Sie Rückfragen haben, erreichen Sie uns unter +49 5761 8429660.",
     ],
     preheader: subject,
     eyebrow: "SEPANA - Bestätigung",
