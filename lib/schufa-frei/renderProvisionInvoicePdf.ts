@@ -80,7 +80,6 @@ function drawRightAlignedText(
 export async function renderSchufaFreeProvisionInvoicePdf(input: {
   invoiceNumber: string
   createdAt: string
-  caseId: string
   caseRef: string
   paymentReference: string
   recipientName: string | null
@@ -133,7 +132,6 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
   page.drawText(recipientCityLine, { x: 330, y: recipientTop - 48, size: 10, font })
   page.drawText(input.recipientEmail || "-", { x: 330, y: recipientTop - 64, size: 10, font })
   page.drawText(`Fallnummer: ${input.caseRef}`, { x: 330, y: recipientTop - 80, size: 10, font })
-  page.drawText(`Fall-ID: ${input.caseId}`, { x: 330, y: recipientTop - 96, size: 10, font })
 
   const summaryX = 330
   const summaryWidth = 225

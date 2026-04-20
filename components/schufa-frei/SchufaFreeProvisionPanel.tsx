@@ -88,7 +88,7 @@ export default function SchufaFreeProvisionPanel({
   const { netAmount, vatAmount, grossAmount } = getSchufaFreeProvisionBreakdown(effectiveLoanAmount)
   const invoiceHref = invoice?.id ? `/api/app/cases/invoices/${invoice.id}` : null
   const invoiceNumber = getSchufaFreeProvisionInvoiceNumber(invoice?.invoice_number)
-  const paymentReference = buildSchufaFreeProvisionPaymentReference(invoiceNumber, caseId) ?? caseRef ?? invoiceNumber
+  const paymentReference = buildSchufaFreeProvisionPaymentReference(invoiceNumber, caseRef) ?? invoiceNumber
 
   async function runAction(action: "send" | "mark_paid" | "mark_refunded" | "mark_sent") {
     if (!caseId) {

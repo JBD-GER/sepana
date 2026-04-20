@@ -36,16 +36,16 @@ export function getSchufaFreeProvisionInvoiceNumber(invoiceNumber: unknown) {
 
 export function buildSchufaFreeProvisionPaymentReference(
   invoiceNumber: string | null | undefined,
-  caseId: string | null | undefined
+  caseRef: string | null | undefined
 ) {
   const normalizedInvoiceNumber = trimOrNull(invoiceNumber)
-  const normalizedCaseId = trimOrNull(caseId)
+  const normalizedCaseRef = trimOrNull(caseRef)
 
-  if (normalizedInvoiceNumber && normalizedCaseId) {
-    return `${normalizedInvoiceNumber} ${normalizedCaseId}`
+  if (normalizedInvoiceNumber && normalizedCaseRef) {
+    return `${normalizedInvoiceNumber} ${normalizedCaseRef}`
   }
 
-  return normalizedInvoiceNumber ?? normalizedCaseId
+  return normalizedInvoiceNumber ?? normalizedCaseRef
 }
 
 export function calculateSchufaFreeProvisionNetAmount(loanAmount: number | null | undefined) {

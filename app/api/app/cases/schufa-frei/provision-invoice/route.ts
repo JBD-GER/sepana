@@ -243,7 +243,8 @@ export async function POST(req: Request) {
     )
   }
 
-  const paymentReference = buildSchufaFreeProvisionPaymentReference(invoiceNumber, caseId) ?? invoiceNumber
+  const caseRef = trimOrNull(caseRow.case_ref)
+  const paymentReference = buildSchufaFreeProvisionPaymentReference(invoiceNumber, caseRef) ?? invoiceNumber
   const siteOrigin = resolveSiteOrigin(req)
   const customerPortalUrl = `${siteOrigin}/app/faelle/${caseId}#schufa-vorauszahlung`
   const invoiceDownloadUrl = `${siteOrigin}/api/app/cases/invoices/${upsertedInvoice.id}`
@@ -301,7 +302,6 @@ export async function POST(req: Request) {
       const pdfBytes = await renderSchufaFreeProvisionInvoicePdf({
         invoiceNumber,
         createdAt: upsertedInvoice.created_at,
-        caseId,
         caseRef: trimOrNull(caseRow.case_ref) ?? invoiceNumber,
         paymentReference,
         recipientName,

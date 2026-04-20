@@ -83,12 +83,11 @@ export async function GET(_req: Request, context: { params: Promise<{ invoiceId:
 
   const invoiceNumber = getSchufaFreeProvisionInvoiceNumber(invoiceRow.invoice_number) ?? normalizedInvoiceId
   const caseRef = trimOrNull(caseRow.case_ref) ?? caseRow.id.slice(0, 8)
-  const paymentReference = buildSchufaFreeProvisionPaymentReference(invoiceNumber, caseRow.id) ?? invoiceNumber
+  const paymentReference = buildSchufaFreeProvisionPaymentReference(invoiceNumber, trimOrNull(caseRow.case_ref)) ?? invoiceNumber
 
   const pdfBytes = await renderSchufaFreeProvisionInvoicePdf({
     invoiceNumber,
     createdAt: invoiceRow.created_at,
-    caseId: caseRow.id,
     caseRef,
     paymentReference,
     recipientName: trimOrNull(invoiceRow.recipient_name),
