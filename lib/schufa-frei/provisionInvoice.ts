@@ -30,8 +30,22 @@ export function trimOrNull(value: unknown) {
   return trimmed ? trimmed : null
 }
 
-export function buildSchufaFreeProvisionInvoiceNumber(caseRef: string | null | undefined, caseId: string) {
-  return trimOrNull(caseRef) ?? `SF-${String(caseId ?? "").slice(0, 8).toUpperCase()}`
+export function getSchufaFreeProvisionInvoiceNumber(invoiceNumber: unknown) {
+  return trimOrNull(invoiceNumber)
+}
+
+export function buildSchufaFreeProvisionPaymentReference(
+  invoiceNumber: string | null | undefined,
+  caseId: string | null | undefined
+) {
+  const normalizedInvoiceNumber = trimOrNull(invoiceNumber)
+  const normalizedCaseId = trimOrNull(caseId)
+
+  if (normalizedInvoiceNumber && normalizedCaseId) {
+    return `${normalizedInvoiceNumber} ${normalizedCaseId}`
+  }
+
+  return normalizedInvoiceNumber ?? normalizedCaseId
 }
 
 export function calculateSchufaFreeProvisionNetAmount(loanAmount: number | null | undefined) {

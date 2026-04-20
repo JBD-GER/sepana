@@ -2,7 +2,7 @@ export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { syncLocalDocumentToEuropaceWithRetry } from "@/lib/europace/documents"
-import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
+import { logCaseEvent } from "@/lib/notifications/notify"
 import { resolvePublicOnlinekreditCaseAccess } from "@/lib/onlinekredit/caseAccess"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
@@ -72,10 +72,10 @@ function isSupportedDocument(file: File, mimeType: string) {
 function classifyUploadError(message: string) {
   const normalized = String(message ?? "").toLowerCase()
   if (/payload too large|request entity too large|entity too large|file too large|too large/.test(normalized)) {
-    return { status: 413, text: `Datei zu groß. Maximal ${Math.round(MAX_DOCUMENT_UPLOAD_BYTES / (1024 * 1024))} MB erlaubt.` }
+    return { status: 413, text: `Datei zu gross. Maximal ${Math.round(MAX_DOCUMENT_UPLOAD_BYTES / (1024 * 1024))} MB erlaubt.` }
   }
   if (/mime|content.?type|unsupported|invalid file type|not supported/.test(normalized)) {
-    return { status: 415, text: "Dateityp nicht unterstützt. Erlaubt sind PDF, JPG, PNG und TIFF." }
+    return { status: 415, text: "Dateityp nicht unterstuetzt. Erlaubt sind PDF, JPG, PNG und TIFF." }
   }
   return { status: 500, text: message || "Serverfehler" }
 }
@@ -109,14 +109,13 @@ async function findOpenRequestId(admin: ReturnType<typeof supabaseAdmin>, rows: 
   return (requiredOpen[0] ?? open[0])?.id ?? null
 }
 
-async function notifyAdvisorAboutPublicUpload(opts: {
-  req: Request
+async function logPublicUploadEvent(opts: {
   caseId: string
   customerId: string | null
   originalName: string
   requestIdFinal: string | null
 }) {
-  const eventMeta = await logCaseEvent({
+  await logCaseEvent({
     caseId: opts.caseId,
     actorId: opts.customerId,
     actorRole: "customer",
@@ -125,27 +124,6 @@ async function notifyAdvisorAboutPublicUpload(opts: {
     body: `Datei: ${opts.originalName}`,
     meta: { file_name: opts.originalName, request_id: opts.requestIdFinal },
   })
-
-  const caseMeta = eventMeta ?? (await getCaseMeta(opts.caseId))
-  if (!caseMeta?.advisor_email) return
-
-  const caseLabel = caseMeta.case_ref ? ` (${caseMeta.case_ref})` : ""
-  const origin = resolveSiteOrigin(opts.req)
-  const html = buildEmailHtml({
-    title: "Neues Dokument vom Kunden",
-    intro: `Im Fall${caseLabel} wurde ein neues Dokument hochgeladen.`,
-    steps: [`Datei: ${opts.originalName}`, "Bitte prüfen Sie das Dokument im Advisor-Dashboard."],
-    ctaLabel: "Zum Advisor-Dashboard",
-    ctaUrl: `${origin}/advisor`,
-    eyebrow: "SEPANA - Dokumenten-Update",
-    preheader: "Ein Kunde hat ein neues Dokument hochgeladen.",
-  })
-
-  void sendEmail({
-    to: caseMeta.advisor_email,
-    subject: "Neues Dokument im Kundenfall",
-    html,
-  }).catch(() => null)
 }
 
 export async function POST(req: Request) {
@@ -169,7 +147,7 @@ export async function POST(req: Request) {
     }
     if (file.size > MAX_DOCUMENT_UPLOAD_BYTES) {
       return NextResponse.json(
-        { error: `Datei zu groß. Maximal ${Math.round(MAX_DOCUMENT_UPLOAD_BYTES / (1024 * 1024))} MB erlaubt.` },
+        { error: `Datei zu gross. Maximal ${Math.round(MAX_DOCUMENT_UPLOAD_BYTES / (1024 * 1024))} MB erlaubt.` },
         { status: 413 }
       )
     }
@@ -183,7 +161,7 @@ export async function POST(req: Request) {
     })
 
     if (!access.ok) {
-      return NextResponse.json({ error: "Link ungültig oder abgelaufen." }, { status: access.status })
+      return NextResponse.json({ error: "Link ungueltig oder abgelaufen." }, { status: access.status })
     }
 
     const { data: europaceMeta } = await admin
@@ -194,7 +172,7 @@ export async function POST(req: Request) {
 
     if (!trimOrNull(europaceMeta?.vorgangsnummer) || !trimOrNull(europaceMeta?.antragsnummer)) {
       return NextResponse.json(
-        { error: "Der Antrag ist noch nicht final angelegt. Bitte warte, bis die Bestätigungsseite vollständig geladen ist." },
+        { error: "Der Antrag ist noch nicht final angelegt. Bitte warte, bis die Bestaetigungsseite vollstaendig geladen ist." },
         { status: 409 }
       )
     }
@@ -207,7 +185,7 @@ export async function POST(req: Request) {
 
     if (!isSupportedDocument(file, mimeType)) {
       return NextResponse.json(
-        { error: "Dateityp nicht unterstützt. Erlaubt sind PDF, JPG, PNG und TIFF." },
+        { error: "Dateityp nicht unterstuetzt. Erlaubt sind PDF, JPG, PNG und TIFF." },
         { status: 415 }
       )
     }
@@ -289,19 +267,23 @@ export async function POST(req: Request) {
       | null = null
 
     if (localDocumentId) {
-      europaceSync = await syncLocalDocumentToEuropaceWithRetry(admin, {
-        caseId,
-        localDocumentId,
-        filePath: path,
-        fileName: originalName,
-        siteOrigin: resolveSiteOrigin(req),
-        category: europaceCategory,
-        assignmentId: europaceAssignmentId,
-        antragsnummer: trimOrNull(europaceMeta?.antragsnummer),
-      }, {
-        maxAttempts: 3,
-        retryDelayMs: 600,
-      }).catch((error) => ({
+      europaceSync = await syncLocalDocumentToEuropaceWithRetry(
+        admin,
+        {
+          caseId,
+          localDocumentId,
+          filePath: path,
+          fileName: originalName,
+          siteOrigin: resolveSiteOrigin(req),
+          category: europaceCategory,
+          assignmentId: europaceAssignmentId,
+          antragsnummer: trimOrNull(europaceMeta?.antragsnummer),
+        },
+        {
+          maxAttempts: 3,
+          retryDelayMs: 600,
+        }
+      ).catch((error) => ({
         attempted: true,
         ok: false,
         reason: error instanceof Error ? error.message : "Europace-Unterlagensync fehlgeschlagen.",
@@ -309,8 +291,7 @@ export async function POST(req: Request) {
       }))
     }
 
-    await notifyAdvisorAboutPublicUpload({
-      req,
+    await logPublicUploadEvent({
       caseId,
       customerId: access.caseRow.customer_id ?? null,
       originalName,

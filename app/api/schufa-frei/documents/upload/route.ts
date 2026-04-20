@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
+import { logCaseEvent } from "@/lib/notifications/notify"
 import { resolvePublicOnlinekreditCaseAccess } from "@/lib/onlinekredit/caseAccess"
 import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
@@ -82,8 +82,8 @@ async function findOpenRequestId(admin: ReturnType<typeof supabaseAdmin>, rows: 
   return (requiredOpen[0] ?? open[0])?.id ?? null
 }
 
-async function notifyAdvisor(req: Request, caseId: string, fileName: string, requestId: string | null, customerId: string | null) {
-  const eventMeta = await logCaseEvent({
+async function logCustomerUploadEvent(caseId: string, fileName: string, requestId: string | null, customerId: string | null) {
+  await logCaseEvent({
     caseId,
     actorId: customerId,
     actorRole: "customer",
@@ -92,34 +92,6 @@ async function notifyAdvisor(req: Request, caseId: string, fileName: string, req
     body: `Datei: ${fileName}`,
     meta: { file_name: fileName, request_id: requestId },
   })
-
-  const caseMeta = eventMeta ?? (await getCaseMeta(caseId))
-  if (!caseMeta?.advisor_email) return
-
-  const origin = (() => {
-    const configured = String(process.env.NEXT_PUBLIC_SITE_URL ?? "").trim()
-    if (!configured) return new URL(req.url).origin
-    try {
-      return new URL(configured).origin
-    } catch {
-      return new URL(req.url).origin
-    }
-  })()
-
-  const html = buildEmailHtml({
-    title: "Neues Dokument vom Kunden",
-    intro: `Im Fall ${caseMeta.case_ref ?? caseId} wurde ein neues Dokument hochgeladen.`,
-    steps: [`Datei: ${fileName}`, "Bitte pruefen Sie den Fall im Advisor-Portal."],
-    ctaLabel: "Zum Advisor-Portal",
-    ctaUrl: `${origin}/advisor/faelle/${caseId}`,
-    eyebrow: "SEPANA - Dokumentenupdate",
-  })
-
-  await sendEmail({
-    to: caseMeta.advisor_email,
-    subject: "Neues Dokument im Fall",
-    html,
-  }).catch(() => null)
 }
 
 export async function POST(req: Request) {
@@ -233,7 +205,7 @@ export async function POST(req: Request) {
           })
         : { attempted: false, ok: false, reason: "missing_local_document_id" }
 
-    await notifyAdvisor(req, caseId, originalName, requestIdFinal, access.caseRow.customer_id ?? null)
+    await logCustomerUploadEvent(caseId, originalName, requestIdFinal, access.caseRow.customer_id ?? null)
 
     return NextResponse.json({
       ok: true,

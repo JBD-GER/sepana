@@ -80,7 +80,9 @@ function drawRightAlignedText(
 export async function renderSchufaFreeProvisionInvoicePdf(input: {
   invoiceNumber: string
   createdAt: string
+  caseId: string
   caseRef: string
+  paymentReference: string
   recipientName: string | null
   recipientEmail: string | null
   recipientStreet: string | null
@@ -131,6 +133,7 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
   page.drawText(recipientCityLine, { x: 330, y: recipientTop - 48, size: 10, font })
   page.drawText(input.recipientEmail || "-", { x: 330, y: recipientTop - 64, size: 10, font })
   page.drawText(`Fallnummer: ${input.caseRef}`, { x: 330, y: recipientTop - 80, size: 10, font })
+  page.drawText(`Fall-ID: ${input.caseId}`, { x: 330, y: recipientTop - 96, size: 10, font })
 
   const summaryX = 330
   const summaryWidth = 225
@@ -184,7 +187,7 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
   page.drawText(`Kontoinhaber: ${SCHUFA_FREE_PROVISION_BANK.accountHolder}`, { x: 40, y: 372, size: 10, font })
   page.drawText(`IBAN: ${SCHUFA_FREE_PROVISION_BANK.iban}`, { x: 40, y: 356, size: 10, font })
   page.drawText(`BIC: ${SCHUFA_FREE_PROVISION_BANK.bic}`, { x: 40, y: 340, size: 10, font })
-  page.drawText(`Verwendungszweck: ${input.caseRef}`, { x: 40, y: 324, size: 10, font })
+  page.drawText(`Verwendungszweck: ${input.paymentReference}`, { x: 40, y: 324, size: 10, font })
 
   page.drawText("Hinweis zur Vorauszahlung", { x: 40, y: 286, size: 12, font: bold })
   let cursorY = 266

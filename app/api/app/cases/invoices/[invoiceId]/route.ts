@@ -3,7 +3,8 @@ import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { renderSchufaFreeProvisionInvoicePdf } from "@/lib/schufa-frei/renderProvisionInvoicePdf"
 import {
   SCHUFA_FREE_PROVISION_INVOICE_TYPE,
-  buildSchufaFreeProvisionInvoiceNumber,
+  buildSchufaFreeProvisionPaymentReference,
+  getSchufaFreeProvisionInvoiceNumber,
   trimOrNull,
 } from "@/lib/schufa-frei/provisionInvoice"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
@@ -80,10 +81,16 @@ export async function GET(_req: Request, context: { params: Promise<{ invoiceId:
     return NextResponse.json({ error: detailsError.message }, { status: 400 })
   }
 
+  const invoiceNumber = getSchufaFreeProvisionInvoiceNumber(invoiceRow.invoice_number) ?? normalizedInvoiceId
+  const caseRef = trimOrNull(caseRow.case_ref) ?? caseRow.id.slice(0, 8)
+  const paymentReference = buildSchufaFreeProvisionPaymentReference(invoiceNumber, caseRow.id) ?? invoiceNumber
+
   const pdfBytes = await renderSchufaFreeProvisionInvoicePdf({
-    invoiceNumber: buildSchufaFreeProvisionInvoiceNumber(invoiceRow.invoice_number, caseRow.id),
+    invoiceNumber,
     createdAt: invoiceRow.created_at,
-    caseRef: trimOrNull(caseRow.case_ref) ?? trimOrNull(invoiceRow.invoice_number) ?? caseRow.id.slice(0, 8),
+    caseId: caseRow.id,
+    caseRef,
+    paymentReference,
     recipientName: trimOrNull(invoiceRow.recipient_name),
     recipientEmail: trimOrNull(invoiceRow.recipient_email),
     recipientStreet: trimOrNull(detailsRow?.street),
@@ -95,7 +102,7 @@ export async function GET(_req: Request, context: { params: Promise<{ invoiceId:
     status: trimOrNull(invoiceRow.status),
   })
 
-  const fileName = `Rechnung-${trimOrNull(invoiceRow.invoice_number) ?? normalizedInvoiceId}.pdf`
+  const fileName = `Rechnung-${invoiceNumber}.pdf`
   return new NextResponse(pdfBytes, {
     headers: {
       "content-type": "application/pdf",

@@ -5,7 +5,7 @@ import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { syncLocalDocumentToEuropace } from "@/lib/europace/documents"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
-import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
+import { logCaseEvent } from "@/lib/notifications/notify"
 import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 
 function safeFileName(name: string) {
@@ -305,7 +305,7 @@ export async function POST(req: Request) {
       })
     }
 
-    const eventMeta = await logCaseEvent({
+    await logCaseEvent({
       caseId,
       actorId: user.id,
       actorRole: role ?? "customer",
@@ -314,28 +314,6 @@ export async function POST(req: Request) {
       body: `Datei: ${originalName}`,
       meta: { file_name: originalName, request_id: requestIdFinal },
     })
-
-    if (role === "customer") {
-      const caseMeta = eventMeta ?? (await getCaseMeta(caseId))
-      if (caseMeta?.advisor_email) {
-        const caseLabel = caseMeta.case_ref ? ` (${caseMeta.case_ref})` : ""
-        const origin = resolveSiteOrigin(req)
-        const html = buildEmailHtml({
-          title: "Neues Dokument vom Kunden",
-          intro: `Im Fall${caseLabel} wurde ein neues Dokument hochgeladen.`,
-          steps: [`Datei: ${originalName}`, "Bitte prüfen Sie das Dokument im Advisor-Dashboard."],
-          ctaLabel: "Zum Advisor-Dashboard",
-          ctaUrl: `${origin}/advisor`,
-          eyebrow: "SEPANA - Dokumenten-Update",
-          preheader: "Ein Kunde hat ein neues Dokument hochgeladen.",
-        })
-        void sendEmail({
-          to: caseMeta.advisor_email,
-          subject: "Neues Dokument im Kundenfall",
-          html,
-        }).catch(() => null)
-      }
-    }
 
     return NextResponse.json({
       ok: true,

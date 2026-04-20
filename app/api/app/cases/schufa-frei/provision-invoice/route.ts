@@ -8,11 +8,12 @@ import {
   SCHUFA_FREE_PROVISION_RATE,
   SCHUFA_FREE_PROVISION_VAT_RATE,
   buildSchufaFreeProvisionDescription,
-  buildSchufaFreeProvisionInvoiceNumber,
   buildSchufaFreeProvisionInvoiceTitle,
+  buildSchufaFreeProvisionPaymentReference,
   formatEuro,
   formatPercent,
   getSchufaFreeProvisionBreakdown,
+  getSchufaFreeProvisionInvoiceNumber,
   trimOrNull,
 } from "@/lib/schufa-frei/provisionInvoice"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
@@ -27,6 +28,18 @@ function isMissingCaseInvoicesTableError(error: unknown) {
   if (anyError.code === "42P01") return true
   const msg = String(anyError.message ?? "").toLowerCase()
   return msg.includes("case_invoices") && (msg.includes("relation") || msg.includes("table"))
+}
+
+function isMissingCaseInvoiceNumberMigrationError(error: unknown) {
+  const anyError = error as { code?: string; message?: string } | null
+  if (!anyError) return false
+
+  const code = String(anyError.code ?? "").trim()
+  const msg = String(anyError.message ?? "").toLowerCase()
+
+  if (code === "23502" && msg.includes("invoice_number")) return true
+  if (code === "42704" && msg.includes("case_invoice_number_seq")) return true
+  return msg.includes("case_invoice_number_seq") || (msg.includes("invoice_number") && msg.includes("default"))
 }
 
 function resolveSiteOrigin(req: Request) {
@@ -59,7 +72,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "caseId fehlt" }, { status: 400 })
   }
   if (!isSupportedAction(actionRaw)) {
-    return NextResponse.json({ ok: false, error: "Ungültige Aktion" }, { status: 400 })
+    return NextResponse.json({ ok: false, error: "Ungueltige Aktion" }, { status: 400 })
   }
 
   const admin = supabaseAdmin()
@@ -137,13 +150,13 @@ export async function POST(req: Request) {
             : "schufa_free_provision_reset",
       title:
         nextStatus === "paid"
-          ? "Vorauszahlung bestätigt"
+          ? "Vorauszahlung bestaetigt"
           : nextStatus === "refunded"
             ? "Vorauszahlung erstattet"
-            : "Vorauszahlungsstatus zurückgesetzt",
+            : "Vorauszahlungsstatus zurueckgesetzt",
       body:
         nextStatus === "paid"
-          ? "Die Vorauszahlung wurde als eingegangen markiert. Der nächste Schritt ist jetzt der Vertrag."
+          ? "Die Vorauszahlung wurde als eingegangen markiert. Der naechste Schritt ist jetzt der Vertrag."
           : nextStatus === "refunded"
             ? "Die Vorauszahlung wurde als erstattet markiert."
             : "Der Vorauszahlungsstatus wurde wieder auf offen gesetzt.",
@@ -166,10 +179,9 @@ export async function POST(req: Request) {
   const { netAmount, vatAmount, grossAmount } = getSchufaFreeProvisionBreakdown(loanAmount)
 
   if (!Number.isFinite(loanAmount) || loanAmount <= 0 || grossAmount <= 0) {
-    return NextResponse.json({ ok: false, error: "Kreditsumme für Vorauszahlungsrechnung fehlt." }, { status: 400 })
+    return NextResponse.json({ ok: false, error: "Kreditsumme fuer Vorauszahlungsrechnung fehlt." }, { status: 400 })
   }
 
-  const invoiceNumber = buildSchufaFreeProvisionInvoiceNumber(caseRow.case_ref, caseId)
   const recipientName = caseMeta?.customer_name ?? null
   const recipientEmail = caseMeta?.customer_email ?? null
   const description = buildSchufaFreeProvisionDescription(loanAmount)
@@ -181,7 +193,6 @@ export async function POST(req: Request) {
         case_id: caseId,
         case_type: "schufa_frei",
         invoice_type: SCHUFA_FREE_PROVISION_INVOICE_TYPE,
-        invoice_number: invoiceNumber,
         title: buildSchufaFreeProvisionInvoiceTitle(),
         description,
         status: "sent",
@@ -209,9 +220,30 @@ export async function POST(req: Request) {
         { status: 503 }
       )
     }
+    if (isMissingCaseInvoiceNumberMigrationError(upsertError)) {
+      return NextResponse.json(
+        { ok: false, error: "DB-Migration fehlt: fortlaufende Rechnungsnummer in case_invoices ist noch nicht vorhanden." },
+        { status: 503 }
+      )
+    }
     return NextResponse.json({ ok: false, error: upsertError.message }, { status: 400 })
   }
 
+  const invoiceNumber = getSchufaFreeProvisionInvoiceNumber(upsertedInvoice.invoice_number)
+  if (!invoiceNumber) {
+    return NextResponse.json(
+      { ok: false, error: "Rechnungsnummer konnte nicht erzeugt werden. Bitte DB-Migration pruefen." },
+      { status: 503 }
+    )
+  }
+  if (!/^\d+$/.test(invoiceNumber)) {
+    return NextResponse.json(
+      { ok: false, error: "Fortlaufende Rechnungsnummer fehlt noch. Bitte die neue DB-Migration ausfuehren." },
+      { status: 503 }
+    )
+  }
+
+  const paymentReference = buildSchufaFreeProvisionPaymentReference(invoiceNumber, caseId) ?? invoiceNumber
   const siteOrigin = resolveSiteOrigin(req)
   const customerPortalUrl = `${siteOrigin}/app/faelle/${caseId}#schufa-vorauszahlung`
   const invoiceDownloadUrl = `${siteOrigin}/api/app/cases/invoices/${upsertedInvoice.id}`
@@ -232,7 +264,8 @@ export async function POST(req: Request) {
               <div><strong style="color:#0f172a;">Kontoinhaber:</strong> ${SCHUFA_FREE_PROVISION_BANK.accountHolder}</div>
               <div><strong style="color:#0f172a;">IBAN:</strong> ${SCHUFA_FREE_PROVISION_BANK.iban}</div>
               <div><strong style="color:#0f172a;">BIC:</strong> ${SCHUFA_FREE_PROVISION_BANK.bic}</div>
-              <div><strong style="color:#0f172a;">Verwendungszweck:</strong> ${invoiceNumber}</div>
+              <div><strong style="color:#0f172a;">Rechnungsnummer:</strong> ${invoiceNumber}</div>
+              <div><strong style="color:#0f172a;">Verwendungszweck:</strong> ${paymentReference}</div>
             </div>
           </td>
         </tr>
@@ -242,33 +275,35 @@ export async function POST(req: Request) {
     const html = buildEmailHtml({
       title: "Vorauszahlung vor dem Vertragsversand",
       intro: caseRow.case_ref
-        ? `Für Ihren Fall ${caseRow.case_ref} ist jetzt die Vorauszahlung in Höhe von ${formatEuro(grossAmount)} fällig.`
-        : `Für Ihren Fall ist jetzt die Vorauszahlung in Höhe von ${formatEuro(grossAmount)} fällig.`,
+        ? `Fuer Ihren Fall ${caseRow.case_ref} ist jetzt die Vorauszahlung in Hoehe von ${formatEuro(grossAmount)} faellig.`
+        : `Fuer Ihren Fall ist jetzt die Vorauszahlung in Hoehe von ${formatEuro(grossAmount)} faellig.`,
       bodyHtml: `${paymentHtml}
         <p style="margin:14px 0 0 0; font-size:14px; line-height:22px; color:#334155;">
-          Bitte beachten Sie: Es handelt sich um eine Vorauszahlung auf die Serviceprovision in Höhe von ${formatPercent(
+          Bitte beachten Sie: Es handelt sich um eine Vorauszahlung auf die Serviceprovision in Hoehe von ${formatPercent(
             SCHUFA_FREE_PROVISION_RATE
-          )} netto zuzüglich ${formatPercent(
+          )} netto zuzueglich ${formatPercent(
             SCHUFA_FREE_PROVISION_VAT_RATE
-          )} MwSt. Der nächste Schritt erfolgt erst nach bestätigtem Zahlungseingang. Falls keine positive Rückmeldung der SIGMA Kreditbank AG vorliegt und keine Auszahlung stattfindet, oder wenn der Vertrag fristgerecht widerrufen wurde, wird der Betrag erstattet.
+          )} MwSt. Der naechste Schritt erfolgt erst nach bestaetigtem Zahlungseingang. Falls keine positive Rueckmeldung der SIGMA Kreditbank AG vorliegt und keine Auszahlung stattfindet, oder wenn der Vertrag fristgerecht widerrufen wurde, wird der Betrag erstattet.
         </p>`,
       steps: [
-        `Überweisen Sie ${formatEuro(grossAmount)} mit dem Verwendungszweck ${invoiceNumber}.`,
-        "Sobald der Zahlungseingang bestätigt ist, geht der Fall in den Vertragsprozess.",
-        "Die Rechnung und der Status liegen zusätzlich in Ihrem SEPANA-Dashboard bereit.",
+        `Ueberweisen Sie ${formatEuro(grossAmount)} mit dem Verwendungszweck ${paymentReference}.`,
+        "Sobald der Zahlungseingang bestaetigt ist, geht der Fall in den Vertragsprozess.",
+        "Die Rechnung und der Status liegen zusaetzlich in Ihrem SEPANA-Dashboard bereit.",
       ],
       ctaLabel: "Zum Kundendashboard",
       ctaUrl: customerPortalUrl,
-      preheader: "Bitte leisten Sie jetzt die Vorauszahlung für Ihren Schufa-frei-Fall.",
+      preheader: "Bitte leisten Sie jetzt die Vorauszahlung fuer Ihren Schufa-frei-Fall.",
       eyebrow: "SEPANA - Vorauszahlung",
-      supportNote: "Die Rechnung hängt zusätzlich als PDF an dieser E-Mail und liegt jederzeit auch in Ihrem Dashboard bereit.",
+      supportNote: "Die Rechnung haengt zusaetzlich als PDF an dieser E-Mail und liegt jederzeit auch in Ihrem Dashboard bereit.",
     })
 
     const emailResult = await (async () => {
       const pdfBytes = await renderSchufaFreeProvisionInvoicePdf({
         invoiceNumber,
         createdAt: upsertedInvoice.created_at,
+        caseId,
         caseRef: trimOrNull(caseRow.case_ref) ?? invoiceNumber,
+        paymentReference,
         recipientName,
         recipientEmail,
         recipientStreet: trimOrNull(details?.street),
@@ -282,7 +317,7 @@ export async function POST(req: Request) {
 
       return sendEmail({
         to: recipientEmail,
-        subject: "Vorauszahlungsrechnung für Ihren Kreditantrag",
+        subject: "Vorauszahlungsrechnung fuer Ihren Kreditantrag",
         html,
         attachments: [
           {
@@ -309,7 +344,7 @@ export async function POST(req: Request) {
     type: "schufa_free_provision_invoice_sent",
     title: "Vorauszahlungsrechnung bereitgestellt",
     body: emailSent
-      ? "Die Vorauszahlungsrechnung wurde im Dashboard hinterlegt und zusätzlich per E-Mail versendet."
+      ? "Die Vorauszahlungsrechnung wurde im Dashboard hinterlegt und zusaetzlich per E-Mail versendet."
       : "Die Vorauszahlungsrechnung wurde im Dashboard hinterlegt.",
     meta: {
       invoice_id: upsertedInvoice.id,

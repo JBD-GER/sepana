@@ -893,8 +893,8 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
                     className={inputBase}
                   />
                 </div>
-                <div className="grid gap-2">
-                  <label className="text-xs text-slate-600">CTA-Override</label>
+                <div className="grid gap-2 lg:col-span-2">
+                  <label className="text-xs text-slate-600">CTA-Box Zielseite (optional)</label>
                   <select
                     value={draft.ctaPageHref}
                     onChange={(event) => setDraft((current) => ({ ...current, ctaPageHref: event.target.value }))}
@@ -912,7 +912,7 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
                     ))}
                   </select>
                   <div className="text-xs text-slate-500">
-                    Optional. Wenn gesetzt, ersetzt diese Header-Seite die Standard-CTA im Beitrag.
+                    Optional. Wenn gesetzt, ersetzt diese Zielseite aus dem Header die Standard-CTA im Beitrag, z. B. Kredit ohne Schufa.
                   </div>
                 </div>
                 <div className="flex items-end">

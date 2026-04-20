@@ -6,11 +6,13 @@ import {
   SCHUFA_FREE_PROVISION_BANK,
   SCHUFA_FREE_PROVISION_RATE,
   SCHUFA_FREE_PROVISION_VAT_RATE,
+  buildSchufaFreeProvisionPaymentReference,
   formatEuro,
   formatPercent,
   getSchufaFreeProvisionBreakdown,
   getSchufaFreeProvisionRefundLines,
   getSchufaFreeProvisionStatusLabel,
+  getSchufaFreeProvisionInvoiceNumber,
   isSchufaFreeProvisionPaid,
 } from "@/lib/schufa-frei/provisionInvoice"
 
@@ -85,6 +87,8 @@ export default function SchufaFreeProvisionPanel({
   const effectiveLoanAmount = Number(invoice?.loan_amount ?? loanAmount ?? 0)
   const { netAmount, vatAmount, grossAmount } = getSchufaFreeProvisionBreakdown(effectiveLoanAmount)
   const invoiceHref = invoice?.id ? `/api/app/cases/invoices/${invoice.id}` : null
+  const invoiceNumber = getSchufaFreeProvisionInvoiceNumber(invoice?.invoice_number)
+  const paymentReference = buildSchufaFreeProvisionPaymentReference(invoiceNumber, caseId) ?? caseRef ?? invoiceNumber
 
   async function runAction(action: "send" | "mark_paid" | "mark_refunded" | "mark_sent") {
     if (!caseId) {
@@ -180,7 +184,8 @@ export default function SchufaFreeProvisionPanel({
                   <div className="mt-3 space-y-1 text-xs text-slate-500">
                     <div>Versand: {formatDateTime(invoice?.sent_at)}</div>
                     <div>Zahlung: {formatDateTime(invoice?.paid_at)}</div>
-                    <div>Verwendungszweck: {caseRef || invoice?.invoice_number || "-"}</div>
+                    <div>Rechnungsnummer: {invoiceNumber ?? "-"}</div>
+                    <div>Verwendungszweck: {paymentReference ?? "-"}</div>
                   </div>
                 </div>
               </div>
@@ -265,7 +270,8 @@ export default function SchufaFreeProvisionPanel({
                 <div>{SCHUFA_FREE_PROVISION_BANK.accountHolder}</div>
                 <div>IBAN: {SCHUFA_FREE_PROVISION_BANK.iban}</div>
                 <div>BIC: {SCHUFA_FREE_PROVISION_BANK.bic}</div>
-                <div>Verwendungszweck: {caseRef || invoice?.invoice_number || "-"}</div>
+                <div>Rechnungsnummer: {invoiceNumber ?? "-"}</div>
+                <div>Verwendungszweck: {paymentReference ?? "-"}</div>
               </div>
               <div className="mt-3 rounded-2xl border border-cyan-200 bg-cyan-50 px-3 py-3 text-sm font-semibold text-cyan-900">
                 Überweisungsbetrag: {formatEuro(grossAmount)}
@@ -332,7 +338,8 @@ export default function SchufaFreeProvisionPanel({
                 <div className="mt-3 space-y-1 text-xs text-slate-500">
                   <div>Versand: {formatDateTime(invoice?.sent_at)}</div>
                   <div>Zahlung: {formatDateTime(invoice?.paid_at)}</div>
-                  <div>Rechnungsnummer: {invoice?.invoice_number ?? caseRef ?? "-"}</div>
+                  <div>Rechnungsnummer: {invoiceNumber ?? "-"}</div>
+                  <div>Verwendungszweck: {paymentReference ?? "-"}</div>
                 </div>
               </div>
 
@@ -355,7 +362,8 @@ export default function SchufaFreeProvisionPanel({
               <div>{SCHUFA_FREE_PROVISION_BANK.accountHolder}</div>
               <div>IBAN: {SCHUFA_FREE_PROVISION_BANK.iban}</div>
               <div>BIC: {SCHUFA_FREE_PROVISION_BANK.bic}</div>
-              <div>Verwendungszweck: {caseRef || invoice?.invoice_number || "-"}</div>
+              <div>Rechnungsnummer: {invoiceNumber ?? "-"}</div>
+              <div>Verwendungszweck: {paymentReference ?? "-"}</div>
             </div>
             <div className="mt-3 rounded-2xl border border-cyan-200 bg-cyan-50 px-3 py-3 text-sm font-semibold text-cyan-900">
               Überweisungsbetrag: {formatEuro(grossAmount)}

@@ -690,7 +690,7 @@ export default function SchufaFreePrecheck() {
                 <div className="rounded-[24px] border border-cyan-200 bg-cyan-50/70 px-4 py-4 shadow-sm">
                   <div className="text-sm font-semibold text-slate-900">Abrechnung & Verwendungszweck</div>
                   <div className="mt-3 space-y-2 text-sm leading-relaxed text-slate-600">
-                    <div>Der konkrete Verwendungszweck entspricht später Ihrer Fallnummer, z. B. SF-000123.</div>
+                    <div>Der konkrete Verwendungszweck entspricht später Ihrer Rechnungsnummer plus Fall-ID, z. B. 12 550e8400-e29b-41d4-a716-446655440000.</div>
                     <div>Die vollständigen Zahlungsdaten und die Rechnung erhalten Sie nach positiver Vorprüfung im weiteren Prozess.</div>
                   </div>
                 </div>

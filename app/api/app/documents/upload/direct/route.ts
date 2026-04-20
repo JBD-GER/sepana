@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { syncLocalDocumentToEuropace } from "@/lib/europace/documents"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
-import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
+import { logCaseEvent } from "@/lib/notifications/notify"
 import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 
 const MAX_DOCUMENT_UPLOAD_BYTES = 20 * 1024 * 1024
@@ -143,15 +143,14 @@ async function findOpenRequestId(admin: ReturnType<typeof supabaseAdmin>, rows: 
   return (requiredOpen[0] ?? open[0])?.id ?? null
 }
 
-async function notifyAdvisorAboutCustomerUpload(opts: {
-  req: Request
+async function logCustomerUploadEvent(opts: {
   role: string | null
   userId: string
   caseId: string
   originalName: string
   requestIdFinal: string | null
 }) {
-  const eventMeta = await logCaseEvent({
+  await logCaseEvent({
     caseId: opts.caseId,
     actorId: opts.userId,
     actorRole: opts.role ?? "customer",
@@ -160,28 +159,6 @@ async function notifyAdvisorAboutCustomerUpload(opts: {
     body: `Datei: ${opts.originalName}`,
     meta: { file_name: opts.originalName, request_id: opts.requestIdFinal },
   })
-
-  if (opts.role !== "customer") return
-
-  const caseMeta = eventMeta ?? (await getCaseMeta(opts.caseId))
-  if (!caseMeta?.advisor_email) return
-
-  const caseLabel = caseMeta.case_ref ? ` (${caseMeta.case_ref})` : ""
-  const origin = resolveSiteOrigin(opts.req)
-  const html = buildEmailHtml({
-    title: "Neues Dokument vom Kunden",
-    intro: `Im Fall${caseLabel} wurde ein neues Dokument hochgeladen.`,
-    steps: [`Datei: ${opts.originalName}`, "Bitte prüfen Sie das Dokument im Advisor-Dashboard."],
-    ctaLabel: "Zum Advisor-Dashboard",
-    ctaUrl: `${origin}/advisor`,
-    eyebrow: "SEPANA - Dokumenten-Update",
-    preheader: "Ein Kunde hat ein neues Dokument hochgeladen.",
-  })
-  void sendEmail({
-    to: caseMeta.advisor_email,
-    subject: "Neues Dokument im Kundenfall",
-    html,
-  }).catch(() => null)
 }
 
 export async function POST(req: Request) {
@@ -407,8 +384,7 @@ export async function POST(req: Request) {
         })
       }
 
-      await notifyAdvisorAboutCustomerUpload({
-        req,
+      await logCustomerUploadEvent({
         role,
         userId: user.id,
         caseId,
