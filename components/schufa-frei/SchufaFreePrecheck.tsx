@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useState, type InputHTMLAttributes } from "react"
 import { SCHUFA_FREE_FAMILY_OPTIONS } from "@/lib/schufa-frei/application"
 import {
   SCHUFA_FREE_PROVISION_RATE,
@@ -79,14 +79,42 @@ function formatRate(value: number | null | undefined) {
   }).format(Number(value))} p.M.`
 }
 
-const FIELD_CLASS =
-  "mt-1 h-14 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-4 focus:ring-cyan-100 sm:h-12 sm:text-sm"
-const DATE_FIELD_CLASS = `${FIELD_CLASS} date-field pr-11 [color-scheme:light]`
+const FIELD_BASE_CLASS =
+  "h-14 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-4 focus:ring-cyan-100 sm:h-12 sm:text-sm"
+const FIELD_CLASS = `mt-1 ${FIELD_BASE_CLASS}`
+const DATE_FIELD_CLASS = `${FIELD_BASE_CLASS} date-field appearance-none pr-11 [color-scheme:light]`
 const CHECKBOX_CLASS = "mt-1 h-5 w-5 shrink-0 rounded border-slate-300 accent-slate-900"
 const PRIMARY_BUTTON_CLASS =
   "inline-flex min-h-14 w-full items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#0f172a,#0f766e)] px-5 py-4 text-base font-semibold text-white shadow-[0_18px_34px_rgba(15,23,42,0.18)] transition disabled:opacity-60 sm:min-h-12 sm:text-sm"
 const SECONDARY_BUTTON_CLASS =
   "inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition sm:w-auto"
+
+function DateInput(props: InputHTMLAttributes<HTMLInputElement>) {
+  const { className = "", lang, value, ...rest } = props
+  const hasValue = String(value ?? "").trim().length > 0
+
+  return (
+    <div className="relative mt-1">
+      {!hasValue ? (
+        <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-base text-slate-400 sm:text-sm">
+          TT.MM.JJJJ
+        </span>
+      ) : null}
+      <input
+        {...rest}
+        type="date"
+        value={value}
+        lang={lang ?? "de-DE"}
+        className={`${DATE_FIELD_CLASS} ${!hasValue ? "text-transparent" : ""} ${className}`.trim()}
+      />
+      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 2v3m8-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+        </svg>
+      </span>
+    </div>
+  )
+}
 
 export default function SchufaFreePrecheck() {
   const [form, setForm] = useState({
@@ -290,13 +318,11 @@ export default function SchufaFreePrecheck() {
             </label>
             <label className="min-w-0 text-sm text-slate-700">
               Geburtsdatum
-              <input
-                type="date"
+              <DateInput
                 lang="de-DE"
                 value={form.birthDate}
                 autoComplete="bday"
                 onChange={(event) => setForm((current) => ({ ...current, birthDate: event.target.value }))}
-                className={DATE_FIELD_CLASS}
               />
             </label>
             <label className="min-w-0 text-sm text-slate-700">
@@ -380,12 +406,10 @@ export default function SchufaFreePrecheck() {
             </label>
             <label className="min-w-0 text-sm text-slate-700">
               Beim aktuellen Arbeitgeber seit
-              <input
-                type="date"
+              <DateInput
                 lang="de-DE"
                 value={form.employmentStartDate}
                 onChange={(event) => setForm((current) => ({ ...current, employmentStartDate: event.target.value }))}
-                className={DATE_FIELD_CLASS}
               />
             </label>
           </div>

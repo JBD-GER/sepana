@@ -239,10 +239,12 @@ export default async function SchufaFreeLandingpagePage() {
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              {HERO_BADGES.map((item) => (
+              {HERO_BADGES.map((item, index) => (
                 <div
                   key={item}
-                  className="max-w-full rounded-full border border-white/16 bg-white/10 px-3 py-2 text-xs font-semibold leading-5 text-white/95 backdrop-blur"
+                  className={`max-w-full rounded-full border border-white/16 bg-white/10 px-3 py-2 text-xs font-semibold leading-5 text-white/95 backdrop-blur ${
+                    index >= 3 ? "hidden sm:block" : ""
+                  }`}
                 >
                   {item}
                 </div>
@@ -271,7 +273,7 @@ export default async function SchufaFreeLandingpagePage() {
 
           <div className="min-w-0 space-y-4">
             <div className="overflow-hidden rounded-[28px] border border-white/14 bg-white/10 p-3 backdrop-blur">
-              <div className="relative h-[240px] overflow-hidden rounded-[22px] border border-white/10 bg-slate-950 sm:h-[320px]">
+              <div className="relative h-[220px] overflow-hidden rounded-[22px] border border-white/10 bg-slate-950 sm:h-[320px]">
                 <Image
                   src="/happy_family.jpg"
                   alt="Kreditberatung bei SEPANA"
@@ -281,16 +283,26 @@ export default async function SchufaFreeLandingpagePage() {
                   sizes="(max-width: 1280px) 100vw, 42vw"
                 />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-900/10 to-transparent" />
-                <div className="absolute inset-x-4 bottom-4 rounded-[22px] border border-white/14 bg-white/12 p-4 backdrop-blur">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200">
+                <div className="absolute inset-x-3 bottom-3 rounded-[20px] border border-white/14 bg-slate-950/36 p-3 backdrop-blur-sm sm:inset-x-4 sm:bottom-4 sm:rounded-[22px] sm:bg-white/12 sm:p-4">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-200 sm:text-[11px] sm:tracking-[0.16em]">
                     Kundenbewertung
                   </div>
-                  <div className="mt-2 flex items-center gap-3">
-                    <div className="text-lg tracking-[0.18em] text-amber-300">★★★★★</div>
+                  <div className="mt-1.5 flex items-center gap-2 sm:mt-2 sm:gap-3">
+                    <div className="text-base tracking-[0.16em] text-amber-300 sm:text-lg sm:tracking-[0.18em]">★★★★★</div>
                     <div className="text-sm font-semibold text-white">{formatScore(reviewStats.average)} / 5</div>
                   </div>
-                  <p className="mt-3 text-sm leading-7 text-slate-100/95">&bdquo;{leadReview.quote}&ldquo;</p>
-                  <div className="mt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200/85">
+                  <p
+                    className="mt-2 text-[13px] leading-6 text-slate-100/95 sm:mt-3 sm:text-sm sm:leading-7"
+                    style={{
+                      display: "-webkit-box",
+                      WebkitLineClamp: 4,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    &bdquo;{leadReview.quote}&ldquo;
+                  </p>
+                  <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-200/85 sm:mt-3 sm:text-[11px] sm:tracking-[0.16em]">
                     {leadReview.initials} aus {leadReview.city}
                   </div>
                 </div>

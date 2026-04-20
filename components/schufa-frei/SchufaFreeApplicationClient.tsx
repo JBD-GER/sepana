@@ -76,8 +76,10 @@ const SCHUFA_FREE_CONVERSION_PENDING_PREFIX = "sepana:ads-conversion:schufa-frei
 const SCHUFA_FREE_CONVERSION_DONE_PREFIX = "sepana:ads-conversion:schufa-frei-final-submit:done"
 
 const CHILD_TAX_ALLOWANCE_OPTIONS = Array.from({ length: 21 }, (_, index) => index * 0.5)
-const INPUT_CLASS =
-  "mt-1 block h-14 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-4 focus:ring-cyan-100 sm:h-12 sm:text-sm"
+const INPUT_BASE_CLASS =
+  "block h-14 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-4 focus:ring-cyan-100 sm:h-12 sm:text-sm"
+const INPUT_CLASS = `mt-1 ${INPUT_BASE_CLASS}`
+const DATE_INPUT_CLASS = `${INPUT_BASE_CLASS} date-field appearance-none pr-11 [color-scheme:light]`
 const CHECKBOX_CLASS = "mt-1 h-5 w-5 shrink-0 rounded border-slate-300 accent-slate-900"
 const PRIMARY_BUTTON_CLASS =
   "inline-flex min-h-14 w-full items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#0f172a,#0f766e)] px-5 py-4 text-base font-semibold text-white shadow-[0_18px_34px_rgba(15,23,42,0.18)] transition disabled:opacity-60 sm:min-h-12 sm:w-auto sm:text-sm"
@@ -251,18 +253,42 @@ function Field({ label, children, className = "" }: { label: string; children: R
   return <label className={`block min-w-0 text-sm text-slate-700 ${className}`}><span className="block leading-6">{label}</span>{children}</label>
 }
 
+function DateInput(props: InputHTMLAttributes<HTMLInputElement>) {
+  const { className = "", lang, value, ...rest } = props
+  const hasValue = String(value ?? "").trim().length > 0
+
+  return (
+    <div className="relative mt-1">
+      {!hasValue ? (
+        <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-base text-slate-400 sm:text-sm">
+          TT.MM.JJJJ
+        </span>
+      ) : null}
+      <input
+        {...rest}
+        type="date"
+        value={value}
+        lang={lang ?? "de-DE"}
+        className={`${DATE_INPUT_CLASS} ${!hasValue ? "text-transparent" : ""} ${className}`.trim()}
+      />
+      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 2v3m8-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+        </svg>
+      </span>
+    </div>
+  )
+}
+
 function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   const { className = "", type, lang, ...rest } = props
   const isDateField = type === "date"
 
-  return (
-    <input
-      {...rest}
-      type={type}
-      lang={isDateField ? lang ?? "de-DE" : lang}
-      className={`${INPUT_CLASS} ${isDateField ? "date-field pr-11 [color-scheme:light]" : ""} ${className}`.trim()}
-    />
-  )
+  if (isDateField) {
+    return <DateInput {...rest} type="date" lang={lang} className={className} />
+  }
+
+  return <input {...rest} type={type} lang={lang} className={`${INPUT_CLASS} ${className}`.trim()} />
 }
 
 function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
