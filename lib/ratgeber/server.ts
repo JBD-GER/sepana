@@ -66,6 +66,7 @@ type ArticleRow = {
   is_published: boolean
   hero_image_path: string | null
   hero_image_alt: string | null
+  cta_page_href?: string | null
   outline: unknown
   highlights: unknown
   faq: unknown
@@ -133,6 +134,45 @@ function hasSupabaseConfig() {
   )
 }
 
+function isMissingArticleCtaPageColumn(message: string | undefined) {
+  return Boolean(message && message.includes("cta_page_href"))
+}
+
+async function fetchPublishedArticleRows(supabase: ReturnType<typeof supabaseAdmin>) {
+  const withCtaSelect =
+    "slug,topic_id,menu_title,title,excerpt,seo_title,seo_description,focus_keyword,reading_time_minutes,published_at,updated_at,sort_order,is_published,hero_image_path,hero_image_alt,cta_page_href,outline,highlights,faq,content"
+  const baseSelect =
+    "slug,topic_id,menu_title,title,excerpt,seo_title,seo_description,focus_keyword,reading_time_minutes,published_at,updated_at,sort_order,is_published,hero_image_path,hero_image_alt,outline,highlights,faq,content"
+
+  const withCtaResult = await supabase
+    .from("ratgeber_articles")
+    .select(withCtaSelect)
+    .eq("is_published", true)
+    .order("sort_order", { ascending: true })
+  if (!withCtaResult.error) {
+    return {
+      rows: (withCtaResult.data as ArticleRow[] | null) ?? [],
+      hasCtaPageColumn: true,
+    }
+  }
+
+  if (!isMissingArticleCtaPageColumn(withCtaResult.error.message)) {
+    throw withCtaResult.error
+  }
+
+  const fallbackResult = await supabase
+    .from("ratgeber_articles")
+    .select(baseSelect)
+    .eq("is_published", true)
+    .order("sort_order", { ascending: true })
+  if (fallbackResult.error) throw fallbackResult.error
+
+  return {
+    rows: (fallbackResult.data as ArticleRow[] | null) ?? [],
+    hasCtaPageColumn: false,
+  }
+}
+
 function isSection(value: unknown): value is RatgeberArticleSection {
   if (!value || typeof value !== "object") return false
   const record = value as Record<string, unknown>
@@ -177,7 +217,7 @@ const loadDbContent = cache(async (): Promise<RatgeberContentSet | null> => {
     const [
       { data: categoriesData, error: categoriesError },
       { data: topicsData, error: topicsError },
-      { data: articlesData, error: articlesError },
+      { rows: articleRows, hasCtaPageColumn },
     ] = await Promise.all([
       supabase
         .from("ratgeber_categories")
@@ -193,17 +233,11 @@ const loadDbContent = cache(async (): Promise<RatgeberContentSet | null> => {
         )
         .eq("is_published", true)
         .order("sort_order", { ascending: true }),
-      supabase
-        .from("ratgeber_articles")
-        .select(
-          "slug,topic_id,menu_title,title,excerpt,seo_title,seo_description,focus_keyword,reading_time_minutes,published_at,updated_at,sort_order,is_published,hero_image_path,hero_image_alt,outline,highlights,faq,content",
-        )
-        .eq("is_published", true)
-        .order("sort_order", { ascending: true }),
+      fetchPublishedArticleRows(supabase),
     ])
 
-    if (categoriesError || topicsError || articlesError) {
-      const errorMessage = categoriesError?.message || topicsError?.message || articlesError?.message || "unknown"
+    if (categoriesError || topicsError) {
+      const errorMessage = categoriesError?.message || topicsError?.message || "unknown"
       if (isMissingRatgeberTable(errorMessage)) {
         return null
       }
@@ -213,7 +247,6 @@ const loadDbContent = cache(async (): Promise<RatgeberContentSet | null> => {
 
     const categoryRows = Array.isArray(categoriesData) ? (categoriesData as CategoryRow[]) : []
     const topicRows = Array.isArray(topicsData) ? (topicsData as TopicRow[]) : []
-    const articleRows = Array.isArray(articlesData) ? (articlesData as ArticleRow[]) : []
     if (!categoryRows.length || !topicRows.length) return null
 
     const categoryMap = new Map<string, RatgeberCategory>()
@@ -301,6 +334,7 @@ const loadDbContent = cache(async (): Promise<RatgeberContentSet | null> => {
             row.hero_image_alt?.trim() ||
             staticFallback?.heroImageAlt ||
             `${row.menu_title} im SEPANA Ratgeber`,
+          ctaPageHref: hasCtaPageColumn ? row.cta_page_href ?? staticFallback?.ctaPageHref ?? null : null,
           faq,
           sections,
         } satisfies RatgeberArticle

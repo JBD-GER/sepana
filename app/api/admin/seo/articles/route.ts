@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/admin/requireAdmin"
 import { getStaticRatgeberTopics } from "@/lib/ratgeber/content"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { slugify, trimToNull } from "@/lib/ratgeber/utils"
+import { normalizeWebsiteHeaderPageHref } from "@/lib/website/navigation"
 
 type ArticleSectionInput = {
   heading?: unknown
@@ -34,6 +35,7 @@ type SaveBody = {
   isPublished?: unknown
   heroImagePath?: unknown
   heroImageAlt?: unknown
+  ctaPageHref?: unknown
   outline?: unknown
   highlights?: unknown
   faq?: unknown
@@ -92,6 +94,10 @@ function parseSections(value: unknown) {
     .filter((item) => item !== null) as Array<{ heading: string; paragraphs: string[]; bullets?: string[] }>
 }
 
+function isMissingArticleCtaPageColumn(message: string | undefined) {
+  return Boolean(message && message.includes("cta_page_href"))
+}
+
 export async function POST(req: Request) {
   try {
     await requireAdmin()
@@ -108,6 +114,8 @@ export async function POST(req: Request) {
     const excerpt = asString(body.excerpt)
     const seoTitle = asString(body.seoTitle)
     const seoDescription = asString(body.seoDescription)
+    const rawCtaPageHref = asString(body.ctaPageHref)
+    const ctaPageHref = normalizeWebsiteHeaderPageHref(body.ctaPageHref)
     const sections = parseSections(body.sections)
     const outline = parseStringList(body.outline)
     const highlights = parseStringList(body.highlights)
@@ -118,6 +126,9 @@ export async function POST(req: Request) {
     }
     if (!title || !slug || !menuTitle || !focusKeyword || !excerpt || !seoTitle || !seoDescription) {
       return NextResponse.json({ ok: false, error: "Pflichtfelder fehlen." }, { status: 400 })
+    }
+    if (rawCtaPageHref && !ctaPageHref) {
+      return NextResponse.json({ ok: false, error: "CTA-Ziel ist ungueltig." }, { status: 400 })
     }
     if (!sections.length) {
       return NextResponse.json({ ok: false, error: "Mindestens ein Textblock ist erforderlich." }, { status: 400 })
@@ -174,6 +185,7 @@ export async function POST(req: Request) {
       is_published: asBoolean(body.isPublished, true),
       hero_image_path: trimToNull(body.heroImagePath),
       hero_image_alt: trimToNull(body.heroImageAlt) || title,
+      cta_page_href: ctaPageHref,
       outline,
       highlights,
       faq,
@@ -182,15 +194,33 @@ export async function POST(req: Request) {
     }
 
     const articleId = asString(body.id)
+    const runSave = async (includeCtaPage: boolean) => {
+      const patchWithoutCtaPage = (({ cta_page_href: omitted, ...rest }) => {
+        void omitted
+        return rest
+      })(patch)
+      const resolvedPatch = includeCtaPage ? patch : patchWithoutCtaPage
+      const saveQuery = articleId
+        ? admin.from("ratgeber_articles").update(resolvedPatch).eq("id", articleId)
+        : admin.from("ratgeber_articles").insert({
+            ...resolvedPatch,
+            published_at: new Date().toISOString(),
+          })
+      return await saveQuery
+    }
 
-    const query = articleId
-      ? admin.from("ratgeber_articles").update(patch).eq("id", articleId)
-      : admin.from("ratgeber_articles").insert({
-          ...patch,
-          published_at: new Date().toISOString(),
-        })
+    let { error } = await runSave(true)
+    if (error && isMissingArticleCtaPageColumn(error.message)) {
+      if (ctaPageHref) {
+        return NextResponse.json(
+          { ok: false, error: "Das CTA-Zielfeld fehlt noch in der Datenbank. Bitte zuerst die SQL-Migration ausfuehren." },
+          { status: 500 },
+        )
+      }
 
-    const { error } = await query
+      const fallback = await runSave(false)
+      error = fallback.error
+    }
     if (error) throw error
 
     const { data: saved, error: reloadError } = await admin

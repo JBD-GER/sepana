@@ -11,6 +11,7 @@ import type {
 } from "@/lib/ratgeber/adminServer"
 import { type GeneratedRatgeberArticle, getRatgeberImageSrc, parseLines, slugify } from "@/lib/ratgeber/utils"
 import { createBrowserSupabaseClientNoAuth } from "@/lib/supabase/browser"
+import { WEBSITE_HEADER_PAGE_GROUPS, getWebsiteHeaderPageByHref } from "@/lib/website/navigation"
 
 type SeoArticleEditorProps = {
   dbReady: boolean
@@ -37,6 +38,7 @@ type DraftState = {
   isPublished: boolean
   heroImagePath: string | null
   heroImageAlt: string
+  ctaPageHref: string
   highlights: string[]
   faq: RatgeberFaqItem[]
   sections: RatgeberArticleSection[]
@@ -70,6 +72,7 @@ function buildDraft(topics: AdminRatgeberTopic[], article?: AdminRatgeberArticle
       isPublished: true,
       heroImagePath: null,
       heroImageAlt: "",
+      ctaPageHref: "",
       highlights: [],
       faq: [],
       sections: [],
@@ -110,6 +113,7 @@ function buildDraft(topics: AdminRatgeberTopic[], article?: AdminRatgeberArticle
     isPublished: article.isPublished,
     heroImagePath: article.heroImagePath,
     heroImageAlt: article.heroImageAlt,
+    ctaPageHref: article.ctaPageHref ?? "",
     highlights: article.highlights,
     faq: article.faq,
     sections: article.sections,
@@ -200,6 +204,7 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
     categories.find((item) => item.slug === selectedCategorySlug)?.name ?? selectedCategorySlug
   const selectedTopicName = availableTopics.find((item) => item.slug === selectedTopicSlug)?.name ?? selectedTopicSlug
   const heroImageSrc = getRatgeberImageSrc(draft.heroImagePath)
+  const selectedCtaPage = getWebsiteHeaderPageByHref(draft.ctaPageHref)
 
   useEffect(() => {
     if (!sameTopicList(availableTopicsState, topics)) {
@@ -439,6 +444,7 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
           isPublished: draft.isPublished,
           heroImagePath: draft.heroImagePath,
           heroImageAlt: draft.heroImageAlt || draft.title,
+          ctaPageHref: draft.ctaPageHref || null,
           outline: parseLines(draft.outlineText),
           highlights: draft.highlights,
           faq: draft.faq,
@@ -472,6 +478,7 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
             isPublished: draft.isPublished,
             heroImagePath: draft.heroImagePath,
             heroImageAlt: draft.heroImageAlt || draft.title,
+            ctaPageHref: draft.ctaPageHref || null,
             outline: parseLines(draft.outlineText),
             highlights: draft.highlights,
             faq: draft.faq,
@@ -886,6 +893,28 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
                     className={inputBase}
                   />
                 </div>
+                <div className="grid gap-2">
+                  <label className="text-xs text-slate-600">CTA-Override</label>
+                  <select
+                    value={draft.ctaPageHref}
+                    onChange={(event) => setDraft((current) => ({ ...current, ctaPageHref: event.target.value }))}
+                    className={inputBase}
+                  >
+                    <option value="">Standard-CTA verwenden</option>
+                    {WEBSITE_HEADER_PAGE_GROUPS.map((group) => (
+                      <optgroup key={group.id} label={group.label}>
+                        {group.items.map((item) => (
+                          <option key={item.href} value={item.href}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <div className="text-xs text-slate-500">
+                    Optional. Wenn gesetzt, ersetzt diese Header-Seite die Standard-CTA im Beitrag.
+                  </div>
+                </div>
                 <div className="flex items-end">
                   <label className="inline-flex items-center gap-2 text-sm text-slate-700">
                     <input
@@ -971,6 +1000,9 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
                     {selectedCategoryName} / {selectedTopicName || "Unterkategorie"}
                   </div>
                   <div className="mt-2 text-lg font-semibold text-slate-900">{draft.title || "Noch kein Titel"}</div>
+                  <div className="mt-3 text-xs text-slate-500">
+                    CTA: {selectedCtaPage ? `${selectedCtaPage.label} (${selectedCtaPage.href})` : "Standard"}
+                  </div>
                 </div>
               </div>
             </div>

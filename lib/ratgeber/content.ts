@@ -56,6 +56,7 @@ export type RatgeberArticle = {
   outline: string[]
   heroImagePath: string | null
   heroImageAlt: string
+  ctaPageHref: string | null
   faq: RatgeberFaqItem[]
   sections: RatgeberArticleSection[]
 }

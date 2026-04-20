@@ -70,7 +70,7 @@ export default async function RatgeberArticlePage({
   const relatedArticles = (await getRatgeberArticlesByTopic(category.slug, topic.slug))
     .filter((item) => item.slug !== article.slug)
     .slice(0, 3)
-  const cta = buildArticleCta(article.title, category.slug)
+  const cta = buildArticleCta(article.title, category.slug, article.ctaPageHref)
   const heroImageSrc = getRatgeberImageSrc(article.heroImagePath)
   const faqItems = buildArticleFaq(article, category.name)
   const updatedLabel = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(article.updatedAt))
@@ -189,7 +189,7 @@ export default async function RatgeberArticlePage({
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                 <div className="max-w-2xl">
                   <div className="text-sm font-semibold text-slate-900">Sinnvoller nächster Schritt</div>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-600">{inlineCtaText}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-600">{cta.introText || inlineCtaText}</p>
                 </div>
                 <div className="flex flex-wrap gap-3 lg:justify-end">
                   <Link

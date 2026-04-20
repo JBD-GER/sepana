@@ -5,16 +5,15 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
+import {
+  BAUFINANZIERUNG_HEADER_PAGES,
+  PRIVATKREDIT_HEADER_PAGES,
+  RATGEBER_HEADER_PAGES,
+  type WebsiteHeaderPage,
+} from "@/lib/website/navigation"
 
 const PRIMARY = "#0a2342"
 const PORTAL_HREF = "/app"
-
-type PortalNavItem = {
-  href: string
-  label: string
-  description: string
-  featured?: boolean
-}
 
 type HeaderProps = {
   reviewStats?: {
@@ -30,66 +29,6 @@ type LiveHeaderStatus = {
 
 type MobileSectionId = "baufi" | "privatkredit"
 
-const BAUFINANZIERUNG_NAV: PortalNavItem[] = [
-  {
-    href: "/baufinanzierung",
-    label: "Übersicht Baufinanzierung",
-    description: "Kauf, Neubau und strukturierter Einstieg",
-  },
-  {
-    href: "/baufinanzierung/anschlussfinanzierung",
-    label: "Anschlussfinanzierung",
-    description: "Forward-Darlehen und Restschuld strategisch planen",
-  },
-]
-
-const PRIVATEKREDIT_NAV: PortalNavItem[] = [
-  {
-    href: "/onlinekredit",
-    label: "Onlinekredit",
-    description: "15 Minuten · 100 % digitaler Einstieg in die Kreditstrecke",
-    featured: true,
-  },
-  {
-    href: "/kredit-ohne-schufa",
-    label: "Kredit ohne Schufa",
-    description: "Kredit trotz negativer Schufa, Online abschließbar.",
-  },
-  {
-    href: "/privatkredit/hochzeitskredit",
-    label: "Hochzeitskredit",
-    description: "Budgetrechner und Finanzierung für die Hochzeit",
-  },
-  {
-    href: "/privatkredit/kredit-pv-anlage",
-    label: "Kredit PV Anlage",
-    description: "PV-Anlage 100 % finanzieren",
-  },
-  {
-    href: "/privatkredit/umschulden",
-    label: "Umschulden",
-    description: "Rate reduzieren und Kredite neu ordnen",
-  },
-]
-
-const RATGEBER_NAV: PortalNavItem[] = [
-  {
-    href: "/ratgeber",
-    label: "Ratgeber Übersicht",
-    description: "Alle Themencluster für Baufinanzierung und Privatkredit",
-  },
-  {
-    href: "/ratgeber/baufinanzierung",
-    label: "Ratgeber Baufinanzierung",
-    description: "Hauskauf, Wohnungskauf, Anschlussfinanzierung und mehr",
-  },
-  {
-    href: "/ratgeber/privatkredit",
-    label: "Ratgeber Privatkredit",
-    description: "Umschuldung, Bonität, Zinsen und Voraussetzungen",
-  },
-]
-
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ")
 }
@@ -104,6 +43,10 @@ function activeHrefForGroup(pathname: string, items: Array<{ href: string }>) {
     .filter((item) => isActive(pathname, item.href))
     .sort((a, b) => b.href.length - a.href.length)
   return matches[0]?.href ?? null
+}
+
+function renderNavDescription(item: WebsiteHeaderPage, active: boolean) {
+  return <div className={cn("mt-0.5 text-xs", active ? "text-slate-200" : "text-slate-500")}>{item.description}</div>
 }
 
 function formatReviewScore(value: number | null) {
@@ -295,11 +238,11 @@ export default function Header({ reviewStats = null }: HeaderProps) {
   const authLink = isAuthed ? { href: PORTAL_HREF, label: "Portal" } : { href: "/login", label: "Login" }
   const baufinanzierungActiveHref = pathname.startsWith("/baufinanzierung/auswahl")
     ? null
-    : activeHrefForGroup(pathname, BAUFINANZIERUNG_NAV)
+    : activeHrefForGroup(pathname, BAUFINANZIERUNG_HEADER_PAGES)
   const baufinanzierungActive = Boolean(baufinanzierungActiveHref)
-  const ratgeberActiveHref = activeHrefForGroup(pathname, RATGEBER_NAV)
+  const ratgeberActiveHref = activeHrefForGroup(pathname, RATGEBER_HEADER_PAGES)
   const ratgeberActive = Boolean(ratgeberActiveHref)
-  const privatkreditActiveHref = activeHrefForGroup(pathname, PRIVATEKREDIT_NAV)
+  const privatkreditActiveHref = activeHrefForGroup(pathname, PRIVATKREDIT_HEADER_PAGES)
   const privatkreditActive = Boolean(privatkreditActiveHref)
   const liveActive = isActive(pathname, "/live-beratung")
   const liveOnline = (liveHeaderStatus?.onlineCount ?? 0) > 0
@@ -373,7 +316,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
 
             <div className="pointer-events-none invisible absolute left-0 top-full z-50 w-[340px] translate-y-1 pt-2 opacity-0 transition duration-150 group-hover:pointer-events-auto group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
               <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                {BAUFINANZIERUNG_NAV.map((item) => {
+                {BAUFINANZIERUNG_HEADER_PAGES.map((item) => {
                   const active = item.href === baufinanzierungActiveHref
                   return (
                     <Link
@@ -388,7 +331,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
                       )}
                     >
                       <div className="text-sm font-semibold">{item.label}</div>
-                      <div className={cn("mt-0.5 text-xs", active ? "text-slate-200" : "text-slate-500")}>{item.description}</div>
+                      {renderNavDescription(item, active)}
                     </Link>
                   )
                 })}
@@ -414,7 +357,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
 
             <div className="pointer-events-none invisible absolute left-0 top-full z-50 w-[320px] translate-y-1 pt-2 opacity-0 transition duration-150 group-hover:pointer-events-auto group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
               <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                {PRIVATEKREDIT_NAV.map((item) => {
+                {PRIVATKREDIT_HEADER_PAGES.map((item) => {
                   const active = item.href === privatkreditActiveHref
                   return (
                     <Link
@@ -431,7 +374,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
                       )}
                     >
                       <div className={cn("text-sm font-semibold", item.featured && !active && "text-[#0b1f5e]")}>{item.label}</div>
-                      <div className={cn("mt-0.5 text-xs", active ? "text-slate-200" : "text-slate-500")}>{item.description}</div>
+                      {renderNavDescription(item, active)}
                     </Link>
                   )
                 })}
@@ -551,7 +494,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
             </button>
             {mobileSectionsOpen.baufi ? (
               <div className="grid gap-2 border-t border-slate-100 px-3 py-3">
-                {BAUFINANZIERUNG_NAV.map((item) => {
+                {BAUFINANZIERUNG_HEADER_PAGES.map((item) => {
                   const active = item.href === baufinanzierungActiveHref
                   return (
                     <Link
@@ -566,7 +509,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
                       )}
                     >
                       <div className="font-medium">{item.label}</div>
-                      <div className={cn("mt-0.5 text-xs", active ? "text-slate-200" : "text-slate-500")}>{item.description}</div>
+                      {renderNavDescription(item, active)}
                     </Link>
                   )
                 })}
@@ -591,7 +534,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
             </button>
             {mobileSectionsOpen.privatkredit ? (
               <div className="grid gap-2 border-t border-slate-100 px-3 py-3">
-                {PRIVATEKREDIT_NAV.map((item) => {
+                {PRIVATKREDIT_HEADER_PAGES.map((item) => {
                   const active = item.href === privatkreditActiveHref
                   return (
                     <Link
@@ -608,7 +551,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
                       )}
                     >
                       <div className={cn("font-medium", item.featured && !active && "text-[#0b1f5e]")}>{item.label}</div>
-                      <div className={cn("mt-0.5 text-xs", active ? "text-slate-200" : "text-slate-500")}>{item.description}</div>
+                      {renderNavDescription(item, active)}
                     </Link>
                   )
                 })}

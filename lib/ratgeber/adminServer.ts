@@ -32,6 +32,7 @@ export type AdminRatgeberArticle = {
   isPublished: boolean
   heroImagePath: string | null
   heroImageAlt: string
+  ctaPageHref: string | null
   outline: string[]
   highlights: string[]
   faq: RatgeberFaqItem[]
@@ -118,6 +119,7 @@ type ArticleRow = {
   is_published: boolean
   hero_image_path: string | null
   hero_image_alt: string | null
+  cta_page_href?: string | null
   outline: unknown
   highlights: unknown
   faq: unknown
@@ -192,6 +194,37 @@ function hasSupabaseConfig() {
   )
 }
 
+function isMissingArticleCtaPageColumn(message: string | undefined) {
+  return Boolean(message && message.includes("cta_page_href"))
+}
+
+async function fetchAdminArticleRows(admin: ReturnType<typeof supabaseAdmin>) {
+  const withCtaSelect =
+    "id,slug,menu_title,title,excerpt,seo_title,seo_description,focus_keyword,reading_time_minutes,sort_order,is_published,hero_image_path,hero_image_alt,cta_page_href,outline,highlights,faq,content,updated_at,ratgeber_topics!inner(slug,name,ratgeber_categories!inner(slug))"
+  const baseSelect =
+    "id,slug,menu_title,title,excerpt,seo_title,seo_description,focus_keyword,reading_time_minutes,sort_order,is_published,hero_image_path,hero_image_alt,outline,highlights,faq,content,updated_at,ratgeber_topics!inner(slug,name,ratgeber_categories!inner(slug))"
+
+  const withCtaResult = await admin.from("ratgeber_articles").select(withCtaSelect).order("updated_at", { ascending: false })
+  if (!withCtaResult.error) {
+    return {
+      rows: ((withCtaResult.data as unknown) as ArticleRow[] | null) ?? [],
+      hasCtaPageColumn: true,
+    }
+  }
+
+  if (!isMissingArticleCtaPageColumn(withCtaResult.error.message)) {
+    throw withCtaResult.error
+  }
+
+  const fallbackResult = await admin.from("ratgeber_articles").select(baseSelect).order("updated_at", { ascending: false })
+  if (fallbackResult.error) throw fallbackResult.error
+
+  return {
+    rows: ((fallbackResult.data as unknown) as ArticleRow[] | null) ?? [],
+    hasCtaPageColumn: false,
+  }
+}
+
 export async function getRatgeberAdminState(): Promise<AdminRatgeberState> {
   const categories = getStaticRatgeberCategories().map((item) => ({ slug: item.slug, name: item.name }))
   const topics = getStaticRatgeberTopics().map((item) => ({
@@ -211,22 +244,20 @@ export async function getRatgeberAdminState(): Promise<AdminRatgeberState> {
 
   try {
     const admin = supabaseAdmin()
-    const [{ data: categoryRows, error: categoryError }, { data: topicRows, error: topicError }, { data: articleRows, error: articleError }] =
-      await Promise.all([
-        admin.from("ratgeber_categories").select("slug,name").order("sort_order", { ascending: true }),
-        admin
-          .from("ratgeber_topics")
-          .select("slug,name,ratgeber_categories!inner(slug)")
-          .order("sort_order", { ascending: true }),
-        admin
-          .from("ratgeber_articles")
-          .select(
-            "id,slug,menu_title,title,excerpt,seo_title,seo_description,focus_keyword,reading_time_minutes,sort_order,is_published,hero_image_path,hero_image_alt,outline,highlights,faq,content,updated_at,ratgeber_topics!inner(slug,name,ratgeber_categories!inner(slug))",
-          )
-          .order("updated_at", { ascending: false }),
-      ])
+    const [
+      { data: categoryRows, error: categoryError },
+      { data: topicRows, error: topicError },
+      { rows: articleRows, hasCtaPageColumn },
+    ] = await Promise.all([
+      admin.from("ratgeber_categories").select("slug,name").order("sort_order", { ascending: true }),
+      admin
+        .from("ratgeber_topics")
+        .select("slug,name,ratgeber_categories!inner(slug)")
+        .order("sort_order", { ascending: true }),
+      fetchAdminArticleRows(admin),
+    ])
 
-    const errorMessage = categoryError?.message || topicError?.message || articleError?.message || ""
+    const errorMessage = categoryError?.message || topicError?.message || ""
     if (errorMessage.includes("public.ratgeber_")) {
       return {
         dbReady: false,
@@ -238,7 +269,6 @@ export async function getRatgeberAdminState(): Promise<AdminRatgeberState> {
 
     if (categoryError) throw categoryError
     if (topicError) throw topicError
-    if (articleError) throw articleError
 
     const loadedCategories = mergeCategories(
       categories,
@@ -262,7 +292,7 @@ export async function getRatgeberAdminState(): Promise<AdminRatgeberState> {
         .filter((item) => item.categorySlug && item.slug),
     )
 
-    const articles = (((articleRows as unknown) as ArticleRow[] | null) ?? []).map((row) => {
+    const articles = articleRows.map((row) => {
       const topic = firstRelation(row.ratgeber_topics)
       const category = firstRelation(topic?.ratgeber_categories)
       return {
@@ -282,6 +312,7 @@ export async function getRatgeberAdminState(): Promise<AdminRatgeberState> {
         isPublished: Boolean(row.is_published),
         heroImagePath: row.hero_image_path,
         heroImageAlt: row.hero_image_alt ?? "",
+        ctaPageHref: hasCtaPageColumn ? row.cta_page_href ?? null : null,
         outline: parseStringArray(row.outline),
         highlights: parseStringArray(row.highlights),
         faq: parseFaq(row.faq),

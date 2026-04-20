@@ -50,6 +50,86 @@ function extractOutputText(payload: unknown): string {
   return texts.join("\n").trim()
 }
 
+function getIncompleteReason(payload: unknown) {
+  const record = payload as {
+    status?: unknown
+    incomplete_details?: {
+      reason?: unknown
+    } | null
+  } | null
+
+  if (record?.status !== "incomplete") return null
+  return typeof record?.incomplete_details?.reason === "string" ? record.incomplete_details.reason : "unknown"
+}
+
+function getApiErrorMessage(payload: unknown, status: number) {
+  const record = payload as
+    | {
+        error?: {
+          message?: unknown
+        } | null
+        message?: unknown
+      }
+    | null
+
+  if (typeof record?.error?.message === "string" && record.error.message.trim()) {
+    return record.error.message
+  }
+  if (typeof record?.message === "string" && record.message.trim()) {
+    return record.message
+  }
+  return `OpenAI Anfrage fehlgeschlagen (${status})`
+}
+
+async function requestGeneratedArticle({
+  apiKey,
+  model,
+  systemPrompt,
+  userPrompt,
+  schema,
+  maxOutputTokens,
+}: {
+  apiKey: string
+  model: string
+  systemPrompt: string
+  userPrompt: string
+  schema: Record<string, unknown>
+  maxOutputTokens: number
+}) {
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      input: [
+        {
+          role: "system",
+          content: [{ type: "input_text", text: systemPrompt }],
+        },
+        {
+          role: "user",
+          content: [{ type: "input_text", text: userPrompt }],
+        },
+      ],
+      max_output_tokens: maxOutputTokens,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "ratgeber_article",
+          schema,
+          strict: true,
+        },
+      },
+    }),
+  })
+
+  const payload = await response.json().catch(() => null)
+  return { response, payload }
+}
+
 export async function POST(req: Request) {
   try {
     await requireAdmin()
@@ -190,43 +270,47 @@ export async function POST(req: Request) {
     ].join("\n")
 
     const model = process.env.OPENAI_RATGEBER_MODEL || process.env.OPENAI_MODEL || "gpt-5-mini"
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        input: [
-          {
-            role: "system",
-            content: [{ type: "input_text", text: systemPrompt }],
-          },
-          {
-            role: "user",
-            content: [{ type: "input_text", text: userPrompt }],
-          },
-        ],
-        max_output_tokens: 4000,
-        text: {
-          format: {
-            type: "json_schema",
-            name: "ratgeber_article",
-            schema,
-            strict: true,
-          },
-        },
-      }),
-    })
+    const maxOutputTokenBudgets = [8000, 12000]
+    let response: Response | null = null
+    let payload: unknown = null
 
-    const payload = await response.json().catch(() => null)
+    for (const maxOutputTokens of maxOutputTokenBudgets) {
+      const result = await requestGeneratedArticle({
+        apiKey,
+        model,
+        systemPrompt,
+        userPrompt,
+        schema,
+        maxOutputTokens,
+      })
+      response = result.response
+      payload = result.payload
+
+      if (!response.ok) break
+      if (getIncompleteReason(payload) !== "max_output_tokens") break
+    }
+
+    if (!response) {
+      return NextResponse.json({ ok: false, error: "OpenAI Anfrage konnte nicht gestartet werden." }, { status: 500 })
+    }
+
     if (!response.ok) {
-      const message =
-        payload?.error?.message ||
-        payload?.message ||
-        `OpenAI Anfrage fehlgeschlagen (${response.status})`
+      const message = getApiErrorMessage(payload, response.status)
       return NextResponse.json({ ok: false, error: message }, { status: 500 })
+    }
+
+    const incompleteReason = getIncompleteReason(payload)
+    if (incompleteReason) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            incompleteReason === "max_output_tokens"
+              ? "Die KI-Antwort wurde abgeschnitten. Bitte Outline etwas kuerzen oder ein groesseres Token-Limit hinterlegen."
+              : `Die KI-Antwort konnte nicht vollstaendig erzeugt werden (${incompleteReason}).`,
+        },
+        { status: 500 },
+      )
     }
 
     const outputText = extractOutputText(payload)

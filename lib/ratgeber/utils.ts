@@ -1,4 +1,5 @@
 import type { RatgeberArticle, RatgeberArticleSection, RatgeberFaqItem } from "./content"
+import { getWebsiteHeaderPageByHref } from "@/lib/website/navigation"
 
 export const RATGEBER_STORAGE_BUCKET = "website_media"
 
@@ -85,10 +86,27 @@ export function getRatgeberImageSrc(path: string | null | undefined) {
   return `/api/baufi/logo?bucket=${encodeURIComponent(RATGEBER_STORAGE_BUCKET)}&path=${encodeURIComponent(clean)}`
 }
 
-export function buildArticleCta(articleTitle: string, categorySlug: string) {
+export function buildArticleCta(articleTitle: string, categorySlug: string, ctaPageHref?: string | null) {
+  const customPage = getWebsiteHeaderPageByHref(ctaPageHref)
+  if (customPage) {
+    const ctaText =
+      customPage.ctaText ||
+      `Wenn Sie direkt weitermachen wollen, wechseln Sie jetzt zu ${customPage.label}. ${customPage.description}`
+
+    return {
+      buttonLabel: customPage.ctaLabel || customPage.label,
+      introText: ctaText,
+      text: ctaText,
+      href: customPage.href,
+      title: customPage.ctaTitle || customPage.label,
+    }
+  }
+
   if (categorySlug === "baufinanzierung") {
     return {
       buttonLabel: "Baufinanzierung starten",
+      introText:
+        "Wenn Sie das Thema fuer Ihr eigenes Vorhaben direkt einordnen wollen, wechseln Sie nach dem Lesen strukturiert in die passende Finanzierungsanfrage.",
       text: "Wenn das Thema fuer Ihr Vorhaben relevant ist, starten Sie direkt die Kreditanfrage und lassen Sie die Eckdaten sauber einordnen.",
       href: "/kreditanfrage",
       title: articleTitle,
@@ -97,6 +115,8 @@ export function buildArticleCta(articleTitle: string, categorySlug: string) {
 
   return {
     buttonLabel: "Privatkredit starten",
+    introText:
+      "Wenn Sie das Thema fuer Ihren Kreditwunsch direkt einordnen wollen, wechseln Sie nach dem Lesen strukturiert in die passende Kreditanfrage.",
     text: "Wenn Sie das Thema jetzt konkret fuer Ihren Kreditwunsch pruefen wollen, starten Sie direkt die SEPANA Kreditanfrage.",
     href: "/kreditanfrage",
     title: articleTitle,
