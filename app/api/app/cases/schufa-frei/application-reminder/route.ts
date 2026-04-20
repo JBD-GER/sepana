@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
-import { createPublicCaseAccessToken } from "@/lib/onlinekredit/publicAccess"
+import { buildSchufaFreeApplicationHref, createPublicCaseAccessToken } from "@/lib/onlinekredit/publicAccess"
 import { getSchufaFreeCompletedOtherApplicationsByCaseIds } from "@/lib/schufa-frei/applicationReminder"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
@@ -20,19 +20,6 @@ function resolveSiteOrigin(req: Request) {
     } catch {}
   }
   return new URL(req.url).origin
-}
-
-function buildSchufaFreeApplicationUrl(input: {
-  siteOrigin: string
-  caseId: string
-  caseRef: string
-  accessToken: string
-}) {
-  const url = new URL("/kredit-ohne-schufa/antrag", input.siteOrigin)
-  url.searchParams.set("caseId", input.caseId)
-  url.searchParams.set("caseRef", input.caseRef)
-  url.searchParams.set("access", input.accessToken)
-  return url.toString()
 }
 
 export async function POST(req: Request) {
@@ -112,12 +99,14 @@ export async function POST(req: Request) {
     caseRef,
     customerId: caseRow.customer_id ?? null,
   })
-  const applicationUrl = buildSchufaFreeApplicationUrl({
-    siteOrigin,
-    caseId,
-    caseRef,
-    accessToken,
-  })
+  const applicationUrl = new URL(
+    buildSchufaFreeApplicationHref({
+      caseId,
+      caseRef,
+      accessToken,
+    }),
+    siteOrigin
+  ).toString()
 
   const subject = "Bitte Antrag vervollständigen"
   const html = buildEmailHtml({

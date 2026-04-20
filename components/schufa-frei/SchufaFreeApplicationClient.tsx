@@ -252,8 +252,17 @@ function Field({ label, children, className = "" }: { label: string; children: R
 }
 
 function Input(props: InputHTMLAttributes<HTMLInputElement>) {
-  const { className = "", ...rest } = props
-  return <input {...rest} className={`${INPUT_CLASS} ${className}`.trim()} />
+  const { className = "", type, lang, ...rest } = props
+  const isDateField = type === "date"
+
+  return (
+    <input
+      {...rest}
+      type={type}
+      lang={isDateField ? lang ?? "de-DE" : lang}
+      className={`${INPUT_CLASS} ${isDateField ? "date-field pr-11 [color-scheme:light]" : ""} ${className}`.trim()}
+    />
+  )
 }
 
 function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {

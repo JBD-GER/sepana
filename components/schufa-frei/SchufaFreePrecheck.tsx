@@ -81,6 +81,7 @@ function formatRate(value: number | null | undefined) {
 
 const FIELD_CLASS =
   "mt-1 h-14 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-4 focus:ring-cyan-100 sm:h-12 sm:text-sm"
+const DATE_FIELD_CLASS = `${FIELD_CLASS} date-field pr-11 [color-scheme:light]`
 const CHECKBOX_CLASS = "mt-1 h-5 w-5 shrink-0 rounded border-slate-300 accent-slate-900"
 const PRIMARY_BUTTON_CLASS =
   "inline-flex min-h-14 w-full items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#0f172a,#0f766e)] px-5 py-4 text-base font-semibold text-white shadow-[0_18px_34px_rgba(15,23,42,0.18)] transition disabled:opacity-60 sm:min-h-12 sm:text-sm"
@@ -291,10 +292,11 @@ export default function SchufaFreePrecheck() {
               Geburtsdatum
               <input
                 type="date"
+                lang="de-DE"
                 value={form.birthDate}
                 autoComplete="bday"
                 onChange={(event) => setForm((current) => ({ ...current, birthDate: event.target.value }))}
-                className={FIELD_CLASS}
+                className={DATE_FIELD_CLASS}
               />
             </label>
             <label className="min-w-0 text-sm text-slate-700">
@@ -380,9 +382,10 @@ export default function SchufaFreePrecheck() {
               Beim aktuellen Arbeitgeber seit
               <input
                 type="date"
+                lang="de-DE"
                 value={form.employmentStartDate}
                 onChange={(event) => setForm((current) => ({ ...current, employmentStartDate: event.target.value }))}
-                className={FIELD_CLASS}
+                className={DATE_FIELD_CLASS}
               />
             </label>
           </div>

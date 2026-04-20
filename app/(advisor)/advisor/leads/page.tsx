@@ -1,6 +1,8 @@
 import Link from "next/link"
+import SchufaFreeApplicationLinkCopyButton from "@/components/schufa-frei/SchufaFreeApplicationLinkCopyButton"
 import SchufaFreeApplicationReminderCard from "@/components/schufa-frei/SchufaFreeApplicationReminderCard"
 import { requireAdvisor } from "@/lib/advisor/requireAdvisor"
+import { buildSchufaFreeApplicationHref, createPublicCaseAccessToken } from "@/lib/onlinekredit/publicAccess"
 import {
   getSchufaFreeCompletedOtherApplicationsByCaseIds,
   type SchufaFreeCompletedOtherApplication,
@@ -36,6 +38,7 @@ type LinkedCaseRow = {
   case_ref: string | null
   status: string | null
   case_type: string | null
+  customer_id: string | null
 }
 
 type SchufaDetailsRow = {
@@ -71,6 +74,16 @@ function normalizeProduct(raw: string | string[] | undefined): ProductTab {
   if (normalized === "konsum") return "konsum"
   if (normalized === "schufa_frei" || normalized === "schufa-frei") return "schufa_frei"
   return "baufi"
+}
+
+function resolveSiteOrigin() {
+  const configured = String(process.env.NEXT_PUBLIC_SITE_URL ?? "").trim()
+  if (!configured) return "https://www.sepana.de"
+  try {
+    return new URL(configured).origin
+  } catch {
+    return "https://www.sepana.de"
+  }
 }
 
 function resolveLeadType(lead: Pick<LeadRow, "lead_case_type" | "product_name">): ProductTab {
@@ -176,6 +189,7 @@ export default async function AdvisorLeadsPage({
   const resolvedSearchParams = searchParams ? await searchParams : undefined
   const product = normalizeProduct(resolvedSearchParams?.product)
   const admin = supabaseAdmin()
+  const siteOrigin = resolveSiteOrigin()
 
   const selectBase =
     "id,external_lead_id,first_name,last_name,email,phone,phone_mobile,phone_work,product_name,product_price,loan_purpose,loan_amount_total,status,assigned_at,linked_case_id,created_at,last_event_at,notes"
@@ -212,15 +226,19 @@ export default async function AdvisorLeadsPage({
   const linkedCaseIds = Array.from(new Set(typedLeads.map((lead) => lead.linked_case_id).filter(Boolean))) as string[]
 
   const { data: linkedCases } = linkedCaseIds.length
-    ? await admin.from("cases").select("id,case_ref,status,case_type").in("id", linkedCaseIds)
+    ? await admin.from("cases").select("id,case_ref,status,case_type,customer_id").in("id", linkedCaseIds)
     : { data: [] as LinkedCaseRow[] }
 
-  const caseById = new Map<string, { case_ref: string | null; status: string | null; case_type: string | null }>()
+  const caseById = new Map<
+    string,
+    { case_ref: string | null; status: string | null; case_type: string | null; customer_id: string | null }
+  >()
   for (const row of (linkedCases ?? []) as LinkedCaseRow[]) {
     caseById.set(row.id, {
       case_ref: row.case_ref ?? null,
       status: row.status ?? null,
       case_type: row.case_type ?? null,
+      customer_id: row.customer_id ?? null,
     })
   }
 
@@ -325,6 +343,7 @@ export default async function AdvisorLeadsPage({
                 <th className="px-4 py-3 font-medium text-slate-700">Produkt</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Status</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Fall</th>
+                {product === "schufa_frei" ? <th className="px-4 py-3 font-medium text-slate-700">Link</th> : null}
                 {product === "schufa_frei" ? <th className="px-4 py-3 font-medium text-slate-700">Aktion</th> : null}
               </tr>
             </thead>
@@ -343,6 +362,21 @@ export default async function AdvisorLeadsPage({
                     ? resolveSchufaLeadProgress(lead, schufaDetails, otherCompletedApplication)
                     : null
                 const lastReminderAt = lead.linked_case_id ? lastReminderByCaseId.get(lead.linked_case_id) ?? null : null
+                const applicationUrl =
+                  product === "schufa_frei" && lead.linked_case_id && caseMeta?.case_ref
+                    ? new URL(
+                        buildSchufaFreeApplicationHref({
+                          caseId: lead.linked_case_id,
+                          caseRef: caseMeta.case_ref,
+                          accessToken: createPublicCaseAccessToken({
+                            caseId: lead.linked_case_id,
+                            caseRef: caseMeta.case_ref,
+                            customerId: caseMeta.customer_id ?? null,
+                          }),
+                        }),
+                        siteOrigin
+                      ).toString()
+                    : null
 
                 return (
                   <tr key={lead.id} className="border-b border-slate-200/60 last:border-0 align-top hover:bg-slate-50/60">
@@ -391,6 +425,11 @@ export default async function AdvisorLeadsPage({
                     </td>
                     {product === "schufa_frei" ? (
                       <td className="px-4 py-3 text-slate-700">
+                        <SchufaFreeApplicationLinkCopyButton url={applicationUrl} />
+                      </td>
+                    ) : null}
+                    {product === "schufa_frei" ? (
+                      <td className="px-4 py-3 text-slate-700">
                         {lead.linked_case_id ? (
                           <SchufaFreeApplicationReminderCard
                             caseId={lead.linked_case_id}
@@ -411,7 +450,7 @@ export default async function AdvisorLeadsPage({
 
               {typedLeads.length === 0 && !error ? (
                 <tr>
-                  <td className="px-4 py-6 text-slate-500" colSpan={product === "schufa_frei" ? 6 : 5}>
+                  <td className="px-4 py-6 text-slate-500" colSpan={product === "schufa_frei" ? 7 : 5}>
                     Keine zugewiesenen Leads in {productLabel(product)} gefunden.
                   </td>
                 </tr>

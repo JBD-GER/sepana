@@ -90,10 +90,18 @@ h6 {
 }
 
 .date-field {
+  min-width: 0;
+  max-width: 100%;
   font-variant-numeric: tabular-nums;
 }
 
+.date-field::-webkit-datetime-edit,
+.date-field::-webkit-datetime-edit-fields-wrapper {
+  min-width: 0;
+}
+
 .date-field::-webkit-date-and-time-value {
+  min-width: 0;
   text-align: left;
 }
 

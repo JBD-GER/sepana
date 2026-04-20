@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import { createCaseFromLead, ensureCustomerAccount, pickStickyAdvisorId, type LeadRow } from "@/lib/admin/leads"
-import { createPublicCaseAccessToken } from "@/lib/onlinekredit/publicAccess"
+import { buildSchufaFreeApplicationHref, createPublicCaseAccessToken } from "@/lib/onlinekredit/publicAccess"
 import {
   getSchufaFreeAgeYears,
   getSchufaFreeEmploymentMonthsSince,
@@ -408,7 +408,12 @@ export async function POST(req: Request) {
       caseRef: createdCase.caseRef,
       customerId: account.userId,
     })
-    const applicationHref = `/kredit-ohne-schufa/antrag?caseId=${encodeURIComponent(createdCase.caseId)}&caseRef=${encodeURIComponent(createdCase.caseRef)}&access=${encodeURIComponent(accessToken)}${account.existingAccount ? "&existing=1" : ""}`
+    const applicationHref = buildSchufaFreeApplicationHref({
+      caseId: createdCase.caseId,
+      caseRef: createdCase.caseRef,
+      accessToken,
+      existingAccount: account.existingAccount,
+    })
 
     await Promise.all([
       notifyCustomer({

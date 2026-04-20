@@ -117,3 +117,20 @@ export function buildOnlinekreditApplicationHref(input: {
 
   return `/onlinekredit/antrag?${params.toString()}`
 }
+
+export function buildSchufaFreeApplicationHref(input: {
+  caseId: string
+  caseRef: string
+  accessToken: string
+  existingAccount?: boolean
+}) {
+  const params = new URLSearchParams({
+    caseId: input.caseId,
+    caseRef: input.caseRef,
+    access: input.accessToken,
+  })
+
+  if (input.existingAccount) params.set("existing", "1")
+
+  return `/kredit-ohne-schufa/antrag?${params.toString()}`
+}
