@@ -22,7 +22,7 @@ export default function InsuranceDataTabs({ sections }: { sections: TabSection[]
   if (!activeSection) return null
 
   return (
-    <section className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
+    <section className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Antragsdaten</div>
@@ -32,7 +32,7 @@ export default function InsuranceDataTabs({ sections }: { sections: TabSection[]
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           {availableSections.map((section) => {
             const active = section.id === activeSection.id
             return (
@@ -40,7 +40,7 @@ export default function InsuranceDataTabs({ sections }: { sections: TabSection[]
                 key={section.id}
                 type="button"
                 onClick={() => setActiveId(section.id)}
-                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                   active
                     ? "border-slate-900 bg-slate-900 text-white"
                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
@@ -53,13 +53,13 @@ export default function InsuranceDataTabs({ sections }: { sections: TabSection[]
         </div>
       </div>
 
-      <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50/70 p-5">
+      <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
         <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{activeSection.label}</div>
         {activeSection.description ? (
           <p className="mt-2 text-sm leading-relaxed text-slate-600">{activeSection.description}</p>
         ) : null}
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {activeSection.items.map((item) => (
             <div key={`${activeSection.id}-${item.label}`} className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{item.label}</div>

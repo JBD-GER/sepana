@@ -101,24 +101,24 @@ export default async function InsuranceDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[32px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.16),transparent_32%),linear-gradient(135deg,#0f172a,#14532d)] p-6 text-white shadow-[0_24px_64px_rgba(15,23,42,0.35)] sm:p-8">
+      <section className="relative overflow-hidden rounded-[32px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.16),transparent_32%),linear-gradient(135deg,#0f172a,#14532d)] p-5 text-white shadow-[0_24px_64px_rgba(15,23,42,0.35)] sm:p-8">
         <div className="pointer-events-none absolute -left-12 -top-10 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-16 right-0 h-48 w-48 rounded-full bg-emerald-300/20 blur-3xl" />
-        <div className="relative flex flex-wrap items-end justify-between gap-4">
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
           <div className="min-w-0">
             <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-200/80">
               Versicherungs-Dashboard
             </div>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+            <h1 className="mt-2 text-xl font-semibold tracking-tight sm:text-3xl">
               {profile?.company_name ?? profile?.display_name ?? "Versicherungsbereich"}
             </h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-200/90">
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-200/90">
               Alle intern weitergeleiteten Kredit-ohne-Schufa-Faelle mit kompletter Dateneinsicht, Notizen,
               Statuspflege, Dokumentdownloads und interner Provisionsrechnung.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur">
+          <div className="flex w-full items-center gap-3 rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur sm:w-auto">
             <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-2xl border border-white/15 bg-white/5">
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
@@ -126,9 +126,9 @@ export default async function InsuranceDashboardPage() {
                 <span className="text-sm font-semibold text-slate-100">{profile?.partner_code ?? "VP"}</span>
               )}
             </div>
-            <div className="text-xs text-slate-200/90">
+            <div className="min-w-0 text-xs text-slate-200/90">
               <div className="font-semibold text-white">{profile?.display_name ?? user.email ?? "Partner"}</div>
-              <div>{profile?.email ?? user.email ?? "-"}</div>
+              <div className="break-all">{profile?.email ?? user.email ?? "-"}</div>
               <div>Partner-ID: {profile?.partner_code ?? "-"}</div>
               <div>{profile?.phone ?? "-"}</div>
             </div>
@@ -146,7 +146,7 @@ export default async function InsuranceDashboardPage() {
         </div>
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-4">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Weitergeleitete Faelle</div>
           <div className="mt-2 text-3xl font-semibold text-slate-900">{routes.length}</div>
@@ -183,7 +183,66 @@ export default async function InsuranceDashboardPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border border-slate-200/70">
+        <div className="grid gap-3 md:hidden">
+          {routes.map((route) => {
+            const caseRow = caseById.get(route.case_id)
+            const applicant = applicantByCaseId.get(route.case_id)
+            const details = detailsByCaseId.get(route.case_id)
+            const documentCount = documentCountByCaseId.get(route.case_id) ?? 0
+            const invoice = invoiceByCaseId.get(route.case_id)
+            const customerName = [applicant?.first_name, applicant?.last_name].filter(Boolean).join(" ").trim() || "-"
+            const loanAmount = Number(details?.loan_amount_requested ?? 0)
+
+            return (
+              <div key={route.case_id} className="rounded-3xl border border-slate-200/70 bg-slate-50/70 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-900">{caseRow?.case_ref ?? route.case_id.slice(0, 8)}</div>
+                    <div className="mt-1 text-xs text-slate-500">{customerName}</div>
+                  </div>
+                  <span className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                    {getInsuranceRouteStatusLabel(route.route_status)}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-slate-600">
+                  <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+                    <div className="uppercase tracking-[0.12em] text-slate-400">Variante</div>
+                    <div className="mt-1 font-medium text-slate-900">
+                      {loanAmount > 0 ? loanAmount.toLocaleString("de-DE") : "-"} EUR
+                    </div>
+                    <div className="mt-1 text-slate-500">{details?.term_months ?? "-"} Monate</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+                    <div className="uppercase tracking-[0.12em] text-slate-400">Unterlagen</div>
+                    <div className="mt-1 font-medium text-slate-900">{documentCount} Datei(en)</div>
+                    <div className="mt-1 text-slate-500">Uebergeben: {formatDateTime(route.routed_at)}</div>
+                  </div>
+                </div>
+
+                <div className="mt-3 text-xs text-slate-500">{getInsuranceRouteSourceLabel(route.route_source)}</div>
+                {invoice ? (
+                  <div className="mt-1 text-xs text-cyan-700">Rechnung {invoice.invoice_number ?? invoice.id.slice(0, 8)}</div>
+                ) : null}
+
+                <Link
+                  href={`/versicherung/faelle/${route.case_id}`}
+                  className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:border-slate-300"
+                >
+                  Fall oeffnen
+                </Link>
+              </div>
+            )
+          })}
+
+          {routes.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm text-slate-500">
+              Noch keine uebergebenen Faelle vorhanden.
+            </div>
+          ) : null}
+        </div>
+
+        <div className="hidden overflow-x-auto rounded-2xl border border-slate-200/70 md:block">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50">
               <tr className="border-b border-slate-200/70">

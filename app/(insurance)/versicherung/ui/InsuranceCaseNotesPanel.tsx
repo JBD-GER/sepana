@@ -57,7 +57,7 @@ export default function InsuranceCaseNotesPanel({
   }
 
   return (
-    <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
+    <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm sm:p-5">
       <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Interne Kommunikation</div>
       <h2 className="mt-2 text-lg font-semibold text-slate-900">Versicherungsnotizen</h2>
       <p className="mt-1 text-sm text-slate-600">
@@ -99,7 +99,7 @@ export default function InsuranceCaseNotesPanel({
             type="button"
             onClick={save}
             disabled={loading}
-            className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-60"
+            className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-60 sm:w-auto"
           >
             {loading ? "Speichere..." : "Notiz speichern"}
           </button>

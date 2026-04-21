@@ -37,10 +37,10 @@ export default function InsuranceCaseStatusPanel({
   }
 
   return (
-    <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
+    <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm sm:p-5">
       <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Vertriebsstatus</div>
       <div className="mt-2 text-sm text-slate-600">Nur intern fuer den Versicherungsbereich sichtbar.</div>
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
         <select
           value={status}
           onChange={(event) => setStatus(event.target.value)}
@@ -56,7 +56,7 @@ export default function InsuranceCaseStatusPanel({
           type="button"
           onClick={save}
           disabled={loading}
-          className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-60"
+          className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-60 sm:w-auto"
         >
           {loading ? "Speichere..." : "Status speichern"}
         </button>

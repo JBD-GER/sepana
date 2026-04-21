@@ -236,7 +236,7 @@ export default async function InsuranceCaseDetailPage({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[32px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.18),transparent_34%),linear-gradient(135deg,#ffffff,#f8fafc)] p-6 shadow-sm">
+      <section className="rounded-[32px] border border-slate-200/70 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.18),transparent_34%),linear-gradient(135deg,#ffffff,#f8fafc)] p-4 shadow-sm sm:p-6">
         <Link href="/versicherung" className="text-sm font-medium text-slate-900 underline underline-offset-4">
           {"<-"} Zurueck zum Dashboard
         </Link>
@@ -246,8 +246,8 @@ export default async function InsuranceCaseDetailPage({
             <div className="flex flex-col gap-4 border-b border-slate-200/70 pb-5 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Versicherungsfall</div>
-                <h1 className="mt-2 text-2xl font-semibold text-slate-900">{customerName}</h1>
-                <p className="mt-2 text-sm text-slate-600">
+                <h1 className="mt-2 text-xl font-semibold text-slate-900 sm:text-2xl">{customerName}</h1>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
                   Fall {caseRow.case_ref ?? caseRow.id.slice(0, 8)} / Ursprung: Kredit ohne Schufa
                 </p>
               </div>
@@ -262,8 +262,8 @@ export default async function InsuranceCaseDetailPage({
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 lg:grid-cols-12">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 lg:col-span-5">
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 sm:col-span-2 lg:col-span-5">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">E-Mail</div>
                 <div className="mt-2 break-all text-sm font-medium text-slate-900">{customerEmail}</div>
               </div>
@@ -271,14 +271,14 @@ export default async function InsuranceCaseDetailPage({
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Telefon</div>
                 <div className="mt-2 text-sm font-medium text-slate-900">{customerPhone}</div>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 lg:col-span-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 sm:col-span-2 lg:col-span-3">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Berater</div>
                 <div className="mt-2 text-sm font-medium text-slate-900">{advisor?.display_name ?? "-"}</div>
                 <div className="mt-1 text-xs text-slate-500">{advisor?.phone ?? "-"}</div>
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Uebergabe</div>
                 <div className="mt-2 text-sm font-semibold text-slate-900">{getInsuranceRouteSourceLabel(route.route_source)}</div>
@@ -287,15 +287,15 @@ export default async function InsuranceCaseDetailPage({
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Uebergeben am</div>
                 <div className="mt-2 text-sm font-semibold text-slate-900">{formatDateTime(route.routed_at)}</div>
               </div>
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Interner Partner</div>
-                  <div className="mt-2 text-sm font-semibold text-slate-900">{partnerCode ?? "-"}</div>
-                </div>
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:col-span-2 xl:col-span-1">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Interner Partner</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">{partnerCode ?? "-"}</div>
+              </div>
             </div>
           </div>
 
           <div className="grid gap-4 self-start">
-            <div className="rounded-[28px] border border-slate-200/70 bg-white p-5 shadow-sm">
+            <div className="rounded-[28px] border border-slate-200/70 bg-white p-4 shadow-sm sm:p-5">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Kreditkern</div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
@@ -317,7 +317,7 @@ export default async function InsuranceCaseDetailPage({
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-slate-200/70 bg-white p-5 shadow-sm">
+            <div className="rounded-[28px] border border-slate-200/70 bg-white p-4 shadow-sm sm:p-5">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Abrechnung</div>
               <div className="mt-2 text-sm text-slate-600">Partner-ID und Verwendungszweck fuer die interne Versicherungsprovision.</div>
               <div className="mt-4 grid gap-3">
@@ -339,7 +339,7 @@ export default async function InsuranceCaseDetailPage({
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-6">
-          <section className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
+          <section className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm sm:p-5">
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Interne Hinweise</div>
             <h2 className="mt-2 text-lg font-semibold text-slate-900">Beraterkontext und Routing-Stand</h2>
             <div className="mt-4 grid gap-3">
@@ -358,7 +358,7 @@ export default async function InsuranceCaseDetailPage({
             </div>
           </section>
 
-          <section className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
+          <section className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Unterlagen</div>
@@ -369,7 +369,48 @@ export default async function InsuranceCaseDetailPage({
               </div>
             </div>
 
-            <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200/70">
+            <div className="mt-4 grid gap-3 md:hidden">
+              {documents.map((document) => (
+                <div key={document.id} className="rounded-3xl border border-slate-200 bg-slate-50/70 p-4">
+                  <div className="flex items-start gap-3">
+                    {isImageMimeType(document.mime_type) ? (
+                      <img
+                        src={`/api/insurance/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(document.id)}`}
+                        alt={document.file_name ?? "Dokument"}
+                        className="h-16 w-16 shrink-0 rounded-2xl border border-slate-200 bg-white object-cover shadow-sm"
+                      />
+                    ) : (
+                      <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white text-center shadow-sm">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          {getDocumentTypeLabel(document.mime_type)}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-slate-900">{document.file_name ?? "-"}</div>
+                      <div className="mt-2 text-xs text-slate-500">{getDocumentTypeLabel(document.mime_type)}</div>
+                      <div className="mt-1 text-xs text-slate-500">{formatDocumentSize(document.size_bytes)}</div>
+                      <div className="mt-1 text-xs text-slate-500">{formatDateTime(document.created_at)}</div>
+                    </div>
+                  </div>
+
+                  <a
+                    href={`/api/insurance/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(document.id)}?download=1`}
+                    className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:border-slate-300"
+                  >
+                    Download
+                  </a>
+                </div>
+              ))}
+              {documents.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm text-slate-500">
+                  Noch keine Dokumente vorhanden.
+                </div>
+              ) : null}
+            </div>
+
+            <div className="mt-4 hidden overflow-x-auto rounded-2xl border border-slate-200/70 md:block">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50">
                   <tr className="border-b border-slate-200/70">

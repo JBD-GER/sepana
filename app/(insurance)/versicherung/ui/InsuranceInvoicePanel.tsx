@@ -79,8 +79,8 @@ export default function InsuranceInvoicePanel({
   }
 
   return (
-    <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Provision</div>
           <h2 className="mt-2 text-lg font-semibold text-slate-900">Versicherungsrechnung intern anlegen</h2>
@@ -90,7 +90,7 @@ export default function InsuranceInvoicePanel({
         </div>
         {invoice?.id ? (
           <div className="rounded-2xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs text-cyan-900">
-            Rechnung {invoice.invoice_number ?? invoice.id.slice(0, 8)} · {getInsuranceInvoiceStatusLabel(invoice.status)}
+            {`Rechnung ${invoice.invoice_number ?? invoice.id.slice(0, 8)} | ${getInsuranceInvoiceStatusLabel(invoice.status)}`}
           </div>
         ) : null}
       </div>
@@ -109,9 +109,15 @@ export default function InsuranceInvoicePanel({
           </label>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-            <div>Fallnummer: <span className="font-medium text-slate-900">{caseRef ?? "-"}</span></div>
-            <div className="mt-1">Partner-ID: <span className="font-medium text-slate-900">{partnerCode ?? "-"}</span></div>
-            <div className="mt-1">Verwendungszweck: <span className="font-medium text-slate-900">{paymentReference || "-"}</span></div>
+            <div>
+              Fallnummer: <span className="font-medium text-slate-900">{caseRef ?? "-"}</span>
+            </div>
+            <div className="mt-1">
+              Partner-ID: <span className="font-medium text-slate-900">{partnerCode ?? "-"}</span>
+            </div>
+            <div className="mt-1">
+              Verwendungszweck: <span className="font-medium text-slate-900">{paymentReference || "-"}</span>
+            </div>
           </div>
         </div>
 
@@ -140,7 +146,7 @@ export default function InsuranceInvoicePanel({
             type="button"
             onClick={save}
             disabled={loading}
-            className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-60"
+            className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-60 sm:w-auto"
           >
             {loading ? "Speichere..." : invoice?.id ? "Rechnung aktualisieren" : "Rechnung anlegen"}
           </button>
@@ -156,7 +162,7 @@ export default function InsuranceInvoicePanel({
         {invoice?.id ? (
           <a
             href={`/api/app/cases/invoices/${invoice.id}`}
-            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm"
+            className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm sm:w-auto"
           >
             Rechnung herunterladen
           </a>
