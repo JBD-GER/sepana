@@ -2,9 +2,11 @@ import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { renderSchufaFreeProvisionInvoicePdf } from "@/lib/schufa-frei/renderProvisionInvoicePdf"
 import {
+  SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE,
   SCHUFA_FREE_PROVISION_INVOICE_TYPE,
   buildSchufaFreeProvisionPaymentReference,
   getSchufaFreeProvisionInvoiceNumber,
+  isSchufaFreeProvisionCancellationInvoiceType,
   trimOrNull,
 } from "@/lib/schufa-frei/provisionInvoice"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
@@ -45,7 +47,9 @@ export async function GET(_req: Request, context: { params: Promise<{ invoiceId:
   if (!invoiceRow) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
-  if (String(invoiceRow.invoice_type ?? "").trim().toLowerCase() !== SCHUFA_FREE_PROVISION_INVOICE_TYPE) {
+
+  const invoiceType = String(invoiceRow.invoice_type ?? "").trim().toLowerCase()
+  if (invoiceType !== SCHUFA_FREE_PROVISION_INVOICE_TYPE && invoiceType !== SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE) {
     return NextResponse.json({ error: "invoice_type_not_supported" }, { status: 409 })
   }
 
@@ -99,9 +103,14 @@ export async function GET(_req: Request, context: { params: Promise<{ invoiceId:
     loanAmount: Number(invoiceRow.loan_amount ?? 0),
     amountTotal: Number(invoiceRow.amount_total ?? 0),
     status: trimOrNull(invoiceRow.status),
+    invoiceType,
+    description: trimOrNull(invoiceRow.description),
   })
 
-  const fileName = `Rechnung-${invoiceNumber}.pdf`
+  const fileName = isSchufaFreeProvisionCancellationInvoiceType(invoiceType)
+    ? `Stornorechnung-${invoiceNumber}.pdf`
+    : `Rechnung-${invoiceNumber}.pdf`
+
   return new NextResponse(pdfBytes, {
     headers: {
       "content-type": "application/pdf",

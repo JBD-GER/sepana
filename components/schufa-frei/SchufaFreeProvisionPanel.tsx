@@ -10,9 +10,9 @@ import {
   formatEuro,
   formatPercent,
   getSchufaFreeProvisionBreakdown,
+  getSchufaFreeProvisionInvoiceNumber,
   getSchufaFreeProvisionRefundLines,
   getSchufaFreeProvisionStatusLabel,
-  getSchufaFreeProvisionInvoiceNumber,
   isSchufaFreeProvisionPaid,
 } from "@/lib/schufa-frei/provisionInvoice"
 
@@ -27,9 +27,7 @@ type InvoiceRow = {
   refunded_at?: string | null
 }
 
-type FeedbackState =
-  | { type: "success" | "warning" | "error"; text: string }
-  | null
+type FeedbackState = { type: "success" | "warning" | "error"; text: string } | null
 
 function formatDateTime(value: string | null | undefined) {
   const raw = String(value ?? "").trim()
@@ -48,10 +46,7 @@ function BreakdownRow({
   hint?: string
   tone?: "default" | "accent"
 }) {
-  const toneClass =
-    tone === "accent"
-      ? "border-cyan-200/80 bg-cyan-50/70"
-      : "border-slate-200/80 bg-white/90"
+  const toneClass = tone === "accent" ? "border-cyan-200/80 bg-cyan-50/70" : "border-slate-200/80 bg-white/90"
 
   return (
     <div className={`rounded-2xl border px-4 py-4 shadow-sm ${toneClass}`}>
@@ -83,6 +78,7 @@ export default function SchufaFreeProvisionPanel({
   const isPaid = isSchufaFreeProvisionPaid(normalizedStatus)
   const isRefunded = normalizedStatus === "refunded"
   const isSent = normalizedStatus === "sent"
+  const isCancelled = normalizedStatus === "cancelled"
   const statusLabel = getSchufaFreeProvisionStatusLabel(invoice?.status)
   const effectiveLoanAmount = Number(invoice?.loan_amount ?? loanAmount ?? 0)
   const { netAmount, vatAmount, grossAmount } = getSchufaFreeProvisionBreakdown(effectiveLoanAmount)
@@ -118,11 +114,11 @@ export default function SchufaFreeProvisionPanel({
             : "Vorauszahlungsrechnung gespeichert. Die E-Mail konnte nicht versendet werden.",
         })
       } else if (action === "mark_paid") {
-        setFeedback({ type: "success", text: "Zahlungseingang wurde bestätigt." })
+        setFeedback({ type: "success", text: "Zahlungseingang wurde bestaetigt." })
       } else if (action === "mark_refunded") {
         setFeedback({ type: "success", text: "Erstattung wurde markiert." })
       } else {
-        setFeedback({ type: "success", text: "Vorauszahlungsstatus wurde zurückgesetzt." })
+        setFeedback({ type: "success", text: "Vorauszahlungsstatus wurde zurueckgesetzt." })
       }
 
       startTransition(() => router.refresh())
@@ -136,202 +132,162 @@ export default function SchufaFreeProvisionPanel({
     }
   }
 
-  const toneClass = isPaid
-    ? "border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_35%),linear-gradient(180deg,#ffffff,#f0fdf4)]"
-    : isRefunded
-      ? "border-amber-200/80 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.14),transparent_35%),linear-gradient(180deg,#ffffff,#fffbeb)]"
-      : isSent
-        ? "border-cyan-200/80 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_35%),linear-gradient(180deg,#ffffff,#f8fcff)]"
-        : "border-slate-200/70 bg-white"
+  const toneClass = isCancelled
+    ? "border-rose-200/80 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.14),transparent_35%),linear-gradient(180deg,#ffffff,#fff1f2)]"
+    : isPaid
+      ? "border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_35%),linear-gradient(180deg,#ffffff,#f0fdf4)]"
+      : isRefunded
+        ? "border-amber-200/80 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.14),transparent_35%),linear-gradient(180deg,#ffffff,#fffbeb)]"
+        : isSent
+          ? "border-cyan-200/80 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_35%),linear-gradient(180deg,#ffffff,#f8fcff)]"
+          : "border-slate-200/70 bg-white"
 
-  if (mode === "advisor") {
-    return (
-      <div className={`rounded-[28px] border p-5 shadow-sm sm:p-6 ${toneClass}`}>
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-          <div className="space-y-4">
-            <div>
-              <div className="text-sm font-semibold text-slate-900">Vorauszahlungsrechnung vor dem Vertrag</div>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                Nach vollständigem Dokumenteneingang wird zuerst die Vorauszahlungsrechnung versendet. Der Vertrag wird
-                erst freigegeben, wenn der Zahlungseingang bestätigt wurde.
-              </p>
-            </div>
+  const headerTitle =
+    mode === "advisor"
+      ? isCancelled
+        ? "Vorgang und Rechnung storniert"
+        : "Vorauszahlungsrechnung vor dem Vertrag"
+      : isCancelled
+        ? "Kreditanfrage storniert"
+        : isPaid
+          ? "Vorauszahlung bestaetigt"
+          : isRefunded
+            ? "Vorauszahlung wurde erstattet"
+            : "Vorauszahlung vor dem Vertrag"
 
-            <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm">
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <BreakdownRow
-                    label="Zwischensumme"
-                    value={formatEuro(netAmount)}
-                    hint={`${formatPercent(SCHUFA_FREE_PROVISION_RATE)} netto von ${formatEuro(effectiveLoanAmount)}`}
-                  />
-                  <BreakdownRow
-                    label="MwSt."
-                    value={formatEuro(vatAmount)}
-                    hint={`${formatPercent(SCHUFA_FREE_PROVISION_VAT_RATE)} Umsatzsteuer`}
-                  />
-                  <BreakdownRow
-                    label="Überweisungsbetrag"
-                    value={formatEuro(grossAmount)}
-                    hint="Gesamtbetrag inkl. MwSt."
-                    tone="accent"
-                  />
-                </div>
+  const headerText =
+    mode === "advisor"
+      ? isCancelled
+        ? "Die Kreditanfrage wurde storniert. Es sind keine weiteren Schritte fuer Vorauszahlung oder Vertrag mehr offen."
+        : "Nach vollstaendigem Dokumenteneingang wird zuerst die Vorauszahlungsrechnung versendet. Der Vertrag wird erst freigegeben, wenn der Zahlungseingang bestaetigt wurde."
+      : isCancelled
+        ? "Deine Kreditanfrage wurde storniert. Weitere Zahlungen oder Unterlagen sind nicht mehr erforderlich."
+        : isPaid
+          ? "Der Zahlungseingang wurde bestaetigt. Als Naechstes wird dein Vertrag bereitgestellt."
+          : isRefunded
+            ? "Die Vorauszahlung wurde im Fall als erstattet markiert."
+            : invoice?.id
+              ? "Es geht erst weiter, wenn die Vorauszahlung bei uns eingegangen ist. Erst danach wird der Vertrag freigegeben."
+              : "Sobald deine Unterlagen vollstaendig geprueft sind, erhaeltst du hier die Vorauszahlungsrechnung und die Zahlungsdaten."
 
-                <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Status</div>
-                  <div className="mt-2 text-base font-semibold text-slate-900">{statusLabel}</div>
-                  <div className="mt-3 space-y-1 text-xs text-slate-500">
-                    <div>Versand: {formatDateTime(invoice?.sent_at)}</div>
-                    <div>Zahlung: {formatDateTime(invoice?.paid_at)}</div>
-                    <div>Rechnungsnummer: {invoiceNumber ?? "-"}</div>
-                    <div>Verwendungszweck: {paymentReference ?? "-"}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                <button
-                  type="button"
-                  onClick={() => runAction("send")}
-                  disabled={busyAction !== null}
-                  className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-                >
-                  {busyAction === "send"
-                    ? "Versende..."
-                    : invoice?.id
-                      ? "Rechnung erneut senden"
-                      : "Vorauszahlungsrechnung senden"}
-                </button>
-
-                {!isPaid ? (
-                  <button
-                    type="button"
-                    onClick={() => runAction("mark_paid")}
-                    disabled={busyAction !== null || !invoice?.id}
-                    className="inline-flex w-full items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-                  >
-                    {busyAction === "mark_paid" ? "Bestätige..." : "Als bezahlt markieren"}
-                  </button>
-                ) : null}
-
-                {isPaid ? (
-                  <button
-                    type="button"
-                    onClick={() => runAction("mark_refunded")}
-                    disabled={busyAction !== null || !invoice?.id}
-                    className="inline-flex w-full items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-                  >
-                    {busyAction === "mark_refunded" ? "Markiere..." : "Erstattung markieren"}
-                  </button>
-                ) : null}
-
-                {(isSent || isRefunded) && invoice?.id ? (
-                  <button
-                    type="button"
-                    onClick={() => runAction("mark_sent")}
-                    disabled={busyAction !== null}
-                    className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-                  >
-                    {busyAction === "mark_sent" ? "Setze zurück..." : "Auf offen zurücksetzen"}
-                  </button>
-                ) : null}
-
-                {invoiceHref ? (
-                  <a
-                    href={invoiceHref}
-                    className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 sm:w-auto"
-                  >
-                    Rechnung herunterladen
-                  </a>
-                ) : null}
-              </div>
-            </div>
-
-            {feedback ? (
-              <div
-                className={`rounded-2xl border px-4 py-3 text-sm ${
-                  feedback.type === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                    : feedback.type === "warning"
-                      ? "border-amber-200 bg-amber-50 text-amber-900"
-                      : "border-rose-200 bg-rose-50 text-rose-900"
-                }`}
-              >
-                {feedback.text}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-4 shadow-sm">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Banküberweisung an</div>
-              <div className="mt-2 space-y-1 text-sm text-slate-700">
-                <div>{SCHUFA_FREE_PROVISION_BANK.accountHolder}</div>
-                <div>IBAN: {SCHUFA_FREE_PROVISION_BANK.iban}</div>
-                <div>BIC: {SCHUFA_FREE_PROVISION_BANK.bic}</div>
-                <div>Rechnungsnummer: {invoiceNumber ?? "-"}</div>
-                <div>Verwendungszweck: {paymentReference ?? "-"}</div>
-              </div>
-              <div className="mt-3 rounded-2xl border border-cyan-200 bg-cyan-50 px-3 py-3 text-sm font-semibold text-cyan-900">
-                Überweisungsbetrag: {formatEuro(grossAmount)}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-4 shadow-sm">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Rückerstattung</div>
-              <div className="mt-2 space-y-2 text-xs leading-relaxed text-slate-600">
-                {getSchufaFreeProvisionRefundLines().map((line) => (
-                  <div key={line}>{line}</div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+  const bankCardTitle = isCancelled ? "Stornierungsstatus" : "Bankueberweisung an"
+  const bankCardBody = isCancelled ? (
+    <div className="mt-2 space-y-2 text-sm leading-relaxed text-slate-700">
+      <div>Die zugehoerige Rechnung wurde storniert.</div>
+      <div>Es ist keine weitere Zahlung mehr erforderlich.</div>
+      <div>Die Kreditanfrage wird nicht weiterbearbeitet.</div>
+    </div>
+  ) : (
+    <>
+      <div className="mt-2 space-y-1 text-sm text-slate-700">
+        <div>{SCHUFA_FREE_PROVISION_BANK.accountHolder}</div>
+        <div>IBAN: {SCHUFA_FREE_PROVISION_BANK.iban}</div>
+        <div>BIC: {SCHUFA_FREE_PROVISION_BANK.bic}</div>
+        <div>Rechnungsnummer: {invoiceNumber ?? "-"}</div>
+        <div>Verwendungszweck: {paymentReference ?? "-"}</div>
       </div>
-    )
-  }
+      <div className="mt-3 rounded-2xl border border-cyan-200 bg-cyan-50 px-3 py-3 text-sm font-semibold text-cyan-900">
+        Ueberweisungsbetrag: {formatEuro(grossAmount)}
+      </div>
+    </>
+  )
+
+  const actionButtons =
+    mode === "advisor" && !isCancelled ? (
+      <>
+        <button
+          type="button"
+          onClick={() => runAction("send")}
+          disabled={busyAction !== null}
+          className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        >
+          {busyAction === "send" ? "Versende..." : invoice?.id ? "Rechnung erneut senden" : "Vorauszahlungsrechnung senden"}
+        </button>
+
+        {!isPaid ? (
+          <button
+            type="button"
+            onClick={() => runAction("mark_paid")}
+            disabled={busyAction !== null || !invoice?.id}
+            className="inline-flex w-full items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          >
+            {busyAction === "mark_paid" ? "Bestaetige..." : "Als bezahlt markieren"}
+          </button>
+        ) : null}
+
+        {isPaid ? (
+          <button
+            type="button"
+            onClick={() => runAction("mark_refunded")}
+            disabled={busyAction !== null || !invoice?.id}
+            className="inline-flex w-full items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          >
+            {busyAction === "mark_refunded" ? "Markiere..." : "Erstattung markieren"}
+          </button>
+        ) : null}
+
+        {(isSent || isRefunded) && invoice?.id ? (
+          <button
+            type="button"
+            onClick={() => runAction("mark_sent")}
+            disabled={busyAction !== null}
+            className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          >
+            {busyAction === "mark_sent" ? "Setze zurueck..." : "Auf offen zuruecksetzen"}
+          </button>
+        ) : null}
+      </>
+    ) : null
+
+  const infoHint =
+    mode === "advisor"
+      ? "Rueckerstattung"
+      : isCancelled
+        ? "Wichtiger Hinweis"
+        : "Wichtiger Hinweis"
+
+  const infoLines = isCancelled
+    ? [
+        "Der Fall wurde storniert und wird nicht weitergefuehrt.",
+        "Bitte nutzen Sie die Stornorechnung als Nachweis der Aufhebung.",
+      ]
+    : mode === "advisor"
+      ? getSchufaFreeProvisionRefundLines()
+      : [
+          "Es handelt sich um eine Vorauszahlung auf die Serviceprovision inklusive 19 % MwSt.",
+          ...getSchufaFreeProvisionRefundLines(),
+        ]
 
   return (
     <div className={`rounded-[28px] border p-5 shadow-sm sm:p-6 ${toneClass}`}>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-4">
           <div>
-            <div className="text-sm font-semibold text-slate-900">
-              {isPaid ? "Vorauszahlung bestätigt" : isRefunded ? "Vorauszahlung wurde erstattet" : "Vorauszahlung vor dem Vertrag"}
-            </div>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              {isPaid
-                ? "Der Zahlungseingang wurde bestätigt. Als Nächstes wird dein Vertrag bereitgestellt."
-                : isRefunded
-                  ? "Die Vorauszahlung wurde im Fall als erstattet markiert."
-                  : invoice?.id
-                    ? "Es geht erst weiter, wenn die Vorauszahlung bei uns eingegangen ist. Erst danach wird der Vertrag freigegeben."
-                    : "Sobald deine Unterlagen vollständig geprüft sind, erhältst du hier die Vorauszahlungsrechnung und die Zahlungsdaten."}
-            </p>
+            <div className="text-sm font-semibold text-slate-900">{headerTitle}</div>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">{headerText}</p>
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <BreakdownRow
-                label="Zwischensumme"
-                value={formatEuro(netAmount)}
-                hint={`${formatPercent(SCHUFA_FREE_PROVISION_RATE)} netto von ${formatEuro(effectiveLoanAmount)}`}
-              />
-              <BreakdownRow
-                label="MwSt."
-                value={formatEuro(vatAmount)}
-                hint={`${formatPercent(SCHUFA_FREE_PROVISION_VAT_RATE)} Umsatzsteuer`}
-              />
-              <BreakdownRow
-                label="Gesamtbetrag"
-                value={formatEuro(grossAmount)}
-                hint="Überweisungsbetrag inkl. MwSt."
-                tone="accent"
-              />
-            </div>
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <BreakdownRow
+                  label="Zwischensumme"
+                  value={formatEuro(netAmount)}
+                  hint={`${formatPercent(SCHUFA_FREE_PROVISION_RATE)} netto von ${formatEuro(effectiveLoanAmount)}`}
+                />
+                <BreakdownRow
+                  label="MwSt."
+                  value={formatEuro(vatAmount)}
+                  hint={`${formatPercent(SCHUFA_FREE_PROVISION_VAT_RATE)} Umsatzsteuer`}
+                />
+                <BreakdownRow
+                  label={isCancelled ? "Ursprungsbetrag" : mode === "advisor" ? "Ueberweisungsbetrag" : "Gesamtbetrag"}
+                  value={formatEuro(grossAmount)}
+                  hint={isCancelled ? "Betrag der aufgehobenen Rechnung" : "Gesamtbetrag inkl. MwSt."}
+                  tone="accent"
+                />
+              </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
               <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Status</div>
                 <div className="mt-2 text-base font-semibold text-slate-900">{statusLabel}</div>
@@ -339,42 +295,49 @@ export default function SchufaFreeProvisionPanel({
                   <div>Versand: {formatDateTime(invoice?.sent_at)}</div>
                   <div>Zahlung: {formatDateTime(invoice?.paid_at)}</div>
                   <div>Rechnungsnummer: {invoiceNumber ?? "-"}</div>
-                  <div>Verwendungszweck: {paymentReference ?? "-"}</div>
+                  <div>Verwendungszweck: {isCancelled ? "-" : paymentReference ?? "-"}</div>
                 </div>
               </div>
+            </div>
 
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              {actionButtons}
               {invoiceHref ? (
                 <a
                   href={invoiceHref}
-                  className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition sm:w-auto"
+                  className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 sm:w-auto"
                 >
                   Rechnung herunterladen
                 </a>
               ) : null}
             </div>
           </div>
+
+          {feedback ? (
+            <div
+              className={`rounded-2xl border px-4 py-3 text-sm ${
+                feedback.type === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                  : feedback.type === "warning"
+                    ? "border-amber-200 bg-amber-50 text-amber-900"
+                    : "border-rose-200 bg-rose-50 text-rose-900"
+              }`}
+            >
+              {feedback.text}
+            </div>
+          ) : null}
         </div>
 
-        <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
           <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-4 shadow-sm">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Banküberweisung an</div>
-            <div className="mt-2 space-y-1 text-sm text-slate-700">
-              <div>{SCHUFA_FREE_PROVISION_BANK.accountHolder}</div>
-              <div>IBAN: {SCHUFA_FREE_PROVISION_BANK.iban}</div>
-              <div>BIC: {SCHUFA_FREE_PROVISION_BANK.bic}</div>
-              <div>Rechnungsnummer: {invoiceNumber ?? "-"}</div>
-              <div>Verwendungszweck: {paymentReference ?? "-"}</div>
-            </div>
-            <div className="mt-3 rounded-2xl border border-cyan-200 bg-cyan-50 px-3 py-3 text-sm font-semibold text-cyan-900">
-              Überweisungsbetrag: {formatEuro(grossAmount)}
-            </div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{bankCardTitle}</div>
+            {bankCardBody}
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-4 shadow-sm">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Wichtiger Hinweis</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{infoHint}</div>
             <div className="mt-2 space-y-2 text-xs leading-relaxed text-slate-600">
-              <div>Es handelt sich um eine Vorauszahlung auf die Serviceprovision inklusive 19 % MwSt.</div>
-              {getSchufaFreeProvisionRefundLines().map((line) => (
+              {infoLines.map((line) => (
                 <div key={line}>{line}</div>
               ))}
             </div>

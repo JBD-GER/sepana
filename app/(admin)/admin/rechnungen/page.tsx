@@ -1,11 +1,13 @@
 import Link from "next/link"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import {
-  formatEuro,
-  getSchufaFreeProvisionStatusLabel,
   SCHUFA_FREE_PROVISION_INVOICE_TYPE,
+  formatEuro,
+  getSchufaFreeProvisionInvoiceTitle,
+  getSchufaFreeProvisionStatusLabel,
 } from "@/lib/schufa-frei/provisionInvoice"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
+import AdminInvoiceCancelButton from "./ui/AdminInvoiceCancelButton"
 
 type SearchParams = {
   month?: string | string[]
@@ -91,10 +93,10 @@ export default async function AdminInvoicesPage({
         <div className="space-y-6">
           <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
             <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Rechnungen</div>
-            <h1 className="mt-2 text-2xl font-semibold text-slate-900">Rechnungsübersicht</h1>
+            <h1 className="mt-2 text-2xl font-semibold text-slate-900">Rechnungsuebersicht</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
-              Die Tabelle <code>case_invoices</code> fehlt noch. Führen Sie zuerst die Migration
-              <code> sql/2026-04-16_case_invoices.sql</code> aus, damit Rechnungen hier angezeigt werden können.
+              Die Tabelle <code>case_invoices</code> fehlt noch. Fuehren Sie zuerst die Migration
+              <code> sql/2026-04-16_case_invoices.sql</code> aus, damit Rechnungen hier angezeigt werden koennen.
             </p>
           </div>
         </div>
@@ -114,7 +116,11 @@ export default async function AdminInvoicesPage({
   const invoiceCount = invoiceRows.length
   const paidCount = invoiceRows.filter((row) => String(row.status ?? "").trim().toLowerCase() === "paid").length
   const refundedCount = invoiceRows.filter((row) => String(row.status ?? "").trim().toLowerCase() === "refunded").length
-  const openCount = invoiceCount - paidCount - refundedCount
+  const cancelledCount = invoiceRows.filter((row) => String(row.status ?? "").trim().toLowerCase() === "cancelled").length
+  const openCount = invoiceRows.filter((row) => {
+    const normalized = String(row.status ?? "").trim().toLowerCase()
+    return normalized !== "paid" && normalized !== "refunded" && normalized !== "cancelled"
+  }).length
   const totalAmount = invoiceRows.reduce((sum, row) => sum + Number(row.amount_total ?? 0), 0)
 
   return (
@@ -123,9 +129,9 @@ export default async function AdminInvoicesPage({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Rechnungen</div>
-            <h1 className="mt-2 text-2xl font-semibold text-slate-900">Rechnungsübersicht</h1>
+            <h1 className="mt-2 text-2xl font-semibold text-slate-900">Rechnungsuebersicht</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
-              Alle erzeugten Fall-Rechnungen mit Monatsfilter, Status und direktem PDF-Download.
+              Alle erzeugten Fall-Rechnungen mit Monatsfilter, Status, Admin-Stornierung und direktem PDF-Download.
             </p>
           </div>
 
@@ -159,19 +165,21 @@ export default async function AdminInvoicesPage({
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Gesamtvolumen</div>
           <div className="mt-2 text-xl font-semibold text-slate-900">{formatEuro(totalAmount)}</div>
-          <div className="mt-1 text-sm text-slate-500">Summe aller erfassten Rechnungen</div>
+          <div className="mt-1 text-sm text-slate-500">Netto ueber alle erfassten Rechnungen und Stornos</div>
         </div>
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Offen / bezahlt</div>
           <div className="mt-2 text-xl font-semibold text-slate-900">
             {openCount} / {paidCount}
           </div>
-          <div className="mt-1 text-sm text-slate-500">Offen oder bereits als bezahlt markiert</div>
+          <div className="mt-1 text-sm text-slate-500">Aktive Rechnungen oder bereits als bezahlt markiert</div>
         </div>
         <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Erstattet</div>
-          <div className="mt-2 text-xl font-semibold text-slate-900">{refundedCount}</div>
-          <div className="mt-1 text-sm text-slate-500">Im ausgewählten Monat zurückerstattet</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Erstattet / storniert</div>
+          <div className="mt-2 text-xl font-semibold text-slate-900">
+            {refundedCount} / {cancelledCount}
+          </div>
+          <div className="mt-1 text-sm text-slate-500">Rueckabwicklung und Stornierungen im ausgewaehlten Monat</div>
         </div>
       </div>
 
@@ -189,7 +197,7 @@ export default async function AdminInvoicesPage({
               <tr className="border-b border-slate-200/70">
                 <th className="px-4 py-3 font-medium text-slate-700">Rechnung</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Fall</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Empfänger</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Empfaenger</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Betrag</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Status</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Datum</th>
@@ -201,12 +209,15 @@ export default async function AdminInvoicesPage({
                 const invoiceType = String(invoice.invoice_type ?? "").trim().toLowerCase()
                 const caseRef = caseRefById.get(invoice.case_id) ?? invoice.case_id.slice(0, 8)
                 const isProvisionInvoice = invoiceType === SCHUFA_FREE_PROVISION_INVOICE_TYPE
+                const isCancelled = String(invoice.status ?? "").trim().toLowerCase() === "cancelled"
 
                 return (
                   <tr key={invoice.id} className="border-b border-slate-200/60 align-top last:border-0 hover:bg-slate-50/60">
                     <td className="px-4 py-3">
                       <div className="font-semibold text-slate-900">{invoice.invoice_number ?? invoice.id.slice(0, 8)}</div>
-                      <div className="mt-1 text-xs text-slate-500">{invoice.title ?? "Rechnung"}</div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {invoice.title ?? getSchufaFreeProvisionInvoiceTitle(invoice.invoice_type)}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <Link href={`/admin/faelle/${invoice.case_id}`} className="font-medium text-slate-900 underline underline-offset-4">
@@ -241,8 +252,9 @@ export default async function AdminInvoicesPage({
                         >
                           PDF herunterladen
                         </a>
+                        {isProvisionInvoice && !isCancelled ? <AdminInvoiceCancelButton caseId={invoice.case_id} /> : null}
                         <Link
-                          href={`/admin/faelle/${invoice.case_id}#schufa-vorauszahlung`}
+                          href={`/admin/faelle/${invoice.case_id}`}
                           className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300"
                         >
                           Zum Fall
@@ -256,7 +268,7 @@ export default async function AdminInvoicesPage({
               {invoiceRows.length === 0 ? (
                 <tr>
                   <td className="px-4 py-8 text-slate-500" colSpan={7}>
-                    Für den ausgewählten Monat wurden keine Rechnungen gefunden.
+                    Fuer den ausgewaehlten Monat wurden keine Rechnungen gefunden.
                   </td>
                 </tr>
               ) : null}

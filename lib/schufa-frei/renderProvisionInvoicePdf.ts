@@ -1,16 +1,20 @@
 import fs from "fs/promises"
 import path from "path"
-import type { PDFFont, PDFPage } from "pdf-lib"
+import type { Color, PDFFont, PDFPage } from "pdf-lib"
 import {
   SCHUFA_FREE_PROVISION_BANK,
   SCHUFA_FREE_PROVISION_COMPANY,
   SCHUFA_FREE_PROVISION_VAT_RATE,
+  buildSchufaFreeProvisionCancellationDescription,
   buildSchufaFreeProvisionDescription,
   formatEuro,
   formatPercent,
   getSchufaFreeProvisionBreakdown,
+  getSchufaFreeProvisionInvoiceTitle,
   getSchufaFreeProvisionRefundLines,
   getSchufaFreeProvisionStatusLabel,
+  isSchufaFreeProvisionCancellationInvoiceType,
+  trimOrNull,
 } from "@/lib/schufa-frei/provisionInvoice"
 
 function formatDate(value: string | null | undefined) {
@@ -65,7 +69,7 @@ function drawRightAlignedText(
   rightX: number,
   y: number,
   size: number,
-  options?: { color?: ReturnType<typeof import("pdf-lib")["rgb"]> }
+  color?: Color
 ) {
   const width = font.widthOfTextAtSize(text, size)
   page.drawText(text, {
@@ -73,7 +77,7 @@ function drawRightAlignedText(
     y,
     size,
     font,
-    color: options?.color,
+    color,
   })
 }
 
@@ -91,15 +95,28 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
   loanAmount: number
   amountTotal: number
   status: string | null
+  invoiceType?: string | null
+  description?: string | null
 }) {
   const pdfLib = await import("pdf-lib").catch(() => null)
   if (!pdfLib) throw new Error("pdf_lib_missing")
   const { PDFDocument, StandardFonts, rgb } = pdfLib
 
+  const isCancellation = isSchufaFreeProvisionCancellationInvoiceType(input.invoiceType)
   const { netAmount, vatAmount, grossAmount } = getSchufaFreeProvisionBreakdown(input.loanAmount)
-  const totalAmount = grossAmount > 0 ? grossAmount : Number(input.amountTotal ?? 0)
+  const fallbackAmountTotal = Math.abs(Number(input.amountTotal ?? 0))
+  const absoluteTotalAmount = grossAmount > 0 ? grossAmount : fallbackAmountTotal
+  const displayNetAmount = isCancellation ? -Math.abs(netAmount) : netAmount
+  const displayVatAmount = isCancellation ? -Math.abs(vatAmount) : vatAmount
+  const displayTotalAmount = isCancellation ? -Math.abs(absoluteTotalAmount) : absoluteTotalAmount
   const recipientStreetLine = [input.recipientStreet, input.recipientHouseNumber].filter(Boolean).join(" ").trim() || "-"
   const recipientCityLine = [input.recipientZipcode, input.recipientCity].filter(Boolean).join(" ").trim() || "-"
+  const title = getSchufaFreeProvisionInvoiceTitle(input.invoiceType)
+  const description =
+    trimOrNull(input.description) ??
+    (isCancellation
+      ? buildSchufaFreeProvisionCancellationDescription({ loanAmount: input.loanAmount })
+      : buildSchufaFreeProvisionDescription(input.loanAmount))
 
   const pdfDoc = await PDFDocument.create()
   const page = pdfDoc.addPage([595, 842])
@@ -113,7 +130,7 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
     page.drawImage(logoImage, { x: 40, y: 786, width: 110, height: 28 })
   } catch {}
 
-  page.drawText("Vorauszahlungsrechnung", { x: 40, y: 740, size: 20, font: bold, color: rgb(0.06, 0.09, 0.16) })
+  page.drawText(title, { x: 40, y: 740, size: 20, font: bold, color: rgb(0.06, 0.09, 0.16) })
   page.drawText(`Rechnungsnummer: ${input.invoiceNumber}`, { x: 40, y: 714, size: 10, font: bold })
   page.drawText(`Rechnungsdatum: ${formatDate(input.createdAt)}`, { x: 40, y: 698, size: 10, font })
   page.drawText(`Status: ${getSchufaFreeProvisionStatusLabel(input.status)}`, { x: 40, y: 682, size: 10, font })
@@ -141,9 +158,8 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
   page.drawRectangle({ x: 40, y: 470, width: 515, height: 72, borderWidth: 1, borderColor: rgb(0.88, 0.9, 0.94) })
   page.drawText("Leistung", { x: 52, y: 523, size: 10, font: bold })
   drawRightAlignedText(page, bold, "Zwischensumme", summaryRightX, 523, 10)
-  const description = buildSchufaFreeProvisionDescription(input.loanAmount)
   drawTextBlock(page, font, description, 52, 505, 10, 360, 13)
-  drawRightAlignedText(page, bold, formatEuro(netAmount), summaryRightX, 505, 11)
+  drawRightAlignedText(page, bold, formatEuro(displayNetAmount), summaryRightX, 505, 11)
 
   page.drawRectangle({
     x: summaryX,
@@ -161,14 +177,14 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
     size: 10,
     font,
   })
-  drawRightAlignedText(page, bold, formatEuro(vatAmount), summaryRightX, 436, 11)
+  drawRightAlignedText(page, bold, formatEuro(displayVatAmount), summaryRightX, 436, 11)
 
   page.drawRectangle({
     x: summaryX,
     y: 358,
     width: summaryWidth,
     height: 36,
-    color: rgb(0.06, 0.09, 0.16),
+    color: isCancellation ? rgb(0.55, 0.11, 0.11) : rgb(0.06, 0.09, 0.16),
   })
   page.drawText("Gesamtbetrag", {
     x: summaryX + summaryInset,
@@ -177,22 +193,29 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
     font: bold,
     color: rgb(1, 1, 1),
   })
-  drawRightAlignedText(page, bold, formatEuro(totalAmount), summaryRightX, 371, 12, {
-    color: rgb(1, 1, 1),
-  })
+  drawRightAlignedText(page, bold, formatEuro(displayTotalAmount), summaryRightX, 371, 12, rgb(1, 1, 1))
 
-  page.drawText("Bankverbindung", { x: 40, y: 392, size: 12, font: bold })
-  page.drawText(`Kontoinhaber: ${SCHUFA_FREE_PROVISION_BANK.accountHolder}`, { x: 40, y: 372, size: 10, font })
-  page.drawText(`IBAN: ${SCHUFA_FREE_PROVISION_BANK.iban}`, { x: 40, y: 356, size: 10, font })
-  page.drawText(`BIC: ${SCHUFA_FREE_PROVISION_BANK.bic}`, { x: 40, y: 340, size: 10, font })
-  page.drawText(`Verwendungszweck: ${input.paymentReference}`, { x: 40, y: 324, size: 10, font })
+  if (isCancellation) {
+    page.drawText("Stornierung", { x: 40, y: 392, size: 12, font: bold })
+    page.drawText("Keine Zahlung mehr erforderlich.", { x: 40, y: 372, size: 10, font })
+    page.drawText("Diese Stornorechnung hebt die vorherige Vorauszahlungsrechnung auf.", { x: 40, y: 356, size: 10, font })
+    page.drawText("Die zugehoerige Kreditanfrage wurde ebenfalls storniert.", { x: 40, y: 340, size: 10, font })
+  } else {
+    page.drawText("Bankverbindung", { x: 40, y: 392, size: 12, font: bold })
+    page.drawText(`Kontoinhaber: ${SCHUFA_FREE_PROVISION_BANK.accountHolder}`, { x: 40, y: 372, size: 10, font })
+    page.drawText(`IBAN: ${SCHUFA_FREE_PROVISION_BANK.iban}`, { x: 40, y: 356, size: 10, font })
+    page.drawText(`BIC: ${SCHUFA_FREE_PROVISION_BANK.bic}`, { x: 40, y: 340, size: 10, font })
+    page.drawText(`Verwendungszweck: ${input.paymentReference}`, { x: 40, y: 324, size: 10, font })
+  }
 
-  page.drawText("Hinweis zur Vorauszahlung", { x: 40, y: 286, size: 12, font: bold })
+  page.drawText(isCancellation ? "Hinweis zur Stornierung" : "Hinweis zur Vorauszahlung", { x: 40, y: 286, size: 12, font: bold })
   let cursorY = 266
   cursorY = drawTextBlock(
     page,
     font,
-    "Diese Rechnung betrifft eine Vorauszahlung auf die Serviceprovision. Der Überweisungsbetrag enthält 19 % MwSt. Der Vertragsversand erfolgt erst nach bestätigtem Zahlungseingang.",
+    isCancellation
+      ? "Diese Stornorechnung dokumentiert die Aufhebung der vorherigen Vorauszahlungsrechnung. Die Kreditanfrage wird damit nicht weiterbearbeitet."
+      : "Diese Rechnung betrifft eine Vorauszahlung auf die Serviceprovision. Der Ueberweisungsbetrag enthaelt 19 % MwSt. Der Vertragsversand erfolgt erst nach bestaetigtem Zahlungseingang.",
     40,
     cursorY,
     10,
@@ -202,7 +225,7 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
   cursorY -= 10
 
   for (const line of getSchufaFreeProvisionRefundLines()) {
-    cursorY = drawTextBlock(page, font, `• ${line}`, 50, cursorY, 10, 500, 14) - 4
+    cursorY = drawTextBlock(page, font, `- ${line}`, 50, cursorY, 10, 500, 14) - 4
   }
 
   page.drawText(`Registrierungsnummer: ${SCHUFA_FREE_PROVISION_COMPANY.registrationNumber}`, {

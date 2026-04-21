@@ -1,4 +1,5 @@
 export const SCHUFA_FREE_PROVISION_INVOICE_TYPE = "schufa_free_provision_advance"
+export const SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE = "schufa_free_provision_advance_cancellation"
 export const SCHUFA_FREE_PROVISION_RATE = 0.05
 export const SCHUFA_FREE_PROVISION_VAT_RATE = 0.19
 
@@ -32,6 +33,14 @@ export function trimOrNull(value: unknown) {
 
 export function getSchufaFreeProvisionInvoiceNumber(invoiceNumber: unknown) {
   return trimOrNull(invoiceNumber)
+}
+
+export function isSchufaFreeProvisionInvoiceType(invoiceType: unknown) {
+  return trimOrNull(invoiceType) === SCHUFA_FREE_PROVISION_INVOICE_TYPE
+}
+
+export function isSchufaFreeProvisionCancellationInvoiceType(invoiceType: unknown) {
+  return trimOrNull(invoiceType) === SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE
 }
 
 export function buildSchufaFreeProvisionPaymentReference(
@@ -107,13 +116,17 @@ export function getSchufaFreeProvisionStatusLabel(status: string | null | undefi
   }
 }
 
+export function getSchufaFreeProvisionInvoiceTitle(invoiceType: string | null | undefined) {
+  return isSchufaFreeProvisionCancellationInvoiceType(invoiceType) ? "Stornorechnung" : "Vorauszahlungsrechnung"
+}
+
 export function isSchufaFreeProvisionPaid(status: string | null | undefined) {
   return String(status ?? "").trim().toLowerCase() === "paid"
 }
 
 export function getSchufaFreeProvisionRefundLines() {
   return [
-    "Die Vorauszahlung wird vollständig erstattet, wenn keine positive Rückmeldung der SIGMA Kreditbank AG vorliegt und keine Auszahlung stattfindet.",
+    "Die Vorauszahlung wird vollstaendig erstattet, wenn keine positive Rueckmeldung der SIGMA Kreditbank AG vorliegt und keine Auszahlung stattfindet.",
     "Die Vorauszahlung wird ebenfalls erstattet, wenn der Kreditvertrag fristgerecht widerrufen wurde.",
   ]
 }
@@ -122,12 +135,31 @@ export function buildSchufaFreeProvisionInvoiceTitle() {
   return "Vorauszahlungsrechnung"
 }
 
+export function buildSchufaFreeProvisionCancellationInvoiceTitle() {
+  return "Stornorechnung"
+}
+
 export function buildSchufaFreeProvisionDescription(loanAmount: number) {
   const { netAmount, vatAmount, grossAmount } = getSchufaFreeProvisionBreakdown(loanAmount)
 
-  return `Vorauszahlung auf die Serviceprovision für Kredit ohne Schufa (${formatPercent(
+  return `Vorauszahlung auf die Serviceprovision fuer Kredit ohne Schufa (${formatPercent(
     SCHUFA_FREE_PROVISION_RATE
   )} netto von ${formatEuro(loanAmount)} = ${formatEuro(netAmount)}, zzgl. ${formatPercent(
     SCHUFA_FREE_PROVISION_VAT_RATE
   )} MwSt. = ${formatEuro(vatAmount)}, Gesamtbetrag ${formatEuro(grossAmount)}).`
+}
+
+export function buildSchufaFreeProvisionCancellationDescription(opts: {
+  loanAmount: number
+  originalInvoiceNumber?: string | null
+}) {
+  const { netAmount, vatAmount, grossAmount } = getSchufaFreeProvisionBreakdown(opts.loanAmount)
+  const originalInvoiceNumber = trimOrNull(opts.originalInvoiceNumber)
+  const referencePart = originalInvoiceNumber ? ` zur Vorauszahlungsrechnung ${originalInvoiceNumber}` : ""
+
+  return `Stornierung${referencePart} fuer Kredit ohne Schufa (${formatPercent(
+    SCHUFA_FREE_PROVISION_RATE
+  )} netto von ${formatEuro(opts.loanAmount)} = ${formatEuro(-netAmount)}, zzgl. ${formatPercent(
+    SCHUFA_FREE_PROVISION_VAT_RATE
+  )} MwSt. = ${formatEuro(-vatAmount)}, Gesamtbetrag ${formatEuro(-grossAmount)}).`
 }

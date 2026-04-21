@@ -122,6 +122,7 @@ export default function SchufaFreeWorkspaceOverview({
   const submittedToSkag = Boolean(sync?.skag_credit_id || sync?.last_submit_at)
   const normalizedAlias = String(sync?.last_status_alias ?? latestPush?.status_alias ?? "").trim().toLowerCase()
   const invoiceStatus = String(invoice?.status ?? "").trim().toLowerCase()
+  const caseCancelled = String(caseStatus ?? "").trim().toLowerCase() === "cancelled" || invoiceStatus === "cancelled"
   const provisionRequested = Boolean(invoice?.id)
   const provisionPaid = isSchufaFreeProvisionPaid(invoiceStatus)
   const postidentLinkReady = Boolean(String(sync?.postident_url ?? "").trim())
@@ -129,7 +130,9 @@ export default function SchufaFreeWorkspaceOverview({
   const postidentCompleted = normalizedAlias === "postident_successfully_completed" || payoutReached
 
   const currentStep =
-    !submittedToSkag
+    caseCancelled
+      ? 4
+      : !submittedToSkag
       ? 2
       : openRequiredCount > 0
         ? 3
@@ -141,7 +144,7 @@ export default function SchufaFreeWorkspaceOverview({
               ? 6
               : 7
 
-  const nextAction = !submittedToSkag
+  const nextAction = caseCancelled ? (mode === "advisor" ? "Der Vorgang wurde storniert. Es sind keine weiteren Schritte mehr offen." : "Deine Kreditanfrage wurde storniert. Es sind keine weiteren Schritte mehr erforderlich.") : !submittedToSkag
     ? mode === "advisor"
       ? "Prüfen Sie die finalen Angaben und übermitteln Sie den Fall an SEPANA."
       : "Vervollständige deine finalen Angaben und sende den Antrag an SEPANA."
@@ -204,7 +207,7 @@ export default function SchufaFreeWorkspaceOverview({
     {
       number: 4,
       title: "Vorauszahlung",
-      text: provisionPaid
+      text: caseCancelled ? "Storniert" : provisionPaid
         ? "Zahlung bestätigt"
         : provisionRequested
           ? getSchufaFreeProvisionStatusLabel(invoiceStatus)
@@ -216,18 +219,18 @@ export default function SchufaFreeWorkspaceOverview({
     {
       number: 5,
       title: "Vertrag",
-      text:
+      text: caseCancelled ? "Nicht mehr relevant" :
         signatures.length > 0
           ? `${completedSignatureCount}/${signatures.length} Signaturvorgänge abgeschlossen`
           : mode === "advisor"
             ? "Kreditvertrag noch nicht angelegt"
             : "Vertrag wird vorbereitet",
-      state: stepState(currentStep, 5, provisionPaid && signatures.length > 0 && openSignatureCount === 0),
+      state: stepState(currentStep, 5, !caseCancelled && provisionPaid && signatures.length > 0 && openSignatureCount === 0),
     },
     {
       number: 6,
       title: "PostIdent",
-      text: postidentCompleted
+      text: caseCancelled ? "Nicht mehr relevant" : postidentCompleted
         ? "Legitimation abgeschlossen"
         : postidentLinkReady
           ? mode === "advisor"
@@ -241,7 +244,7 @@ export default function SchufaFreeWorkspaceOverview({
     {
       number: 7,
       title: "Auszahlung",
-      text: payoutReached ? "Ausgezahlt" : statusMeta?.title ?? translateCaseStatus(caseStatus),
+      text: caseCancelled ? "Storniert" : payoutReached ? "Ausgezahlt" : statusMeta?.title ?? translateCaseStatus(caseStatus),
       state: stepState(currentStep, 7, payoutReached),
     },
   ] as const
@@ -261,7 +264,7 @@ export default function SchufaFreeWorkspaceOverview({
           },
           {
             label: "Vorauszahlung",
-            value: getSchufaFreeProvisionStatusLabel(invoiceStatus),
+            value: caseCancelled ? "Storniert" : getSchufaFreeProvisionStatusLabel(invoiceStatus),
             hint: "",
           },
           {
@@ -290,18 +293,22 @@ export default function SchufaFreeWorkspaceOverview({
           {
             label: "Unterlagen",
             value:
-              requiredRequestIds.size > 0
+              caseCancelled
+                ? "Vorgang storniert"
+                : requiredRequestIds.size > 0
                 ? `${uploadedRequiredRequestIds.size}/${requiredRequestIds.size} erledigt`
                 : `${documents.length} Dokumente hochgeladen`,
             hint:
-              openRequiredCount > 0
+              caseCancelled
+                ? "Es sind keine weiteren Uploads mehr erforderlich."
+                : openRequiredCount > 0
                 ? `${openRequiredCount} Pflichtunterlagen fehlen noch.`
                 : "Alle aktuell angeforderten Unterlagen liegen vor.",
           },
           {
             label: "Vorauszahlung",
-            value: getSchufaFreeProvisionStatusLabel(invoiceStatus),
-            hint: !provisionRequested
+            value: caseCancelled ? "Storniert" : getSchufaFreeProvisionStatusLabel(invoiceStatus),
+            hint: caseCancelled ? "Die Rechnung wurde aufgehoben und die Kreditanfrage beendet." : !provisionRequested
               ? "Sobald alle Unterlagen geprüft sind, erscheint hier die nächste Freigabe."
               : provisionPaid
                 ? "Zahlung bestätigt. Der Fall geht jetzt in den Vertragsbereich."
@@ -309,14 +316,14 @@ export default function SchufaFreeWorkspaceOverview({
           },
           {
             label: "Vertrag",
-            value: !provisionPaid
+            value: caseCancelled ? "Nicht mehr relevant" : !provisionPaid
               ? "Wartet auf Vorauszahlung"
               : signatures.length === 0
                 ? "Wird vorbereitet"
                 : openSignatureCount > 0
                   ? `${completedSignatureCount}/${signatures.length} Schritte erledigt`
                   : "Abgeschlossen",
-            hint: !provisionPaid
+            hint: caseCancelled ? "Der Vertragsprozess wurde mit der Stornierung beendet." : !provisionPaid
               ? "Der Vertrag wird erst nach bestätigter Vorauszahlung freigeschaltet."
               : signatures.length === 0
                 ? "Ihr Berater bereitet den Vertrag für Sie vor."
@@ -326,14 +333,14 @@ export default function SchufaFreeWorkspaceOverview({
           },
           {
             label: "PostIdent",
-            value: payoutReached
+            value: caseCancelled ? "Nicht mehr relevant" : payoutReached
               ? "Ausgezahlt"
               : postidentCompleted
                 ? "Abgeschlossen"
                 : postidentLinkReady
                   ? "Link ist bereit"
                   : "Wird vorbereitet",
-            hint: payoutReached
+            hint: caseCancelled ? "Mit der Stornierung entfaellt auch der weitere Legitimationprozess." : payoutReached
               ? "Die wesentlichen Schritte sind abgeschlossen."
               : postidentCompleted
                 ? "Die Legitimation ist erledigt."

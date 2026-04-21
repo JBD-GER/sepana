@@ -4,9 +4,12 @@ import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/noti
 import { renderSchufaFreeProvisionInvoicePdf } from "@/lib/schufa-frei/renderProvisionInvoicePdf"
 import {
   SCHUFA_FREE_PROVISION_BANK,
+  SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE,
   SCHUFA_FREE_PROVISION_INVOICE_TYPE,
   SCHUFA_FREE_PROVISION_RATE,
   SCHUFA_FREE_PROVISION_VAT_RATE,
+  buildSchufaFreeProvisionCancellationDescription,
+  buildSchufaFreeProvisionCancellationInvoiceTitle,
   buildSchufaFreeProvisionDescription,
   buildSchufaFreeProvisionInvoiceTitle,
   buildSchufaFreeProvisionPaymentReference,
@@ -20,7 +23,7 @@ import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const runtime = "nodejs"
 
-type SupportedAction = "send" | "mark_paid" | "mark_refunded" | "mark_sent"
+type SupportedAction = "send" | "mark_paid" | "mark_refunded" | "mark_sent" | "cancel"
 
 function isMissingCaseInvoicesTableError(error: unknown) {
   const anyError = error as { code?: string; message?: string } | null
@@ -53,7 +56,7 @@ function resolveSiteOrigin(req: Request) {
 }
 
 function isSupportedAction(value: string): value is SupportedAction {
-  return value === "send" || value === "mark_paid" || value === "mark_refunded" || value === "mark_sent"
+  return value === "send" || value === "mark_paid" || value === "mark_refunded" || value === "mark_sent" || value === "cancel"
 }
 
 export async function POST(req: Request) {
@@ -75,10 +78,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Ungueltige Aktion" }, { status: 400 })
   }
 
+  if (actionRaw === "cancel" && role !== "admin") {
+    return NextResponse.json({ ok: false, error: "Nur Admin darf stornieren" }, { status: 403 })
+  }
+
   const admin = supabaseAdmin()
   const { data: caseRow, error: caseError } = await admin
     .from("cases")
-    .select("id,case_ref,case_type,assigned_advisor_id")
+    .select("id,case_ref,case_type,assigned_advisor_id,status")
     .eq("id", caseId)
     .maybeSingle()
 
@@ -95,28 +102,248 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 })
   }
 
-  const { data: existingInvoice, error: invoiceLoadError } = await admin
-    .from("case_invoices")
-    .select("*")
-    .eq("case_id", caseId)
-    .eq("invoice_type", SCHUFA_FREE_PROVISION_INVOICE_TYPE)
-    .maybeSingle()
+  const [{ data: existingInvoice, error: invoiceLoadError }, { data: cancellationInvoice, error: cancellationLoadError }] =
+    await Promise.all([
+      admin
+        .from("case_invoices")
+        .select("*")
+        .eq("case_id", caseId)
+        .eq("invoice_type", SCHUFA_FREE_PROVISION_INVOICE_TYPE)
+        .maybeSingle(),
+      admin
+        .from("case_invoices")
+        .select("*")
+        .eq("case_id", caseId)
+        .eq("invoice_type", SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE)
+        .maybeSingle(),
+    ])
 
-  if (invoiceLoadError) {
-    if (isMissingCaseInvoicesTableError(invoiceLoadError)) {
+  if (invoiceLoadError || cancellationLoadError) {
+    const loadError = invoiceLoadError ?? cancellationLoadError
+    if (isMissingCaseInvoicesTableError(loadError)) {
       return NextResponse.json(
         { ok: false, error: "DB-Migration fehlt: Tabelle case_invoices ist noch nicht vorhanden." },
         { status: 503 }
       )
     }
-    return NextResponse.json({ ok: false, error: invoiceLoadError.message }, { status: 400 })
+    return NextResponse.json({ ok: false, error: loadError?.message ?? "invoice_load_failed" }, { status: 400 })
   }
 
   const now = new Date().toISOString()
+  const originalInvoiceCancelled = String(existingInvoice?.status ?? "").trim().toLowerCase() === "cancelled"
+
+  if (actionRaw === "cancel") {
+    if (!existingInvoice) {
+      return NextResponse.json({ ok: false, error: "Rechnung noch nicht angelegt" }, { status: 404 })
+    }
+    if (cancellationInvoice || originalInvoiceCancelled) {
+      return NextResponse.json({ ok: false, error: "Rechnung wurde bereits storniert" }, { status: 409 })
+    }
+
+    const [{ data: details }, caseMeta] = await Promise.all([
+      admin
+        .from("case_schufa_free_details")
+        .select("loan_amount_requested,street,house_number,zipcode,city")
+        .eq("case_id", caseId)
+        .maybeSingle(),
+      getCaseMeta(caseId),
+    ])
+
+    const loanAmount = Number(existingInvoice.loan_amount ?? details?.loan_amount_requested ?? 0)
+    const { grossAmount } = getSchufaFreeProvisionBreakdown(loanAmount)
+    const absoluteTotalAmount = Math.abs(Number(existingInvoice.amount_total ?? grossAmount ?? 0))
+    const originalInvoiceNumber =
+      getSchufaFreeProvisionInvoiceNumber(existingInvoice.invoice_number) ?? trimOrNull(existingInvoice.id)?.slice(0, 8) ?? null
+    const cancellationDescription = buildSchufaFreeProvisionCancellationDescription({
+      loanAmount,
+      originalInvoiceNumber,
+    })
+    const recipientName = caseMeta?.customer_name ?? trimOrNull(existingInvoice.recipient_name)
+    const recipientEmail = caseMeta?.customer_email ?? trimOrNull(existingInvoice.recipient_email)
+
+    const { data: insertedCancellationInvoice, error: insertCancellationError } = await admin
+      .from("case_invoices")
+      .insert({
+        case_id: caseId,
+        case_type: "schufa_frei",
+        invoice_type: SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE,
+        title: buildSchufaFreeProvisionCancellationInvoiceTitle(),
+        description: cancellationDescription,
+        status: "cancelled",
+        loan_amount: loanAmount > 0 ? loanAmount : null,
+        percentage_rate: SCHUFA_FREE_PROVISION_RATE,
+        amount_total: -absoluteTotalAmount,
+        currency: "EUR",
+        recipient_name: recipientName,
+        recipient_email: recipientEmail,
+        sent_at: now,
+        paid_at: null,
+        refunded_at: null,
+        created_by: user.id,
+        updated_at: now,
+      })
+      .select("*")
+      .single()
+
+    if (insertCancellationError) {
+      if (insertCancellationError.code === "23505") {
+        return NextResponse.json({ ok: false, error: "Rechnung wurde bereits storniert" }, { status: 409 })
+      }
+      if (isMissingCaseInvoicesTableError(insertCancellationError)) {
+        return NextResponse.json(
+          { ok: false, error: "DB-Migration fehlt: Tabelle case_invoices ist noch nicht vorhanden." },
+          { status: 503 }
+        )
+      }
+      if (isMissingCaseInvoiceNumberMigrationError(insertCancellationError)) {
+        return NextResponse.json(
+          { ok: false, error: "DB-Migration fehlt: fortlaufende Rechnungsnummer in case_invoices ist noch nicht vorhanden." },
+          { status: 503 }
+        )
+      }
+      return NextResponse.json({ ok: false, error: insertCancellationError.message }, { status: 400 })
+    }
+
+    const cancellationInvoiceNumber = getSchufaFreeProvisionInvoiceNumber(insertedCancellationInvoice.invoice_number)
+    if (!cancellationInvoiceNumber) {
+      return NextResponse.json(
+        { ok: false, error: "Stornorechnungsnummer konnte nicht erzeugt werden. Bitte DB-Migration pruefen." },
+        { status: 503 }
+      )
+    }
+
+    const [{ data: updatedOriginalInvoice, error: originalUpdateError }, { error: caseUpdateError }] = await Promise.all([
+      admin
+        .from("case_invoices")
+        .update({
+          status: "cancelled",
+          paid_at: null,
+          refunded_at: null,
+          updated_at: now,
+        })
+        .eq("id", existingInvoice.id)
+        .select("*")
+        .single(),
+      admin
+        .from("cases")
+        .update({
+          status: "cancelled",
+          updated_at: now,
+        })
+        .eq("id", caseId),
+    ])
+
+    if (originalUpdateError) {
+      return NextResponse.json({ ok: false, error: originalUpdateError.message }, { status: 400 })
+    }
+    if (caseUpdateError) {
+      return NextResponse.json({ ok: false, error: caseUpdateError.message }, { status: 400 })
+    }
+
+    const siteOrigin = resolveSiteOrigin(req)
+    const customerPortalUrl = `${siteOrigin}/app/faelle/${caseId}#schufa-vorauszahlung`
+    const invoiceFileName = `Stornorechnung-${cancellationInvoiceNumber}.pdf`
+
+    let emailSent = false
+    let emailError: string | null = null
+
+    if (recipientEmail) {
+      const html = buildEmailHtml({
+        title: "Ihre Kreditanfrage wurde storniert",
+        intro: caseRow.case_ref
+          ? `Ihr Vorgang ${caseRow.case_ref} wurde von uns storniert.`
+          : "Ihre Kreditanfrage wurde von uns storniert.",
+        bodyHtml: `
+          <p style="margin:14px 0 0 0; font-size:14px; line-height:22px; color:#334155;">
+            Die bereits erzeugte Vorauszahlungsrechnung wurde aufgehoben. Als Nachweis erhalten Sie die Stornorechnung im Anhang.
+          </p>
+          <p style="margin:14px 0 0 0; font-size:14px; line-height:22px; color:#334155;">
+            Rechnungsnummer der Stornierung: <strong style="color:#0f172a;">${cancellationInvoiceNumber}</strong>
+          </p>
+        `,
+        steps: [
+          "Es sind keine weiteren Unterlagen oder Zahlungen mehr erforderlich.",
+          "Die Kreditanfrage wird nicht weiterbearbeitet.",
+          "Die Stornierung liegt zusaetzlich im SEPANA-Dashboard vor.",
+        ],
+        ctaLabel: "Zum Kundendashboard",
+        ctaUrl: customerPortalUrl,
+        preheader: "Ihre Kreditanfrage und die zugehoerige Rechnung wurden storniert.",
+        eyebrow: "SEPANA - Stornierung",
+        supportNote: "Die Stornorechnung haengt als PDF an dieser E-Mail.",
+      })
+
+      const pdfBytes = await renderSchufaFreeProvisionInvoicePdf({
+        invoiceNumber: cancellationInvoiceNumber,
+        createdAt: insertedCancellationInvoice.created_at,
+        caseRef: trimOrNull(caseRow.case_ref) ?? cancellationInvoiceNumber,
+        paymentReference: cancellationInvoiceNumber,
+        recipientName,
+        recipientEmail,
+        recipientStreet: trimOrNull(details?.street),
+        recipientHouseNumber: trimOrNull(details?.house_number),
+        recipientZipcode: trimOrNull(details?.zipcode),
+        recipientCity: trimOrNull(details?.city),
+        loanAmount,
+        amountTotal: Number(insertedCancellationInvoice.amount_total ?? -absoluteTotalAmount),
+        status: trimOrNull(insertedCancellationInvoice.status),
+        invoiceType: SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE,
+        description: cancellationDescription,
+      })
+
+      const emailResult = await sendEmail({
+        to: recipientEmail,
+        subject: "Stornierung Ihrer Kreditanfrage",
+        html,
+        attachments: [
+          {
+            filename: invoiceFileName,
+            content: Buffer.from(pdfBytes).toString("base64"),
+          },
+        ],
+      }).catch((error) => ({
+        ok: false as const,
+        error: error instanceof Error ? error.message : "mail_failed",
+      }))
+
+      emailSent = Boolean(emailResult?.ok)
+      emailError = emailSent ? null : String(emailResult?.error ?? "mail_failed")
+    } else {
+      emailError = "missing_customer_email"
+    }
+
+    await logCaseEvent({
+      caseId,
+      actorId: user.id,
+      actorRole: role,
+      type: "schufa_free_provision_cancelled",
+      title: "Kreditanfrage storniert",
+      body: emailSent
+        ? "Die Vorauszahlungsrechnung wurde storniert und der Kunde per E-Mail informiert."
+        : "Die Vorauszahlungsrechnung wurde storniert.",
+      meta: {
+        invoice_id: updatedOriginalInvoice.id,
+        cancellation_invoice_id: insertedCancellationInvoice.id,
+        email_sent: emailSent,
+      },
+      notifyAdvisor: false,
+    })
+
+    return NextResponse.json({
+      ok: true,
+      invoice: updatedOriginalInvoice,
+      cancellationInvoice: insertedCancellationInvoice,
+      emailSent,
+      emailError,
+    })
+  }
 
   if (actionRaw !== "send") {
     if (!existingInvoice) {
       return NextResponse.json({ ok: false, error: "Rechnung noch nicht angelegt" }, { status: 404 })
+    }
+    if (originalInvoiceCancelled || cancellationInvoice) {
+      return NextResponse.json({ ok: false, error: "Rechnung wurde bereits storniert" }, { status: 409 })
     }
 
     const nextStatus = actionRaw === "mark_paid" ? "paid" : actionRaw === "mark_refunded" ? "refunded" : "sent"
@@ -166,6 +393,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, invoice: updatedInvoice })
   }
 
+  if (String(caseRow.status ?? "").trim().toLowerCase() === "cancelled" || cancellationInvoice || originalInvoiceCancelled) {
+    return NextResponse.json({ ok: false, error: "Der Fall wurde bereits storniert" }, { status: 409 })
+  }
+
   const [{ data: details }, caseMeta] = await Promise.all([
     admin
       .from("case_schufa_free_details")
@@ -175,15 +406,15 @@ export async function POST(req: Request) {
     getCaseMeta(caseId),
   ])
 
-  const loanAmount = Number(details?.loan_amount_requested ?? 0)
+  const loanAmount = Number(details?.loan_amount_requested ?? existingInvoice?.loan_amount ?? 0)
   const { netAmount, vatAmount, grossAmount } = getSchufaFreeProvisionBreakdown(loanAmount)
 
   if (!Number.isFinite(loanAmount) || loanAmount <= 0 || grossAmount <= 0) {
     return NextResponse.json({ ok: false, error: "Kreditsumme fuer Vorauszahlungsrechnung fehlt." }, { status: 400 })
   }
 
-  const recipientName = caseMeta?.customer_name ?? null
-  const recipientEmail = caseMeta?.customer_email ?? null
+  const recipientName = caseMeta?.customer_name ?? trimOrNull(existingInvoice?.recipient_name)
+  const recipientEmail = caseMeta?.customer_email ?? trimOrNull(existingInvoice?.recipient_email)
   const description = buildSchufaFreeProvisionDescription(loanAmount)
 
   const { data: upsertedInvoice, error: upsertError } = await admin
@@ -313,6 +544,8 @@ export async function POST(req: Request) {
         loanAmount,
         amountTotal: grossAmount,
         status: trimOrNull(upsertedInvoice.status),
+        invoiceType: SCHUFA_FREE_PROVISION_INVOICE_TYPE,
+        description,
       })
 
       return sendEmail({
