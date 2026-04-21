@@ -89,6 +89,17 @@ function parseBool(value: unknown) {
   return ["1", "true", "yes", "y", "on"].includes(normalized)
 }
 
+function normalizeMailCopy(value: string) {
+  return value
+    .replaceAll("Ã„", "Ä")
+    .replaceAll("Ã–", "Ö")
+    .replaceAll("Ãœ", "Ü")
+    .replaceAll("Ã¤", "ä")
+    .replaceAll("Ã¶", "ö")
+    .replaceAll("Ã¼", "ü")
+    .replaceAll("ÃŸ", "ß")
+}
+
 function accountCheckStep(mode: string | null | undefined) {
   const normalized = String(mode ?? "").trim().toUpperCase()
   if (normalized === "REQUIRED") {
@@ -442,7 +453,7 @@ export async function POST(req: Request) {
       ? "Jetzt nur noch legitimieren und digital signieren"
       : "Deine finale SEPANA-Anfrage ist eingegangen"
 
-    const html = buildEmailHtml({
+    const html = normalizeMailCopy(buildEmailHtml({
       title: mailTitle,
       intro: mailIntro,
       steps,
@@ -451,7 +462,7 @@ export async function POST(req: Request) {
       preheader: mailPreheader,
       eyebrow: mailEyebrow,
       bodyHtml,
-    })
+    }))
 
     const result = await sendEmail({
       to: email,

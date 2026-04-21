@@ -43,8 +43,8 @@ async function generatePasswordActionLink(
 function buildPasswordInviteEmailHtml(actionLink: string, firstName?: string | null) {
   const greeting = String(firstName ?? "").trim()
   const intro = greeting
-    ? `Hallo ${greeting}, bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschliessen.`
-    : "Bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschliessen."
+    ? `Hallo ${greeting}, bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschließen.`
+    : "Bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschließen."
 
   return buildEmailHtml({
     title: "Passwort für Ihr SEPANA-Konto festlegen",

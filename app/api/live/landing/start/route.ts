@@ -83,7 +83,7 @@ async function generatePasswordActionLink(admin: ReturnType<typeof supabaseAdmin
 function buildPasswordInviteEmailHtml(actionLink: string) {
   return buildEmailHtml({
     title: "Passwort für Ihr SEPANA-Konto festlegen",
-    intro: "Bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschliessen.",
+    intro: "Bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschließen.",
     steps: [
       "Klicken Sie auf den Button und vergeben Sie ein sicheres Passwort.",
       "Danach können Sie sich direkt im Kundenportal anmelden.",
@@ -195,8 +195,9 @@ export async function POST(req: Request) {
       invited,
       passwordInviteSent,
     })
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? "Serverfehler" }, { status: 500 })
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Serverfehler"
+    return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
 

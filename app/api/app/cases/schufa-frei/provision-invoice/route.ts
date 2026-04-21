@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
 import { updateCaseStatusCompat } from "@/lib/caseStatusCompat"
+import { cancelSchufaFreeProvisionInvoice } from "@/lib/schufa-frei/cancelProvisionInvoice"
 import { renderSchufaFreeProvisionInvoicePdf } from "@/lib/schufa-frei/renderProvisionInvoicePdf"
 import {
   SCHUFA_FREE_PROVISION_BANK,
@@ -84,6 +85,31 @@ export async function POST(req: Request) {
   }
 
   const admin = supabaseAdmin()
+  if (["cancel"].includes(actionRaw)) {
+    const result = await cancelSchufaFreeProvisionInvoice({
+      admin,
+      caseId,
+      actorId: user.id,
+      actorRole: role,
+      siteOrigin: resolveSiteOrigin(req),
+    })
+
+    if (!result.ok) {
+      return NextResponse.json({ ok: false, error: result.error }, { status: result.status })
+    }
+
+    return NextResponse.json({
+      ok: true,
+      alreadyCancelled: result.alreadyCancelled,
+      invoice: result.invoice,
+      cancellationInvoice: result.cancellationInvoice,
+      emailSent: result.emailSent,
+      emailError: result.emailError,
+      caseStatusApplied: result.caseStatusApplied,
+      caseStatusFallbackApplied: result.caseStatusFallbackApplied,
+    })
+  }
+
   const { data: caseRow, error: caseError } = await admin
     .from("cases")
     .select("id,case_ref,case_type,assigned_advisor_id,status")
@@ -294,13 +320,13 @@ export async function POST(req: Request) {
         steps: [
           "Es sind keine weiteren Unterlagen oder Zahlungen mehr erforderlich.",
           "Die Kreditanfrage wird nicht weiterbearbeitet.",
-          "Die Stornierung liegt zusaetzlich im SEPANA-Dashboard vor.",
+          "Die Stornierung liegt zusätzlich im SEPANA-Dashboard vor.",
         ],
         ctaLabel: "Zum Kundendashboard",
         ctaUrl: customerPortalUrl,
-        preheader: "Ihre Kreditanfrage und die zugehoerige Rechnung wurden storniert.",
+        preheader: "Ihre Kreditanfrage und die zugehörige Rechnung wurden storniert.",
         eyebrow: "SEPANA - Stornierung",
-        supportNote: "Die Stornorechnung haengt als PDF an dieser E-Mail.",
+        supportNote: "Die Stornorechnung hängt als PDF an dieser E-Mail.",
       })
 
       const pdfBytes = await renderSchufaFreeProvisionInvoicePdf({
@@ -350,10 +376,10 @@ export async function POST(req: Request) {
       title: "Kreditanfrage storniert",
       body: emailSent
         ? originalInvoiceCancelled
-          ? "Die fehlende Stornorechnung wurde nachtraeglich erzeugt und der Kunde per E-Mail informiert."
+          ? "Die fehlende Stornorechnung wurde nachträglich erzeugt und der Kunde per E-Mail informiert."
           : "Die Vorauszahlungsrechnung wurde storniert und der Kunde per E-Mail informiert."
         : originalInvoiceCancelled
-          ? "Die fehlende Stornorechnung wurde nachtraeglich erzeugt."
+          ? "Die fehlende Stornorechnung wurde nachträglich erzeugt."
           : "Die Vorauszahlungsrechnung wurde storniert.",
       meta: {
         invoice_id: updatedOriginalInvoice.id,
@@ -415,13 +441,13 @@ export async function POST(req: Request) {
             : "schufa_free_provision_reset",
       title:
         nextStatus === "paid"
-          ? "Vorauszahlung bestaetigt"
+          ? "Vorauszahlung bestätigt"
           : nextStatus === "refunded"
             ? "Vorauszahlung erstattet"
-            : "Vorauszahlungsstatus zurueckgesetzt",
+            : "Vorauszahlungsstatus zurückgesetzt",
       body:
         nextStatus === "paid"
-          ? "Die Vorauszahlung wurde als eingegangen markiert. Der naechste Schritt ist jetzt der Vertrag."
+          ? "Die Vorauszahlung wurde als eingegangen markiert. Der nächste Schritt ist jetzt der Vertrag."
           : nextStatus === "refunded"
             ? "Die Vorauszahlung wurde als erstattet markiert."
             : "Der Vorauszahlungsstatus wurde wieder auf offen gesetzt.",
@@ -545,26 +571,26 @@ export async function POST(req: Request) {
     const html = buildEmailHtml({
       title: "Vorauszahlung vor dem Vertragsversand",
       intro: caseRow.case_ref
-        ? `Fuer Ihren Fall ${caseRow.case_ref} ist jetzt die Vorauszahlung in Hoehe von ${formatEuro(grossAmount)} faellig.`
-        : `Fuer Ihren Fall ist jetzt die Vorauszahlung in Hoehe von ${formatEuro(grossAmount)} faellig.`,
+        ? `Für Ihren Fall ${caseRow.case_ref} ist jetzt die Vorauszahlung in Höhe von ${formatEuro(grossAmount)} fällig.`
+        : `Für Ihren Fall ist jetzt die Vorauszahlung in Höhe von ${formatEuro(grossAmount)} fällig.`,
       bodyHtml: `${paymentHtml}
         <p style="margin:14px 0 0 0; font-size:14px; line-height:22px; color:#334155;">
-          Bitte beachten Sie: Es handelt sich um eine Vorauszahlung auf die Serviceprovision in Hoehe von ${formatPercent(
+          Bitte beachten Sie: Es handelt sich um eine Vorauszahlung auf die Serviceprovision in Höhe von ${formatPercent(
             SCHUFA_FREE_PROVISION_RATE
-          )} netto zuzueglich ${formatPercent(
+          )} netto zuzüglich ${formatPercent(
             SCHUFA_FREE_PROVISION_VAT_RATE
-          )} MwSt. Der naechste Schritt erfolgt erst nach bestaetigtem Zahlungseingang. Falls keine positive Rueckmeldung der SIGMA Kreditbank AG vorliegt und keine Auszahlung stattfindet, oder wenn der Vertrag fristgerecht widerrufen wurde, wird der Betrag erstattet.
+          )} MwSt. Der nächste Schritt erfolgt erst nach bestätigtem Zahlungseingang. Falls keine positive Rückmeldung der SIGMA Kreditbank AG vorliegt und keine Auszahlung stattfindet, oder wenn der Vertrag fristgerecht widerrufen wurde, wird der Betrag erstattet.
         </p>`,
       steps: [
-        `Ueberweisen Sie ${formatEuro(grossAmount)} mit dem Verwendungszweck ${paymentReference}.`,
-        "Sobald der Zahlungseingang bestaetigt ist, geht der Fall in den Vertragsprozess.",
-        "Die Rechnung und der Status liegen zusaetzlich in Ihrem SEPANA-Dashboard bereit.",
+        `Überweisen Sie ${formatEuro(grossAmount)} mit dem Verwendungszweck ${paymentReference}.`,
+        "Sobald der Zahlungseingang bestätigt ist, geht der Fall in den Vertragsprozess.",
+        "Die Rechnung und der Status liegen zusätzlich in Ihrem SEPANA-Dashboard bereit.",
       ],
       ctaLabel: "Zum Kundendashboard",
       ctaUrl: customerPortalUrl,
-      preheader: "Bitte leisten Sie jetzt die Vorauszahlung fuer Ihren Schufa-frei-Fall.",
+      preheader: "Bitte leisten Sie jetzt die Vorauszahlung für Ihren Schufa-frei-Fall.",
       eyebrow: "SEPANA - Vorauszahlung",
-      supportNote: "Die Rechnung haengt zusaetzlich als PDF an dieser E-Mail und liegt jederzeit auch in Ihrem Dashboard bereit.",
+      supportNote: "Die Rechnung hängt zusätzlich als PDF an dieser E-Mail und liegt jederzeit auch in Ihrem Dashboard bereit.",
     })
 
     const emailResult = await (async () => {
@@ -588,7 +614,7 @@ export async function POST(req: Request) {
 
       return sendEmail({
         to: recipientEmail,
-        subject: "Vorauszahlungsrechnung fuer Ihren Kreditantrag",
+        subject: "Vorauszahlungsrechnung für Ihren Kreditantrag",
         html,
         attachments: [
           {
@@ -615,7 +641,7 @@ export async function POST(req: Request) {
     type: "schufa_free_provision_invoice_sent",
     title: "Vorauszahlungsrechnung bereitgestellt",
     body: emailSent
-      ? "Die Vorauszahlungsrechnung wurde im Dashboard hinterlegt und zusaetzlich per E-Mail versendet."
+      ? "Die Vorauszahlungsrechnung wurde im Dashboard hinterlegt und zusätzlich per E-Mail versendet."
       : "Die Vorauszahlungsrechnung wurde im Dashboard hinterlegt.",
     meta: {
       invoice_id: upsertedInvoice.id,

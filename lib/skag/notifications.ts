@@ -42,8 +42,8 @@ export async function notifySkagStatusChange(input: {
       steps: [
         "Sie finden den aktuellen Status und alle angeforderten Unterlagen direkt im Portal.",
         meta.caseStatus === "needs_docs"
-          ? "Bitte laden Sie fehlende Dokumente so schnell wie moeglich hoch."
-          : "Sobald sich etwas aendert, informieren wir Sie automatisch.",
+          ? "Bitte laden Sie fehlende Dokumente so schnell wie möglich hoch."
+          : "Sobald sich etwas ändert, informieren wir Sie automatisch.",
       ],
       ctaLabel: "Zum Kundenportal",
       ctaUrl: customerPortalUrl,
@@ -64,8 +64,8 @@ export async function notifySkagStatusChange(input: {
       steps: [
         "Der Fall wurde automatisch aktualisiert.",
         meta.caseStatus === "needs_docs"
-          ? "Bitte pruefen Sie die neuen Dokumentenanforderungen im Advisor-Portal."
-          : "Weitere Folgeschritte koennen direkt im Advisor-Portal verfolgt werden.",
+          ? "Bitte prüfen Sie die neuen Dokumentenanforderungen im Advisor-Portal."
+          : "Weitere Folgeschritte können direkt im Advisor-Portal verfolgt werden.",
       ],
       ctaLabel: "Zum Advisor-Portal",
       ctaUrl: advisorPortalUrl,

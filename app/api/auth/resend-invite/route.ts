@@ -72,7 +72,7 @@ async function generatePasswordActionLink(
 function buildPasswordInviteEmailHtml(actionLink: string) {
   return buildEmailHtml({
     title: "Passwort für Ihr SEPANA-Konto festlegen",
-    intro: "Bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschliessen.",
+    intro: "Bitte legen Sie jetzt Ihr Passwort fest, um Ihren Zugang abzuschließen.",
     steps: [
       "Klicken Sie auf den Button und vergeben Sie ein sicheres Passwort.",
       "Danach können Sie sich direkt im Kundenportal anmelden.",

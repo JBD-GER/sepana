@@ -131,21 +131,21 @@ async function updateLeadWithFallback(
 
 async function notifyCustomer(input: { email: string; firstName: string | null }) {
   const html = buildEmailHtml({
-    title: "Erste Vorpruefung positiv",
+    title: "Erste Vorprüfung positiv",
     intro: input.firstName
-      ? `Hallo ${input.firstName}, Ihre erste Vorpruefung fuer Kredit ohne Schufa ist positiv ausgefallen.`
-      : "Ihre erste Vorpruefung fuer Kredit ohne Schufa ist positiv ausgefallen.",
+      ? `Hallo ${input.firstName}, Ihre erste Vorprüfung für Kredit ohne Schufa ist positiv ausgefallen.`
+      : "Ihre erste Vorprüfung für Kredit ohne Schufa ist positiv ausgefallen.",
     steps: [
-      "Im naechsten Schritt vervollstaendigen Sie bitte Ihre Angaben inklusive Einkommen.",
-      "Danach koennen Sie die benoetigten Unterlagen direkt hochladen.",
-      "Sobald sich im Fall etwas aendert, informiert SEPANA Sie automatisch.",
+      "Im nächsten Schritt vervollständigen Sie bitte Ihre Angaben inklusive Einkommen.",
+      "Danach können Sie die benötigten Unterlagen direkt hochladen.",
+      "Sobald sich im Fall etwas ändert, informiert SEPANA Sie automatisch.",
     ],
     eyebrow: "SEPANA - Kredit ohne Schufa",
   })
 
   await sendEmail({
     to: input.email,
-    subject: "Ihre erste Vorpruefung ist positiv",
+    subject: "Ihre erste Vorprüfung ist positiv",
     html,
   }).catch(() => null)
 }

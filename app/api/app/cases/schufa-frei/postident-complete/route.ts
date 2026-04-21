@@ -85,24 +85,24 @@ export async function POST(req: Request) {
     const html = buildEmailHtml({
       title: "PostIdent erfolgreich abgeschlossen",
       intro: caseMeta.case_ref
-        ? `Ihr PostIdent fuer den Fall ${caseMeta.case_ref} wurde erfolgreich abgeschlossen.`
+        ? `Ihr PostIdent für den Fall ${caseMeta.case_ref} wurde erfolgreich abgeschlossen.`
         : "Ihr PostIdent wurde erfolgreich abgeschlossen.",
       bodyHtml: `
         <p style="margin:0 0 14px 0; font-size:15px; line-height:24px; color:#0f172a;">
-          Die Legitimation liegt jetzt erfolgreich vor. Die Bank befindet sich damit in den finalen Zuegen
-          Ihres Falls. Wir informieren Sie automatisch, sobald die naechste Rueckmeldung oder die Auszahlung vorliegt.
+          Die Legitimation liegt jetzt erfolgreich vor. Die Bank befindet sich damit in den finalen Zügen
+          Ihres Falls. Wir informieren Sie automatisch, sobald die nächste Rückmeldung oder die Auszahlung vorliegt.
         </p>
       `,
       steps: [
         "Ihr PostIdent ist erfolgreich abgeschlossen.",
-        "Die Bank bearbeitet den Fall jetzt in den finalen Zuegen.",
-        "Sobald es weitergeht, erhalten Sie automatisch die naechste Rueckmeldung.",
+        "Die Bank bearbeitet den Fall jetzt in den finalen Zügen.",
+        "Sobald es weitergeht, erhalten Sie automatisch die nächste Rückmeldung.",
       ],
       ctaLabel: "Zum Kundendashboard",
       ctaUrl: customerDashboardUrl,
       preheader: "Ihr PostIdent wurde erfolgreich abgeschlossen.",
       eyebrow: "SEPANA - PostIdent abgeschlossen",
-      supportNote: "Den aktuellen Stand koennen Sie jederzeit auch in Ihrem Kundendashboard einsehen.",
+      supportNote: "Den aktuellen Stand können Sie jederzeit auch in Ihrem Kundendashboard einsehen.",
     })
 
     const emailResult = await sendEmail({
@@ -126,7 +126,7 @@ export async function POST(req: Request) {
     actorRole: role,
     type: "schufa_free_postident_completed",
     title: "PostIdent erfolgreich abgeschlossen",
-    body: "Ihr PostIdent ist erfolgreich abgeschlossen. Die Bank befindet sich jetzt in den finalen Zuegen.",
+    body: "Ihr PostIdent ist erfolgreich abgeschlossen. Die Bank befindet sich jetzt in den finalen Zügen.",
     meta: {
       customer_dashboard_url: customerDashboardUrl,
       email_sent: emailSent,

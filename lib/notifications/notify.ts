@@ -61,6 +61,17 @@ function cleanText(value: unknown) {
   return String(value ?? "").trim()
 }
 
+function normalizeMailCopy(value: string) {
+  return value
+    .replaceAll("Ã„", "Ä")
+    .replaceAll("Ã–", "Ö")
+    .replaceAll("Ãœ", "Ü")
+    .replaceAll("Ã¤", "ä")
+    .replaceAll("Ã¶", "ö")
+    .replaceAll("Ã¼", "ü")
+    .replaceAll("ÃŸ", "ß")
+}
+
 function fallbackAdvisorName(email: string | null) {
   const mail = cleanText(email)
   if (!mail.includes("@")) return "Ihr Ansprechpartner"
@@ -552,8 +563,8 @@ export async function sendEmail(opts: {
     body: JSON.stringify({
       from: normalizedFrom,
       to: opts.to,
-      subject: opts.subject,
-      html: opts.html,
+      subject: normalizeMailCopy(opts.subject),
+      html: normalizeMailCopy(opts.html),
       attachments: Array.isArray(opts.attachments) && opts.attachments.length > 0 ? opts.attachments : undefined,
     }),
   })
