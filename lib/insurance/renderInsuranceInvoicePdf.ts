@@ -75,6 +75,7 @@ function drawRightAlignedText(
 }
 
 export async function renderInsuranceInvoicePdf(input: {
+  title: string
   invoiceNumber: string
   createdAt: string
   caseRef: string
@@ -94,6 +95,7 @@ export async function renderInsuranceInvoicePdf(input: {
   const { PDFDocument, StandardFonts, rgb } = pdfLib
 
   const breakdown = getInsuranceInvoiceBreakdownFromGrossAmount(input.amountTotal)
+  const isCancellation = Number(input.amountTotal ?? 0) < 0
   const recipientCityLine = [input.recipientZipcode, input.recipientCity].filter(Boolean).join(" ").trim() || "-"
   const pdfDoc = await PDFDocument.create()
   const page = pdfDoc.addPage([595, 842])
@@ -107,7 +109,7 @@ export async function renderInsuranceInvoicePdf(input: {
     page.drawImage(logoImage, { x: 40, y: 786, width: 110, height: 28 })
   } catch {}
 
-  page.drawText("Versicherungsprovisionsrechnung", {
+  page.drawText(input.title || "Versicherungsprovisionsrechnung", {
     x: 40,
     y: 740,
     size: 20,
@@ -171,7 +173,7 @@ export async function renderInsuranceInvoicePdf(input: {
     height: 36,
     color: rgb(0.06, 0.09, 0.16),
   })
-  page.drawText("Gesamtbetrag", {
+  page.drawText(isCancellation ? "Stornobetrag" : "Gesamtbetrag", {
     x: summaryX + summaryInset,
     y: 371,
     size: 12,
@@ -185,7 +187,9 @@ export async function renderInsuranceInvoicePdf(input: {
   cursorY = drawTextBlock(
     page,
     font,
-    "Diese Rechnung dokumentiert die intern angelegte Versicherungsprovision fuer den weitergeleiteten Kredit-ohne-Schufa-Fall.",
+    isCancellation
+      ? "Diese Stornorechnung dokumentiert die intern rueckabgewickelte Versicherungsprovision fuer den weitergeleiteten Kredit-ohne-Schufa-Fall."
+      : "Diese Rechnung dokumentiert die intern angelegte Versicherungsprovision fuer den weitergeleiteten Kredit-ohne-Schufa-Fall.",
     40,
     cursorY,
     10,
@@ -196,7 +200,9 @@ export async function renderInsuranceInvoicePdf(input: {
   cursorY = drawTextBlock(
     page,
     font,
-    "Der eingegebene Betrag ist ein Bruttobetrag inklusive 19 % MwSt. und bleibt ausschliesslich im internen Backend sichtbar.",
+    isCancellation
+      ? "Der Betrag wird als negativer Bruttobetrag inklusive 19 % MwSt. ausgewiesen und bleibt ausschliesslich im internen Backend sichtbar."
+      : "Der eingegebene Betrag ist ein Bruttobetrag inklusive 19 % MwSt. und bleibt ausschliesslich im internen Backend sichtbar.",
     40,
     cursorY,
     10,

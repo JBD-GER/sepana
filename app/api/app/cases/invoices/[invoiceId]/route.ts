@@ -120,8 +120,10 @@ export async function GET(_req: Request, context: { params: Promise<{ invoiceId:
     const caseRef = trimOrNull(caseRow.case_ref) ?? caseRow.id.slice(0, 8)
     const partnerCode = trimOrNull(profileRow?.partner_code) ?? extractInsurancePartnerCode(invoiceRow.description)
     const paymentReference = buildInsuranceInvoicePaymentReference(partnerCode, trimOrNull(caseRow.case_ref))
+    const invoiceTitle = trimOrNull(invoiceRow.title) ?? getInsuranceInvoiceTitle(invoiceType)
 
     const pdfBytes = await renderInsuranceInvoicePdf({
+      title: invoiceTitle,
       invoiceNumber,
       createdAt: invoiceRow.created_at,
       caseRef,
@@ -140,7 +142,7 @@ export async function GET(_req: Request, context: { params: Promise<{ invoiceId:
     return new NextResponse(pdfBytes, {
       headers: {
         "content-type": "application/pdf",
-        "content-disposition": `attachment; filename="${getInsuranceInvoiceTitle()}-${invoiceNumber}.pdf"`,
+        "content-disposition": `attachment; filename="${invoiceTitle}-${invoiceNumber}.pdf"`,
         "cache-control": "private, no-store",
       },
     })

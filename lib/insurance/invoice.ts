@@ -1,4 +1,5 @@
 export const INSURANCE_PARTNER_INVOICE_TYPE = "insurance_partner_commission"
+export const INSURANCE_PARTNER_CANCELLATION_INVOICE_TYPE = "insurance_partner_commission_cancellation"
 export const INSURANCE_PARTNER_VAT_RATE = 0.19
 
 export const INSURANCE_ROUTE_STATUS_OPTIONS = [
@@ -21,8 +22,17 @@ export function trimOrNull(value: unknown) {
   return trimmed ? trimmed : null
 }
 
-export function isInsuranceInvoiceType(invoiceType: unknown) {
+export function isInsuranceMainInvoiceType(invoiceType: unknown) {
   return trimOrNull(invoiceType) === INSURANCE_PARTNER_INVOICE_TYPE
+}
+
+export function isInsuranceCancellationInvoiceType(invoiceType: unknown) {
+  return trimOrNull(invoiceType) === INSURANCE_PARTNER_CANCELLATION_INVOICE_TYPE
+}
+
+export function isInsuranceInvoiceType(invoiceType: unknown) {
+  const normalized = trimOrNull(invoiceType)
+  return normalized === INSURANCE_PARTNER_INVOICE_TYPE || normalized === INSURANCE_PARTNER_CANCELLATION_INVOICE_TYPE
 }
 
 export function formatEuro(value: number | null | undefined) {
@@ -37,20 +47,23 @@ export function formatPercent(rate: number) {
 }
 
 export function calculateInsuranceNetAmountFromGrossAmount(amountTotal: number | null | undefined) {
-  const grossAmount = Number(amountTotal ?? 0)
-  if (!Number.isFinite(grossAmount) || grossAmount <= 0) return 0
-  return roundCurrency(grossAmount / (1 + INSURANCE_PARTNER_VAT_RATE))
+  const grossAmount = roundCurrency(Number(amountTotal ?? 0))
+  if (!Number.isFinite(grossAmount) || grossAmount === 0) return 0
+
+  const sign = grossAmount < 0 ? -1 : 1
+  const absoluteGrossAmount = Math.abs(grossAmount)
+  return roundCurrency((absoluteGrossAmount / (1 + INSURANCE_PARTNER_VAT_RATE)) * sign)
 }
 
 export function calculateInsuranceVatAmountFromGrossAmount(amountTotal: number | null | undefined) {
   const grossAmount = roundCurrency(Number(amountTotal ?? 0))
-  if (!Number.isFinite(grossAmount) || grossAmount <= 0) return 0
+  if (!Number.isFinite(grossAmount) || grossAmount === 0) return 0
   return roundCurrency(grossAmount - calculateInsuranceNetAmountFromGrossAmount(grossAmount))
 }
 
 export function getInsuranceInvoiceBreakdownFromGrossAmount(amountTotal: number | null | undefined) {
   const grossAmount = roundCurrency(Number(amountTotal ?? 0))
-  if (!Number.isFinite(grossAmount) || grossAmount <= 0) {
+  if (!Number.isFinite(grossAmount) || grossAmount === 0) {
     return {
       netAmount: 0,
       vatAmount: 0,
@@ -134,6 +147,30 @@ export function buildInsuranceInvoiceDescription(opts: {
     .join(" - ")
 }
 
-export function getInsuranceInvoiceTitle() {
-  return "Versicherungsprovisionsrechnung"
+export function buildInsuranceInvoiceCancellationDescription(opts: {
+  amountTotal: number
+  caseRef?: string | null
+  partnerCode?: string | null
+  originalInvoiceNumber?: string | null
+}) {
+  const grossAmount = -Math.abs(Number(opts.amountTotal ?? 0))
+  const breakdown = getInsuranceInvoiceBreakdownFromGrossAmount(grossAmount)
+  const reference = buildInsuranceInvoicePaymentReference(opts.partnerCode, opts.caseRef)
+
+  return [
+    "Stornierung der Versicherungsprovision fuer Kredit ohne Schufa",
+    opts.caseRef ? `Fall ${opts.caseRef}` : null,
+    opts.partnerCode ? `Partner-ID ${opts.partnerCode}` : null,
+    opts.originalInvoiceNumber ? `Originalrechnung ${opts.originalInvoiceNumber}` : null,
+    reference ? `Verwendungszweck ${reference}` : null,
+    `(netto ${formatEuro(breakdown.netAmount)}, zzgl. ${formatPercent(INSURANCE_PARTNER_VAT_RATE)} MwSt. ${formatEuro(
+      breakdown.vatAmount
+    )}, Gesamtbetrag ${formatEuro(breakdown.grossAmount)})`,
+  ]
+    .filter(Boolean)
+    .join(" - ")
+}
+
+export function getInsuranceInvoiceTitle(invoiceType?: unknown) {
+  return isInsuranceCancellationInvoiceType(invoiceType) ? "Versicherungsstornorechnung" : "Versicherungsprovisionsrechnung"
 }

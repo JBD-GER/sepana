@@ -3,14 +3,25 @@
 import { startTransition, useState } from "react"
 import { useRouter } from "next/navigation"
 
-export default function AdminInvoiceCancelButton({ caseId }: { caseId: string }) {
+export default function AdminInvoiceCancelButton({
+  caseId,
+  kind = "schufa",
+}: {
+  caseId: string
+  kind?: "schufa" | "insurance"
+}) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
   async function cancelInvoice() {
     if (busy) return
-    if (!window.confirm("Rechnung und Fall jetzt stornieren? Es wird keine Kundenmail verschickt.")) {
+
+    const confirmText =
+      kind === "insurance"
+        ? "Versicherungsrechnung jetzt stornieren? Es wird keine Kundenmail verschickt."
+        : "Rechnung und Fall jetzt stornieren? Es wird keine Kundenmail verschickt."
+    if (!window.confirm(confirmText)) {
       return
     }
 
@@ -18,7 +29,11 @@ export default function AdminInvoiceCancelButton({ caseId }: { caseId: string })
     setMessage(null)
 
     try {
-      const res = await fetch("/api/app/cases/schufa-frei/provision-invoice", {
+      const endpoint =
+        kind === "insurance"
+          ? `/api/insurance/cases/${encodeURIComponent(caseId)}/invoice`
+          : "/api/app/cases/schufa-frei/provision-invoice"
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ caseId, action: "cancel" }),

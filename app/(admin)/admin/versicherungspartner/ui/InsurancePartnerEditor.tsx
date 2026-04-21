@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { INSURANCE_ROUTE_STATUS_OPTIONS, getInsuranceRouteStatusLabel } from "@/lib/insurance/invoice"
 
 const LANGUAGE_OPTIONS = [
   "Deutsch",
@@ -29,6 +30,7 @@ export default function InsurancePartnerEditor({
   userId,
   authEmail,
   initial,
+  stats,
 }: {
   userId: string
   authEmail: string
@@ -46,9 +48,18 @@ export default function InsurancePartnerEditor({
     email: string | null
     is_active: boolean | null
   }
+  stats?: {
+    total: number
+    active: number
+    completed: number
+    rejected: number
+    countsByStatus: Record<string, number>
+    scopeLabel?: string | null
+  }
 }) {
   const router = useRouter()
   const [edit, setEdit] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [partnerCode, setPartnerCode] = useState(initial.partner_code ?? "")
   const [companyName, setCompanyName] = useState(initial.company_name ?? "")
   const [displayName, setDisplayName] = useState(initial.display_name ?? "")
@@ -68,6 +79,15 @@ export default function InsurancePartnerEditor({
 
   const langsLabel = useMemo(() => langs.join(", "), [langs])
   const imgSrc = useMemo(() => avatarUrl(photoPath), [photoPath])
+  const statusItems = useMemo(
+    () =>
+      INSURANCE_ROUTE_STATUS_OPTIONS.map((entry) => ({
+        value: entry.value,
+        label: getInsuranceRouteStatusLabel(entry.value),
+        count: stats?.countsByStatus?.[entry.value] ?? 0,
+      })).filter((entry) => entry.count > 0),
+    [stats]
+  )
 
   function toggleLang(language: string) {
     setLangs((prev) => (prev.includes(language) ? prev.filter((entry) => entry !== language) : normalizeLangs([...prev, language])))
@@ -203,10 +223,10 @@ export default function InsurancePartnerEditor({
 
       {!edit ? (
         <div className="mt-4 grid gap-3">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="text-xs text-slate-500">Kurzprofil</div>
-              <div className="mt-1 text-sm text-slate-700">{bio || "-"}</div>
-            </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="text-xs text-slate-500">Kurzprofil</div>
+            <div className="mt-1 text-sm text-slate-700">{bio || "-"}</div>
+          </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="text-xs text-slate-500">Rechnungsadresse</div>
             <div className="mt-1 text-sm text-slate-700">{street || "-"}</div>
@@ -223,6 +243,55 @@ export default function InsurancePartnerEditor({
               <span className="text-xs text-slate-400">Keine Sprachen hinterlegt</span>
             )}
           </div>
+
+          {detailsOpen && stats ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs text-slate-500">Bestand & Status</div>
+                  <div className="mt-1 text-sm font-medium text-slate-900">Versicherungsbereich</div>
+                </div>
+                <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] text-slate-600">
+                  {stats.scopeLabel || "Aktueller Bestand"}
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Leads / Faelle</div>
+                  <div className="mt-2 text-lg font-semibold text-slate-900">{stats.total}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Aktiv</div>
+                  <div className="mt-2 text-lg font-semibold text-slate-900">{stats.active}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Abgeschlossen</div>
+                  <div className="mt-2 text-lg font-semibold text-slate-900">{stats.completed}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Abgelehnt</div>
+                  <div className="mt-2 text-lg font-semibold text-slate-900">{stats.rejected}</div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {statusItems.length ? (
+                  statusItems.map((item) => (
+                    <span
+                      key={item.value}
+                      className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
+                    >
+                      <span>{item.label}</span>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-slate-500">{item.count}</span>
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-slate-400">Noch keine Versicherungsfaelle vorhanden</span>
+                )}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
@@ -369,6 +438,15 @@ export default function InsurancePartnerEditor({
         >
           {edit ? "Vorschau" : "Bearbeiten"}
         </button>
+        {!edit && stats ? (
+          <button
+            type="button"
+            onClick={() => setDetailsOpen((value) => !value)}
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm"
+          >
+            {detailsOpen ? "Details ausblenden" : "Details"}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={save}

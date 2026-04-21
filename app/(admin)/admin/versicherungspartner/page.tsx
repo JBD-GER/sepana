@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/lib/admin/requireAdmin"
+import { INSURANCE_ROUTE_STATUS_OPTIONS } from "@/lib/insurance/invoice"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import InsurancePartnerEditor from "./ui/InsurancePartnerEditor"
 import InviteInsurancePartnerForm from "./ui/InviteInsurancePartnerForm"
@@ -14,7 +15,7 @@ export default async function AdminInsurancePartnersPage() {
     .order("created_at", { ascending: false })
 
   const partnerIds = (partners ?? []).map((partner) => partner.user_id)
-  const [{ data: partnerProfiles }, usersPage] = await Promise.all([
+  const [{ data: partnerProfiles }, usersPage, insuranceRoutesResult] = await Promise.all([
     partnerIds.length
       ? admin
           .from("insurance_partner_profiles")
@@ -22,6 +23,7 @@ export default async function AdminInsurancePartnersPage() {
           .in("user_id", partnerIds)
       : Promise.resolve({ data: [] as any[] }),
     admin.auth.admin.listUsers({ page: 1, perPage: 2000 }),
+    admin.from("case_insurance_routes").select("route_status"),
   ])
 
   const profileById = new Map<string, any>()
@@ -29,6 +31,25 @@ export default async function AdminInsurancePartnersPage() {
 
   const authEmailById = new Map<string, string>()
   for (const user of usersPage.data?.users ?? []) authEmailById.set(user.id, user.email ?? "")
+
+  const insuranceRoutes = (insuranceRoutesResult.data ?? []) as Array<{ route_status?: string | null }>
+  const countsByStatus = Object.fromEntries(
+    INSURANCE_ROUTE_STATUS_OPTIONS.map((entry) => [
+      entry.value,
+      insuranceRoutes.filter((route) => String(route.route_status ?? "").trim().toLowerCase() === entry.value).length,
+    ])
+  ) as Record<string, number>
+  const sharedStats = {
+    total: insuranceRoutes.length,
+    active: insuranceRoutes.filter((route) => {
+      const status = String(route.route_status ?? "").trim().toLowerCase()
+      return status !== "completed" && status !== "rejected"
+    }).length,
+    completed: countsByStatus.completed ?? 0,
+    rejected: countsByStatus.rejected ?? 0,
+    countsByStatus,
+    scopeLabel: "Aktuell gemeinsamer Versicherungsbestand fuer alle Partner",
+  }
 
   return (
     <div className="space-y-6">
@@ -78,6 +99,7 @@ export default async function AdminInsurancePartnersPage() {
                   email: email ?? null,
                   is_active: profile.is_active ?? true,
                 }}
+                stats={sharedStats}
               />
             )
           })}

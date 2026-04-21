@@ -1,9 +1,11 @@
 import Link from "next/link"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import {
-  getInsuranceInvoiceStatusLabel,
   getInsuranceInvoiceTitle,
+  getInsuranceInvoiceStatusLabel,
+  isInsuranceCancellationInvoiceType,
   isInsuranceInvoiceType,
+  isInsuranceMainInvoiceType,
 } from "@/lib/insurance/invoice"
 import {
   SCHUFA_FREE_PROVISION_INVOICE_TYPE,
@@ -220,8 +222,11 @@ export default async function AdminInvoicesPage({
                 const isServiceFeeInvoice = isSchufaFreeProvisionInvoiceType(invoice.invoice_type)
                 const isInternalInvoice = isInternalSchufaFreeProvisionInvoiceType(invoice.invoice_type)
                 const isInsurancePartnerInvoice = isInsuranceInvoiceType(invoice.invoice_type)
+                const isInsuranceCancellationInvoice = isInsuranceCancellationInvoiceType(invoice.invoice_type)
+                const isInsuranceMainInvoice = isInsuranceMainInvoiceType(invoice.invoice_type)
                 const isCancelled = String(invoice.status ?? "").trim().toLowerCase() === "cancelled"
-                const downloadLabel = isCancellationInvoice ? "Stornorechnung herunterladen" : "Rechnung herunterladen"
+                const downloadLabel =
+                  isCancellationInvoice || isInsuranceCancellationInvoice ? "Stornorechnung herunterladen" : "Rechnung herunterladen"
                 const amountClass = Number(invoice.amount_total ?? 0) < 0 ? "font-semibold text-rose-700" : "font-medium text-slate-900"
 
                 return (
@@ -231,7 +236,7 @@ export default async function AdminInvoicesPage({
                       <div className="mt-1 text-xs text-slate-500">
                         {invoice.title ??
                           (isInsurancePartnerInvoice
-                            ? getInsuranceInvoiceTitle()
+                            ? getInsuranceInvoiceTitle(invoice.invoice_type)
                             : getSchufaFreeProvisionInvoiceTitle(invoice.invoice_type))}
                       </div>
                     </td>
@@ -276,6 +281,7 @@ export default async function AdminInvoicesPage({
                           {downloadLabel}
                         </a>
                         {isServiceFeeInvoice && !isCancellationInvoice && !isCancelled ? <AdminInvoiceCancelButton caseId={invoice.case_id} /> : null}
+                        {isInsuranceMainInvoice && !isCancelled ? <AdminInvoiceCancelButton caseId={invoice.case_id} kind="insurance" /> : null}
                         <Link
                           href={`/admin/faelle/${invoice.case_id}`}
                           className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300"

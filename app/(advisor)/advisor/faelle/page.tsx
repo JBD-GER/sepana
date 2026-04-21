@@ -2,6 +2,7 @@
 import { requireAdvisor } from "@/lib/advisor/requireAdvisor"
 import { authFetch } from "@/lib/app/authFetch"
 import AdvisorCaseStatusSelect from "./ui/AdvisorCaseStatusSelect"
+import AdvisorInsuranceForwardButton from "./ui/AdvisorInsuranceForwardButton"
 
 type CaseRow = {
   id: string
@@ -15,6 +16,7 @@ type CaseRow = {
   status_display?: string | null
   created_at: string
   assigned_advisor_id: string | null
+  insurance_routed_at?: string | null
 
   docsCount: number
   offersCount: number
@@ -206,6 +208,7 @@ export default async function CasesPage({
       <div className="grid grid-cols-1 gap-3 lg:hidden">
         {scopedCases.map((c) => {
           const customerLabel = c.customer_name || "Kunde -"
+          const isSchufaCase = product === "schufa_frei"
 
           return (
             <div key={c.id} className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
@@ -220,10 +223,17 @@ export default async function CasesPage({
               </div>
 
               <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-slate-600">
-                <div>
-                  Vorgangsnummer:{" "}
-                  <span className="font-medium text-slate-900">{c.advisor_case_ref || "-"}</span>
-                </div>
+                {isSchufaCase ? (
+                  <div>
+                    <div className="mb-2">Versicherung</div>
+                    <AdvisorInsuranceForwardButton caseId={c.id} initialRouted={Boolean(c.insurance_routed_at)} />
+                  </div>
+                ) : (
+                  <div>
+                    Vorgangsnummer:{" "}
+                    <span className="font-medium text-slate-900">{c.advisor_case_ref || "-"}</span>
+                  </div>
+                )}
                 <div>
                   Status: <span className="font-medium text-slate-900">{statusLabel(c.advisor_status ?? "neu")}</span>
                 </div>
@@ -250,7 +260,7 @@ export default async function CasesPage({
                 <th className="px-4 py-3 font-medium text-slate-700">Fall-ID</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Kunde</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Telefon</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Vorgangsnummer</th>
+                <th className="px-4 py-3 font-medium text-slate-700">{product === "schufa_frei" ? "Versicherung" : "Vorgangsnummer"}</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Status</th>
               </tr>
             </thead>
@@ -278,7 +288,11 @@ export default async function CasesPage({
                     </td>
 
                     <td className="px-4 py-3">
-                      {c.advisor_case_ref || "-"}
+                      {product === "schufa_frei" ? (
+                        <AdvisorInsuranceForwardButton caseId={c.id} initialRouted={Boolean(c.insurance_routed_at)} />
+                      ) : (
+                        c.advisor_case_ref || "-"
+                      )}
                     </td>
 
                     <td className="px-4 py-3 text-slate-700">

@@ -50,6 +50,11 @@ type ApplicantRow = {
   phone: string | null
 }
 
+type InsuranceRouteRow = {
+  case_id: string
+  routed_at: string | null
+}
+
 type OfferRow = {
   id: string
   case_id: string
@@ -218,7 +223,7 @@ export async function GET(req: Request) {
   }
 
   const caseIds = baseCases.map((row) => row.id)
-  const [{ data: docs }, { data: offers }, { data: previews }, { data: applicants }, providersRes] = await Promise.all([
+  const [{ data: docs }, { data: offers }, { data: previews }, { data: applicants }, { data: insuranceRoutes }, providersRes] = await Promise.all([
     caseIds.length
       ? supabase.from("documents").select("id,case_id").in("case_id", caseIds)
       : Promise.resolve({ data: [] as DocRow[] }),
@@ -238,12 +243,16 @@ export async function GET(req: Request) {
           .in("case_id", caseIds)
           .eq("role", "primary")
       : Promise.resolve({ data: [] as ApplicantRow[] }),
+    caseIds.length
+      ? supabase.from("case_insurance_routes").select("case_id,routed_at").in("case_id", caseIds)
+      : Promise.resolve({ data: [] as InsuranceRouteRow[] }),
     supabase.from("providers").select("id,name,logo_horizontal_path,logo_icon_path,preferred_logo_variant,logo_path"),
   ])
 
   const docRows = (docs ?? []) as DocRow[]
   const offerRows = (offers ?? []) as OfferRow[]
   const applicantRows = (applicants ?? []) as ApplicantRow[]
+  const insuranceRouteRows = (insuranceRoutes ?? []) as InsuranceRouteRow[]
   const visibleOfferRows =
     role === "customer"
       ? offerRows.filter((row) => {
@@ -274,6 +283,13 @@ export async function GET(req: Request) {
   for (const row of applicantRows) {
     if (!applicantByCase.has(row.case_id)) {
       applicantByCase.set(row.case_id, row)
+    }
+  }
+
+  const insuranceRouteByCase = new Map<string, InsuranceRouteRow>()
+  for (const row of insuranceRouteRows) {
+    if (!insuranceRouteByCase.has(row.case_id)) {
+      insuranceRouteByCase.set(row.case_id, row)
     }
   }
 
@@ -341,6 +357,7 @@ export async function GET(req: Request) {
     const preview = latestPreviewSummary(previewsByCase.get(baseCase.id) ?? [])
     const bestOffer = bestOfferSummary(caseOffers)
     const applicant = applicantByCase.get(baseCase.id) ?? null
+    const insuranceRoute = insuranceRouteByCase.get(baseCase.id) ?? null
 
     const latestOfferStatus = latestOffer?.status ?? null
     const statusDisplay = approvedOffer
@@ -367,6 +384,7 @@ export async function GET(req: Request) {
       bestOffer,
       customer_name: buildName(applicant),
       customer_phone: String(applicant?.phone ?? "").trim() || null,
+      insurance_routed_at: insuranceRoute?.routed_at ?? null,
       is_bank_confirmed: !!approvedOffer,
       confirmed_at: approvedOffer ? approvedOffer.bank_confirmed_at ?? approvedOffer.created_at : null,
       confirmed_loan_amount: approvedOffer?.loan_amount ?? null,

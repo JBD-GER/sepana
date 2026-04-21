@@ -7,6 +7,7 @@ import {
   calculateInsuranceNetAmountFromGrossAmount,
   calculateInsuranceVatAmountFromGrossAmount,
   formatEuro,
+  getInsuranceInvoiceStatusLabel,
 } from "@/lib/insurance/invoice"
 
 type InvoiceRow = {
@@ -47,6 +48,7 @@ export default function InsuranceInvoicePanel({
   const grossAmount = normalizeMoneyInput(amount)
   const netAmount = calculateInsuranceNetAmountFromGrossAmount(grossAmount)
   const vatAmount = calculateInsuranceVatAmountFromGrossAmount(grossAmount)
+  const isCancelled = String(invoice?.status ?? "").trim().toLowerCase() === "cancelled"
   const paymentReference = useMemo(
     () => buildInsuranceInvoicePaymentReference(partnerCode, caseRef),
     [caseRef, partnerCode]
@@ -88,7 +90,7 @@ export default function InsuranceInvoicePanel({
         </div>
         {invoice?.id ? (
           <div className="rounded-2xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs text-cyan-900">
-            Rechnung {invoice.invoice_number ?? invoice.id.slice(0, 8)}
+            Rechnung {invoice.invoice_number ?? invoice.id.slice(0, 8)} · {getInsuranceInvoiceStatusLabel(invoice.status)}
           </div>
         ) : null}
       </div>
@@ -101,7 +103,7 @@ export default function InsuranceInvoicePanel({
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
               placeholder="z.B. 357,00"
-              disabled={!editable}
+              disabled={!editable || isCancelled}
               className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
             />
           </label>
@@ -133,7 +135,7 @@ export default function InsuranceInvoicePanel({
       </div>
 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        {editable ? (
+        {editable && !isCancelled ? (
           <button
             type="button"
             onClick={save}
@@ -142,6 +144,10 @@ export default function InsuranceInvoicePanel({
           >
             {loading ? "Speichere..." : invoice?.id ? "Rechnung aktualisieren" : "Rechnung anlegen"}
           </button>
+        ) : isCancelled ? (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+            Die Rechnung wurde im Admin storniert und kann nicht mehr geaendert werden.
+          </div>
         ) : (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
             Rechnungen koennen nur vom eingeloggten Versicherungspartner angelegt oder geaendert werden.
