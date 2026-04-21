@@ -110,7 +110,7 @@ const FAQ_ITEMS = [
   {
     question: "Warum gibt es die Serviceprovision und ist das Geld dann weg?",
     answer:
-      "Nein. Es handelt sich um eine Vorauszahlung auf die Serviceprovision für diese Sonderstrecke. Sie gehört zum weiteren Ablauf nach positiver Vorprüfung. Wenn keine positive Rückmeldung der SIGMA Kreditbank AG vorliegt und keine Auszahlung stattfindet, wird die Vorauszahlung vollständig erstattet. Gleiches gilt bei fristgerechtem Widerruf des Kreditvertrags.",
+      "Die Serviceprovision wird im weiteren Verlauf direkt im Kreditvertrag geregelt. Eine separate Vorauszahlung vorab gibt es in dieser Strecke nicht.",
   },
   {
     question: "Welche Kreditsummen sind möglich?",

@@ -22,9 +22,7 @@ import { isImportedBankDocumentPath } from "@/lib/europace/flow"
 import { getOnlinekreditAccountCheckRestrictionReason } from "@/lib/onlinekredit/accountCheckPolicy"
 import { getOnlinekreditDocumentPin } from "@/lib/onlinekredit/documentPin"
 import SchufaFreePostIdentPanel from "@/components/schufa-frei/SchufaFreePostIdentPanel"
-import SchufaFreeProvisionPanel from "@/components/schufa-frei/SchufaFreeProvisionPanel"
 import SchufaFreeWorkspaceOverview from "@/components/schufa-frei/SchufaFreeWorkspaceOverview"
-import { isSchufaFreeProvisionPaid } from "@/lib/schufa-frei/provisionInvoice"
 
 type CaseApplicant = {
   first_name?: string | null
@@ -94,17 +92,6 @@ type SchufaPushEvent = {
   status_alias?: string | null
   status_description?: string | null
   created_at?: string | null
-}
-
-type SchufaInvoice = {
-  id: string
-  invoice_number?: string | null
-  status?: string | null
-  amount_total?: number | null
-  loan_amount?: number | null
-  sent_at?: string | null
-  paid_at?: string | null
-  refunded_at?: string | null
 }
 
 type Resp = {
@@ -493,13 +480,10 @@ export default async function CaseDetailPage({
     details?: SchufaDetails | null
     applicant?: CaseApplicant | null
     sync?: SchufaSync | null
-    invoice?: SchufaInvoice | null
     pushEvents?: SchufaPushEvent[]
     skagDocuments?: Array<{ local_document_id?: string | null; upload_status?: string | null; last_error?: string | null }>
   } | null = schufaRes && schufaRes.ok ? await schufaRes.json() : null
   const signatureItems = signatureData?.items ?? []
-  const provisionInvoice = schufaData?.invoice ?? null
-  const provisionPaid = isSchufaFreeProvisionPaid(provisionInvoice?.status ?? null)
   const documentCount = (data.documents ?? []).length
   const requiredRequestIds = new Set(
     (data.document_requests ?? [])
@@ -514,28 +498,20 @@ export default async function CaseDetailPage({
   )
   const openRequiredCount = Array.from(requiredRequestIds).filter((requestId) => !uploadedRequiredRequestIds.has(requestId)).length
   const requestedVariant = `${formatEUR(schufaData?.details?.loan_amount_requested ?? null)} / ${schufaData?.details?.term_months ?? "-"} Monate`
-  const nextCustomerStep = !provisionInvoice?.id
-    ? openRequiredCount > 0
-      ? "Unterlagen hochladen"
-      : "Unterlagen werden geprüft"
-    : !provisionPaid
-      ? "Vorauszahlung überweisen"
-      : signatureItems.length === 0
-        ? "Vertrag wird vorbereitet"
-        : !String(schufaData?.sync?.postident_url ?? "").trim()
-          ? "PostIdent wird vorbereitet"
-          : "PostIdent abschließen"
-  const nextCustomerHint = !provisionInvoice?.id
-    ? openRequiredCount > 0
-      ? "Lade jetzt die noch fehlenden Unterlagen hoch. Danach prüft dein Berater die Angaben."
-      : "Deine Unterlagen liegen vor und werden jetzt geprüft."
-    : !provisionPaid
-      ? "Der Vertrag wird freigeschaltet, sobald die Vorauszahlung bei uns eingegangen ist."
-      : signatureItems.length === 0
-        ? "Dein Berater stellt nun den Vertrag für die digitale Unterschrift bereit."
-        : !String(schufaData?.sync?.postident_url ?? "").trim()
-          ? "Nach dem Vertrag folgt noch dein persönlicher PostIdent-Link über unseren Partner SKAG Vertriebs GmbH."
-          : "Dein Link ist hinterlegt. Die Legitimation läuft über unseren Partner SKAG Vertriebs GmbH. Danach geht der Fall in Richtung Auszahlung weiter."
+  const nextCustomerStep = openRequiredCount > 0
+    ? "Unterlagen hochladen"
+    : signatureItems.length === 0
+      ? "Vertrag wird vorbereitet"
+      : !String(schufaData?.sync?.postident_url ?? "").trim()
+        ? "PostIdent wird vorbereitet"
+        : "PostIdent abschließen"
+  const nextCustomerHint = openRequiredCount > 0
+    ? "Lade jetzt die noch fehlenden Unterlagen hoch. Danach prüft dein Berater die Angaben."
+    : signatureItems.length === 0
+      ? "Dein Berater stellt nun den Vertrag für die digitale Unterschrift bereit."
+      : !String(schufaData?.sync?.postident_url ?? "").trim()
+        ? "Nach dem Vertrag folgt noch dein persönlicher PostIdent-Link über unseren Partner SKAG Vertriebs GmbH."
+        : "Dein Link ist hinterlegt. Die Legitimation läuft über unseren Partner SKAG Vertriebs GmbH. Danach geht der Fall in Richtung Auszahlung weiter."
   const bankCaseDocuments = (data.documents ?? []).filter((document) => isImportedBankDocumentPath(document.file_path))
   const documentPin = getOnlinekreditDocumentPin(data.europace?.vorgangsnummer)
   const privatkreditJourney = isKonsum
@@ -603,7 +579,6 @@ export default async function CaseDetailPage({
           caseRef={c.case_ref}
           caseStatus={c.status_display ?? c.status}
           sync={schufaData?.sync ?? null}
-          invoice={provisionInvoice}
           pushEvents={schufaData?.pushEvents ?? []}
           requests={data.document_requests ?? []}
           documents={data.documents ?? []}
@@ -659,36 +634,14 @@ export default async function CaseDetailPage({
             />
           </section>
 
-          <section id="schufa-vorauszahlung" className="space-y-3">
-            <SchufaFreeIntroCard
-              eyebrow="Vorauszahlung"
-              title="Vorauszahlung vor dem Vertrag"
-              description="Nach vollständiger Unterlagenprüfung erhältst du hier die Vorauszahlungsrechnung. Es geht erst weiter, wenn die Zahlung bei uns eingegangen ist."
-              tone="cyan"
-            />
-            <SchufaFreeProvisionPanel
-              mode="customer"
-              caseRef={c.case_ref}
-              loanAmount={schufaData?.details?.loan_amount_requested ?? null}
-              invoice={provisionInvoice}
-            />
-          </section>
-
           <section id="schufa-signatur" className="space-y-3">
             <SchufaFreeIntroCard
               eyebrow="Vertrag & Signatur"
               title="Kreditvertrag prüfen und unterschreiben"
-              description="Sobald dein Berater den Vertrag vorbereitet hat, erscheint er hier für die digitale Prüfung und Unterschrift."
+              description="Sobald dein Berater den Vertrag vorbereitet hat, erscheint er hier für die digitale Prüfung und Unterschrift. Die Provision wird direkt im Vertrag geregelt."
               tone="emerald"
             />
-            {!provisionPaid ? (
-              <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">Noch gesperrt</div>
-                <p className="mt-2 text-sm leading-relaxed text-amber-900">
-                  Der Vertrag wird erst freigeschaltet, wenn deine Vorauszahlung bei uns eingegangen ist.
-                </p>
-              </div>
-            ) : signatureItems.length === 0 ? (
+            {signatureItems.length === 0 ? (
               <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
                 <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Noch nicht freigegeben</div>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">
@@ -696,7 +649,7 @@ export default async function CaseDetailPage({
                 </p>
               </div>
             ) : null}
-            {provisionPaid ? <SignaturePanel caseId={c.id} canEdit={false} fixedProviderName="SIGMA Kreditbank AG" /> : null}
+            {signatureItems.length > 0 ? <SignaturePanel caseId={c.id} canEdit={false} fixedProviderName="SIGMA Kreditbank AG" /> : null}
           </section>
 
           <section id="schufa-postident" className="space-y-3">

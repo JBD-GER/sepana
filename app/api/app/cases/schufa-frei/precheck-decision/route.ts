@@ -74,7 +74,7 @@ export async function POST(req: Request) {
   }
 
   const siteOrigin = resolveSiteOrigin(req)
-  const customerPortalUrl = `${siteOrigin}/app/faelle/${caseId}#schufa-vorauszahlung`
+  const customerPortalUrl = `${siteOrigin}/app/faelle/${caseId}#schufa-signatur`
 
   const subject =
     decisionRaw === "approved" ? "Vorprüfung erfolgreich" : "Vorprüfung fehlgeschlagen"
@@ -93,8 +93,8 @@ export async function POST(req: Request) {
             </p>
           `,
           steps: [
-            "Vorauszahlung der Serviceprovision",
             "Kreditvertrag unterzeichnen",
+            "PostIdent abschliessen",
             "Geld erhalten",
           ],
           ctaLabel: "Zum Kundendashboard",

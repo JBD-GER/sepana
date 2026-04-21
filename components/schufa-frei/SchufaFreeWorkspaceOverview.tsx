@@ -1,6 +1,5 @@
 import { translateCaseStatus } from "@/lib/caseStatus"
 import { getSkagStatusMeta } from "@/lib/skag/status"
-import { getSchufaFreeProvisionStatusLabel, isSchufaFreeProvisionPaid } from "@/lib/schufa-frei/provisionInvoice"
 
 type SyncRow = {
   skag_credit_id?: string | null
@@ -11,14 +10,6 @@ type SyncRow = {
   postident_url?: string | null
   postident_added_at?: string | null
   postident_notified_at?: string | null
-} | null
-
-type InvoiceRow = {
-  id: string
-  status?: string | null
-  sent_at?: string | null
-  paid_at?: string | null
-  refunded_at?: string | null
 } | null
 
 type PushRow = {
@@ -80,7 +71,6 @@ export default function SchufaFreeWorkspaceOverview({
   caseRef,
   caseStatus,
   sync,
-  invoice,
   pushEvents,
   requests,
   documents,
@@ -92,7 +82,6 @@ export default function SchufaFreeWorkspaceOverview({
   caseRef: string | null
   caseStatus: string | null | undefined
   sync: SyncRow
-  invoice: InvoiceRow
   pushEvents: PushRow[]
   requests: RequestRow[]
   documents: DocumentRow[]
@@ -119,81 +108,71 @@ export default function SchufaFreeWorkspaceOverview({
   const completedSignatureCount = signatures.filter(isSignatureCompleted).length
   const openSignatureCount = Math.max(0, signatures.length - completedSignatureCount)
 
-  const submittedToSkag = Boolean(sync?.skag_credit_id || sync?.last_submit_at)
+  const submittedToSepana = Boolean(sync?.skag_credit_id || sync?.last_submit_at)
   const normalizedAlias = String(sync?.last_status_alias ?? latestPush?.status_alias ?? "").trim().toLowerCase()
-  const invoiceStatus = String(invoice?.status ?? "").trim().toLowerCase()
-  const caseCancelled = String(caseStatus ?? "").trim().toLowerCase() === "cancelled" || invoiceStatus === "cancelled"
-  const provisionRequested = Boolean(invoice?.id)
-  const provisionPaid = isSchufaFreeProvisionPaid(invoiceStatus)
+  const caseCancelled = String(caseStatus ?? "").trim().toLowerCase() === "cancelled"
   const postidentLinkReady = Boolean(String(sync?.postident_url ?? "").trim())
   const payoutReached = normalizedAlias === "credit_payout" || String(caseStatus ?? "").trim().toLowerCase() === "completed"
   const postidentCompleted = normalizedAlias === "postident_successfully_completed" || payoutReached
 
-  const currentStep =
-    caseCancelled
-      ? 4
-      : !submittedToSkag
+  const currentStep = caseCancelled
+    ? 4
+    : !submittedToSepana
       ? 2
       : openRequiredCount > 0
         ? 3
-        : !provisionPaid
+        : signatures.length === 0 || openSignatureCount > 0
           ? 4
-          : signatures.length === 0 || openSignatureCount > 0
+          : !postidentCompleted
             ? 5
-            : !postidentCompleted
-              ? 6
-              : 7
+            : 6
 
-  const nextAction = caseCancelled ? (mode === "advisor" ? "Der Vorgang wurde storniert. Es sind keine weiteren Schritte mehr offen." : "Deine Kreditanfrage wurde storniert. Es sind keine weiteren Schritte mehr erforderlich.") : !submittedToSkag
+  const nextAction = caseCancelled
     ? mode === "advisor"
-      ? "Prüfen Sie die finalen Angaben und übermitteln Sie den Fall an SEPANA."
-      : "Vervollständige deine finalen Angaben und sende den Antrag an SEPANA."
-    : openRequiredCount > 0
+      ? "Der Vorgang wurde storniert. Es sind keine weiteren Schritte mehr offen."
+      : "Deine Kreditanfrage wurde storniert. Es sind keine weiteren Schritte mehr erforderlich."
+    : !submittedToSepana
       ? mode === "advisor"
-        ? "Fordern Sie fehlende Unterlagen an oder prüfen Sie neue Uploads im Dokumentenbereich."
-        : "Lade die noch fehlenden Unterlagen hoch, damit der Fall weiterbearbeitet werden kann."
-      : !provisionPaid
+        ? "Pruefen Sie die finalen Angaben und uebermitteln Sie den Fall an SEPANA."
+        : "Vervollstaendige deine finalen Angaben und sende den Antrag an SEPANA."
+      : openRequiredCount > 0
         ? mode === "advisor"
-          ? provisionRequested
-            ? "Die Vorauszahlungsrechnung wurde versendet. Bestätigen Sie den Zahlungseingang, bevor der Vertrag freigegeben wird."
-            : "Senden Sie jetzt die Vorauszahlungsrechnung. Erst nach bestätigtem Zahlungseingang geht der Fall in den Vertragsprozess."
-          : provisionRequested
-            ? "Es geht erst weiter, wenn die Vorauszahlung bei uns eingegangen ist."
-            : "Wir bereiten gerade die Vorauszahlungsrechnung für den nächsten Schritt vor."
+          ? "Fordern Sie fehlende Unterlagen an oder pruefen Sie neue Uploads im Dokumentenbereich."
+          : "Lade die noch fehlenden Unterlagen hoch, damit der Fall weiterbearbeitet werden kann."
         : signatures.length === 0
           ? mode === "advisor"
-            ? "Laden Sie jetzt den Kreditvertrag hoch und setzen Sie die Signatur- und Checkbox-Felder."
+            ? "Laden Sie jetzt den Kreditvertrag hoch und starten Sie den Signaturprozess."
             : "Sobald dein Vertrag bereitsteht, erscheint er unten im Signaturbereich."
           : openSignatureCount > 0
             ? mode === "advisor"
-              ? "Der Vertrag läuft aktuell im Signaturprozess. Behalten Sie Vertrag, Rückfragen und Chat im Blick."
-              : "Dein Vertrag ist bereit. Prüfe das Dokument und unterschreibe es unten digital."
+              ? "Der Vertrag laeuft aktuell im Signaturprozess. Behalten Sie Vertrag, Rueckfragen und Chat im Blick."
+              : "Dein Vertrag ist bereit. Pruefe das Dokument und unterschreibe es unten digital."
             : !postidentCompleted
               ? mode === "advisor"
                 ? postidentLinkReady
                   ? "Der PostIdent-Link ist hinterlegt. Behalten Sie jetzt Legitimation und Auszahlung im Blick."
                   : "Hinterlegen Sie jetzt den PostIdent-Link aus dem SKAG-Partnerbereich und benachrichtigen Sie den Kunden."
                 : postidentLinkReady
-                  ? "Dein PostIdent-Link ist bereit. Die Legitimation läuft über unseren Partner SKAG Vertriebs GmbH. Öffne den Link unten im Dashboard und schließe den Schritt ab."
-                  : "Dein Vertrag ist abgeschlossen. Als Nächstes hinterlegen wir hier deinen PostIdent-Link über unseren Partner SKAG Vertriebs GmbH."
+                  ? "Dein PostIdent-Link ist bereit. Oeffne den Link unten im Dashboard und schliesse den Schritt ab."
+                  : "Dein Vertrag ist abgeschlossen. Als Naechstes hinterlegen wir hier deinen PostIdent-Link."
               : payoutReached
-                ? "Die Auszahlung wurde bestätigt. Alle wesentlichen Schritte sind abgeschlossen."
+                ? "Die Auszahlung wurde bestaetigt. Alle wesentlichen Schritte sind abgeschlossen."
                 : mode === "advisor"
                   ? "PostIdent ist abgeschlossen. Verfolgen Sie jetzt nur noch den weiteren SEPANA-Status bis zur Auszahlung."
-                  : "PostIdent ist abgeschlossen. Wir informieren dich hier über den weiteren Weg bis zur Auszahlung."
+                  : "PostIdent ist abgeschlossen. Wir informieren dich hier ueber den weiteren Weg bis zur Auszahlung."
 
   const stepItems = [
     {
       number: 1,
-      title: "Vorprüfung",
-      text: "Fall angelegt und Eingang bestätigt.",
+      title: "Vorpruefung",
+      text: "Fall angelegt und Eingang bestaetigt.",
       state: stepState(currentStep, 1, true),
     },
     {
       number: 2,
       title: "SEPANA",
-      text: submittedToSkag ? "An SEPANA übermittelt." : "Finale Übermittlung steht aus.",
-      state: stepState(currentStep, 2, submittedToSkag),
+      text: submittedToSepana ? "An SEPANA uebermittelt." : "Finale Uebermittlung steht aus.",
+      state: stepState(currentStep, 2, submittedToSepana),
     },
     {
       number: 3,
@@ -202,71 +181,49 @@ export default function SchufaFreeWorkspaceOverview({
         requiredRequestIds.size > 0
           ? `${requiredRequestIds.size - openRequiredCount}/${requiredRequestIds.size} Pflichtaufgaben erledigt`
           : `${documents.length} Dokumente im Fall`,
-      state: stepState(currentStep, 3, submittedToSkag && openRequiredCount === 0),
+      state: stepState(currentStep, 3, submittedToSepana && openRequiredCount === 0),
     },
     {
       number: 4,
-      title: "Vorauszahlung",
-      text: caseCancelled ? "Storniert" : provisionPaid
-        ? "Zahlung bestätigt"
-        : provisionRequested
-          ? getSchufaFreeProvisionStatusLabel(invoiceStatus)
-          : mode === "advisor"
-            ? "Rechnung noch nicht versendet"
-            : "Wird vorbereitet",
-      state: stepState(currentStep, 4, provisionPaid),
-    },
-    {
-      number: 5,
       title: "Vertrag",
-      text: caseCancelled ? "Nicht mehr relevant" :
-        signatures.length > 0
-          ? `${completedSignatureCount}/${signatures.length} Signaturvorgänge abgeschlossen`
+      text: caseCancelled
+        ? "Nicht mehr relevant"
+        : signatures.length > 0
+          ? `${completedSignatureCount}/${signatures.length} Signaturvorgaenge abgeschlossen`
           : mode === "advisor"
             ? "Kreditvertrag noch nicht angelegt"
             : "Vertrag wird vorbereitet",
-      state: stepState(currentStep, 5, !caseCancelled && provisionPaid && signatures.length > 0 && openSignatureCount === 0),
+      state: stepState(currentStep, 4, !caseCancelled && signatures.length > 0 && openSignatureCount === 0),
+    },
+    {
+      number: 5,
+      title: "PostIdent",
+      text: caseCancelled
+        ? "Nicht mehr relevant"
+        : postidentCompleted
+          ? "Legitimation abgeschlossen"
+          : postidentLinkReady
+            ? mode === "advisor"
+              ? "Link an Kunden uebermittelt"
+              : "Link im Dashboard verfuegbar"
+            : mode === "advisor"
+              ? "Link noch nicht hinterlegt"
+              : "Wird vorbereitet",
+      state: stepState(currentStep, 5, postidentCompleted),
     },
     {
       number: 6,
-      title: "PostIdent",
-      text: caseCancelled ? "Nicht mehr relevant" : postidentCompleted
-        ? "Legitimation abgeschlossen"
-        : postidentLinkReady
-          ? mode === "advisor"
-            ? "Link an Kunden übermittelt"
-            : "Link im Dashboard verfügbar"
-          : mode === "advisor"
-            ? "Link noch nicht hinterlegt"
-            : "Wird vorbereitet",
-      state: stepState(currentStep, 6, postidentCompleted),
-    },
-    {
-      number: 7,
       title: "Auszahlung",
       text: caseCancelled ? "Storniert" : payoutReached ? "Ausgezahlt" : statusMeta?.title ?? translateCaseStatus(caseStatus),
-      state: stepState(currentStep, 7, payoutReached),
+      state: stepState(currentStep, 6, payoutReached),
     },
   ] as const
 
   const summaryItems =
     mode === "advisor"
       ? [
-          {
-            label: "SEPANA Credit ID",
-            value: sync?.skag_credit_id ?? "-",
-            hint: "",
-          },
-          {
-            label: "Offene Pflichtunterlagen",
-            value: String(openRequiredCount),
-            hint: "",
-          },
-          {
-            label: "Vorauszahlung",
-            value: caseCancelled ? "Storniert" : getSchufaFreeProvisionStatusLabel(invoiceStatus),
-            hint: "",
-          },
+          { label: "SEPANA Credit ID", value: sync?.skag_credit_id ?? "-", hint: "" },
+          { label: "Offene Pflichtunterlagen", value: String(openRequiredCount), hint: "" },
           {
             label: "Vertrag / Signatur",
             value: signatures.length ? `${completedSignatureCount}/${signatures.length} erledigt` : "Noch nicht gestartet",
@@ -274,20 +231,10 @@ export default function SchufaFreeWorkspaceOverview({
           },
           {
             label: "PostIdent",
-            value: payoutReached
-              ? "Ausgezahlt"
-              : postidentCompleted
-                ? "Abgeschlossen"
-                : postidentLinkReady
-                  ? "Link hinterlegt"
-                  : "Noch offen",
+            value: payoutReached ? "Ausgezahlt" : postidentCompleted ? "Abgeschlossen" : postidentLinkReady ? "Link hinterlegt" : "Noch offen",
             hint: "",
           },
-          {
-            label: "Chat",
-            value: `${chatCount} Nachrichten`,
-            hint: "",
-          },
+          { label: "Chat", value: `${chatCount} Nachrichten`, hint: "" },
         ]
       : [
           {
@@ -296,58 +243,58 @@ export default function SchufaFreeWorkspaceOverview({
               caseCancelled
                 ? "Vorgang storniert"
                 : requiredRequestIds.size > 0
-                ? `${uploadedRequiredRequestIds.size}/${requiredRequestIds.size} erledigt`
-                : `${documents.length} Dokumente hochgeladen`,
+                  ? `${uploadedRequiredRequestIds.size}/${requiredRequestIds.size} erledigt`
+                  : `${documents.length} Dokumente hochgeladen`,
             hint:
               caseCancelled
                 ? "Es sind keine weiteren Uploads mehr erforderlich."
                 : openRequiredCount > 0
-                ? `${openRequiredCount} Pflichtunterlagen fehlen noch.`
-                : "Alle aktuell angeforderten Unterlagen liegen vor.",
-          },
-          {
-            label: "Vorauszahlung",
-            value: caseCancelled ? "Storniert" : getSchufaFreeProvisionStatusLabel(invoiceStatus),
-            hint: caseCancelled ? "Die Rechnung wurde aufgehoben und die Kreditanfrage beendet." : !provisionRequested
-              ? "Sobald alle Unterlagen geprüft sind, erscheint hier die nächste Freigabe."
-              : provisionPaid
-                ? "Zahlung bestätigt. Der Fall geht jetzt in den Vertragsbereich."
-                : "Es geht weiter, sobald der Zahlungseingang bestätigt ist.",
+                  ? `${openRequiredCount} Pflichtunterlagen fehlen noch.`
+                  : "Alle aktuell angeforderten Unterlagen liegen vor.",
           },
           {
             label: "Vertrag",
-            value: caseCancelled ? "Nicht mehr relevant" : !provisionPaid
-              ? "Wartet auf Vorauszahlung"
-              : signatures.length === 0
-                ? "Wird vorbereitet"
-                : openSignatureCount > 0
-                  ? `${completedSignatureCount}/${signatures.length} Schritte erledigt`
-                  : "Abgeschlossen",
-            hint: caseCancelled ? "Der Vertragsprozess wurde mit der Stornierung beendet." : !provisionPaid
-              ? "Der Vertrag wird erst nach bestätigter Vorauszahlung freigeschaltet."
-              : signatures.length === 0
-                ? "Ihr Berater bereitet den Vertrag für Sie vor."
-                : openSignatureCount > 0
-                  ? "Prüfen Sie den Vertrag und unterschreiben Sie digital."
-                  : "Der Vertrag ist unterschrieben.",
+            value:
+              caseCancelled
+                ? "Nicht mehr relevant"
+                : signatures.length === 0
+                  ? "Wird vorbereitet"
+                  : openSignatureCount > 0
+                    ? `${completedSignatureCount}/${signatures.length} Schritte erledigt`
+                    : "Abgeschlossen",
+            hint:
+              caseCancelled
+                ? "Der Vertragsprozess wurde mit der Stornierung beendet."
+                : signatures.length === 0
+                  ? "Ihr Berater bereitet den Vertrag fuer Sie vor."
+                  : openSignatureCount > 0
+                    ? "Pruefen Sie den Vertrag und unterschreiben Sie digital."
+                    : "Der Vertrag ist unterschrieben.",
           },
           {
             label: "PostIdent",
-            value: caseCancelled ? "Nicht mehr relevant" : payoutReached
-              ? "Ausgezahlt"
-              : postidentCompleted
-                ? "Abgeschlossen"
-                : postidentLinkReady
-                  ? "Link ist bereit"
-                  : "Wird vorbereitet",
-            hint: caseCancelled ? "Mit der Stornierung entfaellt auch der weitere Legitimationprozess." : payoutReached
-              ? "Die wesentlichen Schritte sind abgeschlossen."
-              : postidentCompleted
-                ? "Die Legitimation ist erledigt."
-                : postidentLinkReady
-                  ? "Ihr Link liegt im Fall bereit und führt zur Legitimation über unseren Partner SKAG Vertriebs GmbH."
-                  : "Der Link über unseren Partner SKAG Vertriebs GmbH folgt nach dem Vertragsabschluss.",
+            value:
+              caseCancelled
+                ? "Nicht mehr relevant"
+                : payoutReached
+                  ? "Ausgezahlt"
+                  : postidentCompleted
+                    ? "Abgeschlossen"
+                    : postidentLinkReady
+                      ? "Link ist bereit"
+                      : "Wird vorbereitet",
+            hint:
+              caseCancelled
+                ? "Mit der Stornierung entfaellt auch der weitere Legitimationprozess."
+                : payoutReached
+                  ? "Die wesentlichen Schritte sind abgeschlossen."
+                  : postidentCompleted
+                    ? "Die Legitimation ist erledigt."
+                    : postidentLinkReady
+                      ? "Ihr Link liegt im Fall bereit und fuehrt zur Legitimation ueber unseren Partner SKAG Vertriebs GmbH."
+                      : "Der Link ueber unseren Partner SKAG Vertriebs GmbH folgt nach dem Vertragsabschluss.",
           },
+          { label: "Chat", value: `${chatCount} Nachrichten`, hint: "" },
         ]
 
   return (
@@ -366,7 +313,7 @@ export default function SchufaFreeWorkspaceOverview({
                 Fall {caseRef || "Schufa-frei"} im klaren Ablauf von Unterlagen bis Auszahlung.
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600 sm:text-base">
-                Diese Ansicht bündelt Status, Dokumente, Vorauszahlung, Vertrag, PostIdent und Auszahlung in einem klaren operativen Ablauf.
+                Diese Ansicht buendelt Status, Dokumente, Vertrag, PostIdent und Auszahlung in einem klaren operativen Ablauf.
               </p>
             </div>
 
@@ -380,7 +327,7 @@ export default function SchufaFreeWorkspaceOverview({
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-4 text-white shadow-sm">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">Nächster Schritt</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">Naechster Schritt</div>
                 <div className="mt-2 text-sm font-semibold leading-relaxed">{nextAction}</div>
                 {counterpartName ? (
                   <div className="mt-3 text-xs text-slate-300">
@@ -395,9 +342,9 @@ export default function SchufaFreeWorkspaceOverview({
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="max-w-3xl">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Ihr weiterer Ablauf</div>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">So geht es jetzt Schritt für Schritt weiter.</h2>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">So geht es jetzt Schritt fuer Schritt weiter.</h2>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                  Unterlagen, Vorauszahlung, Vertrag, PostIdent und Auszahlung werden hier ruhig und nacheinander angezeigt.
+                  Unterlagen, Vertrag, PostIdent und Auszahlung werden hier ruhig und nacheinander angezeigt.
                 </p>
                 {counterpartName ? (
                   <div className="mt-3 text-sm text-slate-600">
@@ -407,7 +354,7 @@ export default function SchufaFreeWorkspaceOverview({
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-4 text-white shadow-sm lg:max-w-md">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">Nächster Schritt</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">Naechster Schritt</div>
                 <div className="mt-2 text-sm font-semibold leading-relaxed">{nextAction}</div>
               </div>
             </div>
@@ -417,7 +364,7 @@ export default function SchufaFreeWorkspaceOverview({
         <div
           className={
             mode === "advisor"
-              ? "grid gap-3 md:grid-cols-2 xl:grid-cols-6"
+              ? "grid gap-3 md:grid-cols-2 xl:grid-cols-5"
               : "grid gap-3 md:grid-cols-2 xl:grid-cols-4"
           }
         >
@@ -431,7 +378,7 @@ export default function SchufaFreeWorkspaceOverview({
         </div>
 
         {mode === "advisor" ? (
-          <div className="grid gap-3 xl:grid-cols-7">
+          <div className="grid gap-3 xl:grid-cols-6">
             {stepItems.map((item) => (
               <div key={item.number} className={`rounded-2xl border px-4 py-4 shadow-sm ${stepBadgeClass(item.state)}`}>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.14em] opacity-80">Schritt {item.number}</div>
@@ -443,10 +390,7 @@ export default function SchufaFreeWorkspaceOverview({
         ) : (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {stepItems.map((item) => (
-              <div
-                key={item.number}
-                className={`rounded-2xl border px-4 py-4 shadow-sm ${stepBadgeClass(item.state)} min-h-[132px]`}
-              >
+              <div key={item.number} className={`min-h-[132px] rounded-2xl border px-4 py-4 shadow-sm ${stepBadgeClass(item.state)}`}>
                 <div className="flex items-start gap-4">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-current/15 bg-white/70 text-sm font-semibold">
                     {item.number}
@@ -465,7 +409,6 @@ export default function SchufaFreeWorkspaceOverview({
         <div className="flex flex-wrap gap-2">
           {[
             { href: "#schufa-dokumente", label: "Dokumente" },
-            { href: "#schufa-vorauszahlung", label: "Vorauszahlung" },
             { href: "#schufa-signatur", label: "Vertrag & Signatur" },
             { href: "#schufa-postident", label: "PostIdent" },
             { href: "#schufa-chat", label: "Chat" },

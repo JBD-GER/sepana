@@ -73,8 +73,8 @@ export default function SchufaFreePrecheckDecisionPanel({ caseId }: { caseId: st
         <div className="rounded-3xl border border-slate-200/80 bg-slate-50/80 p-4 text-sm text-slate-600 shadow-sm">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Inhalt der Erfolgs-Mail</div>
           <ul className="mt-3 space-y-2 text-sm leading-relaxed text-slate-700">
-            <li>Vorauszahlung der Serviceprovision</li>
             <li>Kreditvertrag unterzeichnen</li>
+            <li>PostIdent abschliessen</li>
             <li>Geld erhalten</li>
           </ul>
         </div>

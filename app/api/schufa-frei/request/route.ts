@@ -173,7 +173,6 @@ export async function POST(req: Request) {
     const employmentStartDate = trimOrNull(body?.employmentStartDate)
     const netIncomeMonthly = parseAmount(body?.netIncomeMonthly)
     const acceptsPrivacyPolicy = Boolean(body?.acceptsPrivacyPolicy)
-    const acceptsProvisionAgreement = Boolean(body?.acceptsProvisionAgreement)
     const deferCustomerInvite = Boolean(body?.deferCustomerInvite)
 
     if (!firstName || !lastName || !email || !phone) {
@@ -191,10 +190,6 @@ export async function POST(req: Request) {
     if (!acceptsPrivacyPolicy) {
       return NextResponse.json({ ok: false, error: "Bitte Datenschutz bestaetigen." }, { status: 400 })
     }
-    if (!acceptsProvisionAgreement) {
-      return NextResponse.json({ ok: false, error: "Bitte die Provisionsvereinbarung bestaetigen." }, { status: 400 })
-    }
-
     const employmentMonthsCurrent = getSchufaFreeEmploymentMonthsSince(employmentStartDate)
     if (employmentMonthsCurrent === null) {
       return NextResponse.json(

@@ -269,7 +269,7 @@ function DateInput(props: InputHTMLAttributes<HTMLInputElement>) {
         type="date"
         value={value}
         lang={lang ?? "de-DE"}
-        className={`${DATE_INPUT_CLASS} ${!hasValue ? "text-transparent" : ""} ${className}`.trim()}
+        className={`${DATE_INPUT_CLASS} ${!hasValue ? "date-field-empty text-transparent" : ""} ${className}`.trim()}
       />
       <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
         <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">

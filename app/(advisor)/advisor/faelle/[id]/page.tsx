@@ -24,11 +24,9 @@ import SchufaFreeStatusOverview from "@/components/schufa-frei/SchufaFreeStatusO
 import SchufaFreeDetailsOverview from "@/components/schufa-frei/SchufaFreeDetailsOverview"
 import SchufaFreePrecheckDecisionPanel from "@/components/schufa-frei/SchufaFreePrecheckDecisionPanel"
 import SchufaFreePostIdentPanel from "@/components/schufa-frei/SchufaFreePostIdentPanel"
-import SchufaFreeProvisionPanel from "@/components/schufa-frei/SchufaFreeProvisionPanel"
 import SchufaFreeWorkspaceOverview from "@/components/schufa-frei/SchufaFreeWorkspaceOverview"
 import SchufaFreeApplicationReminderCard from "@/components/schufa-frei/SchufaFreeApplicationReminderCard"
 import { getSchufaFreeCompletedOtherApplicationsByCaseIds } from "@/lib/schufa-frei/applicationReminder"
-import { isSchufaFreeProvisionPaid } from "@/lib/schufa-frei/provisionInvoice"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 type CaseApplicant = {
@@ -101,17 +99,6 @@ type SchufaPushEvent = {
   status_alias?: string | null
   status_description?: string | null
   created_at?: string | null
-}
-
-type SchufaInvoice = {
-  id: string
-  invoice_number?: string | null
-  status?: string | null
-  amount_total?: number | null
-  loan_amount?: number | null
-  sent_at?: string | null
-  paid_at?: string | null
-  refunded_at?: string | null
 }
 
 type Resp = {
@@ -377,7 +364,6 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     details?: SchufaDetails | null
     applicant?: CaseApplicant | null
     sync?: SchufaSync | null
-    invoice?: SchufaInvoice | null
     pushEvents?: SchufaPushEvent[]
     skagDocuments?: Array<{ local_document_id?: string | null; upload_status?: string | null; last_error?: string | null }>
   } | null = schufaRes && schufaRes.ok ? await schufaRes.json() : null
@@ -444,25 +430,19 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     [leadApplicant?.first_name, leadApplicant?.last_name].filter((value) => String(value ?? "").trim()).join(" ").trim() ||
     leadApplicant?.email ||
     null
-  const provisionInvoice = schufaData?.invoice ?? null
-  const provisionPaid = isSchufaFreeProvisionPaid(provisionInvoice?.status ?? null)
   const documentCount = (data.documents ?? []).length
   const requestCount = (data.document_requests ?? []).length
   const requestedVariant = `${formatEUR(schufaData?.details?.loan_amount_requested ?? null)} / ${schufaData?.details?.term_months ?? "-"} Monate`
-  const advisorFocus = !provisionPaid
-    ? "Vorauszahlung bestätigen"
-    : signatureItems.length === 0
-      ? "Vertrag vorbereiten"
-      : !String(schufaData?.sync?.postident_url ?? "").trim()
-        ? "PostIdent hinterlegen"
-        : "Auszahlung beobachten"
-  const advisorFocusHint = !provisionPaid
-    ? "Der Vertrag bleibt gesperrt, bis der Zahlungseingang bestätigt ist."
-    : signatureItems.length === 0
-      ? "Sobald der Vertrag angelegt ist, kann der Signaturprozess starten."
-      : !String(schufaData?.sync?.postident_url ?? "").trim()
-        ? "Nach dem Vertrag fehlt als Nächstes noch der PostIdent-Link."
-        : "Die operativen Schritte sind angelegt, jetzt den SEPANA-Status weiter verfolgen."
+  const advisorFocus = signatureItems.length === 0
+    ? "Vertrag vorbereiten"
+    : !String(schufaData?.sync?.postident_url ?? "").trim()
+      ? "PostIdent hinterlegen"
+      : "Auszahlung beobachten"
+  const advisorFocusHint = signatureItems.length === 0
+    ? "Sobald der Vertrag angelegt ist, kann der Signaturprozess starten."
+    : !String(schufaData?.sync?.postident_url ?? "").trim()
+      ? "Nach dem Vertrag fehlt als Nächstes noch der PostIdent-Link."
+      : "Die operativen Schritte sind angelegt, jetzt den SEPANA-Status weiter verfolgen."
 
   if (isSchufaFree) {
     return (
@@ -481,7 +461,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
                 Fall {c.case_ref || c.id.slice(0, 8)} klar steuern.
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-                Alles Relevante für Prüfung, Dokumente, Vorauszahlung, Vertrag, PostIdent und Auszahlung in einem sauberen Arbeitsbereich.
+                Alles Relevante für Prüfung, Dokumente, Vertrag, PostIdent und Auszahlung in einem sauberen Arbeitsbereich.
               </p>
             </div>
 
@@ -538,7 +518,6 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           caseRef={c.case_ref}
           caseStatus={c.status_display ?? c.status}
           sync={schufaData?.sync ?? null}
-          invoice={provisionInvoice}
           pushEvents={schufaData?.pushEvents ?? []}
           requests={data.document_requests ?? []}
           documents={data.documents ?? []}
@@ -594,7 +573,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             <SchufaFreeIntroCard
               eyebrow="Vorprüfung"
               title="Rückmeldung zur Vorprüfung versenden"
-              description="Versenden Sie hier direkt die positive oder negative Rückmeldung an den Kunden. Die positive Mail enthält bereits die nächsten Schritte bis Serviceprovision, Vertrag und Auszahlung."
+              description="Versenden Sie hier direkt die positive oder negative Rückmeldung an den Kunden. Die positive Mail enthält bereits die nächsten Schritte bis Vertrag, PostIdent und Auszahlung."
               tone="slate"
             />
             <SchufaFreePrecheckDecisionPanel caseId={c.id} />
@@ -642,51 +621,27 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             />
           </section>
 
-          <section id="schufa-vorauszahlung" className="space-y-3">
-            <SchufaFreeIntroCard
-              eyebrow="Vorauszahlung"
-              title="Vorauszahlungsrechnung bereitstellen"
-              description="Nach vollständigem Dokumenteneingang wird zuerst die Vorauszahlungsrechnung versendet. Der Vertrag folgt erst nach bestätigtem Zahlungseingang."
-              tone="cyan"
-            />
-            <SchufaFreeProvisionPanel
-              mode="advisor"
-              caseId={c.id}
-              caseRef={c.case_ref}
-              loanAmount={schufaData?.details?.loan_amount_requested ?? null}
-              invoice={provisionInvoice}
-            />
-          </section>
-
           <section id="schufa-signatur" className="space-y-3">
             <SchufaFreeIntroCard
               eyebrow="Vertrag & Signatur"
               title="Kreditvertrag unterschriftsreif machen"
-              description="Laden Sie hier den finalen Kreditvertrag hoch, setzen Sie Berater- und Kundenfelder und starten Sie den Signaturprozess direkt aus dem Fall."
+              description="Laden Sie hier den finalen Kreditvertrag hoch, setzen Sie Berater- und Kundenfelder und starten Sie den Signaturprozess direkt aus dem Fall. Die Provision wird direkt im Vertrag geregelt."
               tone="emerald"
             />
-            {!provisionPaid ? (
+            {bankCaseDocuments.length > 0 ? (
               <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 shadow-sm">
-                Der Vertragsbereich bleibt gesperrt, bis die Vorauszahlung im Fall als eingegangen markiert wurde.
+                Es liegen bereits importierte Bankdokumente im Fall vor. Prüfen Sie, ob der Kreditvertrag davon
+                in den Signaturbereich übernommen werden soll.
               </div>
-            ) : (
-              <>
-                {bankCaseDocuments.length > 0 ? (
-                  <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 shadow-sm">
-                    Es liegen bereits importierte Bankdokumente im Fall vor. Prüfen Sie, ob der Kreditvertrag davon
-                    in den Signaturbereich übernommen werden soll.
-                  </div>
-                ) : null}
-                <SignaturePanel
-                  caseId={c.id}
-                  canEdit
-                  fixedProviderName="SIGMA Kreditbank AG"
-                  providerProduct="konsum"
-                  advisorSignedDocumentActionLabel="An SKAG übermitteln"
-                  skagDocumentStatuses={schufaData?.skagDocuments ?? []}
-                />
-              </>
-            )}
+            ) : null}
+            <SignaturePanel
+              caseId={c.id}
+              canEdit
+              fixedProviderName="SIGMA Kreditbank AG"
+              providerProduct="konsum"
+              advisorSignedDocumentActionLabel="An SKAG übermitteln"
+              skagDocumentStatuses={schufaData?.skagDocuments ?? []}
+            />
           </section>
 
           <section id="schufa-postident" className="space-y-3">

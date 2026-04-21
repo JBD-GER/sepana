@@ -4,10 +4,6 @@
     {
       "path": "/api/system/europace/sync",
       "schedule": "17 3 * * *"
-    },
-    {
-      "path": "/api/system/schufa-frei/provision-invoice/auto-cancel",
-      "schedule": "29 4 * * *"
     }
   ]
 }
