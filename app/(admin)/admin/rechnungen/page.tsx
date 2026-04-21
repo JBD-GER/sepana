@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import {
+  SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE,
   SCHUFA_FREE_PROVISION_INVOICE_TYPE,
   formatEuro,
   getSchufaFreeProvisionInvoiceTitle,
@@ -113,6 +114,11 @@ export default async function AdminInvoicesPage({
     : { data: [] as Array<{ id: string; case_ref?: string | null }> }
 
   const caseRefById = new Map((caseRows ?? []).map((row) => [row.id, row.case_ref ?? row.id.slice(0, 8)]))
+  const cancellationInvoiceCaseIds = new Set(
+    invoiceRows
+      .filter((row) => String(row.invoice_type ?? "").trim().toLowerCase() === SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE)
+      .map((row) => row.case_id)
+  )
   const invoiceCount = invoiceRows.length
   const paidCount = invoiceRows.filter((row) => String(row.status ?? "").trim().toLowerCase() === "paid").length
   const refundedCount = invoiceRows.filter((row) => String(row.status ?? "").trim().toLowerCase() === "refunded").length
@@ -209,7 +215,11 @@ export default async function AdminInvoicesPage({
                 const invoiceType = String(invoice.invoice_type ?? "").trim().toLowerCase()
                 const caseRef = caseRefById.get(invoice.case_id) ?? invoice.case_id.slice(0, 8)
                 const isProvisionInvoice = invoiceType === SCHUFA_FREE_PROVISION_INVOICE_TYPE
+                const isCancellationInvoice = invoiceType === SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE
                 const isCancelled = String(invoice.status ?? "").trim().toLowerCase() === "cancelled"
+                const hasCancellationInvoice = cancellationInvoiceCaseIds.has(invoice.case_id)
+                const downloadLabel = isCancellationInvoice ? "Stornorechnung herunterladen" : "Rechnung herunterladen"
+                const amountClass = Number(invoice.amount_total ?? 0) < 0 ? "font-semibold text-rose-700" : "font-medium text-slate-900"
 
                 return (
                   <tr key={invoice.id} className="border-b border-slate-200/60 align-top last:border-0 hover:bg-slate-50/60">
@@ -232,7 +242,7 @@ export default async function AdminInvoicesPage({
                       <div className="mt-1 text-xs text-slate-500">{invoice.recipient_email ?? "-"}</div>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      <div className="font-medium text-slate-900">{formatEuro(invoice.amount_total ?? 0)}</div>
+                      <div className={amountClass}>{formatEuro(invoice.amount_total ?? 0)}</div>
                       <div className="mt-1 text-xs text-slate-500">{invoice.currency ?? "EUR"}</div>
                     </td>
                     <td className="px-4 py-3">
@@ -250,9 +260,11 @@ export default async function AdminInvoicesPage({
                           href={`/api/app/cases/invoices/${invoice.id}`}
                           className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300"
                         >
-                          PDF herunterladen
+                          {downloadLabel}
                         </a>
-                        {isProvisionInvoice && !isCancelled ? <AdminInvoiceCancelButton caseId={invoice.case_id} /> : null}
+                        {isProvisionInvoice && !hasCancellationInvoice ? (
+                          <AdminInvoiceCancelButton caseId={invoice.case_id} repairOnly={isCancelled} />
+                        ) : null}
                         <Link
                           href={`/admin/faelle/${invoice.case_id}`}
                           className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300"

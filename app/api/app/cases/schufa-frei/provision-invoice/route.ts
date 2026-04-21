@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
+import { updateCaseStatusCompat } from "@/lib/caseStatusCompat"
 import { renderSchufaFreeProvisionInvoicePdf } from "@/lib/schufa-frei/renderProvisionInvoicePdf"
 import {
   SCHUFA_FREE_PROVISION_BANK,
@@ -131,13 +132,37 @@ export async function POST(req: Request) {
 
   const now = new Date().toISOString()
   const originalInvoiceCancelled = String(existingInvoice?.status ?? "").trim().toLowerCase() === "cancelled"
+  const currentCaseStatus = String(caseRow.status ?? "").trim().toLowerCase()
+  const caseAlreadyClosed = currentCaseStatus === "cancelled" || currentCaseStatus === "closed"
 
   if (actionRaw === "cancel") {
     if (!existingInvoice) {
       return NextResponse.json({ ok: false, error: "Rechnung noch nicht angelegt" }, { status: 404 })
     }
-    if (cancellationInvoice || originalInvoiceCancelled) {
-      return NextResponse.json({ ok: false, error: "Rechnung wurde bereits storniert" }, { status: 409 })
+    if (cancellationInvoice) {
+      let caseStatusCompat: { appliedStatus: string; fallbackApplied: boolean } | null = null
+
+      if (!caseAlreadyClosed) {
+        try {
+          caseStatusCompat = await updateCaseStatusCompat(admin, {
+            caseId,
+            status: "cancelled",
+            updatedAt: now,
+          })
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "case_status_update_failed"
+          return NextResponse.json({ ok: false, error: message }, { status: 400 })
+        }
+      }
+
+      return NextResponse.json({
+        ok: true,
+        alreadyCancelled: true,
+        invoice: existingInvoice,
+        cancellationInvoice,
+        caseStatusApplied: caseStatusCompat?.appliedStatus ?? caseRow.status ?? null,
+        caseStatusFallbackApplied: caseStatusCompat?.fallbackApplied ?? false,
+      })
     }
 
     const [{ data: details }, caseMeta] = await Promise.all([
@@ -212,8 +237,9 @@ export async function POST(req: Request) {
       )
     }
 
-    const [{ data: updatedOriginalInvoice, error: originalUpdateError }, { error: caseUpdateError }] = await Promise.all([
-      admin
+    let updatedOriginalInvoice = existingInvoice
+    if (!originalInvoiceCancelled) {
+      const { data: refreshedOriginalInvoice, error: originalUpdateError } = await admin
         .from("case_invoices")
         .update({
           status: "cancelled",
@@ -223,21 +249,25 @@ export async function POST(req: Request) {
         })
         .eq("id", existingInvoice.id)
         .select("*")
-        .single(),
-      admin
-        .from("cases")
-        .update({
-          status: "cancelled",
-          updated_at: now,
-        })
-        .eq("id", caseId),
-    ])
+        .single()
 
-    if (originalUpdateError) {
-      return NextResponse.json({ ok: false, error: originalUpdateError.message }, { status: 400 })
+      if (originalUpdateError) {
+        return NextResponse.json({ ok: false, error: originalUpdateError.message }, { status: 400 })
+      }
+
+      updatedOriginalInvoice = refreshedOriginalInvoice
     }
-    if (caseUpdateError) {
-      return NextResponse.json({ ok: false, error: caseUpdateError.message }, { status: 400 })
+
+    let caseStatusCompat: { appliedStatus: string; fallbackApplied: boolean }
+    try {
+      caseStatusCompat = await updateCaseStatusCompat(admin, {
+        caseId,
+        status: "cancelled",
+        updatedAt: now,
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "case_status_update_failed"
+      return NextResponse.json({ ok: false, error: message }, { status: 400 })
     }
 
     const siteOrigin = resolveSiteOrigin(req)
@@ -319,12 +349,18 @@ export async function POST(req: Request) {
       type: "schufa_free_provision_cancelled",
       title: "Kreditanfrage storniert",
       body: emailSent
-        ? "Die Vorauszahlungsrechnung wurde storniert und der Kunde per E-Mail informiert."
-        : "Die Vorauszahlungsrechnung wurde storniert.",
+        ? originalInvoiceCancelled
+          ? "Die fehlende Stornorechnung wurde nachtraeglich erzeugt und der Kunde per E-Mail informiert."
+          : "Die Vorauszahlungsrechnung wurde storniert und der Kunde per E-Mail informiert."
+        : originalInvoiceCancelled
+          ? "Die fehlende Stornorechnung wurde nachtraeglich erzeugt."
+          : "Die Vorauszahlungsrechnung wurde storniert.",
       meta: {
         invoice_id: updatedOriginalInvoice.id,
         cancellation_invoice_id: insertedCancellationInvoice.id,
         email_sent: emailSent,
+        case_status_applied: caseStatusCompat.appliedStatus,
+        case_status_fallback_applied: caseStatusCompat.fallbackApplied,
       },
       notifyAdvisor: false,
     })
@@ -335,6 +371,8 @@ export async function POST(req: Request) {
       cancellationInvoice: insertedCancellationInvoice,
       emailSent,
       emailError,
+      caseStatusApplied: caseStatusCompat.appliedStatus,
+      caseStatusFallbackApplied: caseStatusCompat.fallbackApplied,
     })
   }
 

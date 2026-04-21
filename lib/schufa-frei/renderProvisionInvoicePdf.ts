@@ -195,21 +195,28 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
   })
   drawRightAlignedText(page, bold, formatEuro(displayTotalAmount), summaryRightX, 371, 12, rgb(1, 1, 1))
 
+  const detailsTitleY = isCancellation ? 318 : 392
+  const detailsLine1Y = isCancellation ? 298 : 372
+  const detailsLine2Y = isCancellation ? 282 : 356
+  const detailsLine3Y = isCancellation ? 266 : 340
+  const noticeTitleY = isCancellation ? 208 : 286
+  const noticeBodyY = isCancellation ? 188 : 266
+
   if (isCancellation) {
-    page.drawText("Stornierung", { x: 40, y: 392, size: 12, font: bold })
-    page.drawText("Keine Zahlung mehr erforderlich.", { x: 40, y: 372, size: 10, font })
-    page.drawText("Diese Stornorechnung hebt die vorherige Vorauszahlungsrechnung auf.", { x: 40, y: 356, size: 10, font })
-    page.drawText("Die zugehoerige Kreditanfrage wurde ebenfalls storniert.", { x: 40, y: 340, size: 10, font })
+    page.drawText("Stornierung", { x: 40, y: detailsTitleY, size: 12, font: bold })
+    page.drawText("Keine Zahlung mehr erforderlich.", { x: 40, y: detailsLine1Y, size: 10, font })
+    page.drawText("Diese Stornorechnung hebt die vorherige Vorauszahlungsrechnung auf.", { x: 40, y: detailsLine2Y, size: 10, font })
+    page.drawText("Die zugehoerige Kreditanfrage wurde ebenfalls storniert.", { x: 40, y: detailsLine3Y, size: 10, font })
   } else {
-    page.drawText("Bankverbindung", { x: 40, y: 392, size: 12, font: bold })
-    page.drawText(`Kontoinhaber: ${SCHUFA_FREE_PROVISION_BANK.accountHolder}`, { x: 40, y: 372, size: 10, font })
-    page.drawText(`IBAN: ${SCHUFA_FREE_PROVISION_BANK.iban}`, { x: 40, y: 356, size: 10, font })
-    page.drawText(`BIC: ${SCHUFA_FREE_PROVISION_BANK.bic}`, { x: 40, y: 340, size: 10, font })
+    page.drawText("Bankverbindung", { x: 40, y: detailsTitleY, size: 12, font: bold })
+    page.drawText(`Kontoinhaber: ${SCHUFA_FREE_PROVISION_BANK.accountHolder}`, { x: 40, y: detailsLine1Y, size: 10, font })
+    page.drawText(`IBAN: ${SCHUFA_FREE_PROVISION_BANK.iban}`, { x: 40, y: detailsLine2Y, size: 10, font })
+    page.drawText(`BIC: ${SCHUFA_FREE_PROVISION_BANK.bic}`, { x: 40, y: detailsLine3Y, size: 10, font })
     page.drawText(`Verwendungszweck: ${input.paymentReference}`, { x: 40, y: 324, size: 10, font })
   }
 
-  page.drawText(isCancellation ? "Hinweis zur Stornierung" : "Hinweis zur Vorauszahlung", { x: 40, y: 286, size: 12, font: bold })
-  let cursorY = 266
+  page.drawText(isCancellation ? "Hinweis zur Stornierung" : "Hinweis zur Vorauszahlung", { x: 40, y: noticeTitleY, size: 12, font: bold })
+  let cursorY = noticeBodyY
   cursorY = drawTextBlock(
     page,
     font,

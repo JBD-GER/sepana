@@ -3,14 +3,26 @@
 import { startTransition, useState } from "react"
 import { useRouter } from "next/navigation"
 
-export default function AdminInvoiceCancelButton({ caseId }: { caseId: string }) {
+export default function AdminInvoiceCancelButton({
+  caseId,
+  repairOnly,
+}: {
+  caseId: string
+  repairOnly?: boolean
+}) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
   async function cancelInvoice() {
     if (busy) return
-    if (!window.confirm("Rechnung und Kreditanfrage jetzt stornieren? Der Kunde erhaelt anschliessend eine Stornierungsmail.")) {
+    if (
+      !window.confirm(
+        repairOnly
+          ? "Fehlende Stornorechnung jetzt erzeugen? Der Kunde erhaelt anschliessend die Stornierungsmail."
+          : "Rechnung und Kreditanfrage jetzt stornieren? Der Kunde erhaelt anschliessend eine Stornierungsmail."
+      )
+    ) {
       return
     }
 
@@ -29,7 +41,11 @@ export default function AdminInvoiceCancelButton({ caseId }: { caseId: string })
         throw new Error(json?.error || "Stornierung fehlgeschlagen.")
       }
 
-      setMessage(json?.emailSent ? "Stornierung und Mail versendet." : "Storniert. Mail konnte nicht versendet werden.")
+      if (json?.alreadyCancelled) {
+        setMessage("Stornierung war bereits vorhanden. Fallstatus wurde geprueft.")
+      } else {
+        setMessage(json?.emailSent ? "Stornierung und Mail versendet." : "Storniert. Mail konnte nicht versendet werden.")
+      }
       startTransition(() => router.refresh())
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Stornierung fehlgeschlagen.")
@@ -46,7 +62,7 @@ export default function AdminInvoiceCancelButton({ caseId }: { caseId: string })
         disabled={busy}
         className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-900 shadow-sm transition hover:border-rose-300 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {busy ? "Storniere..." : "Stornieren"}
+        {busy ? "Erzeuge..." : repairOnly ? "Stornorechnung erzeugen" : "Stornieren"}
       </button>
       {message ? <div className="text-[11px] leading-relaxed text-slate-500">{message}</div> : null}
     </div>
