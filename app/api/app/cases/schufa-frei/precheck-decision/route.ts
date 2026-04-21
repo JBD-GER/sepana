@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
+import { ensureInsuranceRoute } from "@/lib/insurance/routing"
 import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "caseId fehlt" }, { status: 400 })
   }
   if (!isSupportedDecision(decisionRaw)) {
-    return NextResponse.json({ ok: false, error: "Ungültige Entscheidung" }, { status: 400 })
+    return NextResponse.json({ ok: false, error: "Ungueltige Entscheidung" }, { status: 400 })
   }
 
   const admin = supabaseAdmin()
@@ -76,51 +77,46 @@ export async function POST(req: Request) {
   const siteOrigin = resolveSiteOrigin(req)
   const customerPortalUrl = `${siteOrigin}/app/faelle/${caseId}#schufa-signatur`
 
-  const subject =
-    decisionRaw === "approved" ? "Vorprüfung erfolgreich" : "Vorprüfung fehlgeschlagen"
+  const subject = decisionRaw === "approved" ? "Vorpruefung erfolgreich" : "Vorpruefung fehlgeschlagen"
 
   const html =
     decisionRaw === "approved"
       ? buildEmailHtml({
-          title: "Vorprüfung erfolgreich",
+          title: "Vorpruefung erfolgreich",
           intro: caseMeta.case_ref
-            ? `Für Ihren Fall ${caseMeta.case_ref} war die Vorprüfung erfolgreich. Ihr Berater hat den Antrag genehmigt.`
-            : "Ihre Vorprüfung war erfolgreich. Ihr Berater hat den Antrag genehmigt.",
+            ? `Fuer Ihren Fall ${caseMeta.case_ref} war die Vorpruefung erfolgreich. Ihr Berater hat den Antrag genehmigt.`
+            : "Ihre Vorpruefung war erfolgreich. Ihr Berater hat den Antrag genehmigt.",
           bodyHtml: `
             <p style="margin:0 0 14px 0; font-size:15px; line-height:24px; color:#0f172a;">
-              Damit geht Ihr Antrag jetzt in die nächsten verbindlichen Schritte. Die weitere Strecke läuft digital und
+              Damit geht Ihr Antrag jetzt in die naechsten verbindlichen Schritte. Die weitere Strecke laeuft digital und
               klar strukturiert weiter.
             </p>
           `,
-          steps: [
-            "Kreditvertrag unterzeichnen",
-            "PostIdent abschliessen",
-            "Geld erhalten",
-          ],
+          steps: ["Kreditvertrag unterzeichnen", "PostIdent abschliessen", "Geld erhalten"],
           ctaLabel: "Zum Kundendashboard",
           ctaUrl: customerPortalUrl,
-          preheader: "Ihre Vorprüfung war erfolgreich.",
-          eyebrow: "SEPANA - Vorprüfung erfolgreich",
-          supportNote: "Die nächsten Schritte sehen Sie zusätzlich jederzeit in Ihrem Kundendashboard.",
+          preheader: "Ihre Vorpruefung war erfolgreich.",
+          eyebrow: "SEPANA - Vorpruefung erfolgreich",
+          supportNote: "Die naechsten Schritte sehen Sie zusaetzlich jederzeit in Ihrem Kundendashboard.",
         })
       : buildEmailHtml({
-          title: "Vorprüfung fehlgeschlagen",
+          title: "Vorpruefung fehlgeschlagen",
           intro: caseMeta.case_ref
-            ? `Für Ihren Fall ${caseMeta.case_ref} kam es leider zu keiner positiven Rückmeldung.`
-            : "Leider kam es zu keiner positiven Rückmeldung.",
+            ? `Fuer Ihren Fall ${caseMeta.case_ref} kam es leider zu keiner positiven Rueckmeldung.`
+            : "Leider kam es zu keiner positiven Rueckmeldung.",
           bodyHtml: `
             <p style="margin:0 0 14px 0; font-size:15px; line-height:24px; color:#0f172a;">
-              Ihr Berater hat den Antrag aktuell abgelehnt. Dafür kann es unterschiedliche Gründe geben, zum Beispiel
-              Vorgaben des Produkts, Bonitätskriterien oder die Gesamtkonstellation der Anfrage.
+              Ihr Berater hat den Antrag aktuell abgelehnt. Dafuer kann es unterschiedliche Gruende geben, zum Beispiel
+              Vorgaben des Produkts, Bonitaetskriterien oder die Gesamtkonstellation der Anfrage.
             </p>
             <p style="margin:0; font-size:14px; line-height:22px; color:#334155;">
-              Sobald sich die Ausgangslage verändert oder ergänzende Informationen vorliegen, kann der Fall erneut
+              Sobald sich die Ausgangslage veraendert oder ergaenzende Informationen vorliegen, kann der Fall erneut
               bewertet werden.
             </p>
           `,
-          preheader: "Leider liegt keine positive Rückmeldung zur Vorprüfung vor.",
-          eyebrow: "SEPANA - Vorprüfung",
-          supportNote: "Bei Rückfragen können Sie sich direkt an Ihren Ansprechpartner bei SEPANA wenden.",
+          preheader: "Leider liegt keine positive Rueckmeldung zur Vorpruefung vor.",
+          eyebrow: "SEPANA - Vorpruefung",
+          supportNote: "Bei Rueckfragen koennen Sie sich direkt an Ihren Ansprechpartner bei SEPANA wenden.",
         })
 
   const mailResult = await sendEmail({
@@ -136,21 +132,40 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: String(mailResult?.error ?? "mail_failed") }, { status: 502 })
   }
 
+  let insuranceRoute = null as Record<string, unknown> | null
+  if (decisionRaw === "rejected") {
+    try {
+      insuranceRoute = await ensureInsuranceRoute(admin, {
+        caseId,
+        source: "precheck_rejected",
+        actorId: user.id,
+        decisionSentAt: new Date().toISOString(),
+      })
+    } catch (error) {
+      return NextResponse.json(
+        { ok: false, error: error instanceof Error ? error.message : "insurance_routing_failed" },
+        { status: 400 }
+      )
+    }
+  }
+
   await logCaseEvent({
     caseId,
     actorId: user.id,
     actorRole: role,
     type: decisionRaw === "approved" ? "schufa_free_precheck_approved_sent" : "schufa_free_precheck_rejected_sent",
-    title: decisionRaw === "approved" ? "Vorprüfung erfolgreich versendet" : "Vorprüfung fehlgeschlagen versendet",
+    title: decisionRaw === "approved" ? "Vorpruefung erfolgreich versendet" : "Vorpruefung fehlgeschlagen versendet",
     body:
       decisionRaw === "approved"
-        ? "Die positive Rückmeldung zur Vorprüfung wurde an den Kunden versendet."
-        : "Die negative Rückmeldung zur Vorprüfung wurde an den Kunden versendet.",
+        ? "Die positive Rueckmeldung zur Vorpruefung wurde an den Kunden versendet."
+        : "Die negative Rueckmeldung zur Vorpruefung wurde an den Kunden versendet.",
     meta: {
       decision: decisionRaw,
       email_subject: subject,
+      insurance_route_source: insuranceRoute ? String(insuranceRoute.route_source ?? "") : null,
     },
     notifyAdvisor: false,
+    notifyCustomer: false,
   })
 
   return NextResponse.json({
@@ -158,5 +173,6 @@ export async function POST(req: Request) {
     decision: decisionRaw,
     subject,
     sentTo: caseMeta.customer_email,
+    insuranceRoute,
   })
 }

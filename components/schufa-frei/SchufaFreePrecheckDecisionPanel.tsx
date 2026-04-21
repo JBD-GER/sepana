@@ -10,14 +10,14 @@ type FeedbackState =
 
 const LABELS: Record<DecisionType, { idle: string; busy: string; success: string }> = {
   approved: {
-    idle: "Vorprüfung erfolgreich senden",
+    idle: "Vorpruefung erfolgreich senden",
     busy: "Versende Erfolgs-Mail...",
     success: "Erfolgs-Mail wurde an den Kunden versendet.",
   },
   rejected: {
-    idle: "Vorprüfung fehlgeschlagen senden",
+    idle: "Vorpruefung fehlgeschlagen senden",
     busy: "Versende Absage-Mail...",
-    success: "Absage-Mail wurde an den Kunden versendet.",
+    success: "Absage-Mail wurde an den Kunden versendet. Der Fall wurde zusaetzlich intern an den Versicherungsbereich uebergeben.",
   },
 }
 
@@ -42,7 +42,7 @@ export default function SchufaFreePrecheckDecisionPanel({ caseId }: { caseId: st
           json?.error === "customer_email_missing"
             ? "Beim Kunden ist keine E-Mail-Adresse hinterlegt."
             : json?.error === "case_type_not_supported"
-              ? "Die Aktion ist nur für Kredit ohne Schufa verfügbar."
+              ? "Die Aktion ist nur fuer Kredit ohne Schufa verfuegbar."
               : json?.error || "E-Mail konnte nicht versendet werden."
         )
       }
@@ -62,10 +62,10 @@ export default function SchufaFreePrecheckDecisionPanel({ caseId }: { caseId: st
     <div className="rounded-[28px] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div>
-          <div className="text-sm font-semibold text-slate-900">Kundenmail zur Vorprüfung</div>
+          <div className="text-sm font-semibold text-slate-900">Kundenmail zur Vorpruefung</div>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
-            Versenden Sie hier direkt die Rückmeldung zur Vorprüfung. Bei einer positiven Rückmeldung erhält der Kunde
-            die nächsten Schritte bis zur Auszahlung. Bei einer negativen Rückmeldung wird sauber kommuniziert, dass
+            Versenden Sie hier direkt die Rueckmeldung zur Vorpruefung. Bei einer positiven Rueckmeldung erhaelt der Kunde
+            die naechsten Schritte bis zur Auszahlung. Bei einer negativen Rueckmeldung wird sauber kommuniziert, dass
             aktuell keine positive Entscheidung vorliegt.
           </p>
         </div>

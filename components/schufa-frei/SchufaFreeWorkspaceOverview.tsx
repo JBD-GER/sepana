@@ -1,5 +1,6 @@
 import { translateCaseStatus } from "@/lib/caseStatus"
 import { getSkagStatusMeta } from "@/lib/skag/status"
+import { getSchufaFreeProvisionStatusLabel, isSchufaFreeProvisionPaid } from "@/lib/schufa-frei/provisionInvoice"
 
 type SyncRow = {
   skag_credit_id?: string | null
@@ -10,6 +11,12 @@ type SyncRow = {
   postident_url?: string | null
   postident_added_at?: string | null
   postident_notified_at?: string | null
+} | null
+
+type InvoiceRow = {
+  id?: string | null
+  invoice_type?: string | null
+  status?: string | null
 } | null
 
 type PushRow = {
@@ -71,6 +78,7 @@ export default function SchufaFreeWorkspaceOverview({
   caseRef,
   caseStatus,
   sync,
+  invoice,
   pushEvents,
   requests,
   documents,
@@ -82,6 +90,7 @@ export default function SchufaFreeWorkspaceOverview({
   caseRef: string | null
   caseStatus: string | null | undefined
   sync: SyncRow
+  invoice?: InvoiceRow
   pushEvents: PushRow[]
   requests: RequestRow[]
   documents: DocumentRow[]
@@ -111,6 +120,9 @@ export default function SchufaFreeWorkspaceOverview({
   const submittedToSepana = Boolean(sync?.skag_credit_id || sync?.last_submit_at)
   const normalizedAlias = String(sync?.last_status_alias ?? latestPush?.status_alias ?? "").trim().toLowerCase()
   const caseCancelled = String(caseStatus ?? "").trim().toLowerCase() === "cancelled"
+  const serviceFeeStatus = String(invoice?.status ?? "").trim().toLowerCase()
+  const serviceFeeCreated = Boolean(invoice?.id)
+  const serviceFeePaid = isSchufaFreeProvisionPaid(serviceFeeStatus)
   const postidentLinkReady = Boolean(String(sync?.postident_url ?? "").trim())
   const payoutReached = normalizedAlias === "credit_payout" || String(caseStatus ?? "").trim().toLowerCase() === "completed"
   const postidentCompleted = normalizedAlias === "postident_successfully_completed" || payoutReached
@@ -121,6 +133,8 @@ export default function SchufaFreeWorkspaceOverview({
       ? 2
       : openRequiredCount > 0
         ? 3
+        : mode === "advisor" && !serviceFeePaid
+          ? 4
         : signatures.length === 0 || openSignatureCount > 0
           ? 4
           : !postidentCompleted
@@ -139,6 +153,10 @@ export default function SchufaFreeWorkspaceOverview({
         ? mode === "advisor"
           ? "Fordern Sie fehlende Unterlagen an oder pruefen Sie neue Uploads im Dokumentenbereich."
           : "Lade die noch fehlenden Unterlagen hoch, damit der Fall weiterbearbeitet werden kann."
+        : mode === "advisor" && !serviceFeePaid
+          ? serviceFeeCreated
+            ? "Die Servicepauschale ist angelegt. Bestaetigen Sie jetzt den Zahlungseingang, bevor der Vertrag freigegeben wird."
+            : "Legen Sie jetzt die interne Servicepauschale an. Erst danach darf der Vertrag in die Signatur."
         : signatures.length === 0
           ? mode === "advisor"
             ? "Laden Sie jetzt den Kreditvertrag hoch und starten Sie den Signaturprozess."
@@ -185,15 +203,24 @@ export default function SchufaFreeWorkspaceOverview({
     },
     {
       number: 4,
-      title: "Vertrag",
-      text: caseCancelled
-        ? "Nicht mehr relevant"
-        : signatures.length > 0
-          ? `${completedSignatureCount}/${signatures.length} Signaturvorgaenge abgeschlossen`
-          : mode === "advisor"
-            ? "Kreditvertrag noch nicht angelegt"
-            : "Vertrag wird vorbereitet",
-      state: stepState(currentStep, 4, !caseCancelled && signatures.length > 0 && openSignatureCount === 0),
+      title: mode === "advisor" && !serviceFeePaid ? "Servicepauschale" : "Vertrag",
+      text:
+        caseCancelled
+          ? "Nicht mehr relevant"
+          : mode === "advisor" && !serviceFeePaid
+            ? serviceFeeCreated
+              ? getSchufaFreeProvisionStatusLabel(serviceFeeStatus, invoice?.invoice_type)
+              : "Noch nicht angelegt"
+            : signatures.length > 0
+              ? `${completedSignatureCount}/${signatures.length} Signaturvorgaenge abgeschlossen`
+              : mode === "advisor"
+                ? "Kreditvertrag noch nicht angelegt"
+                : "Vertrag wird vorbereitet",
+      state: stepState(
+        currentStep,
+        4,
+        mode === "advisor" ? !caseCancelled && serviceFeePaid : !caseCancelled && signatures.length > 0 && openSignatureCount === 0
+      ),
     },
     {
       number: 5,
@@ -224,6 +251,15 @@ export default function SchufaFreeWorkspaceOverview({
       ? [
           { label: "SEPANA Credit ID", value: sync?.skag_credit_id ?? "-", hint: "" },
           { label: "Offene Pflichtunterlagen", value: String(openRequiredCount), hint: "" },
+          {
+            label: "Servicepauschale",
+            value: serviceFeePaid
+              ? "Bezahlt"
+              : serviceFeeCreated
+                ? getSchufaFreeProvisionStatusLabel(serviceFeeStatus, invoice?.invoice_type)
+                : "Noch offen",
+            hint: "",
+          },
           {
             label: "Vertrag / Signatur",
             value: signatures.length ? `${completedSignatureCount}/${signatures.length} erledigt` : "Noch nicht gestartet",
@@ -364,7 +400,7 @@ export default function SchufaFreeWorkspaceOverview({
         <div
           className={
             mode === "advisor"
-              ? "grid gap-3 md:grid-cols-2 xl:grid-cols-5"
+              ? "grid gap-3 md:grid-cols-2 xl:grid-cols-6"
               : "grid gap-3 md:grid-cols-2 xl:grid-cols-4"
           }
         >
@@ -409,6 +445,7 @@ export default function SchufaFreeWorkspaceOverview({
         <div className="flex flex-wrap gap-2">
           {[
             { href: "#schufa-dokumente", label: "Dokumente" },
+            ...(mode === "advisor" ? [{ href: "#schufa-servicepauschale", label: "Servicepauschale" }] : []),
             { href: "#schufa-signatur", label: "Vertrag & Signatur" },
             { href: "#schufa-postident", label: "PostIdent" },
             { href: "#schufa-chat", label: "Chat" },

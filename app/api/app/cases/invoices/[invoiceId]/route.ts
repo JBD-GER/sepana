@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
+import {
+  buildInsuranceInvoicePaymentReference,
+  getInsuranceInvoiceTitle,
+  isInsuranceInvoiceType,
+} from "@/lib/insurance/invoice"
+import { renderInsuranceInvoicePdf } from "@/lib/insurance/renderInsuranceInvoicePdf"
 import { renderSchufaFreeProvisionInvoicePdf } from "@/lib/schufa-frei/renderProvisionInvoicePdf"
 import {
-  SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE,
-  SCHUFA_FREE_PROVISION_INVOICE_TYPE,
   buildSchufaFreeProvisionPaymentReference,
   getSchufaFreeProvisionInvoiceNumber,
+  isInternalSchufaFreeProvisionInvoiceType,
   isSchufaFreeProvisionCancellationInvoiceType,
+  isSchufaFreeProvisionInvoiceType,
   trimOrNull,
 } from "@/lib/schufa-frei/provisionInvoice"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
@@ -49,7 +55,9 @@ export async function GET(_req: Request, context: { params: Promise<{ invoiceId:
   }
 
   const invoiceType = String(invoiceRow.invoice_type ?? "").trim().toLowerCase()
-  if (invoiceType !== SCHUFA_FREE_PROVISION_INVOICE_TYPE && invoiceType !== SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE) {
+  const isSchufaInvoice = isSchufaFreeProvisionInvoiceType(invoiceType) || isSchufaFreeProvisionCancellationInvoiceType(invoiceType)
+  const isInsurancePartnerInvoice = isInsuranceInvoiceType(invoiceType)
+  if (!isSchufaInvoice && !isInsurancePartnerInvoice) {
     return NextResponse.json({ error: "invoice_type_not_supported" }, { status: 409 })
   }
 
@@ -68,11 +76,69 @@ export async function GET(_req: Request, context: { params: Promise<{ invoiceId:
   if (role === "customer" && caseRow.customer_id !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
+  if (role === "customer" && isInternalSchufaFreeProvisionInvoiceType(invoiceType)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+  if (role === "customer" && isInsurancePartnerInvoice) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
   if (role === "advisor" && caseRow.assigned_advisor_id !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
-  if (role !== "customer" && role !== "advisor" && role !== "admin") {
+  if (role === "insurance") {
+    const { data: insuranceRoute } = await admin
+      .from("case_insurance_routes")
+      .select("case_id")
+      .eq("case_id", invoiceRow.case_id)
+      .maybeSingle()
+
+    if (!insuranceRoute || !isInsurancePartnerInvoice) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+  }
+  if (role !== "customer" && role !== "advisor" && role !== "admin" && role !== "insurance") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
+  if (isInsurancePartnerInvoice) {
+    const [{ data: profileRow, error: profileError }] = await Promise.all([
+      invoiceRow.created_by
+        ? admin
+            .from("insurance_partner_profiles")
+            .select("partner_code,company_name,display_name,email")
+            .eq("user_id", invoiceRow.created_by)
+            .maybeSingle()
+        : Promise.resolve({ data: null as any, error: null as any }),
+    ])
+
+    if (profileError) {
+      return NextResponse.json({ error: profileError.message }, { status: 400 })
+    }
+
+    const invoiceNumber = String(invoiceRow.invoice_number ?? normalizedInvoiceId).trim()
+    const caseRef = trimOrNull(caseRow.case_ref) ?? caseRow.id.slice(0, 8)
+    const paymentReference = buildInsuranceInvoicePaymentReference(profileRow?.partner_code ?? null, trimOrNull(caseRow.case_ref))
+
+    const pdfBytes = await renderInsuranceInvoicePdf({
+      invoiceNumber,
+      createdAt: invoiceRow.created_at,
+      caseRef,
+      paymentReference,
+      recipientName: trimOrNull(profileRow?.company_name) ?? trimOrNull(profileRow?.display_name),
+      recipientEmail: trimOrNull(profileRow?.email),
+      partnerCode: trimOrNull(profileRow?.partner_code),
+      amountTotal: Number(invoiceRow.amount_total ?? 0),
+      status: trimOrNull(invoiceRow.status),
+      description: trimOrNull(invoiceRow.description),
+    })
+
+    return new NextResponse(pdfBytes, {
+      headers: {
+        "content-type": "application/pdf",
+        "content-disposition": `attachment; filename="${getInsuranceInvoiceTitle()}-${invoiceNumber}.pdf"`,
+        "cache-control": "private, no-store",
+      },
+    })
   }
 
   const { data: detailsRow, error: detailsError } = await admin

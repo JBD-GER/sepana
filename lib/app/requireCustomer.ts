@@ -23,5 +23,6 @@ function roleHome(role: Role | null) {
   if (role === "admin") return "/admin"
   if (role === "advisor") return "/advisor"
   if (role === "tipgeber") return "/tippgeber"
+  if (role === "insurance") return "/versicherung"
   return "/app"
 }

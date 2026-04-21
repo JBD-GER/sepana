@@ -1,5 +1,7 @@
-export const SCHUFA_FREE_PROVISION_INVOICE_TYPE = "schufa_free_provision_advance"
-export const SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE = "schufa_free_provision_advance_cancellation"
+export const SCHUFA_FREE_PROVISION_INVOICE_TYPE = "schufa_free_service_fee"
+export const SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE = "schufa_free_service_fee_cancellation"
+export const SCHUFA_FREE_LEGACY_PROVISION_INVOICE_TYPE = "schufa_free_provision_advance"
+export const SCHUFA_FREE_LEGACY_PROVISION_CANCELLATION_INVOICE_TYPE = "schufa_free_provision_advance_cancellation"
 export const SCHUFA_FREE_PROVISION_RATE = 0.05
 export const SCHUFA_FREE_PROVISION_VAT_RATE = 0.19
 
@@ -21,6 +23,16 @@ export const SCHUFA_FREE_PROVISION_COMPANY = {
 
 export type SchufaFreeProvisionInvoiceStatus = "sent" | "paid" | "refunded" | "cancelled"
 
+const SCHUFA_FREE_MAIN_INVOICE_TYPES = new Set([
+  SCHUFA_FREE_PROVISION_INVOICE_TYPE,
+  SCHUFA_FREE_LEGACY_PROVISION_INVOICE_TYPE,
+])
+
+const SCHUFA_FREE_CANCELLATION_INVOICE_TYPES = new Set([
+  SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE,
+  SCHUFA_FREE_LEGACY_PROVISION_CANCELLATION_INVOICE_TYPE,
+])
+
 function roundCurrency(value: number) {
   if (!Number.isFinite(value)) return 0
   return Math.round(value * 100) / 100
@@ -36,11 +48,29 @@ export function getSchufaFreeProvisionInvoiceNumber(invoiceNumber: unknown) {
 }
 
 export function isSchufaFreeProvisionInvoiceType(invoiceType: unknown) {
-  return trimOrNull(invoiceType) === SCHUFA_FREE_PROVISION_INVOICE_TYPE
+  const normalized = trimOrNull(invoiceType)
+  return normalized ? SCHUFA_FREE_MAIN_INVOICE_TYPES.has(normalized) : false
 }
 
 export function isSchufaFreeProvisionCancellationInvoiceType(invoiceType: unknown) {
-  return trimOrNull(invoiceType) === SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE
+  const normalized = trimOrNull(invoiceType)
+  return normalized ? SCHUFA_FREE_CANCELLATION_INVOICE_TYPES.has(normalized) : false
+}
+
+export function isLegacySchufaFreeProvisionInvoiceType(invoiceType: unknown) {
+  return trimOrNull(invoiceType) === SCHUFA_FREE_LEGACY_PROVISION_INVOICE_TYPE
+}
+
+export function isLegacySchufaFreeProvisionCancellationInvoiceType(invoiceType: unknown) {
+  return trimOrNull(invoiceType) === SCHUFA_FREE_LEGACY_PROVISION_CANCELLATION_INVOICE_TYPE
+}
+
+export function isInternalSchufaFreeProvisionInvoiceType(invoiceType: unknown) {
+  const normalized = trimOrNull(invoiceType)
+  return (
+    normalized === SCHUFA_FREE_PROVISION_INVOICE_TYPE ||
+    normalized === SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE
+  )
 }
 
 export function buildSchufaFreeProvisionPaymentReference(
@@ -90,6 +120,39 @@ export function getSchufaFreeProvisionBreakdown(loanAmount: number | null | unde
   }
 }
 
+export function calculateSchufaFreeProvisionNetAmountFromGrossAmount(amountTotal: number | null | undefined) {
+  const grossAmount = Number(amountTotal ?? 0)
+  if (!Number.isFinite(grossAmount) || grossAmount <= 0) return 0
+  return roundCurrency(grossAmount / (1 + SCHUFA_FREE_PROVISION_VAT_RATE))
+}
+
+export function calculateSchufaFreeProvisionVatAmountFromGrossAmount(amountTotal: number | null | undefined) {
+  const grossAmount = roundCurrency(Number(amountTotal ?? 0))
+  if (!Number.isFinite(grossAmount) || grossAmount <= 0) return 0
+  const netAmount = calculateSchufaFreeProvisionNetAmountFromGrossAmount(grossAmount)
+  return roundCurrency(grossAmount - netAmount)
+}
+
+export function getSchufaFreeProvisionBreakdownFromGrossAmount(amountTotal: number | null | undefined) {
+  const grossAmount = roundCurrency(Number(amountTotal ?? 0))
+  if (!Number.isFinite(grossAmount) || grossAmount <= 0) {
+    return {
+      netAmount: 0,
+      vatAmount: 0,
+      grossAmount: 0,
+    }
+  }
+
+  const netAmount = calculateSchufaFreeProvisionNetAmountFromGrossAmount(grossAmount)
+  const vatAmount = calculateSchufaFreeProvisionVatAmountFromGrossAmount(grossAmount)
+
+  return {
+    netAmount,
+    vatAmount,
+    grossAmount,
+  }
+}
+
 export function formatEuro(value: number | null | undefined) {
   const numericValue = Number(value ?? 0)
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(
@@ -101,7 +164,9 @@ export function formatPercent(rate: number) {
   return `${new Intl.NumberFormat("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(rate * 100)} %`
 }
 
-export function getSchufaFreeProvisionStatusLabel(status: string | null | undefined) {
+export function getSchufaFreeProvisionStatusLabel(status: string | null | undefined, invoiceType?: string | null | undefined) {
+  const isInternalInvoice = isInternalSchufaFreeProvisionInvoiceType(invoiceType)
+
   switch (String(status ?? "").trim().toLowerCase()) {
     case "paid":
       return "Bezahlt"
@@ -110,14 +175,17 @@ export function getSchufaFreeProvisionStatusLabel(status: string | null | undefi
     case "cancelled":
       return "Storniert"
     case "sent":
-      return "Versendet"
+      return isInternalInvoice ? "Angelegt" : "Versendet"
     default:
       return "Noch nicht angelegt"
   }
 }
 
 export function getSchufaFreeProvisionInvoiceTitle(invoiceType: string | null | undefined) {
-  return isSchufaFreeProvisionCancellationInvoiceType(invoiceType) ? "Stornorechnung" : "Vorauszahlungsrechnung"
+  if (isSchufaFreeProvisionCancellationInvoiceType(invoiceType)) {
+    return "Stornorechnung"
+  }
+  return isLegacySchufaFreeProvisionInvoiceType(invoiceType) ? "Vorauszahlungsrechnung" : "Servicepauschalenrechnung"
 }
 
 export function isSchufaFreeProvisionPaid(status: string | null | undefined) {
@@ -131,15 +199,22 @@ export function getSchufaFreeProvisionRefundLines() {
   ]
 }
 
+export function getSchufaFreeServiceFeeInfoLines() {
+  return [
+    "Die Servicepauschale wird intern vor Vertragsunterzeichnung im Fall angelegt.",
+    "Der eingegebene Gesamtbetrag enthaelt 19 % MwSt. und wird nicht automatisch an den Kunden kommuniziert.",
+  ]
+}
+
 export function buildSchufaFreeProvisionInvoiceTitle() {
-  return "Vorauszahlungsrechnung"
+  return "Servicepauschalenrechnung"
 }
 
 export function buildSchufaFreeProvisionCancellationInvoiceTitle() {
   return "Stornorechnung"
 }
 
-export function buildSchufaFreeProvisionDescription(loanAmount: number) {
+export function buildLegacySchufaFreeProvisionDescription(loanAmount: number) {
   const { netAmount, vatAmount, grossAmount } = getSchufaFreeProvisionBreakdown(loanAmount)
 
   return `Vorauszahlung auf die Serviceprovision fuer Kredit ohne Schufa (${formatPercent(
@@ -149,7 +224,7 @@ export function buildSchufaFreeProvisionDescription(loanAmount: number) {
   )} MwSt. = ${formatEuro(vatAmount)}, Gesamtbetrag ${formatEuro(grossAmount)}).`
 }
 
-export function buildSchufaFreeProvisionCancellationDescription(opts: {
+export function buildLegacySchufaFreeProvisionCancellationDescription(opts: {
   loanAmount: number
   originalInvoiceNumber?: string | null
 }) {
@@ -162,4 +237,25 @@ export function buildSchufaFreeProvisionCancellationDescription(opts: {
   )} netto von ${formatEuro(opts.loanAmount)} = ${formatEuro(-netAmount)}, zzgl. ${formatPercent(
     SCHUFA_FREE_PROVISION_VAT_RATE
   )} MwSt. = ${formatEuro(-vatAmount)}, Gesamtbetrag ${formatEuro(-grossAmount)}).`
+}
+
+export function buildSchufaFreeProvisionDescription(amountTotal: number) {
+  const { netAmount, vatAmount, grossAmount } = getSchufaFreeProvisionBreakdownFromGrossAmount(amountTotal)
+
+  return `Servicepauschale fuer Kredit ohne Schufa (netto ${formatEuro(netAmount)}, zzgl. ${formatPercent(
+    SCHUFA_FREE_PROVISION_VAT_RATE
+  )} MwSt. ${formatEuro(vatAmount)}, Gesamtbetrag ${formatEuro(grossAmount)}).`
+}
+
+export function buildSchufaFreeProvisionCancellationDescription(opts: {
+  amountTotal: number
+  originalInvoiceNumber?: string | null
+}) {
+  const { netAmount, vatAmount, grossAmount } = getSchufaFreeProvisionBreakdownFromGrossAmount(opts.amountTotal)
+  const originalInvoiceNumber = trimOrNull(opts.originalInvoiceNumber)
+  const referencePart = originalInvoiceNumber ? ` zur Servicepauschalenrechnung ${originalInvoiceNumber}` : ""
+
+  return `Stornierung${referencePart} fuer Kredit ohne Schufa (netto ${formatEuro(-netAmount)}, zzgl. ${formatPercent(
+    SCHUFA_FREE_PROVISION_VAT_RATE
+  )} MwSt. ${formatEuro(-vatAmount)}, Gesamtbetrag ${formatEuro(-grossAmount)}).`
 }

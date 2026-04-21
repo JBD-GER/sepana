@@ -5,14 +5,21 @@ import {
   SCHUFA_FREE_PROVISION_BANK,
   SCHUFA_FREE_PROVISION_COMPANY,
   SCHUFA_FREE_PROVISION_VAT_RATE,
+  buildLegacySchufaFreeProvisionCancellationDescription,
+  buildLegacySchufaFreeProvisionDescription,
   buildSchufaFreeProvisionCancellationDescription,
   buildSchufaFreeProvisionDescription,
   formatEuro,
   formatPercent,
   getSchufaFreeProvisionBreakdown,
+  getSchufaFreeProvisionBreakdownFromGrossAmount,
   getSchufaFreeProvisionInvoiceTitle,
   getSchufaFreeProvisionRefundLines,
   getSchufaFreeProvisionStatusLabel,
+  getSchufaFreeServiceFeeInfoLines,
+  isInternalSchufaFreeProvisionInvoiceType,
+  isLegacySchufaFreeProvisionCancellationInvoiceType,
+  isLegacySchufaFreeProvisionInvoiceType,
   isSchufaFreeProvisionCancellationInvoiceType,
   trimOrNull,
 } from "@/lib/schufa-frei/provisionInvoice"
@@ -103,8 +110,14 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
   const { PDFDocument, StandardFonts, rgb } = pdfLib
 
   const isCancellation = isSchufaFreeProvisionCancellationInvoiceType(input.invoiceType)
-  const { netAmount, vatAmount, grossAmount } = getSchufaFreeProvisionBreakdown(input.loanAmount)
+  const isLegacyAdvanceInvoice =
+    isLegacySchufaFreeProvisionInvoiceType(input.invoiceType) ||
+    isLegacySchufaFreeProvisionCancellationInvoiceType(input.invoiceType)
   const fallbackAmountTotal = Math.abs(Number(input.amountTotal ?? 0))
+  const amountBreakdown = isLegacyAdvanceInvoice
+    ? getSchufaFreeProvisionBreakdown(input.loanAmount)
+    : getSchufaFreeProvisionBreakdownFromGrossAmount(fallbackAmountTotal)
+  const { netAmount, vatAmount, grossAmount } = amountBreakdown
   const absoluteTotalAmount = grossAmount > 0 ? grossAmount : fallbackAmountTotal
   const displayNetAmount = isCancellation ? -Math.abs(netAmount) : netAmount
   const displayVatAmount = isCancellation ? -Math.abs(vatAmount) : vatAmount
@@ -115,8 +128,12 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
   const description =
     trimOrNull(input.description) ??
     (isCancellation
-      ? buildSchufaFreeProvisionCancellationDescription({ loanAmount: input.loanAmount })
-      : buildSchufaFreeProvisionDescription(input.loanAmount))
+      ? isLegacyAdvanceInvoice
+        ? buildLegacySchufaFreeProvisionCancellationDescription({ loanAmount: input.loanAmount })
+        : buildSchufaFreeProvisionCancellationDescription({ amountTotal: absoluteTotalAmount })
+      : isLegacyAdvanceInvoice
+        ? buildLegacySchufaFreeProvisionDescription(input.loanAmount)
+        : buildSchufaFreeProvisionDescription(absoluteTotalAmount))
 
   const pdfDoc = await PDFDocument.create()
   const page = pdfDoc.addPage([595, 842])
@@ -133,7 +150,7 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
   page.drawText(title, { x: 40, y: 740, size: 20, font: bold, color: rgb(0.06, 0.09, 0.16) })
   page.drawText(`Rechnungsnummer: ${input.invoiceNumber}`, { x: 40, y: 714, size: 10, font: bold })
   page.drawText(`Rechnungsdatum: ${formatDate(input.createdAt)}`, { x: 40, y: 698, size: 10, font })
-  page.drawText(`Status: ${getSchufaFreeProvisionStatusLabel(input.status)}`, { x: 40, y: 682, size: 10, font })
+  page.drawText(`Status: ${getSchufaFreeProvisionStatusLabel(input.status, input.invoiceType)}`, { x: 40, y: 682, size: 10, font })
 
   page.drawText(SCHUFA_FREE_PROVISION_COMPANY.name, { x: 40, y: 640, size: 11, font: bold })
   page.drawText(SCHUFA_FREE_PROVISION_COMPANY.street, { x: 40, y: 624, size: 10, font })
@@ -205,7 +222,12 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
   if (isCancellation) {
     page.drawText("Stornierung", { x: 40, y: detailsTitleY, size: 12, font: bold })
     page.drawText("Keine Zahlung mehr erforderlich.", { x: 40, y: detailsLine1Y, size: 10, font })
-    page.drawText("Diese Stornorechnung hebt die vorherige Vorauszahlungsrechnung auf.", { x: 40, y: detailsLine2Y, size: 10, font })
+    page.drawText(
+      isLegacyAdvanceInvoice
+        ? "Diese Stornorechnung hebt die vorherige Vorauszahlungsrechnung auf."
+        : "Diese Stornorechnung hebt die interne Servicepauschalenrechnung auf.",
+      { x: 40, y: detailsLine2Y, size: 10, font }
+    )
     page.drawText("Die zugehoerige Kreditanfrage wurde ebenfalls storniert.", { x: 40, y: detailsLine3Y, size: 10, font })
   } else {
     page.drawText("Bankverbindung", { x: 40, y: detailsTitleY, size: 12, font: bold })
@@ -215,14 +237,24 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
     page.drawText(`Verwendungszweck: ${input.paymentReference}`, { x: 40, y: 324, size: 10, font })
   }
 
-  page.drawText(isCancellation ? "Hinweis zur Stornierung" : "Hinweis zur Vorauszahlung", { x: 40, y: noticeTitleY, size: 12, font: bold })
+  const noticeTitle = isCancellation
+    ? "Hinweis zur Stornierung"
+    : isInternalSchufaFreeProvisionInvoiceType(input.invoiceType)
+      ? "Hinweis zur Servicepauschale"
+      : "Hinweis zur Vorauszahlung"
+
+  page.drawText(noticeTitle, { x: 40, y: noticeTitleY, size: 12, font: bold })
   let cursorY = noticeBodyY
   cursorY = drawTextBlock(
     page,
     font,
     isCancellation
-      ? "Diese Stornorechnung dokumentiert die Aufhebung der vorherigen Vorauszahlungsrechnung. Die Kreditanfrage wird damit nicht weiterbearbeitet."
-      : "Diese Rechnung betrifft eine Vorauszahlung auf die Serviceprovision. Der Ueberweisungsbetrag enthaelt 19 % MwSt. Der Vertragsversand erfolgt erst nach bestaetigtem Zahlungseingang.",
+      ? isLegacyAdvanceInvoice
+        ? "Diese Stornorechnung dokumentiert die Aufhebung der vorherigen Vorauszahlungsrechnung. Die Kreditanfrage wird damit nicht weiterbearbeitet."
+        : "Diese Stornorechnung dokumentiert die Aufhebung der intern angelegten Servicepauschale. Die Kreditanfrage wird damit nicht weiterbearbeitet."
+      : isInternalSchufaFreeProvisionInvoiceType(input.invoiceType)
+        ? "Diese Rechnung dokumentiert die intern angelegte Servicepauschale vor Vertragsunterzeichnung. Der Gesamtbetrag enthaelt 19 % MwSt."
+        : "Diese Rechnung betrifft eine Vorauszahlung auf die Serviceprovision. Der Ueberweisungsbetrag enthaelt 19 % MwSt. Der Vertragsversand erfolgt erst nach bestaetigtem Zahlungseingang.",
     40,
     cursorY,
     10,
@@ -231,7 +263,11 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
   )
   cursorY -= 10
 
-  for (const line of getSchufaFreeProvisionRefundLines()) {
+  const infoLines = isInternalSchufaFreeProvisionInvoiceType(input.invoiceType)
+    ? getSchufaFreeServiceFeeInfoLines()
+    : getSchufaFreeProvisionRefundLines()
+
+  for (const line of infoLines) {
     cursorY = drawTextBlock(page, font, `- ${line}`, 50, cursorY, 10, 500, 14) - 4
   }
 

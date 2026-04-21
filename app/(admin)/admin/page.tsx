@@ -85,6 +85,12 @@ export default async function AdminDashboard() {
               Leads Inbox
             </Link>
             <Link
+              href="/admin/versicherungspartner"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
+            >
+              Versicherungspartner
+            </Link>
+            <Link
               href="/admin/banken"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
             >
@@ -179,6 +185,12 @@ export default async function AdminDashboard() {
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
             >
               Berater einladen
+            </Link>
+            <Link
+              href="/admin/versicherungspartner"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
+            >
+              Versicherungspartner
             </Link>
             <Link
               href="/admin/banken"

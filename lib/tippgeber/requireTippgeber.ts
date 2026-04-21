@@ -11,6 +11,7 @@ export async function requireTippgeber() {
 
   if (role !== "tipgeber" && role !== "admin") {
     if (role === "advisor") redirect("/advisor")
+    if (role === "insurance") redirect("/versicherung")
     redirect("/app")
   }
 

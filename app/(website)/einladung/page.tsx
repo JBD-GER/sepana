@@ -32,6 +32,7 @@ function roleHome(role: string | null | undefined) {
   if (normalized === "admin") return "/admin"
   if (normalized === "advisor") return "/advisor"
   if (normalized === "tipgeber") return "/tippgeber"
+  if (normalized === "insurance") return "/versicherung"
   return "/app"
 }
 

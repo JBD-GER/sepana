@@ -2,6 +2,12 @@ export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
+import { isMissingInsuranceTablesError } from "@/lib/insurance/routing"
+import {
+  SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE,
+  SCHUFA_FREE_PROVISION_INVOICE_TYPE,
+} from "@/lib/schufa-frei/provisionInvoice"
+import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export async function GET(req: Request) {
   const { supabase, user, role } = await getUserAndRole()
@@ -32,22 +38,53 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const [detailsResult, applicantResult, syncResult, pushResult, skagDocumentsResult] = await Promise.all([
-    supabase.from("case_schufa_free_details").select("*").eq("case_id", caseId).maybeSingle(),
-    supabase.from("case_applicants").select("*").eq("case_id", caseId).eq("role", "primary").maybeSingle(),
-    supabase.from("case_skag_sync").select("*").eq("case_id", caseId).maybeSingle(),
-    supabase
-      .from("case_skag_push_events")
-      .select("status_alias,status_description,created_at")
-      .eq("case_id", caseId)
-      .order("created_at", { ascending: false })
-      .limit(20),
-    supabase
-      .from("case_skag_documents")
-      .select("local_document_id,upload_status,last_error")
-      .eq("case_id", caseId)
-      .order("created_at", { ascending: false }),
-  ])
+  const shouldExposeInternalInvoice = role === "advisor" || role === "admin"
+  const admin = shouldExposeInternalInvoice ? supabaseAdmin() : null
+
+  const [detailsResult, applicantResult, syncResult, pushResult, skagDocumentsResult, invoiceResult, cancellationInvoiceResult, insuranceRouteResult] =
+    await Promise.all([
+      supabase.from("case_schufa_free_details").select("*").eq("case_id", caseId).maybeSingle(),
+      supabase.from("case_applicants").select("*").eq("case_id", caseId).eq("role", "primary").maybeSingle(),
+      supabase.from("case_skag_sync").select("*").eq("case_id", caseId).maybeSingle(),
+      supabase
+        .from("case_skag_push_events")
+        .select("status_alias,status_description,created_at")
+        .eq("case_id", caseId)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("case_skag_documents")
+        .select("local_document_id,upload_status,last_error")
+        .eq("case_id", caseId)
+        .order("created_at", { ascending: false }),
+      shouldExposeInternalInvoice
+        ? admin!
+            .from("case_invoices")
+            .select("*")
+            .eq("case_id", caseId)
+            .eq("invoice_type", SCHUFA_FREE_PROVISION_INVOICE_TYPE)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      shouldExposeInternalInvoice
+        ? admin!
+            .from("case_invoices")
+            .select("*")
+            .eq("case_id", caseId)
+            .eq("invoice_type", SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      shouldExposeInternalInvoice
+        ? admin!
+            .from("case_insurance_routes")
+            .select("*")
+            .eq("case_id", caseId)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ])
+
+  if (insuranceRouteResult?.error && !isMissingInsuranceTablesError(insuranceRouteResult.error)) {
+    return NextResponse.json({ error: insuranceRouteResult.error.message }, { status: 400 })
+  }
 
   return NextResponse.json({
     details: detailsResult.data ?? null,
@@ -55,5 +92,8 @@ export async function GET(req: Request) {
     sync: syncResult.data ?? null,
     pushEvents: pushResult.data ?? [],
     skagDocuments: skagDocumentsResult.data ?? [],
+    invoice: invoiceResult?.data ?? null,
+    cancellationInvoice: cancellationInvoiceResult?.data ?? null,
+    insuranceRoute: insuranceRouteResult?.data ?? null,
   })
 }

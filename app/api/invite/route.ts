@@ -2,10 +2,10 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
-type Role = "customer" | "advisor" | "admin"
+type Role = "customer" | "advisor" | "admin" | "tipgeber" | "insurance"
 
 function isRole(x: any): x is Role {
-  return x === "customer" || x === "advisor" || x === "admin"
+  return x === "customer" || x === "advisor" || x === "admin" || x === "tipgeber" || x === "insurance"
 }
 
 function siteUrlFromReq(req: Request) {

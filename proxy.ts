@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-type Role = 'customer' | 'advisor' | 'admin' | 'tipgeber'
+type Role = 'customer' | 'advisor' | 'admin' | 'tipgeber' | 'insurance'
 
 function hasPrefixSegment(pathname: string, base: string) {
   return pathname === base || pathname.startsWith(base + '/')
@@ -12,7 +12,8 @@ function isProtectedPath(pathname: string) {
     hasPrefixSegment(pathname, '/app') ||
     hasPrefixSegment(pathname, '/advisor') ||
     hasPrefixSegment(pathname, '/admin') ||
-    hasPrefixSegment(pathname, '/tippgeber')
+    hasPrefixSegment(pathname, '/tippgeber') ||
+    hasPrefixSegment(pathname, '/versicherung')
   )
 }
 
@@ -20,6 +21,7 @@ function roleHome(r: Role) {
   if (r === 'admin') return '/admin'
   if (r === 'advisor') return '/advisor'
   if (r === 'tipgeber') return '/tippgeber'
+  if (r === 'insurance') return '/versicherung'
   return '/app'
 }
 
@@ -30,6 +32,7 @@ function isAllowedNext(r: Role, nextPath: string) {
   if (hasPrefixSegment(nextPath, '/admin')) return r === 'admin'
   if (hasPrefixSegment(nextPath, '/advisor')) return r === 'advisor' || r === 'admin'
   if (hasPrefixSegment(nextPath, '/tippgeber')) return r === 'tipgeber' || r === 'admin'
+  if (hasPrefixSegment(nextPath, '/versicherung')) return r === 'insurance' || r === 'admin'
   if (hasPrefixSegment(nextPath, '/app')) return r === 'customer'
   return true
 }
@@ -104,7 +107,14 @@ export async function proxy(req: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    if (hasPrefixSegment(pathname, '/app') && (r === 'admin' || r === 'advisor' || r === 'tipgeber')) {
+    if (hasPrefixSegment(pathname, '/versicherung') && !(r === 'insurance' || r === 'admin')) {
+      const url = req.nextUrl.clone()
+      url.pathname = roleHome(r)
+      url.search = ''
+      return NextResponse.redirect(url)
+    }
+
+    if (hasPrefixSegment(pathname, '/app') && (r === 'admin' || r === 'advisor' || r === 'tipgeber' || r === 'insurance')) {
       const url = req.nextUrl.clone()
       url.pathname = roleHome(r)
       url.search = ''

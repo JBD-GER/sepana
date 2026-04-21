@@ -1,13 +1,21 @@
 import Link from "next/link"
 import { requireAdmin } from "@/lib/admin/requireAdmin"
 import {
-  SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE,
+  getInsuranceInvoiceStatusLabel,
+  getInsuranceInvoiceTitle,
+  isInsuranceInvoiceType,
+} from "@/lib/insurance/invoice"
+import {
   SCHUFA_FREE_PROVISION_INVOICE_TYPE,
   formatEuro,
   getSchufaFreeProvisionInvoiceTitle,
   getSchufaFreeProvisionStatusLabel,
+  isInternalSchufaFreeProvisionInvoiceType,
+  isSchufaFreeProvisionCancellationInvoiceType,
+  isSchufaFreeProvisionInvoiceType,
 } from "@/lib/schufa-frei/provisionInvoice"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
+import AdminInvoiceCancelButton from "./ui/AdminInvoiceCancelButton"
 
 type SearchParams = {
   month?: string | string[]
@@ -208,7 +216,11 @@ export default async function AdminInvoicesPage({
               {invoiceRows.map((invoice) => {
                 const invoiceType = String(invoice.invoice_type ?? "").trim().toLowerCase()
                 const caseRef = caseRefById.get(invoice.case_id) ?? invoice.case_id.slice(0, 8)
-                const isCancellationInvoice = invoiceType === SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE
+                const isCancellationInvoice = isSchufaFreeProvisionCancellationInvoiceType(invoice.invoice_type)
+                const isServiceFeeInvoice = isSchufaFreeProvisionInvoiceType(invoice.invoice_type)
+                const isInternalInvoice = isInternalSchufaFreeProvisionInvoiceType(invoice.invoice_type)
+                const isInsurancePartnerInvoice = isInsuranceInvoiceType(invoice.invoice_type)
+                const isCancelled = String(invoice.status ?? "").trim().toLowerCase() === "cancelled"
                 const downloadLabel = isCancellationInvoice ? "Stornorechnung herunterladen" : "Rechnung herunterladen"
                 const amountClass = Number(invoice.amount_total ?? 0) < 0 ? "font-semibold text-rose-700" : "font-medium text-slate-900"
 
@@ -217,7 +229,10 @@ export default async function AdminInvoicesPage({
                     <td className="px-4 py-3">
                       <div className="font-semibold text-slate-900">{invoice.invoice_number ?? invoice.id.slice(0, 8)}</div>
                       <div className="mt-1 text-xs text-slate-500">
-                        {invoice.title ?? getSchufaFreeProvisionInvoiceTitle(invoice.invoice_type)}
+                        {invoice.title ??
+                          (isInsurancePartnerInvoice
+                            ? getInsuranceInvoiceTitle()
+                            : getSchufaFreeProvisionInvoiceTitle(invoice.invoice_type))}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -225,7 +240,9 @@ export default async function AdminInvoicesPage({
                         {caseRef}
                       </Link>
                       <div className="mt-1 text-xs text-slate-500">
-                        {invoiceType === SCHUFA_FREE_PROVISION_INVOICE_TYPE ? "Kredit ohne Schufa" : invoice.case_type ?? "-"}
+                        {isInsurancePartnerInvoice || isInternalInvoice || invoiceType === SCHUFA_FREE_PROVISION_INVOICE_TYPE
+                          ? "Kredit ohne Schufa"
+                          : invoice.case_type ?? "-"}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
@@ -238,12 +255,17 @@ export default async function AdminInvoicesPage({
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusClass(invoice.status)}`}>
-                        {getSchufaFreeProvisionStatusLabel(invoice.status)}
+                        {isInsurancePartnerInvoice
+                          ? getInsuranceInvoiceStatusLabel(invoice.status)
+                          : getSchufaFreeProvisionStatusLabel(invoice.status, invoice.invoice_type)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
                       <div>{formatDateTime(invoice.created_at)}</div>
-                      <div className="mt-1 text-xs text-slate-500">Versendet: {formatDateTime(invoice.sent_at)}</div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {isInternalInvoice || isInsurancePartnerInvoice ? "Intern angelegt" : "Versendet"}:{" "}
+                        {formatDateTime(isInternalInvoice || isInsurancePartnerInvoice ? invoice.created_at : invoice.sent_at)}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-2">
@@ -253,6 +275,7 @@ export default async function AdminInvoicesPage({
                         >
                           {downloadLabel}
                         </a>
+                        {isServiceFeeInvoice && !isCancellationInvoice && !isCancelled ? <AdminInvoiceCancelButton caseId={invoice.case_id} /> : null}
                         <Link
                           href={`/admin/faelle/${invoice.case_id}`}
                           className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300"
