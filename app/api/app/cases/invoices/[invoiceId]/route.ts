@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import {
   buildInsuranceInvoicePaymentReference,
+  extractInsurancePartnerCode,
   getInsuranceInvoiceTitle,
   isInsuranceInvoiceType,
 } from "@/lib/insurance/invoice"
@@ -105,7 +106,7 @@ export async function GET(_req: Request, context: { params: Promise<{ invoiceId:
       invoiceRow.created_by
         ? admin
             .from("insurance_partner_profiles")
-            .select("partner_code,company_name,display_name,email")
+            .select("partner_code,company_name,display_name,email,street,zipcode,city")
             .eq("user_id", invoiceRow.created_by)
             .maybeSingle()
         : Promise.resolve({ data: null as any, error: null as any }),
@@ -117,16 +118,20 @@ export async function GET(_req: Request, context: { params: Promise<{ invoiceId:
 
     const invoiceNumber = String(invoiceRow.invoice_number ?? normalizedInvoiceId).trim()
     const caseRef = trimOrNull(caseRow.case_ref) ?? caseRow.id.slice(0, 8)
-    const paymentReference = buildInsuranceInvoicePaymentReference(profileRow?.partner_code ?? null, trimOrNull(caseRow.case_ref))
+    const partnerCode = trimOrNull(profileRow?.partner_code) ?? extractInsurancePartnerCode(invoiceRow.description)
+    const paymentReference = buildInsuranceInvoicePaymentReference(partnerCode, trimOrNull(caseRow.case_ref))
 
     const pdfBytes = await renderInsuranceInvoicePdf({
       invoiceNumber,
       createdAt: invoiceRow.created_at,
       caseRef,
       paymentReference,
-      recipientName: trimOrNull(profileRow?.company_name) ?? trimOrNull(profileRow?.display_name),
-      recipientEmail: trimOrNull(profileRow?.email),
-      partnerCode: trimOrNull(profileRow?.partner_code),
+      recipientName: trimOrNull(invoiceRow.recipient_name) ?? trimOrNull(profileRow?.company_name) ?? trimOrNull(profileRow?.display_name),
+      recipientEmail: trimOrNull(invoiceRow.recipient_email) ?? trimOrNull(profileRow?.email),
+      recipientStreet: trimOrNull(invoiceRow.recipient_street) ?? trimOrNull(profileRow?.street),
+      recipientZipcode: trimOrNull(invoiceRow.recipient_zipcode) ?? trimOrNull(profileRow?.zipcode),
+      recipientCity: trimOrNull(invoiceRow.recipient_city) ?? trimOrNull(profileRow?.city),
+      partnerCode,
       amountTotal: Number(invoiceRow.amount_total ?? 0),
       status: trimOrNull(invoiceRow.status),
       description: trimOrNull(invoiceRow.description),

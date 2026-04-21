@@ -81,6 +81,9 @@ export async function renderInsuranceInvoicePdf(input: {
   paymentReference: string
   recipientName: string | null
   recipientEmail: string | null
+  recipientStreet: string | null
+  recipientZipcode: string | null
+  recipientCity: string | null
   partnerCode: string | null
   amountTotal: number
   status: string | null
@@ -91,6 +94,7 @@ export async function renderInsuranceInvoicePdf(input: {
   const { PDFDocument, StandardFonts, rgb } = pdfLib
 
   const breakdown = getInsuranceInvoiceBreakdownFromGrossAmount(input.amountTotal)
+  const recipientCityLine = [input.recipientZipcode, input.recipientCity].filter(Boolean).join(" ").trim() || "-"
   const pdfDoc = await PDFDocument.create()
   const page = pdfDoc.addPage([595, 842])
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
@@ -124,10 +128,12 @@ export async function renderInsuranceInvoicePdf(input: {
   const recipientTop = 640
   page.drawText("Rechnung an", { x: 330, y: recipientTop, size: 11, font: bold })
   page.drawText(input.recipientName || "-", { x: 330, y: recipientTop - 16, size: 10, font })
-  page.drawText(input.recipientEmail || "-", { x: 330, y: recipientTop - 32, size: 10, font })
-  page.drawText(`Fallnummer: ${input.caseRef}`, { x: 330, y: recipientTop - 48, size: 10, font })
-  page.drawText(`Partner-ID: ${input.partnerCode || "-"}`, { x: 330, y: recipientTop - 64, size: 10, font })
-  page.drawText(`Verwendungszweck: ${input.paymentReference || "-"}`, { x: 330, y: recipientTop - 80, size: 10, font })
+  page.drawText(input.recipientStreet || "-", { x: 330, y: recipientTop - 32, size: 10, font })
+  page.drawText(recipientCityLine, { x: 330, y: recipientTop - 48, size: 10, font })
+  page.drawText(input.recipientEmail || "-", { x: 330, y: recipientTop - 64, size: 10, font })
+  page.drawText(`Fallnummer: ${input.caseRef}`, { x: 330, y: recipientTop - 80, size: 10, font })
+  page.drawText(`Partner-ID: ${input.partnerCode || "-"}`, { x: 330, y: recipientTop - 96, size: 10, font })
+  page.drawText(`Verwendungszweck: ${input.paymentReference || "-"}`, { x: 330, y: recipientTop - 112, size: 10, font })
 
   const summaryX = 330
   const summaryWidth = 225

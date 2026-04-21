@@ -4,6 +4,7 @@ import { translateCaseStatus } from "@/lib/caseStatus"
 import { requireInsurance } from "@/lib/insurance/requireInsurance"
 import {
   buildInsuranceInvoicePaymentReference,
+  extractInsurancePartnerCode,
   formatEuro,
   getInsuranceRouteSourceLabel,
   getInsuranceRouteStatusLabel,
@@ -100,6 +101,7 @@ export default async function InsuranceCaseDetailPage({
     status?: string | null
     amount_total?: number | null
     created_at?: string | null
+    description?: string | null
   } | null
 
   if (!route || !caseRow) notFound()
@@ -159,7 +161,8 @@ export default async function InsuranceCaseDetailPage({
   const customerEmail = String(details?.email ?? applicant?.email ?? "").trim() || "-"
   const customerPhone = String(details?.phone_primary ?? applicant?.phone ?? "").trim() || "-"
   const customerPhoneSecondary = String(details?.phone_secondary ?? "").trim() || "-"
-  const paymentReference = buildInsuranceInvoicePaymentReference(profile?.partner_code ?? null, caseRow.case_ref ?? null)
+  const partnerCode = profile?.partner_code ?? extractInsurancePartnerCode(invoice?.description)
+  const paymentReference = buildInsuranceInvoicePaymentReference(partnerCode, caseRow.case_ref ?? null)
   const mainStatusLabel = translateCaseStatus(caseRow.status)
 
   const dataSections = [
@@ -284,10 +287,10 @@ export default async function InsuranceCaseDetailPage({
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Uebergeben am</div>
                 <div className="mt-2 text-sm font-semibold text-slate-900">{formatDateTime(route.routed_at)}</div>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Interner Partner</div>
-                <div className="mt-2 text-sm font-semibold text-slate-900">{profile?.partner_code ?? "-"}</div>
-              </div>
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Interner Partner</div>
+                  <div className="mt-2 text-sm font-semibold text-slate-900">{partnerCode ?? "-"}</div>
+                </div>
             </div>
           </div>
 
@@ -320,7 +323,7 @@ export default async function InsuranceCaseDetailPage({
               <div className="mt-4 grid gap-3">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Partner-ID</div>
-                  <div className="mt-2 text-sm font-semibold text-slate-900">{profile?.partner_code ?? "-"}</div>
+                  <div className="mt-2 text-sm font-semibold text-slate-900">{partnerCode ?? "-"}</div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Verwendungszweck</div>
@@ -442,7 +445,7 @@ export default async function InsuranceCaseDetailPage({
           <InsuranceInvoicePanel
             caseId={caseId}
             caseRef={caseRow.case_ref ?? null}
-            partnerCode={profile?.partner_code ?? null}
+            partnerCode={partnerCode}
             invoice={invoice}
             editable={role === "insurance"}
           />

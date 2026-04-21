@@ -36,6 +36,9 @@ export default function InsurancePartnerEditor({
     partner_code: string | null
     company_name: string | null
     display_name: string | null
+    street: string | null
+    zipcode: string | null
+    city: string | null
     bio: string | null
     languages: string[] | null
     photo_path: string | null
@@ -51,12 +54,16 @@ export default function InsurancePartnerEditor({
   const [displayName, setDisplayName] = useState(initial.display_name ?? "")
   const [phone, setPhone] = useState(initial.phone ?? "")
   const [contactEmail, setContactEmail] = useState(initial.email ?? authEmail ?? "")
+  const [street, setStreet] = useState(initial.street ?? "")
+  const [zipcode, setZipcode] = useState(initial.zipcode ?? "")
+  const [city, setCity] = useState(initial.city ?? "")
   const [bio, setBio] = useState(initial.bio ?? "")
   const [langs, setLangs] = useState<string[]>(normalizeLangs(initial.languages ?? []))
   const [customLang, setCustomLang] = useState("")
   const [photoPath, setPhotoPath] = useState<string | null>(initial.photo_path ?? null)
   const [isActive, setIsActive] = useState(initial.is_active !== false)
   const [loading, setLoading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
   const langsLabel = useMemo(() => langs.join(", "), [langs])
@@ -101,6 +108,10 @@ export default function InsurancePartnerEditor({
       setMsg("Bitte eine Partner-ID eingeben.")
       return
     }
+    if (!street.trim() || !zipcode.trim() || !city.trim()) {
+      setMsg("Bitte Adresse, PLZ und Ort angeben.")
+      return
+    }
 
     setLoading(true)
     try {
@@ -113,6 +124,9 @@ export default function InsurancePartnerEditor({
           display_name: displayName || null,
           phone: phone || null,
           email: contactEmail || null,
+          street: street || null,
+          zipcode: zipcode || null,
+          city: city || null,
           bio: bio || null,
           languages: normalizeLangs(langs),
           photo_path: photoPath,
@@ -128,6 +142,27 @@ export default function InsurancePartnerEditor({
       setMsg(error?.message ?? "Speichern fehlgeschlagen")
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function removePartner() {
+    setMsg(null)
+    const label = companyName || displayName || partnerCode || "diesen Versicherungspartner"
+    if (!window.confirm(`Soll ${label} wirklich geloescht werden? Der Login-Zugang wird ebenfalls entfernt.`)) {
+      return
+    }
+
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/admin/insurance-partners/${encodeURIComponent(userId)}`, {
+        method: "DELETE",
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Loeschen fehlgeschlagen")
+      router.refresh()
+    } catch (error: any) {
+      setMsg(error?.message ?? "Loeschen fehlgeschlagen")
+      setDeleting(false)
     }
   }
 
@@ -147,6 +182,8 @@ export default function InsurancePartnerEditor({
             <div className="mt-1 text-xs text-slate-600">Login: {authEmail || userId}</div>
             <div className="text-xs text-slate-600">Kontakt: {contactEmail || "-"}</div>
             <div className="text-xs text-slate-600">{phone || "-"}</div>
+            <div className="text-xs text-slate-600">{street || "-"}</div>
+            <div className="text-xs text-slate-600">{[zipcode, city].filter(Boolean).join(" ") || "-"}</div>
           </div>
         </div>
 
@@ -166,9 +203,14 @@ export default function InsurancePartnerEditor({
 
       {!edit ? (
         <div className="mt-4 grid gap-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="text-xs text-slate-500">Kurzprofil</div>
+              <div className="mt-1 text-sm text-slate-700">{bio || "-"}</div>
+            </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="text-xs text-slate-500">Kurzprofil</div>
-            <div className="mt-1 text-sm text-slate-700">{bio || "-"}</div>
+            <div className="text-xs text-slate-500">Rechnungsadresse</div>
+            <div className="mt-1 text-sm text-slate-700">{street || "-"}</div>
+            <div className="mt-1 text-sm text-slate-700">{[zipcode, city].filter(Boolean).join(" ") || "-"}</div>
           </div>
           <div className="flex flex-wrap gap-2">
             {langs.length ? (
@@ -215,6 +257,22 @@ export default function InsurancePartnerEditor({
               <span className="text-xs text-slate-600">Kontakt-E-Mail</span>
               <input value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} className={inputBase} />
             </label>
+
+            <label className="grid gap-1.5">
+              <span className="text-xs text-slate-600">Adresse</span>
+              <input value={street} onChange={(event) => setStreet(event.target.value)} className={inputBase} />
+            </label>
+
+            <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
+              <label className="grid gap-1.5">
+                <span className="text-xs text-slate-600">PLZ</span>
+                <input value={zipcode} onChange={(event) => setZipcode(event.target.value)} className={inputBase} />
+              </label>
+              <label className="grid gap-1.5">
+                <span className="text-xs text-slate-600">Ort</span>
+                <input value={city} onChange={(event) => setCity(event.target.value)} className={inputBase} />
+              </label>
+            </div>
 
             <label className="grid gap-1.5">
               <span className="text-xs text-slate-600">Kurzprofil</span>
@@ -314,10 +372,18 @@ export default function InsurancePartnerEditor({
         <button
           type="button"
           onClick={save}
-          disabled={loading}
+          disabled={loading || deleting}
           className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-60"
         >
           {loading ? "Speichere..." : "Aenderungen speichern"}
+        </button>
+        <button
+          type="button"
+          onClick={removePartner}
+          disabled={loading || deleting}
+          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 shadow-sm disabled:opacity-60"
+        >
+          {deleting ? "Loesche..." : "Partner loeschen"}
         </button>
         {msg ? <span className="text-xs text-slate-600">{msg}</span> : null}
       </div>

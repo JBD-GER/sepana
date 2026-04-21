@@ -18,7 +18,7 @@ export default async function AdminInsurancePartnersPage() {
     partnerIds.length
       ? admin
           .from("insurance_partner_profiles")
-          .select("user_id,partner_code,company_name,display_name,bio,languages,photo_path,phone,email,is_active")
+          .select("user_id,partner_code,company_name,display_name,street,zipcode,city,bio,languages,photo_path,phone,email,is_active")
           .in("user_id", partnerIds)
       : Promise.resolve({ data: [] as any[] }),
     admin.auth.admin.listUsers({ page: 1, perPage: 2000 }),
@@ -68,6 +68,9 @@ export default async function AdminInsurancePartnersPage() {
                   partner_code: profile.partner_code ?? null,
                   company_name: profile.company_name ?? null,
                   display_name: profile.display_name ?? null,
+                  street: profile.street ?? null,
+                  zipcode: profile.zipcode ?? null,
+                  city: profile.city ?? null,
                   bio: profile.bio ?? null,
                   languages: Array.isArray(profile.languages) ? profile.languages : [],
                   photo_path: profile.photo_path ?? null,

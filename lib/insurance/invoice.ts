@@ -96,6 +96,23 @@ export function buildInsuranceInvoicePaymentReference(partnerCode: string | null
   return [trimOrNull(partnerCode), trimOrNull(caseRef)].filter(Boolean).join(" ")
 }
 
+export function extractInsurancePartnerCode(value: unknown) {
+  const raw = String(value ?? "").trim()
+  if (!raw) return null
+
+  const partnerIdMatch = raw.match(/partner-id\s+([a-z0-9-]+)/i)
+  if (partnerIdMatch?.[1]) {
+    return partnerIdMatch[1].trim().toUpperCase()
+  }
+
+  const referenceMatch = raw.match(/\b([a-z0-9-]+)\s+sf-[a-z0-9-]+\b/i)
+  if (referenceMatch?.[1]) {
+    return referenceMatch[1].trim().toUpperCase()
+  }
+
+  return null
+}
+
 export function buildInsuranceInvoiceDescription(opts: {
   amountTotal: number
   caseRef?: string | null

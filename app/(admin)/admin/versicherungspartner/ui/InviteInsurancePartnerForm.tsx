@@ -26,6 +26,9 @@ export default function InviteInsurancePartnerForm() {
   const [companyName, setCompanyName] = useState("")
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
+  const [street, setStreet] = useState("")
+  const [zipcode, setZipcode] = useState("")
+  const [city, setCity] = useState("")
   const [bio, setBio] = useState("")
   const [langs, setLangs] = useState<string[]>([])
   const [customLang, setCustomLang] = useState("")
@@ -51,6 +54,7 @@ export default function InviteInsurancePartnerForm() {
     setMsg(null)
     if (!email.includes("@")) return setMsg("Bitte eine gueltige E-Mail eingeben.")
     if (!partnerCode.trim()) return setMsg("Bitte eine Partner-ID eingeben.")
+    if (!street.trim() || !zipcode.trim() || !city.trim()) return setMsg("Bitte Adresse, PLZ und Ort angeben.")
     setLoading(true)
     try {
       const res = await fetch("/api/admin/insurance-partners/invite", {
@@ -62,6 +66,9 @@ export default function InviteInsurancePartnerForm() {
           company_name: companyName || null,
           display_name: name || null,
           phone: phone || null,
+          street: street || null,
+          zipcode: zipcode || null,
+          city: city || null,
           bio: bio || null,
           languages: normalizeLangs(langs),
           photo_path: photoPath,
@@ -76,6 +83,9 @@ export default function InviteInsurancePartnerForm() {
       setCompanyName("")
       setName("")
       setPhone("")
+      setStreet("")
+      setZipcode("")
+      setCity("")
       setBio("")
       setLangs([])
       setCustomLang("")
@@ -137,6 +147,22 @@ export default function InviteInsurancePartnerForm() {
             <span className="text-xs text-slate-600">Telefon</span>
             <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+49 170 1234567" className={inputBase} />
           </label>
+
+          <label className="grid gap-1.5">
+            <span className="text-xs text-slate-600">Adresse</span>
+            <input value={street} onChange={(e) => setStreet(e.target.value)} placeholder="Musterstr. 12" className={inputBase} />
+          </label>
+
+          <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
+            <label className="grid gap-1.5">
+              <span className="text-xs text-slate-600">PLZ</span>
+              <input value={zipcode} onChange={(e) => setZipcode(e.target.value)} placeholder="30159" className={inputBase} />
+            </label>
+            <label className="grid gap-1.5">
+              <span className="text-xs text-slate-600">Ort</span>
+              <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Hannover" className={inputBase} />
+            </label>
+          </div>
 
           <label className="grid gap-1.5">
             <span className="text-xs text-slate-600">Kurzprofil</span>

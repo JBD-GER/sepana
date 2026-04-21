@@ -32,6 +32,12 @@ export async function POST(req: Request) {
       : []
     const photoPath = trimOrNull(body?.photo_path)
     const phone = trimOrNull(body?.phone)
+    const street = trimOrNull(body?.street)
+    const zipcode = trimOrNull(body?.zipcode)
+    const city = trimOrNull(body?.city)
+    if (!street || !zipcode || !city) {
+      return NextResponse.json({ ok: false, error: "Adresse, PLZ und Ort sind erforderlich" }, { status: 400 })
+    }
 
     const { data: existingPartnerCode } = await admin
       .from("insurance_partner_profiles")
@@ -96,6 +102,9 @@ export async function POST(req: Request) {
         photo_path: photoPath,
         phone,
         email,
+        street,
+        zipcode,
+        city,
         is_active: true,
         updated_at: new Date().toISOString(),
       },

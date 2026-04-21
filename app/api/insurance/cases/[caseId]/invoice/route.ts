@@ -46,7 +46,7 @@ export async function POST(req: Request, context: { params: Promise<{ caseId: st
       admin.from("cases").select("id,case_ref,case_type").eq("id", caseId).maybeSingle(),
       admin
         .from("insurance_partner_profiles")
-        .select("partner_code,company_name,display_name,email")
+        .select("partner_code,company_name,display_name,email,street,zipcode,city")
         .eq("user_id", user.id)
         .maybeSingle(),
       admin
@@ -64,6 +64,12 @@ export async function POST(req: Request, context: { params: Promise<{ caseId: st
   }
   if (profileError) return NextResponse.json({ ok: false, error: profileError.message }, { status: 400 })
   if (invoiceError) return NextResponse.json({ ok: false, error: invoiceError.message }, { status: 400 })
+  if (!trimOrNull(profile?.street) || !trimOrNull(profile?.zipcode) || !trimOrNull(profile?.city)) {
+    return NextResponse.json(
+      { ok: false, error: "Bitte zuerst beim Versicherungspartner Adresse, PLZ und Ort hinterlegen." },
+      { status: 409 }
+    )
+  }
 
   if (existingInvoice && String(existingInvoice.status ?? "").trim().toLowerCase() !== "sent") {
     return NextResponse.json({ ok: false, error: "Rechnung kann nicht mehr geaendert werden" }, { status: 409 })
@@ -88,6 +94,9 @@ export async function POST(req: Request, context: { params: Promise<{ caseId: st
     currency: "EUR",
     recipient_name: trimOrNull(profile?.company_name) ?? trimOrNull(profile?.display_name),
     recipient_email: trimOrNull(profile?.email),
+    recipient_street: trimOrNull(profile?.street),
+    recipient_zipcode: trimOrNull(profile?.zipcode),
+    recipient_city: trimOrNull(profile?.city),
     sent_at: null,
     paid_at: null,
     refunded_at: null,
