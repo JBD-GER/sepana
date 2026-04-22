@@ -462,14 +462,14 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   const hasContractRequest = signatureItems.some((item) =>
     getSchufaFreeSignatureRequestMeta({
       title: item.title,
-      requiresWetSignature: item.requires_wet_signature,
+      requiresWetSignature: Boolean(item.requires_wet_signature),
       fields: item.fields ?? [],
     }).key === "contract"
   )
   const openSignatureCount = signatureItems.filter((item) =>
     !isSignatureRequestComplete({
       fields: item.fields ?? [],
-      requires_wet_signature: item.requires_wet_signature,
+      requires_wet_signature: Boolean(item.requires_wet_signature),
       advisor_signed_at: item.advisor_signed_at,
       customer_signed_at: item.customer_signed_at,
       status: item.status,

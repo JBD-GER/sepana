@@ -15,6 +15,17 @@ export type SchufaFreeInvoiceGateRow = {
   created_at?: string | null
 }
 
+export type SchufaFreeSignatureInvoiceGateReason = "missing_invoice" | "cancelled_invoice" | null
+
+export type SchufaFreeSignatureInvoiceGate = {
+  rows: SchufaFreeInvoiceGateRow[]
+  invoice: SchufaFreeInvoiceGateRow | null
+  cancellationInvoice: SchufaFreeInvoiceGateRow | null
+  created: boolean
+  ready: boolean
+  reason: SchufaFreeSignatureInvoiceGateReason
+}
+
 export const SCHUFA_FREE_SIGNATURE_MAIN_INVOICE_TYPES = [
   SCHUFA_FREE_PROVISION_INVOICE_TYPE,
   SCHUFA_FREE_LEGACY_PROVISION_INVOICE_TYPE,
@@ -43,7 +54,10 @@ function pickPreferredInvoice(rows: SchufaFreeInvoiceGateRow[], preferredTypes: 
   })[0]
 }
 
-export async function loadSchufaFreeSignatureInvoiceGate(admin: SupabaseClient, caseId: string) {
+export async function loadSchufaFreeSignatureInvoiceGate(
+  admin: SupabaseClient,
+  caseId: string
+): Promise<SchufaFreeSignatureInvoiceGate> {
   const invoiceTypes = [
     ...SCHUFA_FREE_SIGNATURE_MAIN_INVOICE_TYPES,
     ...SCHUFA_FREE_SIGNATURE_CANCELLATION_INVOICE_TYPES,
@@ -75,7 +89,7 @@ export async function loadSchufaFreeSignatureInvoiceGate(admin: SupabaseClient, 
 }
 
 export function getSchufaFreeSignatureInvoiceGateMessage(
-  reason: "missing_invoice" | "cancelled_invoice" | null | undefined
+  reason: SchufaFreeSignatureInvoiceGateReason | undefined
 ) {
   if (reason === "cancelled_invoice") {
     return "Die interne Servicepauschalenrechnung ist storniert. Bitte zuerst eine gültige Rechnung anlegen."
