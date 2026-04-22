@@ -10,11 +10,11 @@ export const SCHUFA_FREE_FAMILY_OPTIONS = [
 export const SCHUFA_FREE_PROFESSION_OPTIONS = [
   { value: "1", label: "Arbeiter" },
   { value: "2", label: "Angestellter" },
-  { value: "3", label: "Beamter / Pensionaer" },
+  { value: "3", label: "Beamter/Pensionär" },
   { value: "4", label: "Rentner" },
   { value: "5", label: "Arbeitslos" },
-  { value: "6", label: "Hausfrau / Hausmann" },
-  { value: "7", label: "Selbststaendig" },
+  { value: "6", label: "Hausfrau/Hausmann" },
+  { value: "7", label: "Selbstständig" },
   { value: "8", label: "Sonstiges" },
 ] as const
 

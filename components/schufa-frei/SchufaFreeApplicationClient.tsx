@@ -175,7 +175,7 @@ function buildInitialForm(initialForm: InitialForm): FormState {
     rentMonthly: moneyValue(fieldValue(initialForm, "rentMonthly")),
     residentSince: fieldValue(initialForm, "residentSince"),
     taxClass: fieldValue(initialForm, "taxClass", "1"),
-    profession: fieldValue(initialForm, "profession", "2"),
+    profession: fieldValue(initialForm, "profession"),
     professionBeginDate: fieldValue(initialForm, "professionBeginDate"),
     employerName: fieldValue(initialForm, "employerName"),
     employerStreet: fieldValue(initialForm, "employerStreet"),
@@ -236,14 +236,14 @@ function validate(form: FormState, allowTaxClassSix: boolean) {
   if (!form.rentMonthly) residence.push("Warmmiete / Belastung")
 
   if (!new RegExp(`^[1-${allowTaxClassSix ? 6 : 5}]$`).test(form.taxClass)) employment.push("Steuerklasse")
-  if (!/^[1-8]$/.test(form.profession)) employment.push("Beruf")
+  if (!/^[1-8]$/.test(form.profession)) employment.push("Beschäftigungsverhältnis")
   if (!form.professionBeginDate) employment.push("Im Beruf seit")
   if (!form.netIncomeMonthly) employment.push("Nettoeinkommen")
   if (employerRequired && !form.employerName.trim()) employment.push("Arbeitgeber")
   if (employerRequired && !/^\d{5}$/.test(form.employerZipcode)) employment.push("Arbeitgeber PLZ")
   if (employerRequired && !form.employerCity.trim()) employment.push("Arbeitgeber Ort")
 
-  if (!form.bankName.trim()) bank.push("Kontoinhaber")
+  if (!form.bankName.trim()) bank.push("Name der Bank")
   if (!looksLikeIban(form.iban)) bank.push("IBAN")
 
   return { person, residence, employment, bank }
@@ -629,7 +629,7 @@ export default function SchufaFreeApplicationClient({
         {step === "employment" ? (
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Steuerklasse"><Select value={form.taxClass} onChange={(e) => update("taxClass", e.target.value)}>{(allowTaxClassSix ? [1,2,3,4,5,6] : [1,2,3,4,5]).map((option) => <option key={option} value={option}>{`Steuerklasse ${option}`}</option>)}</Select></Field>
-            <Field label="Beruf"><Select value={form.profession} onChange={(e) => update("profession", e.target.value)}>{SCHUFA_FREE_PROFESSION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</Select></Field>
+            <Field label="Beschäftigungsverhältnis"><Select value={form.profession} onChange={(e) => update("profession", e.target.value)}><option value="">bitte wählen...</option>{SCHUFA_FREE_PROFESSION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</Select></Field>
             <Field label="Im Beruf seit"><Input type="date" value={form.professionBeginDate} onChange={(e) => update("professionBeginDate", e.target.value)} /></Field>
             <Field label="Nettoeinkommen monatlich"><Input value={formatMoney(form.netIncomeMonthly)} onChange={(e) => update("netIncomeMonthly", moneyValue(e.target.value))} inputMode="numeric" /></Field>
             {!allowTaxClassSix ? <div className="sm:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">Hinweis: In der aktuell angebundenen SEPANA-Standardstrecke sind nur Steuerklassen 1 bis 5 möglich.</div> : null}
@@ -647,7 +647,7 @@ export default function SchufaFreeApplicationClient({
         {step === "bank" ? (
           <div className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Kontoinhaber"><Input value={form.bankName} onChange={(e) => update("bankName", e.target.value)} /></Field>
+              <Field label="Name der Bank"><Input value={form.bankName} onChange={(e) => update("bankName", e.target.value)} /></Field>
               <Field label="IBAN"><Input value={formatIban(form.iban)} onChange={(e) => update("iban", normalizeIbanInput(e.target.value))} className="uppercase tracking-[0.08em]" /></Field>
             </div>
             <div className="grid gap-3">
