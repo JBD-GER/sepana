@@ -29,6 +29,7 @@ import SchufaFreeServiceFeePanel from "@/components/schufa-frei/SchufaFreeServic
 import SchufaFreeWorkspaceOverview from "@/components/schufa-frei/SchufaFreeWorkspaceOverview"
 import SchufaFreeApplicationReminderCard from "@/components/schufa-frei/SchufaFreeApplicationReminderCard"
 import { getSchufaFreeCompletedOtherApplicationsByCaseIds } from "@/lib/schufa-frei/applicationReminder"
+import { getSchufaFreeSignatureRequestMeta, isSignatureRequestComplete } from "@/lib/schufa-frei/contractPackage"
 import { isSchufaFreeProvisionPaid } from "@/lib/schufa-frei/provisionInvoice"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
@@ -379,6 +380,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     details?: SchufaDetails | null
     applicant?: CaseApplicant | null
     sync?: SchufaSync | null
+    serviceFeeInvoiceCreated?: boolean
+    contractSigningUnlocked?: boolean
     invoice?: SchufaInvoice | null
     cancellationInvoice?: SchufaInvoice | null
     insuranceRoute?: {
@@ -454,7 +457,24 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     null
   const serviceFeeInvoice = schufaData?.invoice ?? null
   const serviceFeePaid = isSchufaFreeProvisionPaid(serviceFeeInvoice?.status ?? null)
-  const serviceFeeCreated = Boolean(serviceFeeInvoice?.id)
+  const serviceFeeCreated = schufaData?.serviceFeeInvoiceCreated ?? Boolean(serviceFeeInvoice?.id)
+  const contractSigningUnlocked = schufaData?.contractSigningUnlocked ?? serviceFeeCreated
+  const hasContractRequest = signatureItems.some((item) =>
+    getSchufaFreeSignatureRequestMeta({
+      title: item.title,
+      requiresWetSignature: item.requires_wet_signature,
+      fields: item.fields ?? [],
+    }).key === "contract"
+  )
+  const openSignatureCount = signatureItems.filter((item) =>
+    !isSignatureRequestComplete({
+      fields: item.fields ?? [],
+      requires_wet_signature: item.requires_wet_signature,
+      advisor_signed_at: item.advisor_signed_at,
+      customer_signed_at: item.customer_signed_at,
+      status: item.status,
+    })
+  ).length
   const normalizedSkagStatus = String(schufaData?.sync?.last_status_alias ?? schufaData?.pushEvents?.[0]?.status_alias ?? "")
     .trim()
     .toLowerCase()
@@ -464,27 +484,31 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   const documentCount = (data.documents ?? []).length
   const requestCount = (data.document_requests ?? []).length
   const requestedVariant = `${formatEUR(schufaData?.details?.loan_amount_requested ?? null)} / ${schufaData?.details?.term_months ?? "-"} Monate`
-  const advisorFocus = signatureItems.length === 0
-    ? "Vertrag vorbereiten"
-    : !postidentLinkReady
-      ? "PostIdent hinterlegen"
-      : !payoutReached
-        ? "Auszahlung beobachten"
-        : !serviceFeeCreated
-          ? "Servicepauschale anlegen"
+  const advisorFocus = !contractSigningUnlocked
+    ? "Rechnung anlegen"
+    : !hasContractRequest
+      ? "Vertrag importieren"
+      : openSignatureCount > 0
+        ? "Signatur begleiten"
+      : !postidentLinkReady
+        ? "PostIdent hinterlegen"
+        : !payoutReached
+          ? "Auszahlung beobachten"
           : !serviceFeePaid
             ? "Servicepauschale nachhalten"
             : "Fall abschliessen"
-  const advisorFocusHint = signatureItems.length === 0
-    ? "Der Vertragsbereich ist freigeschaltet. Laden Sie jetzt den Kreditvertrag hoch und starten Sie den Signaturprozess."
-    : !postidentLinkReady
-      ? "Nach dem Vertrag fehlt als Naechstes noch der PostIdent-Link."
-      : !payoutReached
-        ? "Die operativen Schritte sind angelegt, jetzt den SEPANA-Status bis zur Kreditauszahlung weiter verfolgen."
-        : !serviceFeeCreated
-          ? "Die Kreditauszahlung ist bestaetigt. Legen Sie jetzt die interne Servicepauschale im Fall an."
+  const advisorFocusHint = !contractSigningUnlocked
+    ? "Bitte zuerst die interne Servicepauschalenrechnung anlegen. Erst danach werden gesonderter Vermittlungsauftrag und Vertragsbereich freigeschaltet."
+    : !hasContractRequest
+      ? "Die Rechnung ist angelegt. Der gesonderte Vermittlungsauftrag ist vorbereitet. Laden Sie jetzt den Kreditvertrag hoch und starten Sie den restlichen Signaturprozess."
+      : openSignatureCount > 0
+        ? "Im Signaturbereich liegen noch offene Dokumente. Begleiten Sie den Kunden jetzt durch die verbleibenden Schritte."
+      : !postidentLinkReady
+        ? "Nach dem Vertrag fehlt als Nächstes noch der PostIdent-Link."
+        : !payoutReached
+          ? "Die operativen Schritte sind angelegt, jetzt den SEPANA-Status bis zur Kreditauszahlung weiter verfolgen."
           : !serviceFeePaid
-            ? "Die Servicepauschale ist jetzt faellig und kann im Fall intern als bezahlt nachgehalten werden."
+            ? "Die Servicepauschale ist jetzt fällig und kann im Fall intern als bezahlt nachgehalten werden."
             : "Vertrag, Auszahlung und Servicepauschale sind sauber dokumentiert."
 
   if (isSchufaFree) {
@@ -562,6 +586,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           caseStatus={c.status_display ?? c.status}
           sync={schufaData?.sync ?? null}
           invoice={serviceFeeInvoice}
+          serviceFeeInvoiceCreated={serviceFeeCreated}
+          contractSigningUnlocked={contractSigningUnlocked}
           pushEvents={schufaData?.pushEvents ?? []}
           requests={data.document_requests ?? []}
           documents={data.documents ?? []}
@@ -679,7 +705,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             <SchufaFreeIntroCard
               eyebrow="Servicepauschale"
               title="Interne Servicepauschale verwalten"
-              description="Der Berater hinterlegt hier die interne Servicepauschale mit manuellem Bruttobetrag inklusive MwSt. Sie blockiert Vertrag und Signatur nicht und wird erst nach Kreditauszahlung faellig."
+              description="Der Berater hinterlegt hier die interne Servicepauschale mit manuellem Bruttobetrag inklusive MwSt. Mit dem Speichern wird der gesonderte Vermittlungsauftrag aktualisiert und der Vertragsbereich freigeschaltet. Fällig wird die Pauschale erst nach Kreditauszahlung."
               tone="cyan"
             />
             <SchufaFreeServiceFeePanel
@@ -693,7 +719,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             <SchufaFreeIntroCard
               eyebrow="Vertrag & Signatur"
               title="Kreditvertrag unterschriftsreif machen"
-              description="Laden Sie hier den finalen Kreditvertrag hoch, setzen Sie Berater- und Kundenfelder und starten Sie den Signaturprozess direkt aus dem Fall."
+              description="Nach Anlage der internen Servicepauschalenrechnung laden Sie hier den vollständigen Kreditvertrag hoch. Das PDF wird automatisch in gesonderten Vermittlungsauftrag, Vertrag, Ratenschutz, Serviceprovision, ggf. Abtretung und Informationsblätter aufgeteilt."
               tone="emerald"
             />
             {bankCaseDocuments.length > 0 ? (
@@ -707,8 +733,10 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
               canEdit
               fixedProviderName="SIGMA Kreditbank AG"
               providerProduct="konsum"
+              uploadMode="schufaFreePackage"
               advisorSignedDocumentActionLabel="An SKAG uebermitteln"
               skagDocumentStatuses={schufaData?.skagDocuments ?? []}
+              contractSigningUnlocked={contractSigningUnlocked}
             />
           </section>
 

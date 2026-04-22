@@ -9,6 +9,12 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react"
 import { useRouter } from "next/navigation"
+import {
+  getSchufaFreeSignatureRequestMeta,
+  isSignatureRequestComplete,
+  isSchufaSignatureRequestLockedUntilInvoice,
+  shouldSyncSchufaSignatureRequestToSkag,
+} from "@/lib/schufa-frei/contractPackage"
 
 type ProviderItem = {
   provider: { id: string; name: string }
@@ -95,6 +101,49 @@ function shortIso(ts?: string | null) {
     return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeZone: "Europe/Berlin" }).format(new Date(ts))
   } catch {
     return ts
+  }
+}
+
+function getCustomerRequestStatus(input: {
+  isComplete: boolean
+  lockedUntilInvoice: boolean
+  downloadOnly: boolean
+  requiresWetSignature: boolean
+  optional: boolean
+}) {
+  if (input.lockedUntilInvoice) {
+    return {
+      label: "Wartet auf Freigabe",
+      className: "border-amber-200 bg-amber-50 text-amber-800",
+    }
+  }
+  if (input.isComplete) {
+    return {
+      label: "Erledigt",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    }
+  }
+  if (input.downloadOnly) {
+    return {
+      label: "Nur zur Info",
+      className: "border-slate-200 bg-white text-slate-600",
+    }
+  }
+  if (input.requiresWetSignature) {
+    return {
+      label: "Original nötig",
+      className: "border-rose-200 bg-rose-50 text-rose-700",
+    }
+  }
+  if (input.optional) {
+    return {
+      label: "Optional",
+      className: "border-sky-200 bg-sky-50 text-sky-700",
+    }
+  }
+  return {
+    label: "Jetzt offen",
+    className: "border-slate-900 bg-slate-900 text-white",
   }
 }
 
@@ -275,20 +324,43 @@ function isFieldFilled(field: SignatureField, value: unknown) {
   return String(value ?? "").trim().length > 0
 }
 
+function compareSignatureRequests(a: SignatureRequest, b: SignatureRequest) {
+  const metaA = getSchufaFreeSignatureRequestMeta({
+    title: a.title,
+    requiresWetSignature: a.requires_wet_signature,
+    fields: a.fields,
+  })
+  const metaB = getSchufaFreeSignatureRequestMeta({
+    title: b.title,
+    requiresWetSignature: b.requires_wet_signature,
+    fields: b.fields,
+  })
+
+  if (metaA.order !== metaB.order) return metaA.order - metaB.order
+
+  const dateA = a.created_at ? new Date(a.created_at).getTime() : 0
+  const dateB = b.created_at ? new Date(b.created_at).getTime() : 0
+  return dateA - dateB
+}
+
 export default function SignaturePanel({
   caseId,
   canEdit,
   fixedProviderName,
   providerProduct = "baufi",
+  uploadMode = "standard",
   advisorSignedDocumentActionLabel,
   skagDocumentStatuses = [],
+  contractSigningUnlocked = true,
 }: {
   caseId: string
   canEdit: boolean
   fixedProviderName?: string
   providerProduct?: "baufi" | "konsum"
+  uploadMode?: "standard" | "schufaFreePackage"
   advisorSignedDocumentActionLabel?: string
   skagDocumentStatuses?: SkagDocumentStatus[]
+  contractSigningUnlocked?: boolean
 }) {
   const router = useRouter()
   const [items, setItems] = useState<SignatureRequest[]>([])
@@ -344,7 +416,15 @@ export default function SignaturePanel({
   }
 
   async function createRequest() {
-    if (!file || !title.trim()) {
+    if (uploadMode === "schufaFreePackage" && !contractSigningUnlocked) {
+      setMsg("Bitte zuerst die interne Servicepauschalenrechnung anlegen. Erst danach wird der Vertragsbereich freigeschaltet.")
+      return
+    }
+    if (!file) {
+      setMsg(uploadMode === "schufaFreePackage" ? "Bitte das Vertragspaket hochladen." : "Bitte Titel und Datei angeben.")
+      return
+    }
+    if (uploadMode !== "schufaFreePackage" && !title.trim()) {
       setMsg("Bitte Titel und Datei angeben.")
       return
     }
@@ -353,17 +433,26 @@ export default function SignaturePanel({
     try {
       const form = new FormData()
       form.append("caseId", caseId)
-      form.append("title", title.trim())
-      if (providerId) form.append("providerId", providerId)
-      form.append("requiresWet", requiresWet ? "1" : "0")
       form.append("file", file)
-      const res = await fetch("/api/app/signatures", { method: "POST", body: form })
+      if (uploadMode !== "schufaFreePackage") {
+        form.append("title", title.trim())
+        if (providerId) form.append("providerId", providerId)
+        form.append("requiresWet", requiresWet ? "1" : "0")
+      }
+
+      const res = await fetch(
+        uploadMode === "schufaFreePackage"
+          ? "/api/app/cases/schufa-frei/signature-package"
+          : "/api/app/signatures",
+        { method: "POST", body: form }
+      )
       const json = await res.json().catch(() => ({}))
       if (!res.ok || !json?.ok) throw new Error(json?.error || "Fehler")
       setTitle("")
       setProviderId(lockedProviderId)
       setRequiresWet(false)
       setFile(null)
+      setMsg(String(json?.message ?? "Dokument erfolgreich angelegt."))
       await refresh()
     } catch (e: any) {
       setMsg(e?.message ?? "Fehler")
@@ -457,6 +546,28 @@ export default function SignaturePanel({
     }
   }
 
+  async function generateBankSubmission() {
+    if (!canEdit || uploadMode !== "schufaFreePackage") return
+    setBusy(true)
+    setMsg(null)
+    try {
+      const res = await fetch("/api/app/cases/schufa-frei/bank-submission", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ caseId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Bankeinreichung konnte nicht erzeugt werden.")
+      setMsg(String(json?.message ?? "Die Bankeinreichung wurde erzeugt und an SKAG übermittelt."))
+      await refresh()
+      router.refresh()
+    } catch (e: any) {
+      setMsg(e?.message ?? "Bankeinreichung konnte nicht erzeugt werden.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function deleteSignedDocument(docId: string) {
     if (!canEdit) return
     if (!confirm("Signiertes Dokument wirklich löschen?")) return
@@ -512,6 +623,35 @@ export default function SignaturePanel({
         const advisorOnly = hasAdvisorFields(fields) && !hasCustomerFields(fields)
         return !advisorOnly
       })
+  const sortedVisibleItems = visibleItems.slice().sort(compareSignatureRequests)
+  const hasSchufaFreePackageFlow = sortedVisibleItems.some((req) =>
+    getSchufaFreeSignatureRequestMeta({
+      title: req.title,
+      requiresWetSignature: req.requires_wet_signature,
+      fields: req.fields,
+    }).packageRelated
+  )
+  const requiredSchufaFreePackageItems = items.filter((req) => {
+    const meta = getSchufaFreeSignatureRequestMeta({
+      title: req.title,
+      requiresWetSignature: req.requires_wet_signature,
+      fields: req.fields,
+    })
+    return meta.packageRelated && meta.completionRequired
+  })
+  const canGenerateBankSubmission =
+    canEdit &&
+    uploadMode === "schufaFreePackage" &&
+    requiredSchufaFreePackageItems.length > 0 &&
+    requiredSchufaFreePackageItems.every((req) =>
+      isSignatureRequestComplete({
+        fields: req.fields ?? [],
+        requires_wet_signature: req.requires_wet_signature,
+        advisor_signed_at: req.advisor_signed_at,
+        customer_signed_at: req.customer_signed_at,
+        status: req.status,
+      })
+    )
 
   return (
     <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
@@ -525,82 +665,168 @@ export default function SignaturePanel({
 
       {canEdit ? (
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
-            <div className="min-w-0 flex-1">
-              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Dokument</div>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Dokument-Titel (z.B. Kreditvertrag)"
-                className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
-              />
-            </div>
-
-            <div className="xl:w-[240px]">
-              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Bank</div>
-              {lockedProviderLabel ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
-                  <div className="text-sm font-semibold text-emerald-950">{lockedProviderLabel}</div>
-                  <div className="mt-0.5 text-xs text-emerald-700">Fest für Schufa-frei hinterlegt</div>
+          {uploadMode === "schufaFreePackage" ? (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4">
+                <div className="text-sm font-semibold text-emerald-950">Vertragspaket automatisch aufteilen</div>
+                <div className="mt-1 text-sm leading-relaxed text-emerald-900">
+                  Laden Sie hier den vollständigen Schufa-frei-Kreditvertrag hoch. Das PDF wird automatisch in
+                  Kreditvertrag, Ratenschutz, Serviceprovision, ggf. Abtretungserklärung und vorvertragliche
+                  Informationen aufgeteilt.
                 </div>
-              ) : (
-                <select
-                  value={providerId}
-                  onChange={(e) => setProviderId(e.target.value)}
+                <div className="mt-3 text-xs leading-relaxed text-emerald-800">
+                  Bereits importierte Vertragspakete werden dabei ersetzt. Der Kunde erhält die Unterlagen danach
+                  Schritt für Schritt im Portal.
+                </div>
+              </div>
+              {!contractSigningUnlocked ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  Bitte zuerst die interne Servicepauschalenrechnung anlegen. Erst danach werden Vertragsimport und
+                  Signaturbereich freigeschaltet.
+                </div>
+              ) : null}
+
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+                <div className="xl:w-[280px]">
+                  <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Bank</div>
+                  <div className="rounded-2xl border border-emerald-200 bg-white px-4 py-3 shadow-sm">
+                    <div className="text-sm font-semibold text-slate-900">{lockedProviderLabel || "SIGMA Kreditbank AG"}</div>
+                    <div className="mt-0.5 text-xs text-slate-500">Vertragspaket für Kredit ohne Schufa</div>
+                  </div>
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">PDF-Upload</div>
+                  <label className="flex h-[50px] cursor-pointer items-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 shadow-sm">
+                    <span className="truncate">{file?.name || "Vertragspaket wählen"}</span>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      className="hidden"
+                      disabled={!contractSigningUnlocked}
+                      onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                </div>
+
+                <div className="xl:w-[230px]">
+                  <button
+                    onClick={createRequest}
+                    disabled={busy || !contractSigningUnlocked}
+                    className="flex h-[50px] w-full items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-md transition hover:bg-slate-800 disabled:opacity-60"
+                  >
+                    Vertragspaket importieren
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+              <div className="min-w-0 flex-1">
+                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Dokument</div>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Dokument-Titel (z.B. Kreditvertrag)"
                   className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+                />
+              </div>
+
+              <div className="xl:w-[240px]">
+                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Bank</div>
+                {lockedProviderLabel ? (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
+                    <div className="text-sm font-semibold text-emerald-950">{lockedProviderLabel}</div>
+                    <div className="mt-0.5 text-xs text-emerald-700">Fest für Schufa-frei hinterlegt</div>
+                  </div>
+                ) : (
+                  <select
+                    value={providerId}
+                    onChange={(e) => setProviderId(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+                  >
+                    <option value="">Bank wählen</option>
+                    {providers.map((p) => (
+                      <option key={p.provider.id} value={p.provider.id}>
+                        {p.provider.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="xl:w-[180px]">
+                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Original</div>
+                <label className="flex h-[50px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 shadow-sm">
+                  <input
+                    type="checkbox"
+                    checked={requiresWet}
+                    onChange={(e) => setRequiresWet(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  Original nötig
+                </label>
+              </div>
+
+              <div className="xl:w-[210px]">
+                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Datei</div>
+                <label className="flex h-[50px] cursor-pointer items-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 shadow-sm">
+                  <span className="truncate">{file?.name || "Datei wählen"}</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              </div>
+
+              <div className="xl:w-[210px]">
+                <button
+                  onClick={createRequest}
+                  disabled={busy}
+                  className="flex h-[50px] w-full items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-md transition hover:bg-slate-800 disabled:opacity-60"
                 >
-                  <option value="">Bank wählen</option>
-                  {providers.map((p) => (
-                    <option key={p.provider.id} value={p.provider.id}>
-                      {p.provider.name}
-                    </option>
-                  ))}
-                </select>
-              )}
+                  Unterschrift anfordern
+                </button>
+              </div>
             </div>
-
-            <div className="xl:w-[180px]">
-              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Original</div>
-              <label className="flex h-[50px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 shadow-sm">
-                <input
-                  type="checkbox"
-                  checked={requiresWet}
-                  onChange={(e) => setRequiresWet(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                Original nötig
-              </label>
-            </div>
-
-            <div className="xl:w-[210px]">
-              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Datei</div>
-              <label className="flex h-[50px] cursor-pointer items-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 shadow-sm">
-                <span className="truncate">{file?.name || "Datei wählen"}</span>
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                />
-              </label>
-            </div>
-
-            <div className="xl:w-[210px]">
-              <button
-                onClick={createRequest}
-                disabled={busy}
-                className="flex h-[50px] w-full items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-md transition hover:bg-slate-800 disabled:opacity-60"
-              >
-                Unterschrift anfordern
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       ) : null}
 
       {msg ? <div className="mt-2 text-xs text-slate-600">{msg}</div> : null}
 
+      {canGenerateBankSubmission ? (
+        <div className="mt-4 rounded-2xl border border-cyan-200 bg-cyan-50/80 p-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="max-w-2xl">
+              <div className="text-sm font-semibold text-cyan-950">Bankeinreichung erzeugen</div>
+              <div className="mt-1 text-sm leading-relaxed text-cyan-900">
+                Prüft jetzt alle Pflichtunterlagen im Fall, bündelt die vollständige Reihenfolge in ein PDF und lädt
+                die Bankeinreichung anschließend direkt zu SKAG hoch.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void generateBankSubmission()}
+              disabled={busy}
+              className="inline-flex h-[50px] items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white shadow-md transition hover:bg-slate-800 disabled:opacity-60"
+            >
+              Bankeinreichung generieren
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {!canEdit && hasSchufaFreePackageFlow ? (
+        <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4 text-sm text-sky-900">
+          Bitte gehe die Unterlagen Schritt für Schritt durch. Pflichtdokumente musst du unterschreiben, optionale
+          Dokumente kannst du bei Bedarf auslassen und Informationsblätter stehen nur zum Download bereit.
+        </div>
+      ) : null}
+
       <div className="mt-4 space-y-3">
-        {visibleItems.map((req) => (
+        {sortedVisibleItems.map((req) => (
           <SignatureRequestCard
             key={req.id}
             req={req}
@@ -609,6 +835,7 @@ export default function SignaturePanel({
             fallbackProviderName={lockedProviderLabel || undefined}
             advisorSignedDocumentActionLabel={advisorSignedDocumentActionLabel}
             skagDocumentStatuses={skagDocumentStatuses}
+            contractSigningUnlocked={contractSigningUnlocked}
             onSaveFields={saveFields}
             onUploadSigned={uploadSigned}
             onSubmitDigital={submitDigital}
@@ -618,7 +845,7 @@ export default function SignaturePanel({
           />
         ))}
 
-        {visibleItems.length === 0 ? (
+        {sortedVisibleItems.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
             Noch keine Unterschriften angefordert.
           </div>
@@ -635,6 +862,7 @@ function SignatureRequestCard({
   fallbackProviderName,
   advisorSignedDocumentActionLabel,
   skagDocumentStatuses,
+  contractSigningUnlocked,
   onSaveFields,
   onUploadSigned,
   onSubmitDigital,
@@ -648,6 +876,7 @@ function SignatureRequestCard({
   fallbackProviderName?: string
   advisorSignedDocumentActionLabel?: string
   skagDocumentStatuses: SkagDocumentStatus[]
+  contractSigningUnlocked: boolean
   onSaveFields: (id: string, fields: SignatureField[], opts?: SaveFieldsOptions) => Promise<void>
   onUploadSigned: (id: string, files: FileList) => Promise<void>
   onSubmitDigital: (id: string, values: Record<string, any>) => Promise<boolean>
@@ -659,6 +888,11 @@ function SignatureRequestCard({
   const [signOpen, setSignOpen] = useState(false)
   const docsOriginal = (req.documents ?? []).filter((d) => d.document_kind === "signature_original")
   const docsSigned = (req.documents ?? []).filter((d) => d.document_kind === "signature_signed")
+  const originalDoc = docsOriginal.length ? docsOriginal[docsOriginal.length - 1] : null
+  const originalOpenUrl = originalDoc ? fileUrl(originalDoc.file_path, { raw: true }) : null
+  const originalDownloadUrl = originalDoc
+    ? fileUrl(originalDoc.file_path, { raw: true, download: true, filename: originalDoc.file_name })
+    : null
   const primarySigned = docsSigned.length ? docsSigned[docsSigned.length - 1] : null
   const signedDownloadUrl = primarySigned
     ? fileUrl(primarySigned.file_path, {
@@ -670,41 +904,121 @@ function SignatureRequestCard({
   const advisorRequired = hasAdvisorFields(req.fields)
   const customerRequired = hasCustomerFields(req.fields)
   const advisorOnly = advisorRequired && !customerRequired
-  const isComplete =
-    (!advisorRequired || !!req.advisor_signed_at) && (!customerRequired || !!req.customer_signed_at)
+  const meta = getSchufaFreeSignatureRequestMeta({
+    title: req.title,
+    requiresWetSignature: req.requires_wet_signature,
+    fields: req.fields,
+  })
+  const lockedUntilInvoice = !contractSigningUnlocked && isSchufaSignatureRequestLockedUntilInvoice(req.title)
+  const downloadOnly = meta.downloadOnly || (!advisorRequired && !customerRequired && !req.requires_wet_signature)
+  const isComplete = req.requires_wet_signature
+    ? !!req.customer_signed_at
+    : (!advisorRequired || !!req.advisor_signed_at) && (!customerRequired || !!req.customer_signed_at)
   const hasAnySignature = !!req.advisor_signed_at || !!req.customer_signed_at
   const finalDoc = isComplete ? primarySigned : null
   const statusLabel = isComplete ? "Abgeschlossen" : hasAnySignature ? "Gestartet" : "Entwurf"
   const alreadySigned = canEdit ? !!req.advisor_signed_at : !!req.customer_signed_at
   const advisorLabel = advisorRequired ? (req.advisor_signed_at ? shortIso(req.advisor_signed_at) : "--") : "nicht erforderlich"
-  const canOpenSign = canEdit ? advisorRequired : customerRequired
+  const allowEditor = canEdit && !downloadOnly && !lockedUntilInvoice
+  const canOpenSign = lockedUntilInvoice
+    ? false
+    : downloadOnly
+      ? false
+      : req.requires_wet_signature
+        ? !canEdit
+        : canEdit
+          ? advisorRequired
+          : customerRequired
   const providerLabel = req.provider_name || fallbackProviderName || "--"
+  const allowSignedDocumentAction = Boolean(advisorSignedDocumentActionLabel) && shouldSyncSchufaSignatureRequestToSkag(req.title)
   const finalDocSync = finalDoc
     ? skagDocumentStatuses.find((item) => String(item.local_document_id ?? "").trim() === finalDoc.id)
     : null
   const finalDocUploaded = String(finalDocSync?.upload_status ?? "").trim().toLowerCase() === "uploaded"
   const finalDocUploadError = String(finalDocSync?.last_error ?? "").trim() || null
+  const actionLabel = req.requires_wet_signature ? "Original hochladen" : meta.actionLabel
+  const customerStatus = getCustomerRequestStatus({
+    isComplete,
+    lockedUntilInvoice,
+    downloadOnly,
+    requiresWetSignature: req.requires_wet_signature,
+    optional: meta.optional,
+  })
+  const customerCardClass = lockedUntilInvoice
+    ? "border-amber-200 bg-[linear-gradient(135deg,rgba(255,251,235,1),rgba(255,255,255,0.98))]"
+    : isComplete
+      ? "border-emerald-200 bg-[linear-gradient(135deg,rgba(236,253,245,1),rgba(255,255,255,0.98))]"
+      : "border-slate-200 bg-[linear-gradient(135deg,rgba(248,250,252,0.96),rgba(255,255,255,0.98))]"
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+    <div className={`rounded-[24px] border p-4 shadow-sm ${canEdit ? "border-slate-200 bg-slate-50" : customerCardClass}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <div className="text-sm font-semibold text-slate-900">{req.title}</div>
+            {meta.stepLabel ? (
+              <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                {meta.stepLabel}
+              </span>
+            ) : null}
+            {meta.kindLabel ? (
+              <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700">
+                {meta.kindLabel}
+              </span>
+            ) : null}
+            {lockedUntilInvoice ? (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                Rechnung fehlt
+              </span>
+            ) : null}
             {advisorOnly ? (
               <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
                 Beraterdokument
               </span>
             ) : null}
           </div>
-          <div className="text-xs text-slate-500">
-            Bank: {providerLabel} - Status: {statusLabel} - Erstellt: {shortIso(req.created_at)}
-          </div>
-          <div className="mt-1 text-xs text-slate-500">
-            Berater: {advisorLabel} · Kunde: {req.customer_signed_at ? shortIso(req.customer_signed_at) : "--"}
-          </div>
-          {docsOriginal[0] ? (
-            <div className="mt-1 text-xs text-slate-600">Datei: {docsOriginal[0].file_name}</div>
+          {canEdit ? (
+            <>
+              <div className="text-xs text-slate-500">
+                Bank: {providerLabel} - Status: {statusLabel} - Erstellt: {shortIso(req.created_at)}
+              </div>
+              <div className="mt-1 text-xs text-slate-500">
+                Berater: {advisorLabel} · Kunde: {req.customer_signed_at ? shortIso(req.customer_signed_at) : "--"}
+              </div>
+              {originalDoc ? <div className="mt-1 text-xs text-slate-600">Datei: {originalDoc.file_name}</div> : null}
+              {meta.description ? <div className="mt-2 text-xs leading-relaxed text-slate-600">{meta.description}</div> : null}
+            </>
+          ) : (
+            <>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-600">
+                  Bank: {providerLabel}
+                </span>
+                <span className={`rounded-full border px-2.5 py-1 font-semibold ${customerStatus.className}`}>
+                  {customerStatus.label}
+                </span>
+                {finalDoc ? (
+                  <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 font-semibold text-emerald-700">
+                    Finale PDF verfügbar
+                  </span>
+                ) : originalDoc ? (
+                  <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-500">
+                    PDF bereit
+                  </span>
+                ) : null}
+              </div>
+              {meta.description ? (
+                <div className="mt-3 text-sm leading-relaxed text-slate-700">{meta.description}</div>
+              ) : null}
+              {isComplete && !finalDoc ? (
+                <div className="mt-2 text-xs text-emerald-700">Dieser Schritt ist bereits abgeschlossen.</div>
+              ) : null}
+            </>
+          )}
+          {lockedUntilInvoice ? (
+            <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+              Dieses Dokument wird erst nach Anlage der internen Servicepauschalenrechnung zur Unterschrift freigeschaltet.
+            </div>
           ) : null}
           {req.requires_wet_signature ? (
             <div className="mt-1 text-xs text-rose-600">
@@ -729,7 +1043,7 @@ function SignatureRequestCard({
                     >
                       PDF herunterladen
                     </a>
-                    {canEdit && advisorSignedDocumentActionLabel ? (
+                    {canEdit && allowSignedDocumentAction ? (
                       finalDocUploaded ? (
                         <div className="inline-flex w-full items-center justify-center rounded-full border border-cyan-300 bg-cyan-50 px-3 py-2 text-[11px] font-semibold text-cyan-800 shadow-sm sm:w-auto">
                           An SKAG übermittelt
@@ -791,15 +1105,15 @@ function SignatureRequestCard({
               <div className="mt-2 text-[11px] text-emerald-700">
                 Enthält Protokoll (Audit-Log) der Unterschriften.
               </div>
-              {canEdit && advisorSignedDocumentActionLabel && finalDocUploadError && !finalDocUploaded ? (
+              {canEdit && allowSignedDocumentAction && finalDocUploadError && !finalDocUploaded ? (
                 <div className="mt-2 text-[11px] text-rose-700">SKAG-Uploadfehler: {finalDocUploadError}</div>
               ) : null}
             </div>
           ) : null}
         </div>
 
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-          {canEdit ? (
+        <div className={`flex w-full flex-col gap-2 ${canEdit ? "sm:w-auto sm:flex-row sm:flex-wrap" : "sm:w-[290px] sm:items-end"}`}>
+          {allowEditor ? (
             <button
               onClick={() => setEditorOpen(true)}
               className="w-full rounded-full border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 sm:w-auto sm:py-1"
@@ -817,16 +1131,48 @@ function SignatureRequestCard({
               Dokument komplett löschen
             </button>
           ) : null}
+          {!canEdit && canOpenSign ? (
+            <button
+              onClick={() => setSignOpen(true)}
+              className={`w-full rounded-2xl border px-4 py-3 text-sm font-semibold shadow-sm transition sm:min-w-[220px] sm:py-2 ${
+                alreadySigned
+                  ? "border-emerald-600 bg-emerald-600 text-white shadow-emerald-100"
+                  : "border-slate-900 bg-slate-900 text-white ring-4 ring-slate-100 hover:bg-slate-800"
+              } disabled:cursor-default disabled:opacity-100`}
+              disabled={alreadySigned}
+            >
+              {alreadySigned ? "Bereits unterschrieben" : actionLabel}
+            </button>
+          ) : null}
           {finalDoc && signedDownloadUrl ? (
             <a
               href={signedDownloadUrl}
               download
               className="w-full rounded-full border border-emerald-600 bg-emerald-600 px-3 py-2 text-center text-[11px] font-semibold text-white shadow-sm sm:w-auto sm:py-1"
             >
-              Signed PDF
+              {canEdit ? "Signed PDF" : "Abgeschlossene PDF"}
             </a>
           ) : null}
-          {canOpenSign ? (
+          {originalOpenUrl ? (
+            <a
+              href={originalOpenUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="w-full rounded-full border border-slate-300 bg-white px-3 py-2 text-center text-[11px] font-semibold text-slate-700 sm:w-auto sm:py-1"
+            >
+              Dokument ansehen
+            </a>
+          ) : null}
+          {originalDownloadUrl ? (
+            <a
+              href={originalDownloadUrl}
+              download
+              className="w-full rounded-full border border-slate-300 bg-white px-3 py-2 text-center text-[11px] font-semibold text-slate-700 sm:w-auto sm:py-1"
+            >
+              PDF herunterladen
+            </a>
+          ) : null}
+          {canEdit && canOpenSign ? (
             <button
               onClick={() => setSignOpen(true)}
               className={`w-full rounded-2xl border px-4 py-3 text-sm font-semibold shadow-sm transition sm:min-w-[180px] sm:w-auto sm:py-2 ${
@@ -836,11 +1182,29 @@ function SignatureRequestCard({
               } disabled:cursor-default disabled:opacity-100`}
               disabled={alreadySigned}
             >
-              {alreadySigned ? "Bereits unterschrieben" : "Jetzt unterschreiben"}
+              {alreadySigned ? "Bereits unterschrieben" : actionLabel}
             </button>
+          ) : !canEdit && !canOpenSign ? (
+            <span className="w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 sm:w-auto sm:py-1">
+              {downloadOnly
+                ? "Nur ansehen / herunterladen"
+                : req.requires_wet_signature
+                  ? "Original unterschreiben und hochladen"
+                  : lockedUntilInvoice
+                    ? "Wird noch freigeschaltet"
+                    : "Gerade nicht verfügbar"}
+            </span>
           ) : (
             <span className="w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 sm:w-auto sm:py-1">
-              {canEdit ? "Nur Kundensignatur erforderlich" : "Nur Beratersignatur erforderlich"}
+              {downloadOnly
+                ? "Nur ansehen / herunterladen"
+                : req.requires_wet_signature
+                  ? canEdit
+                    ? "Kunde lädt Original hoch"
+                    : "Original unterschreiben und hochladen"
+                  : canEdit
+                    ? "Nur Kundensignatur erforderlich"
+                    : "Nur Beratersignatur erforderlich"}
             </span>
           )}
         </div>

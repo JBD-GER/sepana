@@ -26,6 +26,16 @@ function trimOrNull(value: unknown) {
   return trimmed ? trimmed : null
 }
 
+function isGeneralCaseDocument(input: { signature_request_id?: string | null; document_kind?: string | null }) {
+  const signatureRequestId = trimOrNull(input.signature_request_id)
+  if (signatureRequestId) return false
+
+  const documentKind = String(input.document_kind ?? "").trim().toLowerCase()
+  if (documentKind === "bank_submission_bundle") return false
+
+  return true
+}
+
 function resolveSelectedEuropaceOfferId(
   offers: Array<{ angebot_id?: string | null; accepted_at?: string | null; superseded_at?: string | null; created_at?: string | null }>,
   syncEvents: Array<{
@@ -180,7 +190,7 @@ export async function GET(req: Request) {
       })(),
       readClient
         .from("documents")
-        .select("id,case_id,request_id,file_name,file_path,mime_type,size_bytes,created_at,uploaded_by")
+        .select("id,case_id,request_id,signature_request_id,document_kind,file_name,file_path,mime_type,size_bytes,created_at,uploaded_by")
         .eq("case_id", id)
         .order("created_at", { ascending: false })
         .limit(200),
@@ -632,6 +642,27 @@ export async function GET(req: Request) {
         )
       : docRequests ?? []
 
+  const visibleDocuments = ((docs ?? []) as Array<{
+    id?: string | null
+    case_id?: string | null
+    request_id?: string | null
+    signature_request_id?: string | null
+    document_kind?: string | null
+    file_name?: string | null
+    file_path?: string | null
+    mime_type?: string | null
+    size_bytes?: number | null
+    created_at?: string | null
+    uploaded_by?: string | null
+  }>)
+    .filter((document) => isGeneralCaseDocument(document))
+    .map((document) => {
+      const next = { ...document }
+      delete next.signature_request_id
+      delete next.document_kind
+      return next
+    })
+
   return NextResponse.json({
     case: { ...casePayload, status_display: statusDisplay },
     baufi_details: details ?? null,
@@ -641,7 +672,7 @@ export async function GET(req: Request) {
     liabilities: liabilities ?? [],
     offer_previews: previewsWithProvider ?? [],
     offers: offersWithProvider,
-    documents: docs ?? [],
+    documents: visibleDocuments,
     document_requests: normalizedDocumentRequests,
     chat: notes ?? [],
     advisor,

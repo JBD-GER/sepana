@@ -23,6 +23,7 @@ import { getOnlinekreditAccountCheckRestrictionReason } from "@/lib/onlinekredit
 import { getOnlinekreditDocumentPin } from "@/lib/onlinekredit/documentPin"
 import SchufaFreePostIdentPanel from "@/components/schufa-frei/SchufaFreePostIdentPanel"
 import SchufaFreeWorkspaceOverview from "@/components/schufa-frei/SchufaFreeWorkspaceOverview"
+import { getSchufaFreeSignatureRequestMeta, isSignatureRequestComplete } from "@/lib/schufa-frei/contractPackage"
 
 type CaseApplicant = {
   first_name?: string | null
@@ -480,6 +481,8 @@ export default async function CaseDetailPage({
     details?: SchufaDetails | null
     applicant?: CaseApplicant | null
     sync?: SchufaSync | null
+    serviceFeeInvoiceCreated?: boolean
+    contractSigningUnlocked?: boolean
     pushEvents?: SchufaPushEvent[]
     skagDocuments?: Array<{ local_document_id?: string | null; upload_status?: string | null; last_error?: string | null }>
   } | null = schufaRes && schufaRes.ok ? await schufaRes.json() : null
@@ -498,20 +501,43 @@ export default async function CaseDetailPage({
   )
   const openRequiredCount = Array.from(requiredRequestIds).filter((requestId) => !uploadedRequiredRequestIds.has(requestId)).length
   const requestedVariant = `${formatEUR(schufaData?.details?.loan_amount_requested ?? null)} / ${schufaData?.details?.term_months ?? "-"} Monate`
+  const contractSigningUnlocked = schufaData?.contractSigningUnlocked ?? false
+  const hasContractRequest = signatureItems.some((item) =>
+    getSchufaFreeSignatureRequestMeta({
+      title: item.title,
+      requiresWetSignature: item.requires_wet_signature,
+      fields: item.fields ?? [],
+    }).key === "contract"
+  )
+  const openSignatureCount = signatureItems.filter((item) =>
+    !isSignatureRequestComplete({
+      fields: item.fields ?? [],
+      requires_wet_signature: item.requires_wet_signature,
+      advisor_signed_at: item.advisor_signed_at,
+      customer_signed_at: item.customer_signed_at,
+      status: item.status,
+    })
+  ).length
   const nextCustomerStep = openRequiredCount > 0
     ? "Unterlagen hochladen"
-    : signatureItems.length === 0
-      ? "Vertrag wird vorbereitet"
-      : !String(schufaData?.sync?.postident_url ?? "").trim()
-        ? "PostIdent wird vorbereitet"
-        : "PostIdent abschließen"
+    : !contractSigningUnlocked
+      ? "Rechnung wird angelegt"
+      : openSignatureCount > 0
+        ? "Dokumente unterschreiben"
+        : !String(schufaData?.sync?.postident_url ?? "").trim()
+          ? "PostIdent wird vorbereitet"
+          : "PostIdent abschließen"
   const nextCustomerHint = openRequiredCount > 0
     ? "Lade jetzt die noch fehlenden Unterlagen hoch. Danach prüft dein Berater die Angaben."
-    : signatureItems.length === 0
-      ? "Dein Berater stellt nun den Vertrag für die digitale Unterschrift bereit."
-      : !String(schufaData?.sync?.postident_url ?? "").trim()
-        ? "Nach dem Vertrag folgt noch dein persönlicher PostIdent-Link über unseren Partner SKAG Vertriebs GmbH."
-        : "Dein Link ist hinterlegt. Die Legitimation läuft über unseren Partner SKAG Vertriebs GmbH. Danach geht der Fall in Richtung Auszahlung weiter."
+    : !contractSigningUnlocked
+      ? "Dein Berater legt zuerst die Rechnung und den gesonderten Vermittlungsauftrag an. Danach wird der Vertragsbereich freigeschaltet."
+      : openSignatureCount > 0
+        ? hasContractRequest
+          ? "Im Signaturbereich liegen Unterlagen für dich bereit. Bitte gehe sie jetzt Schritt für Schritt durch."
+          : "Dein gesonderter Vermittlungsauftrag liegt bereit. Nach deiner Unterschrift stellt dein Berater den restlichen Vertrag bereit."
+        : !String(schufaData?.sync?.postident_url ?? "").trim()
+          ? "Nach dem Vertrag folgt noch dein persönlicher PostIdent-Link über unseren Partner SKAG Vertriebs GmbH."
+          : "Dein Link ist hinterlegt. Die Legitimation läuft über unseren Partner SKAG Vertriebs GmbH. Danach geht der Fall in Richtung Auszahlung weiter."
   const bankCaseDocuments = (data.documents ?? []).filter((document) => isImportedBankDocumentPath(document.file_path))
   const documentPin = getOnlinekreditDocumentPin(data.europace?.vorgangsnummer)
   const privatkreditJourney = isKonsum
@@ -579,6 +605,8 @@ export default async function CaseDetailPage({
           caseRef={c.case_ref}
           caseStatus={c.status_display ?? c.status}
           sync={schufaData?.sync ?? null}
+          serviceFeeInvoiceCreated={schufaData?.serviceFeeInvoiceCreated ?? false}
+          contractSigningUnlocked={contractSigningUnlocked}
           pushEvents={schufaData?.pushEvents ?? []}
           requests={data.document_requests ?? []}
           documents={data.documents ?? []}
@@ -638,18 +666,27 @@ export default async function CaseDetailPage({
             <SchufaFreeIntroCard
               eyebrow="Vertrag & Signatur"
               title="Kreditvertrag prüfen und unterschreiben"
-              description="Sobald dein Berater den Vertrag vorbereitet hat, erscheint er hier für die digitale Prüfung und Unterschrift. Die Provision wird direkt im Vertrag geregelt."
+              description="Sobald dein Berater den Vertrag vorbereitet hat, erscheint er hier Schritt für Schritt. Du kannst jedes Dokument einzeln ansehen, herunterladen und - falls erforderlich - direkt unterschreiben."
               tone="emerald"
             />
             {signatureItems.length === 0 ? (
               <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
                 <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Noch nicht freigegeben</div>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                  Der Vertrag wird aktuell vorbereitet. Sobald die Unterschrift möglich ist, erscheint das Dokument direkt in diesem Bereich.
+                  {contractSigningUnlocked
+                    ? "Der Vertrag wird aktuell vorbereitet. Sobald die Unterschrift möglich ist, erscheint das Dokument direkt in diesem Bereich."
+                    : "Dein Berater legt zuerst die interne Rechnung und den gesonderten Vermittlungsauftrag an. Danach wird der Vertragsbereich freigeschaltet."}
                 </p>
               </div>
             ) : null}
-            {signatureItems.length > 0 ? <SignaturePanel caseId={c.id} canEdit={false} fixedProviderName="SIGMA Kreditbank AG" /> : null}
+            {signatureItems.length > 0 ? (
+              <SignaturePanel
+                caseId={c.id}
+                canEdit={false}
+                fixedProviderName="SIGMA Kreditbank AG"
+                contractSigningUnlocked={contractSigningUnlocked}
+              />
+            ) : null}
           </section>
 
           <section id="schufa-postident" className="space-y-3">

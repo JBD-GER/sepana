@@ -79,6 +79,8 @@ export default function SchufaFreeWorkspaceOverview({
   caseStatus,
   sync,
   invoice,
+  serviceFeeInvoiceCreated,
+  contractSigningUnlocked,
   pushEvents,
   requests,
   documents,
@@ -91,6 +93,8 @@ export default function SchufaFreeWorkspaceOverview({
   caseStatus: string | null | undefined
   sync: SyncRow
   invoice?: InvoiceRow
+  serviceFeeInvoiceCreated?: boolean
+  contractSigningUnlocked?: boolean
   pushEvents: PushRow[]
   requests: RequestRow[]
   documents: DocumentRow[]
@@ -121,7 +125,8 @@ export default function SchufaFreeWorkspaceOverview({
   const normalizedAlias = String(sync?.last_status_alias ?? latestPush?.status_alias ?? "").trim().toLowerCase()
   const caseCancelled = String(caseStatus ?? "").trim().toLowerCase() === "cancelled"
   const serviceFeeStatus = String(invoice?.status ?? "").trim().toLowerCase()
-  const serviceFeeCreated = Boolean(invoice?.id)
+  const serviceFeeCreated = serviceFeeInvoiceCreated ?? Boolean(invoice?.id)
+  const contractReady = contractSigningUnlocked ?? serviceFeeCreated
   const serviceFeePaid = isSchufaFreeProvisionPaid(serviceFeeStatus)
   const postidentLinkReady = Boolean(String(sync?.postident_url ?? "").trim())
   const payoutReached = normalizedAlias === "credit_payout" || String(caseStatus ?? "").trim().toLowerCase() === "completed"
@@ -133,7 +138,9 @@ export default function SchufaFreeWorkspaceOverview({
       ? 2
       : openRequiredCount > 0
         ? 3
-        : signatures.length === 0 || openSignatureCount > 0
+        : !contractReady
+          ? 4
+          : signatures.length === 0 || openSignatureCount > 0
           ? 4
           : !postidentCompleted
             ? 5
@@ -151,6 +158,10 @@ export default function SchufaFreeWorkspaceOverview({
         ? mode === "advisor"
           ? "Fordern Sie fehlende Unterlagen an oder pruefen Sie neue Uploads im Dokumentenbereich."
           : "Lade die noch fehlenden Unterlagen hoch, damit der Fall weiterbearbeitet werden kann."
+        : !contractReady
+          ? mode === "advisor"
+            ? "Legen Sie zuerst die interne Servicepauschalenrechnung an. Danach werden Vermittlungsauftrag und Vertragsbereich freigeschaltet."
+            : "Ihr Berater legt zuerst Rechnung und Vermittlungsauftrag an. Danach erscheint hier Ihr Vertrag."
         : signatures.length === 0
           ? mode === "advisor"
             ? "Laden Sie jetzt den Kreditvertrag hoch und starten Sie den Signaturprozess."
@@ -205,6 +216,10 @@ export default function SchufaFreeWorkspaceOverview({
       text:
         caseCancelled
           ? "Nicht mehr relevant"
+          : !contractReady
+            ? mode === "advisor"
+              ? "Rechnung fehlt, Vertrag noch gesperrt"
+              : "Wartet auf Rechnung und Freigabe"
           : signatures.length > 0
             ? `${completedSignatureCount}/${signatures.length} Signaturvorgaenge abgeschlossen`
             : mode === "advisor"
@@ -252,11 +267,19 @@ export default function SchufaFreeWorkspaceOverview({
               : serviceFeeCreated
                 ? getSchufaFreeProvisionStatusLabel(serviceFeeStatus, invoice?.invoice_type)
                 : "Noch offen",
-            hint: payoutReached ? "Faellig nach Auszahlung" : "Kein Blocker fuer Vertrag und Signatur",
+            hint: payoutReached
+              ? "Faellig nach Auszahlung"
+              : contractReady
+                ? "Vertragsbereich ist freigeschaltet"
+                : "Schaltet den Vertragsbereich frei",
           },
           {
             label: "Vertrag / Signatur",
-            value: signatures.length ? `${completedSignatureCount}/${signatures.length} erledigt` : "Noch nicht gestartet",
+            value: !contractReady
+              ? "Wartet auf Rechnung"
+              : signatures.length
+                ? `${completedSignatureCount}/${signatures.length} erledigt`
+                : "Noch nicht gestartet",
             hint: "",
           },
           {
@@ -287,6 +310,8 @@ export default function SchufaFreeWorkspaceOverview({
             value:
               caseCancelled
                 ? "Nicht mehr relevant"
+                : !contractReady
+                  ? "Wartet auf Freigabe"
                 : signatures.length === 0
                   ? "Wird vorbereitet"
                   : openSignatureCount > 0
@@ -295,6 +320,8 @@ export default function SchufaFreeWorkspaceOverview({
             hint:
               caseCancelled
                 ? "Der Vertragsprozess wurde mit der Stornierung beendet."
+                : !contractReady
+                  ? "Vor dem Vertrag erstellt Ihr Berater zuerst Rechnung und Vermittlungsauftrag."
                 : signatures.length === 0
                   ? "Ihr Berater bereitet den Vertrag fuer Sie vor."
                   : openSignatureCount > 0

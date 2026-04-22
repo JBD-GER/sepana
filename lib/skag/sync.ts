@@ -66,7 +66,11 @@ async function resolveSkagDocumentType(
     .trim()
     .toLowerCase()
 
-  if (documentKind === "signature_original" || documentKind === "signature_signed") {
+  if (
+    documentKind === "signature_original" ||
+    documentKind === "signature_signed" ||
+    documentKind === "bank_submission_bundle"
+  ) {
     return "bankeinreichung"
   }
 

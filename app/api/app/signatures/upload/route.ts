@@ -3,8 +3,17 @@ export const runtime = "nodejs"
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
+import {
+  isSchufaSignatureRequestLockedUntilInvoice,
+  shouldSyncSchufaSignatureRequestToSkag,
+} from "@/lib/schufa-frei/contractPackage"
+import {
+  getSchufaFreeSignatureInvoiceGateMessage,
+  loadSchufaFreeSignatureInvoiceGate,
+} from "@/lib/schufa-frei/signatureInvoiceGate"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { logCaseEvent } from "@/lib/notifications/notify"
+import { maybeNotifyAdvisorAboutCompletedSchufaFreeContractPackage } from "@/lib/schufa-frei/contractPackageNotifications"
 
 function clientIp(req: Request) {
   const forwarded = req.headers.get("x-forwarded-for") || ""
@@ -101,12 +110,25 @@ export async function POST(req: Request) {
 
     const { data: reqRow } = await admin
       .from("case_signature_requests")
-      .select("id,case_id,requires_wet_signature,fields")
+      .select("id,case_id,title,requires_wet_signature,fields")
       .eq("id", requestId)
       .maybeSingle()
     if (!reqRow || reqRow.case_id !== caseId) return NextResponse.json({ error: "Not found" }, { status: 404 })
     const { data: caseMeta } = await admin.from("cases").select("case_type").eq("id", caseId).maybeSingle()
     const shouldSyncToSkag = String(caseMeta?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
+    if (shouldSyncToSkag && isSchufaSignatureRequestLockedUntilInvoice(reqRow.title)) {
+      try {
+        const invoiceGate = await loadSchufaFreeSignatureInvoiceGate(admin, caseId)
+        if (!invoiceGate.ready) {
+          return NextResponse.json(
+            { error: getSchufaFreeSignatureInvoiceGateMessage(invoiceGate.reason) },
+            { status: 409 }
+          )
+        }
+      } catch (error: any) {
+        return NextResponse.json({ error: error?.message ?? "invoice_gate_failed" }, { status: 400 })
+      }
+    }
     const advisorRequired = hasAdvisorFields(reqRow.fields)
     const advisorOnly = advisorRequired && !hasCustomerFields(reqRow.fields)
 
@@ -135,7 +157,7 @@ export async function POST(req: Request) {
       if (docErr) throw docErr
 
       const localDocumentId = String((insertedDoc as { id?: string | null } | null)?.id ?? "").trim()
-      if (shouldSyncToSkag && localDocumentId) {
+      if (shouldSyncToSkag && localDocumentId && shouldSyncSchufaSignatureRequestToSkag(reqRow.title)) {
         await syncLocalDocumentToSkag(admin, {
           caseId,
           localDocumentId,
@@ -171,6 +193,12 @@ export async function POST(req: Request) {
     } catch {
       // ignore if events table not present yet
     }
+
+    await maybeNotifyAdvisorAboutCompletedSchufaFreeContractPackage({
+      admin,
+      caseId,
+      completedRequestId: requestId,
+    }).catch(() => null)
 
     return NextResponse.json({ ok: true })
   } catch (e: any) {

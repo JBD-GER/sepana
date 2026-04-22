@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { updateCaseStatusCompat } from "@/lib/caseStatusCompat"
 import { getCaseMeta, logCaseEvent } from "@/lib/notifications/notify"
+import { SEPARATE_MANDATE_TITLE } from "@/lib/schufa-frei/contractPackage"
 import {
   SCHUFA_FREE_LEGACY_PROVISION_CANCELLATION_INVOICE_TYPE,
   SCHUFA_FREE_LEGACY_PROVISION_INVOICE_TYPE,
@@ -16,6 +17,7 @@ import {
   isLegacySchufaFreeProvisionInvoiceType,
   trimOrNull,
 } from "@/lib/schufa-frei/provisionInvoice"
+import { renderSchufaFreeSeparateMandatePdf } from "@/lib/schufa-frei/signatureDocuments"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const runtime = "nodejs"
@@ -70,6 +72,10 @@ function parseAmountTotal(value: unknown) {
   return Math.round(numeric * 100) / 100
 }
 
+function safeFileName(name: string) {
+  return name.replace(/[^\w.-]+/g, "_").slice(0, 160)
+}
+
 function pickPreferredInvoice(rows: CaseInvoiceRow[], preferredTypes: string[]) {
   const preferredTypeSet = new Set(preferredTypes)
   const filtered = rows.filter((row) => preferredTypeSet.has(String(row.invoice_type ?? "").trim()))
@@ -85,6 +91,163 @@ function pickPreferredInvoice(rows: CaseInvoiceRow[], preferredTypes: string[]) 
     const bCreated = Date.parse(String(b.created_at ?? ""))
     return Number.isFinite(bCreated) ? bCreated - (Number.isFinite(aCreated) ? aCreated : 0) : -1
   })[0]
+}
+
+async function resolveSchufaFreeCustomerCity(admin: ReturnType<typeof supabaseAdmin>, caseId: string) {
+  const { data: details } = await admin
+    .from("case_schufa_free_details")
+    .select("city")
+    .eq("case_id", caseId)
+    .maybeSingle()
+
+  return trimOrNull(details?.city)
+}
+
+async function refreshSeparateMandateRequest(input: {
+  admin: ReturnType<typeof supabaseAdmin>
+  caseId: string
+  actorId: string
+  amountTotal: number
+  caseRef: string
+  createdAt?: string | null
+  customerName: string | null
+  customerCity: string | null
+  advisorName: string | null
+  forceRefresh: boolean
+}) {
+  const { admin, caseId, actorId, amountTotal, caseRef, createdAt, customerName, customerCity, advisorName, forceRefresh } = input
+  const { data: existingRequest } = await admin
+    .from("case_signature_requests")
+    .select("id")
+    .eq("case_id", caseId)
+    .eq("title", SEPARATE_MANDATE_TITLE)
+    .limit(1)
+    .maybeSingle()
+
+  if (existingRequest?.id && !forceRefresh) {
+    const { data: existingOriginalDoc } = await admin
+      .from("documents")
+      .select("id")
+      .eq("signature_request_id", existingRequest.id)
+      .eq("document_kind", "signature_original")
+      .limit(1)
+      .maybeSingle()
+
+    if (existingOriginalDoc?.id) {
+      return { requestId: existingRequest.id, refreshed: false }
+    }
+  }
+
+  const rendered = await renderSchufaFreeSeparateMandatePdf({
+    caseRef,
+    amountTotal,
+    createdAt,
+    customerName,
+    customerCity,
+    advisorName,
+  })
+
+  let requestId = trimOrNull(existingRequest?.id)
+  if (!requestId) {
+    const { data: createdRequest, error: createRequestError } = await admin
+      .from("case_signature_requests")
+      .insert({
+        case_id: caseId,
+        title: SEPARATE_MANDATE_TITLE,
+        provider_id: null,
+        requires_wet_signature: false,
+        fields: rendered.fields,
+        created_by: actorId,
+        status: "pending",
+      })
+      .select("id")
+      .single()
+
+    if (createRequestError || !createdRequest?.id) {
+      throw new Error(createRequestError?.message ?? "Vermittlungsauftrag konnte nicht angelegt werden.")
+    }
+    requestId = createdRequest.id
+  }
+
+  const { data: oldDocs } = await admin
+    .from("documents")
+    .select("id,file_path")
+    .eq("signature_request_id", requestId)
+
+  const fileName = `${safeFileName(SEPARATE_MANDATE_TITLE)}.pdf`
+  const storagePath = `${caseId}/signature/${requestId}/${Date.now()}_${fileName}`
+  const uploadResult = await admin.storage
+    .from("case_documents")
+    .upload(storagePath, rendered.bytes, { upsert: true, contentType: "application/pdf" })
+  if (uploadResult.error) throw uploadResult.error
+
+  const { data: insertedDoc, error: insertDocError } = await admin
+    .from("documents")
+    .insert({
+      case_id: caseId,
+      signature_request_id: requestId,
+      document_kind: "signature_original",
+      uploaded_by: actorId,
+      file_path: storagePath,
+      file_name: fileName,
+      mime_type: "application/pdf",
+      size_bytes: rendered.bytes.length,
+    })
+    .select("id")
+    .single()
+
+  if (insertDocError || !insertedDoc?.id) {
+    try {
+      await admin.storage.from("case_documents").remove([storagePath])
+    } catch {}
+    throw new Error(insertDocError?.message ?? "Vermittlungsauftrag konnte nicht gespeichert werden.")
+  }
+
+  const oldDocumentIds = (oldDocs ?? [])
+    .map((row) => trimOrNull(row.id))
+    .filter((value): value is string => Boolean(value) && value !== insertedDoc.id)
+  const oldFilePaths = (oldDocs ?? [])
+    .map((row) => trimOrNull(row.file_path))
+    .filter((value): value is string => Boolean(value) && value !== storagePath)
+
+  if (oldFilePaths.length) {
+    try {
+      await admin.storage.from("case_documents").remove(oldFilePaths)
+    } catch {}
+  }
+  if (oldDocumentIds.length) {
+    try {
+      await admin.from("case_skag_documents").delete().in("local_document_id", oldDocumentIds)
+    } catch {}
+    try {
+      await admin.from("documents").delete().in("id", oldDocumentIds)
+    } catch {}
+  }
+  try {
+    await admin.from("case_signature_field_values").delete().eq("request_id", requestId)
+  } catch {}
+  try {
+    await admin.from("case_signature_events").delete().eq("request_id", requestId)
+  } catch {}
+
+  const { error: updateRequestError } = await admin
+    .from("case_signature_requests")
+    .update({
+      fields: rendered.fields,
+      provider_id: null,
+      requires_wet_signature: false,
+      status: "pending",
+      advisor_signed_at: null,
+      customer_signed_at: null,
+      customer_notified_at: null,
+    })
+    .eq("id", requestId)
+
+  if (updateRequestError) {
+    throw new Error(updateRequestError.message)
+  }
+
+  return { requestId, refreshed: true }
 }
 
 export async function POST(req: Request) {
@@ -214,16 +377,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: saveError.message }, { status: 400 })
     }
 
+    const customerCity = await resolveSchufaFreeCustomerCity(admin, caseId)
+    const mandateResult = await refreshSeparateMandateRequest({
+      admin,
+      caseId,
+      actorId: user.id,
+      amountTotal,
+      caseRef: caseRow.case_ref ?? caseId,
+      createdAt: savedInvoice.created_at ?? now,
+      customerName: caseMeta?.customer_name ?? null,
+      customerCity,
+      advisorName: caseMeta?.advisor_name ?? null,
+      forceRefresh:
+        !existingInvoice ||
+        Math.abs(Number(existingInvoice.amount_total ?? 0) - amountTotal) > 0.009,
+    })
+
     await logCaseEvent({
       caseId,
       actorId: user.id,
       actorRole: role,
       type: existingInvoice ? "schufa_free_service_fee_invoice_updated" : "schufa_free_service_fee_invoice_created",
       title: existingInvoice ? "Servicepauschale aktualisiert" : "Servicepauschale angelegt",
-      body: "Die Servicepauschale wurde intern im Fall angelegt. Es wurde keine Kundenbenachrichtigung versendet.",
+      body: "Die Servicepauschale wurde intern im Fall angelegt. Der gesonderte Vermittlungsauftrag wurde dabei synchronisiert. Es wurde keine Kundenbenachrichtigung versendet.",
       meta: {
         invoice_id: savedInvoice.id,
         amount_total: amountTotal,
+        separate_mandate_request_id: mandateResult.requestId,
       },
       notifyCustomer: false,
       notifyAdvisor: false,

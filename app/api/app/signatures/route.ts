@@ -3,6 +3,14 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
+import {
+  isSchufaSignatureRequestLockedUntilInvoice,
+  shouldSyncSchufaSignatureRequestToSkag,
+} from "@/lib/schufa-frei/contractPackage"
+import {
+  getSchufaFreeSignatureInvoiceGateMessage,
+  loadSchufaFreeSignatureInvoiceGate,
+} from "@/lib/schufa-frei/signatureInvoiceGate"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { logCaseEvent, buildEmailHtml, sendEmail, getCaseMeta } from "@/lib/notifications/notify"
 
@@ -236,6 +244,22 @@ export async function POST(req: Request) {
     const allowed = await canAccessCase(admin, caseId, user.id, role)
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
+    const { data: caseMeta } = await admin.from("cases").select("case_type").eq("id", caseId).maybeSingle()
+    const isSchufaFreeCase = String(caseMeta?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
+    if (isSchufaFreeCase && isSchufaSignatureRequestLockedUntilInvoice(title)) {
+      try {
+        const invoiceGate = await loadSchufaFreeSignatureInvoiceGate(admin, caseId)
+        if (!invoiceGate.ready) {
+          return NextResponse.json(
+            { error: getSchufaFreeSignatureInvoiceGateMessage(invoiceGate.reason) },
+            { status: 409 }
+          )
+        }
+      } catch (error: any) {
+        return NextResponse.json({ error: error?.message ?? "invoice_gate_failed" }, { status: 400 })
+      }
+    }
+
     let requiresWetFinal = requiresWet
     if (providerId) {
       const { data: provider } = await admin
@@ -291,8 +315,7 @@ export async function POST(req: Request) {
 
     const localDocumentId = String((insertedDoc as { id?: string | null } | null)?.id ?? "").trim()
     if (localDocumentId) {
-      const { data: caseMeta } = await admin.from("cases").select("case_type").eq("id", caseId).maybeSingle()
-      if (String(caseMeta?.case_type ?? "").trim().toLowerCase() === "schufa_frei") {
+      if (isSchufaFreeCase && shouldSyncSchufaSignatureRequestToSkag(title)) {
         await syncLocalDocumentToSkag(admin, {
           caseId,
           localDocumentId,

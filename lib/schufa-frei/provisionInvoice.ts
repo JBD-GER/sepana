@@ -81,10 +81,11 @@ export function buildSchufaFreeProvisionPaymentReference(
   const normalizedCaseRef = trimOrNull(caseRef)
 
   if (normalizedInvoiceNumber && normalizedCaseRef) {
-    return `${normalizedInvoiceNumber} ${normalizedCaseRef}`
+    return `RG ${normalizedInvoiceNumber} ${normalizedCaseRef}`
   }
 
-  return normalizedInvoiceNumber ?? normalizedCaseRef
+  if (normalizedInvoiceNumber) return `RG ${normalizedInvoiceNumber}`
+  return normalizedCaseRef
 }
 
 export function calculateSchufaFreeProvisionNetAmount(loanAmount: number | null | undefined) {
@@ -201,7 +202,7 @@ export function getSchufaFreeProvisionRefundLines() {
 
 export function getSchufaFreeServiceFeeInfoLines() {
   return [
-    "Die Servicepauschale wird intern im Fall angelegt und ist kein Blocker fuer Vertrag oder Signatur.",
+    "Mit dem Anlegen der internen Servicepauschalenrechnung werden gesonderter Vermittlungsauftrag und Vertragsbereich freigeschaltet.",
     "Die Faelligkeit der Servicepauschale entsteht erst nach bestaetigter Kreditauszahlung.",
     "Der eingegebene Gesamtbetrag enthaelt 19 % MwSt. und wird nicht automatisch an den Kunden kommuniziert.",
   ]

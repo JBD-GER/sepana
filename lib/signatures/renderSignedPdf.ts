@@ -78,6 +78,7 @@ export async function renderSignedPdf(opts: {
   values: ValuesByRole
   events: SignatureEvent[]
   auditTitle: string
+  includeAudit?: boolean
 }) {
   const pdfLib = await import("pdf-lib").catch(() => null)
   if (!pdfLib) throw new Error("pdf_lib_missing")
@@ -175,31 +176,33 @@ export async function renderSignedPdf(opts: {
     }
   }
 
-  const auditPage = pdfDoc.addPage([595, 842])
-  const logoPath = path.join(process.cwd(), "public", "og.png")
-  let logoBytes: Uint8Array | null = null
-  try {
-    logoBytes = new Uint8Array(await fs.readFile(logoPath))
-  } catch {
-    logoBytes = null
-  }
-  if (logoBytes) {
-    const logoImg = await pdfDoc.embedPng(logoBytes)
-    auditPage.drawImage(logoImg, { x: 40, y: 796, width: 80, height: 20 })
-  }
-  auditPage.drawText("Audit Log", { x: 40, y: 740, size: 16, font, color: rgb(0, 0, 0) })
-  auditPage.drawText(opts.auditTitle, { x: 40, y: 720, size: 11, font, color: rgb(0.2, 0.2, 0.2) })
+  if (opts.includeAudit !== false) {
+    const auditPage = pdfDoc.addPage([595, 842])
+    const logoPath = path.join(process.cwd(), "public", "og.png")
+    let logoBytes: Uint8Array | null = null
+    try {
+      logoBytes = new Uint8Array(await fs.readFile(logoPath))
+    } catch {
+      logoBytes = null
+    }
+    if (logoBytes) {
+      const logoImg = await pdfDoc.embedPng(logoBytes)
+      auditPage.drawImage(logoImg, { x: 40, y: 796, width: 80, height: 20 })
+    }
+    auditPage.drawText("Audit Log", { x: 40, y: 740, size: 16, font, color: rgb(0, 0, 0) })
+    auditPage.drawText(opts.auditTitle, { x: 40, y: 720, size: 11, font, color: rgb(0.2, 0.2, 0.2) })
 
-  let cursorY = 690
-  let currentPage = auditPage
-  for (const ev of opts.events) {
-    const line = `${ev.created_at} · ${ev.event} · ${ev.actor_role ?? "-"} · ${ev.ip ?? "-"}`
-    currentPage.drawText(line, { x: 40, y: cursorY, size: 9, font, color: rgb(0.2, 0.2, 0.2) })
-    cursorY -= 14
-    if (cursorY < 60) {
-      currentPage = pdfDoc.addPage([595, 842])
-      currentPage.drawText("Audit Log (Fortsetzung)", { x: 40, y: 800, size: 12, font, color: rgb(0, 0, 0) })
-      cursorY = 780
+    let cursorY = 690
+    let currentPage = auditPage
+    for (const ev of opts.events) {
+      const line = `${ev.created_at} · ${ev.event} · ${ev.actor_role ?? "-"} · ${ev.ip ?? "-"}`
+      currentPage.drawText(line, { x: 40, y: cursorY, size: 9, font, color: rgb(0.2, 0.2, 0.2) })
+      cursorY -= 14
+      if (cursorY < 60) {
+        currentPage = pdfDoc.addPage([595, 842])
+        currentPage.drawText("Audit Log (Fortsetzung)", { x: 40, y: 800, size: 12, font, color: rgb(0, 0, 0) })
+        cursorY = 780
+      }
     }
   }
 

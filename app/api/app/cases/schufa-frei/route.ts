@@ -3,10 +3,7 @@ export const runtime = "nodejs"
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { isMissingInsuranceTablesError } from "@/lib/insurance/routing"
-import {
-  SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE,
-  SCHUFA_FREE_PROVISION_INVOICE_TYPE,
-} from "@/lib/schufa-frei/provisionInvoice"
+import { loadSchufaFreeSignatureInvoiceGate } from "@/lib/schufa-frei/signatureInvoiceGate"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export async function GET(req: Request) {
@@ -39,10 +36,17 @@ export async function GET(req: Request) {
   }
 
   const shouldExposeInternalInvoice = role === "advisor" || role === "admin"
-  const admin = shouldExposeInternalInvoice ? supabaseAdmin() : null
+  const admin = supabaseAdmin()
 
-  const [detailsResult, applicantResult, syncResult, pushResult, skagDocumentsResult, invoiceResult, cancellationInvoiceResult, insuranceRouteResult] =
-    await Promise.all([
+  const [
+    detailsResult,
+    applicantResult,
+    syncResult,
+    pushResult,
+    skagDocumentsResult,
+    invoiceGateResult,
+    insuranceRouteResult,
+  ] = await Promise.all([
       supabase.from("case_schufa_free_details").select("*").eq("case_id", caseId).maybeSingle(),
       supabase.from("case_applicants").select("*").eq("case_id", caseId).eq("role", "primary").maybeSingle(),
       supabase.from("case_skag_sync").select("*").eq("case_id", caseId).maybeSingle(),
@@ -57,24 +61,9 @@ export async function GET(req: Request) {
         .select("local_document_id,upload_status,last_error")
         .eq("case_id", caseId)
         .order("created_at", { ascending: false }),
+      loadSchufaFreeSignatureInvoiceGate(admin, caseId).then((data) => ({ data, error: null })).catch((error) => ({ data: null, error })),
       shouldExposeInternalInvoice
-        ? admin!
-            .from("case_invoices")
-            .select("*")
-            .eq("case_id", caseId)
-            .eq("invoice_type", SCHUFA_FREE_PROVISION_INVOICE_TYPE)
-            .maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
-      shouldExposeInternalInvoice
-        ? admin!
-            .from("case_invoices")
-            .select("*")
-            .eq("case_id", caseId)
-            .eq("invoice_type", SCHUFA_FREE_PROVISION_CANCELLATION_INVOICE_TYPE)
-            .maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
-      shouldExposeInternalInvoice
-        ? admin!
+        ? admin
             .from("case_insurance_routes")
             .select("*")
             .eq("case_id", caseId)
@@ -82,9 +71,17 @@ export async function GET(req: Request) {
         : Promise.resolve({ data: null, error: null }),
     ])
 
+  if (invoiceGateResult?.error) {
+    return NextResponse.json(
+      { error: invoiceGateResult.error instanceof Error ? invoiceGateResult.error.message : "invoice_gate_failed" },
+      { status: 400 }
+    )
+  }
   if (insuranceRouteResult?.error && !isMissingInsuranceTablesError(insuranceRouteResult.error)) {
     return NextResponse.json({ error: insuranceRouteResult.error.message }, { status: 400 })
   }
+
+  const invoiceGate = invoiceGateResult?.data
 
   return NextResponse.json({
     details: detailsResult.data ?? null,
@@ -92,8 +89,10 @@ export async function GET(req: Request) {
     sync: syncResult.data ?? null,
     pushEvents: pushResult.data ?? [],
     skagDocuments: skagDocumentsResult.data ?? [],
-    invoice: invoiceResult?.data ?? null,
-    cancellationInvoice: cancellationInvoiceResult?.data ?? null,
+    serviceFeeInvoiceCreated: invoiceGate?.created ?? false,
+    contractSigningUnlocked: invoiceGate?.ready ?? false,
+    invoice: shouldExposeInternalInvoice ? invoiceGate?.invoice ?? null : null,
+    cancellationInvoice: shouldExposeInternalInvoice ? invoiceGate?.cancellationInvoice ?? null : null,
     insuranceRoute: insuranceRouteResult?.data ?? null,
   })
 }

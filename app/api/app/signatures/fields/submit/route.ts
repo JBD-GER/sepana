@@ -3,9 +3,18 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
+import {
+  isSchufaSignatureRequestLockedUntilInvoice,
+  shouldSyncSchufaSignatureRequestToSkag,
+} from "@/lib/schufa-frei/contractPackage"
+import {
+  getSchufaFreeSignatureInvoiceGateMessage,
+  loadSchufaFreeSignatureInvoiceGate,
+} from "@/lib/schufa-frei/signatureInvoiceGate"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { renderSignedPdf } from "@/lib/signatures/renderSignedPdf"
 import { logCaseEvent } from "@/lib/notifications/notify"
+import { maybeNotifyAdvisorAboutCompletedSchufaFreeContractPackage } from "@/lib/schufa-frei/contractPackageNotifications"
 
 function clientIp(req: Request) {
   const forwarded = req.headers.get("x-forwarded-for") || ""
@@ -101,7 +110,7 @@ export async function POST(req: Request) {
     const admin = supabaseAdmin()
     const { data: reqRow } = await admin
       .from("case_signature_requests")
-      .select("id,case_id,requires_wet_signature,advisor_signed_at,fields")
+      .select("id,case_id,title,requires_wet_signature,advisor_signed_at,fields")
       .eq("id", requestId)
       .maybeSingle()
     if (!reqRow) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -119,6 +128,26 @@ export async function POST(req: Request) {
 
     const allowed = await canAccessCase(admin, reqRow.case_id, user.id, role)
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+    const { data: caseMeta } = await admin
+      .from("cases")
+      .select("case_type")
+      .eq("id", reqRow.case_id)
+      .maybeSingle()
+    const isSchufaFreeCase = String(caseMeta?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
+    if (isSchufaFreeCase && isSchufaSignatureRequestLockedUntilInvoice(reqRow.title)) {
+      try {
+        const invoiceGate = await loadSchufaFreeSignatureInvoiceGate(admin, reqRow.case_id)
+        if (!invoiceGate.ready) {
+          return NextResponse.json(
+            { error: getSchufaFreeSignatureInvoiceGateMessage(invoiceGate.reason) },
+            { status: 409 }
+          )
+        }
+      } catch (error: any) {
+        return NextResponse.json({ error: error?.message ?? "invoice_gate_failed" }, { status: 400 })
+      }
+    }
 
     const { error } = await admin
       .from("case_signature_field_values")
@@ -256,12 +285,7 @@ export async function POST(req: Request) {
 
               const localDocumentId = String((insertedDoc as { id?: string | null } | null)?.id ?? "").trim()
               if (localDocumentId) {
-                const { data: caseMeta } = await admin
-                  .from("cases")
-                  .select("case_type")
-                  .eq("id", reqFull.case_id)
-                  .maybeSingle()
-                if (String(caseMeta?.case_type ?? "").trim().toLowerCase() === "schufa_frei") {
+                if (isSchufaFreeCase && shouldSyncSchufaSignatureRequestToSkag(reqFull.title)) {
                   await syncLocalDocumentToSkag(admin, {
                     caseId: reqFull.case_id,
                     localDocumentId,
@@ -275,6 +299,12 @@ export async function POST(req: Request) {
         }
       }
     }
+
+    await maybeNotifyAdvisorAboutCompletedSchufaFreeContractPackage({
+      admin,
+      caseId: reqRow.case_id,
+      completedRequestId: requestId,
+    }).catch(() => null)
 
     return NextResponse.json({ ok: true })
   } catch (e: any) {

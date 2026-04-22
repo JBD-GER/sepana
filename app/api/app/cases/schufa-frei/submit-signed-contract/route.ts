@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { logCaseEvent } from "@/lib/notifications/notify"
+import { shouldSyncSchufaSignatureRequestToSkag } from "@/lib/schufa-frei/contractPackage"
 import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
@@ -61,6 +62,27 @@ export async function POST(req: Request) {
   }
   if (String(documentRow.document_kind ?? "").trim().toLowerCase() !== "signature_signed") {
     return NextResponse.json({ ok: false, error: "Nur fertig unterschriebene Dokumente können übermittelt werden." }, { status: 409 })
+  }
+
+  if (requestId) {
+    const { data: requestRow, error: requestError } = await admin
+      .from("case_signature_requests")
+      .select("id,case_id,title")
+      .eq("id", requestId)
+      .maybeSingle()
+
+    if (requestError) {
+      return NextResponse.json({ ok: false, error: requestError.message }, { status: 400 })
+    }
+    if (!requestRow || requestRow.case_id !== caseId) {
+      return NextResponse.json({ ok: false, error: "Signaturanfrage nicht gefunden" }, { status: 404 })
+    }
+    if (!shouldSyncSchufaSignatureRequestToSkag(requestRow.title)) {
+      return NextResponse.json(
+        { ok: false, error: "Dieses Dokument wird nicht an SKAG übermittelt." },
+        { status: 409 }
+      )
+    }
   }
 
   const { data: skagDocumentRow } = await admin

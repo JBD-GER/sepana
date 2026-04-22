@@ -124,7 +124,7 @@ export default function SchufaFreeServiceFeePanel({
       if (action === "save") {
         setFeedback({
           type: "success",
-          text: "Servicepauschale wurde intern angelegt. Es wurde keine Kundenbenachrichtigung versendet.",
+          text: "Rechnung wurde intern gespeichert. Gesonderter Vermittlungsauftrag und Vertragsbereich sind jetzt freigeschaltet.",
         })
       } else if (action === "mark_paid") {
         setFeedback({ type: "success", text: "Zahlungseingang wurde bestaetigt." })
@@ -155,8 +155,9 @@ export default function SchufaFreeServiceFeePanel({
             </div>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
               Der Berater erfasst hier den Bruttobetrag inklusive MwSt. Die Rechnung wird nur intern im Backend
-              angelegt. Sie ist kein Blocker fuer Vertrag und Signatur; die Faelligkeit entsteht erst nach
-              Kreditauszahlung. Der Kunde erhaelt dazu keine automatische Benachrichtigung.
+              angelegt. Mit dem Speichern werden gesonderter Vermittlungsauftrag und Vertragsbereich freigeschaltet.
+              Faellig wird die Servicepauschale erst nach Kreditauszahlung. Der Kunde erhaelt dazu keine automatische
+              Benachrichtigung.
             </p>
           </div>
 
@@ -291,7 +292,7 @@ export default function SchufaFreeServiceFeePanel({
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Storno</div>
             <div className="mt-2 space-y-2 text-xs leading-relaxed text-slate-600">
               <div>Die Stornierung bleibt im Admin verfuegbar.</div>
-              <div>Die Stornierung betrifft nur die interne Servicepauschale und sperrt den Vertragsbereich nicht.</div>
+              <div>Nach einer Stornierung muss vor weiteren Vertragsschritten wieder eine gueltige Rechnung angelegt werden.</div>
               <div>Stornorechnung: {cancellationInvoiceNumber ?? "-"}</div>
             </div>
           </div>
