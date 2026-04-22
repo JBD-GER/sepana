@@ -1,7 +1,68 @@
 import Link from "next/link"
+import { translateCaseStatus } from "@/lib/caseStatus"
 import { requireInsurance } from "@/lib/insurance/requireInsurance"
-import { getInsuranceRouteSourceLabel, getInsuranceRouteStatusLabel, isInsuranceInvoiceType } from "@/lib/insurance/invoice"
+import {
+  formatEuro,
+  getInsuranceRouteSourceLabel,
+  getInsuranceRouteStatusLabel,
+  isInsuranceInvoiceType,
+} from "@/lib/insurance/invoice"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
+
+type InsuranceProfile = {
+  partner_code: string | null
+  company_name: string | null
+  display_name: string | null
+  photo_path: string | null
+  email: string | null
+  phone: string | null
+}
+
+type InsuranceRouteRow = {
+  case_id: string
+  route_source?: string | null
+  route_status?: string | null
+  routed_at?: string | null
+  updated_at?: string | null
+}
+
+type CaseRow = {
+  id: string
+  case_ref: string | null
+  status: string | null
+  created_at: string | null
+}
+
+type ApplicantRow = {
+  case_id: string
+  first_name: string | null
+  last_name: string | null
+  email: string | null
+  phone: string | null
+}
+
+type InsuranceDashboardDetailsRow = {
+  case_id: string
+  loan_amount_requested: number | null
+  term_months: number | null
+  completed_application_at: string | null
+  submitted_to_skag_at: string | null
+  net_income_monthly: number | null
+  additional_income_monthly: number | null
+}
+
+type DocumentRow = {
+  id: string
+  case_id: string
+}
+
+type InvoiceRow = {
+  id: string
+  case_id: string
+  invoice_type: string | null
+  invoice_number: string | null
+  created_at: string | null
+}
 
 function formatDateTime(value: string | null | undefined) {
   const raw = String(value ?? "").trim()
@@ -9,8 +70,59 @@ function formatDateTime(value: string | null | undefined) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(raw))
 }
 
-export default async function InsuranceDashboardPage() {
+function normalizeFilterValue(value: string | string[] | undefined) {
+  const raw = Array.isArray(value) ? value[0] : value
+  const normalized = String(raw ?? "").trim().toLowerCase()
+  return normalized || "all"
+}
+
+function numberOrNull(value: number | string | null | undefined) {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : null
+}
+
+function getIncomeDisplay(details: {
+  net_income_monthly?: number | null
+  additional_income_monthly?: number | null
+} | null | undefined) {
+  const netIncome = numberOrNull(details?.net_income_monthly)
+  const additionalIncome = numberOrNull(details?.additional_income_monthly)
+
+  if (netIncome === null && additionalIncome === null) {
+    return {
+      primary: "-",
+      secondary: "Keine Angabe",
+    }
+  }
+
+  if (netIncome !== null && additionalIncome !== null && additionalIncome !== 0) {
+    return {
+      primary: formatEuro(netIncome + additionalIncome),
+      secondary: `Netto ${formatEuro(netIncome)} + Zusatz ${formatEuro(additionalIncome)}`,
+    }
+  }
+
+  if (netIncome !== null) {
+    return {
+      primary: formatEuro(netIncome),
+      secondary: "Netto / Monat",
+    }
+  }
+
+  return {
+    primary: formatEuro(additionalIncome),
+    secondary: "Nur Zusatzeinkommen",
+  }
+}
+
+export default async function InsuranceDashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ caseStatus?: string | string[] }>
+}) {
   const { user, role } = await requireInsurance()
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
+  const selectedCaseStatus = normalizeFilterValue(resolvedSearchParams?.caseStatus)
   const admin = supabaseAdmin()
 
   const [profileResult, routesResult] = await Promise.all([
@@ -20,7 +132,7 @@ export default async function InsuranceDashboardPage() {
           .select("partner_code,company_name,display_name,photo_path,email,phone")
           .eq("user_id", user.id)
           .maybeSingle()
-      : Promise.resolve({ data: null as any }),
+      : Promise.resolve({ data: null as InsuranceProfile | null }),
     admin
       .from("case_insurance_routes")
       .select("*")
@@ -28,14 +140,8 @@ export default async function InsuranceDashboardPage() {
       .limit(300),
   ])
 
-  const profile = profileResult.data ?? null
-  const routes = (routesResult.data ?? []) as Array<{
-    case_id: string
-    route_source?: string | null
-    route_status?: string | null
-    routed_at?: string | null
-    updated_at?: string | null
-  }>
+  const profile = (profileResult.data ?? null) as InsuranceProfile | null
+  const routes = (routesResult.data ?? []) as InsuranceRouteRow[]
   const caseIds = Array.from(new Set(routes.map((route) => route.case_id).filter(Boolean)))
 
   const [caseRowsResult, applicantRowsResult, detailsRowsResult, documentRowsResult, invoiceRowsResult] = await Promise.all([
@@ -44,40 +150,48 @@ export default async function InsuranceDashboardPage() {
           .from("cases")
           .select("id,case_ref,status,created_at")
           .in("id", caseIds)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as CaseRow[] }),
     caseIds.length
       ? admin
           .from("case_applicants")
           .select("case_id,first_name,last_name,email,phone")
           .in("case_id", caseIds)
           .eq("role", "primary")
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as ApplicantRow[] }),
     caseIds.length
       ? admin
           .from("case_schufa_free_details")
-          .select("case_id,loan_amount_requested,term_months,completed_application_at,submitted_to_skag_at")
+          .select(
+            "case_id,loan_amount_requested,term_months,completed_application_at,submitted_to_skag_at,net_income_monthly,additional_income_monthly"
+          )
           .in("case_id", caseIds)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as InsuranceDashboardDetailsRow[] }),
     caseIds.length
       ? admin.from("documents").select("id,case_id").in("case_id", caseIds)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as DocumentRow[] }),
     caseIds.length
       ? admin
           .from("case_invoices")
           .select("id,case_id,invoice_type,invoice_number,created_at")
           .in("case_id", caseIds)
-      : Promise.resolve({ data: [] as any[] }),
+      : Promise.resolve({ data: [] as InvoiceRow[] }),
   ])
 
-  const caseById = new Map((caseRowsResult.data ?? []).map((row: any) => [row.id, row]))
-  const applicantByCaseId = new Map((applicantRowsResult.data ?? []).map((row: any) => [row.case_id, row]))
-  const detailsByCaseId = new Map((detailsRowsResult.data ?? []).map((row: any) => [row.case_id, row]))
+  const caseRows = (caseRowsResult.data ?? []) as CaseRow[]
+  const applicantRows = (applicantRowsResult.data ?? []) as ApplicantRow[]
+  const detailsRows = (detailsRowsResult.data ?? []) as InsuranceDashboardDetailsRow[]
+  const documentRows = (documentRowsResult.data ?? []) as DocumentRow[]
+  const invoiceRows = (invoiceRowsResult.data ?? []) as InvoiceRow[]
+
+  const caseById = new Map(caseRows.map((row) => [row.id, row] as const))
+  const applicantByCaseId = new Map(applicantRows.map((row) => [row.case_id, row] as const))
+  const detailsByCaseId = new Map(detailsRows.map((row) => [row.case_id, row] as const))
   const documentCountByCaseId = new Map<string, number>()
-  for (const row of documentRowsResult.data ?? []) {
+  for (const row of documentRows) {
     documentCountByCaseId.set(row.case_id, (documentCountByCaseId.get(row.case_id) ?? 0) + 1)
   }
-  const invoiceByCaseId = new Map<string, any>()
-  for (const row of invoiceRowsResult.data ?? []) {
+  const invoiceByCaseId = new Map<string, InvoiceRow>()
+  for (const row of invoiceRows) {
     if (isInsuranceInvoiceType(row.invoice_type) && !invoiceByCaseId.has(row.case_id)) {
       invoiceByCaseId.set(row.case_id, row)
     }
@@ -93,6 +207,17 @@ export default async function InsuranceDashboardPage() {
     const status = String(route.route_status ?? "").trim().toLowerCase()
     return status !== "completed" && status !== "rejected"
   }).length
+  const caseStatusOptions = Array.from(
+    new Set(
+      routes
+        .map((route) => String(caseById.get(route.case_id)?.status ?? "").trim().toLowerCase())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => translateCaseStatus(a).localeCompare(translateCaseStatus(b), "de"))
+  const filteredRoutes =
+    selectedCaseStatus === "all"
+      ? routes
+      : routes.filter((route) => String(caseById.get(route.case_id)?.status ?? "").trim().toLowerCase() === selectedCaseStatus)
 
   const avatarPath = String(profile?.photo_path ?? "").trim()
   const avatarUrl = avatarPath
@@ -179,12 +304,47 @@ export default async function InsuranceDashboardPage() {
             </p>
           </div>
           <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600">
-            {routes.length} Eintraege
+            {selectedCaseStatus === "all" ? `${filteredRoutes.length} Eintraege` : `${filteredRoutes.length} von ${routes.length} Eintraegen`}
           </div>
         </div>
 
+        <form method="get" className="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4">
+          <div className="min-w-[220px] flex-1">
+            <label htmlFor="insurance-case-status-filter" className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+              Beratungsstatus filtern
+            </label>
+            <select
+              id="insurance-case-status-filter"
+              name="caseStatus"
+              defaultValue={selectedCaseStatus}
+              className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+            >
+              <option value="all">Alle Beratungsstatus</option>
+              {caseStatusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {translateCaseStatus(status)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="submit"
+            className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm"
+          >
+            Filtern
+          </button>
+          {selectedCaseStatus !== "all" ? (
+            <Link
+              href="/versicherung"
+              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:border-slate-300"
+            >
+              Zuruecksetzen
+            </Link>
+          ) : null}
+        </form>
+
         <div className="grid gap-3 md:hidden">
-          {routes.map((route) => {
+          {filteredRoutes.map((route) => {
             const caseRow = caseById.get(route.case_id)
             const applicant = applicantByCaseId.get(route.case_id)
             const details = detailsByCaseId.get(route.case_id)
@@ -192,6 +352,8 @@ export default async function InsuranceDashboardPage() {
             const invoice = invoiceByCaseId.get(route.case_id)
             const customerName = [applicant?.first_name, applicant?.last_name].filter(Boolean).join(" ").trim() || "-"
             const loanAmount = Number(details?.loan_amount_requested ?? 0)
+            const caseStatusLabel = translateCaseStatus(caseRow?.status)
+            const income = getIncomeDisplay(details)
 
             return (
               <div key={route.case_id} className="rounded-3xl border border-slate-200/70 bg-slate-50/70 p-4">
@@ -199,6 +361,7 @@ export default async function InsuranceDashboardPage() {
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-slate-900">{caseRow?.case_ref ?? route.case_id.slice(0, 8)}</div>
                     <div className="mt-1 text-xs text-slate-500">{customerName}</div>
+                    <div className="mt-1 text-xs text-slate-500">{applicant?.phone ?? "-"}</div>
                   </div>
                   <span className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
                     {getInsuranceRouteStatusLabel(route.route_status)}
@@ -212,6 +375,16 @@ export default async function InsuranceDashboardPage() {
                       {loanAmount > 0 ? loanAmount.toLocaleString("de-DE") : "-"} EUR
                     </div>
                     <div className="mt-1 text-slate-500">{details?.term_months ?? "-"} Monate</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+                    <div className="uppercase tracking-[0.12em] text-slate-400">Einkommen</div>
+                    <div className="mt-1 font-medium text-slate-900">{income.primary}</div>
+                    <div className="mt-1 text-slate-500">{income.secondary}</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+                    <div className="uppercase tracking-[0.12em] text-slate-400">Beratung</div>
+                    <div className="mt-1 font-medium text-slate-900">{caseStatusLabel}</div>
+                    <div className="mt-1 text-slate-500">SEPANA-Fallstatus</div>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
                     <div className="uppercase tracking-[0.12em] text-slate-400">Unterlagen</div>
@@ -235,9 +408,11 @@ export default async function InsuranceDashboardPage() {
             )
           })}
 
-          {routes.length === 0 ? (
+          {filteredRoutes.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm text-slate-500">
-              Noch keine uebergebenen Faelle vorhanden.
+              {selectedCaseStatus === "all"
+                ? "Noch keine uebergebenen Faelle vorhanden."
+                : `Keine Faelle mit Beratungsstatus ${translateCaseStatus(selectedCaseStatus)} gefunden.`}
             </div>
           ) : null}
         </div>
@@ -248,20 +423,25 @@ export default async function InsuranceDashboardPage() {
               <tr className="border-b border-slate-200/70">
                 <th className="px-4 py-3 font-medium text-slate-700">Fall</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Kunde</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Status</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Telefon</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Versicherungsstatus</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Beratungsstatus</th>
+                <th className="px-4 py-3 font-medium text-slate-700">Einkommen</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Variante</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Dokumente</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Aktion</th>
               </tr>
             </thead>
             <tbody>
-              {routes.map((route) => {
+              {filteredRoutes.map((route) => {
                 const caseRow = caseById.get(route.case_id)
                 const applicant = applicantByCaseId.get(route.case_id)
                 const details = detailsByCaseId.get(route.case_id)
                 const documentCount = documentCountByCaseId.get(route.case_id) ?? 0
                 const invoice = invoiceByCaseId.get(route.case_id)
                 const customerName = [applicant?.first_name, applicant?.last_name].filter(Boolean).join(" ").trim() || "-"
+                const caseStatusLabel = translateCaseStatus(caseRow?.status)
+                const income = getIncomeDisplay(details)
                 return (
                   <tr key={route.case_id} className="border-b border-slate-200/60 align-top last:border-0 hover:bg-slate-50/60">
                     <td className="px-4 py-3">
@@ -274,7 +454,9 @@ export default async function InsuranceDashboardPage() {
                     <td className="px-4 py-3">
                       <div className="font-medium text-slate-900">{customerName}</div>
                       <div className="mt-1 text-xs text-slate-500">{applicant?.email ?? "-"}</div>
-                      <div className="text-xs text-slate-500">{applicant?.phone ?? "-"}</div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">
+                      <div className="font-medium text-slate-900">{applicant?.phone ?? "-"}</div>
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-800">
@@ -283,6 +465,14 @@ export default async function InsuranceDashboardPage() {
                       {invoice ? (
                         <div className="mt-2 text-xs text-cyan-700">Rechnung {invoice.invoice_number ?? invoice.id.slice(0, 8)}</div>
                       ) : null}
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">
+                      <div className="font-medium text-slate-900">{caseStatusLabel}</div>
+                      <div className="mt-1 text-xs text-slate-500">SEPANA-Fallstatus</div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">
+                      <div className="font-medium text-slate-900">{income.primary}</div>
+                      <div className="mt-1 text-xs text-slate-500">{income.secondary}</div>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
                       <div>{details?.loan_amount_requested?.toLocaleString("de-DE") ?? "-"} EUR</div>
@@ -306,10 +496,12 @@ export default async function InsuranceDashboardPage() {
                 )
               })}
 
-              {routes.length === 0 ? (
+              {filteredRoutes.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-500">
-                    Noch keine uebergebenen Faelle vorhanden.
+                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-500">
+                    {selectedCaseStatus === "all"
+                      ? "Noch keine uebergebenen Faelle vorhanden."
+                      : `Keine Faelle mit Beratungsstatus ${translateCaseStatus(selectedCaseStatus)} gefunden.`}
                   </td>
                 </tr>
               ) : null}
