@@ -110,7 +110,7 @@ const FAQ_ITEMS = [
   {
     question: "Warum gibt es die Serviceprovision und ist das Geld dann weg?",
     answer:
-      "Die Provisionsvereinbarung wird im weiteren Verlauf transparent ausgewiesen. Eine Vorauszahlung im ersten Schritt gibt es nicht. Fällig wird die Provisionszahlung erst nach Kreditauszahlung und nach Ablauf des 14-tägigen Widerrufsrechts.",
+      "Für die Begleitung des Kredits wird eine Servicepauschale in Höhe von 5 % der Kreditsumme zzgl. gesetzlicher MwSt. veranschlagt. Eine Vorauszahlung im ersten Schritt gibt es nicht. Fällig wird die Zahlung erst nach der Kreditauszahlung und nach Ablauf des 14-tägigen Widerrufsrechts.",
   },
   {
     question: "Welche Kreditsummen sind möglich?",

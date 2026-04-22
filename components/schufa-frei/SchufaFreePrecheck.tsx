@@ -5,6 +5,12 @@ import Link from "next/link"
 import { useEffect, useState, type InputHTMLAttributes } from "react"
 import { SCHUFA_FREE_FAMILY_OPTIONS } from "@/lib/schufa-frei/application"
 import {
+  SCHUFA_FREE_PROVISION_RATE,
+  calculateSchufaFreeProvisionNetAmount,
+  formatEuro,
+  formatPercent,
+} from "@/lib/schufa-frei/provisionInvoice"
+import {
   getSchufaFreeEmploymentMonthsSince,
   getSchufaFreeMonthlyRate,
   runSchufaFreePrecheck,
@@ -123,6 +129,7 @@ export default function SchufaFreePrecheck() {
   const termMonths = Number(form.termMonths)
   const childrenCount = Number(form.dependentChildrenCount)
   const monthlyRate = getSchufaFreeMonthlyRate(amount, termMonths)
+  const serviceFeeNetAmount = calculateSchufaFreeProvisionNetAmount(amount)
   const employmentMonthsCurrent = getSchufaFreeEmploymentMonthsSince(form.employmentStartDate)
   const liveCheck = runSchufaFreePrecheck(
     {
@@ -420,11 +427,11 @@ export default function SchufaFreePrecheck() {
                     Provisionsvereinbarung
                   </div>
                   <div className="mt-1 text-sm font-semibold text-slate-900">
-                    Vorschau direkt im ersten Formular einsehbar
+                    {formatPercent(SCHUFA_FREE_PROVISION_RATE)} Servicepauschale auf Ihre Kreditsumme
                   </div>
                   <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                    Die Provisionsvereinbarung bleibt Teil der ersten Stufe. Eine Vorauszahlung ist hier aber nicht
-                    fällig.
+                    Für die Begleitung Ihres Kredits wird eine Servicepauschale in Höhe von{" "}
+                    {formatPercent(SCHUFA_FREE_PROVISION_RATE)} der Kreditsumme zzgl. gesetzlicher MwSt. veranschlagt.
                   </p>
                 </div>
                 <button
@@ -432,12 +439,13 @@ export default function SchufaFreePrecheck() {
                   onClick={() => setShowProvisionPreview(true)}
                   className="inline-flex min-h-11 items-center justify-center rounded-[18px] border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-300"
                 >
-                  Vorschau öffnen
+                  Vereinbarung ansehen
                 </button>
               </div>
               <div className="mt-3 rounded-2xl border border-cyan-100 bg-white px-4 py-3 text-xs leading-relaxed text-slate-600">
-                Die Provisionszahlung wird erst nach der Kreditauszahlung und nach Ablauf des 14-tägigen
-                Widerrufsrechts fällig.
+                Bei Ihrer gewählten Kreditsumme von {formatEuro(amount)} entspricht das aktuell{" "}
+                {formatEuro(serviceFeeNetAmount)} zzgl. gesetzlicher MwSt. Fällig wird dieser Betrag erst nach der
+                Kreditauszahlung und erst nach Ablauf des 14-tägigen Widerrufsrechts.
               </div>
             </div>
 
@@ -452,14 +460,14 @@ export default function SchufaFreePrecheck() {
                 className={CHECKBOX_CLASS}
               />
               <span className="min-w-0 leading-relaxed">
-                Ich habe die Vorschau der Provisionsvereinbarung gelesen und bestätige, dass die Provisionszahlung
-                erst nach der Kreditauszahlung und nach Ablauf des 14-tägigen Widerrufsrechts fällig wird.
+                Ich habe die Provisionsvereinbarung gelesen und bestätige die Servicepauschale in Höhe von{" "}
+                {formatPercent(SCHUFA_FREE_PROVISION_RATE)} der Kreditsumme zzgl. gesetzlicher MwSt. Fällig wird sie
+                erst nach der Kreditauszahlung und erst nach Ablauf des 14-tägigen Widerrufsrechts.
               </span>
             </label>
 
             <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4 text-xs leading-relaxed text-slate-500">
-              Die konkrete Provisionsregelung wird im weiteren Verlauf in den Vertragsunterlagen ausgewiesen. Im ersten
-              Formular wird keine Vorauszahlung verlangt.
+              Vor der Auszahlung und innerhalb der Widerrufsfrist ist keine Zahlung von Ihnen zu leisten.
             </div>
 
             <div className="rounded-[22px] border border-cyan-200 bg-cyan-50/70 px-4 py-4">
@@ -613,27 +621,28 @@ export default function SchufaFreePrecheck() {
             aria-labelledby="schufa-provision-preview-title"
             className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-4 shadow-[0_30px_90px_rgba(15,23,42,0.32)] sm:rounded-[32px] sm:p-7"
           >
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-800">Vorschau</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-800">Provisionsvereinbarung</div>
             <h3 id="schufa-provision-preview-title" className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-              Provisionsvereinbarung
+              So wird Ihre Servicepauschale berechnet
             </h3>
             <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-700">
               <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
-                SEPANA begleitet Ihre Anfrage strukturiert bis zu den nächsten Schritten im Kreditprozess und weist die
-                Provisionsregelung transparent aus.
+                Für die Begleitung Ihres Kredits wird eine Servicepauschale in Höhe von{" "}
+                {formatPercent(SCHUFA_FREE_PROVISION_RATE)} der Kreditsumme zzgl. gesetzlicher MwSt. veranschlagt.
               </div>
               <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-4 py-4">
-                <div className="font-semibold text-slate-900">Fälligkeit</div>
+                <div className="font-semibold text-slate-900">Ihr aktueller Betrag</div>
                 <div className="mt-1">
-                  Die Provisionszahlung wird erst fällig, wenn der Kredit ausgezahlt wurde und das 14-tägige
-                  Widerrufsrecht vollständig abgelaufen ist.
+                  Bei Ihrer aktuell gewählten Kreditsumme von {formatEuro(amount)} ergibt sich daraus eine
+                  Servicepauschale von {formatEuro(serviceFeeNetAmount)} zzgl. gesetzlicher MwSt.
                 </div>
               </div>
               <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
-                Vor diesem Zeitpunkt ist keine Vorauszahlung im ersten Formular geschuldet.
+                Fällig wird dieser Betrag erst nach der Kreditauszahlung und erst nach Ablauf des 14-tägigen
+                Widerrufsrechts.
               </div>
               <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
-                Die konkrete Provisionsregelung wird im weiteren Verlauf in den Vertragsunterlagen ausgewiesen.
+                Vorher ist keine Vorauszahlung von Ihnen zu leisten.
               </div>
             </div>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -642,7 +651,7 @@ export default function SchufaFreePrecheck() {
                 onClick={() => setShowProvisionPreview(false)}
                 className={`${PRIMARY_BUTTON_CLASS} flex-1`}
               >
-                Vorschau schließen
+                Zurück zum Formular
               </button>
             </div>
           </div>
