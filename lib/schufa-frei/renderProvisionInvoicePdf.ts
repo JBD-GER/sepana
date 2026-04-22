@@ -253,7 +253,7 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
         ? "Diese Stornorechnung dokumentiert die Aufhebung der vorherigen Vorauszahlungsrechnung. Die Kreditanfrage wird damit nicht weiterbearbeitet."
         : "Diese Stornorechnung dokumentiert die Aufhebung der intern angelegten Servicepauschale. Die Kreditanfrage wird damit nicht weiterbearbeitet."
       : isInternalSchufaFreeProvisionInvoiceType(input.invoiceType)
-        ? "Diese Rechnung dokumentiert die intern angelegte Servicepauschale vor Vertragsunterzeichnung. Der Gesamtbetrag enthaelt 19 % MwSt."
+        ? "Diese Rechnung dokumentiert die intern angelegte Servicepauschale. Der Gesamtbetrag enthaelt 19 % MwSt. Die Faelligkeit entsteht erst nach bestaetigter Kreditauszahlung."
         : "Diese Rechnung betrifft eine Vorauszahlung auf die Serviceprovision. Der Ueberweisungsbetrag enthaelt 19 % MwSt. Der Vertragsversand erfolgt erst nach bestaetigtem Zahlungseingang.",
     40,
     cursorY,

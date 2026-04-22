@@ -133,8 +133,6 @@ export default function SchufaFreeWorkspaceOverview({
       ? 2
       : openRequiredCount > 0
         ? 3
-        : mode === "advisor" && !serviceFeePaid
-          ? 4
         : signatures.length === 0 || openSignatureCount > 0
           ? 4
           : !postidentCompleted
@@ -153,10 +151,6 @@ export default function SchufaFreeWorkspaceOverview({
         ? mode === "advisor"
           ? "Fordern Sie fehlende Unterlagen an oder pruefen Sie neue Uploads im Dokumentenbereich."
           : "Lade die noch fehlenden Unterlagen hoch, damit der Fall weiterbearbeitet werden kann."
-        : mode === "advisor" && !serviceFeePaid
-          ? serviceFeeCreated
-            ? "Die Servicepauschale ist angelegt. Bestaetigen Sie jetzt den Zahlungseingang, bevor der Vertrag freigegeben wird."
-            : "Legen Sie jetzt die interne Servicepauschale an. Erst danach darf der Vertrag in die Signatur."
         : signatures.length === 0
           ? mode === "advisor"
             ? "Laden Sie jetzt den Kreditvertrag hoch und starten Sie den Signaturprozess."
@@ -173,6 +167,10 @@ export default function SchufaFreeWorkspaceOverview({
                 : postidentLinkReady
                   ? "Dein PostIdent-Link ist bereit. Oeffne den Link unten im Dashboard und schliesse den Schritt ab."
                   : "Dein Vertrag ist abgeschlossen. Als Naechstes hinterlegen wir hier deinen PostIdent-Link."
+              : mode === "advisor" && payoutReached && !serviceFeePaid
+                ? serviceFeeCreated
+                  ? "Die Auszahlung ist bestaetigt. Verwalten Sie jetzt die Servicepauschale im Fall."
+                  : "Die Auszahlung ist bestaetigt. Legen Sie jetzt die interne Servicepauschale im Fall an."
               : payoutReached
                 ? "Die Auszahlung wurde bestaetigt. Alle wesentlichen Schritte sind abgeschlossen."
                 : mode === "advisor"
@@ -203,23 +201,19 @@ export default function SchufaFreeWorkspaceOverview({
     },
     {
       number: 4,
-      title: mode === "advisor" && !serviceFeePaid ? "Servicepauschale" : "Vertrag",
+      title: "Vertrag",
       text:
         caseCancelled
           ? "Nicht mehr relevant"
-          : mode === "advisor" && !serviceFeePaid
-            ? serviceFeeCreated
-              ? getSchufaFreeProvisionStatusLabel(serviceFeeStatus, invoice?.invoice_type)
-              : "Noch nicht angelegt"
-            : signatures.length > 0
-              ? `${completedSignatureCount}/${signatures.length} Signaturvorgaenge abgeschlossen`
-              : mode === "advisor"
-                ? "Kreditvertrag noch nicht angelegt"
-                : "Vertrag wird vorbereitet",
+          : signatures.length > 0
+            ? `${completedSignatureCount}/${signatures.length} Signaturvorgaenge abgeschlossen`
+            : mode === "advisor"
+              ? "Kreditvertrag noch nicht angelegt"
+              : "Vertrag wird vorbereitet",
       state: stepState(
         currentStep,
         4,
-        mode === "advisor" ? !caseCancelled && serviceFeePaid : !caseCancelled && signatures.length > 0 && openSignatureCount === 0
+        !caseCancelled && signatures.length > 0 && openSignatureCount === 0
       ),
     },
     {
@@ -258,7 +252,7 @@ export default function SchufaFreeWorkspaceOverview({
               : serviceFeeCreated
                 ? getSchufaFreeProvisionStatusLabel(serviceFeeStatus, invoice?.invoice_type)
                 : "Noch offen",
-            hint: "",
+            hint: payoutReached ? "Faellig nach Auszahlung" : "Kein Blocker fuer Vertrag und Signatur",
           },
           {
             label: "Vertrag / Signatur",

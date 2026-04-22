@@ -151,11 +151,12 @@ export default function SchufaFreeServiceFeePanel({
         <div className="space-y-4">
           <div>
             <div className="text-sm font-semibold text-slate-900">
-              {isCancelled ? "Servicepauschale storniert" : "Servicepauschale intern vor Vertrag anlegen"}
+              {isCancelled ? "Servicepauschale storniert" : "Servicepauschale intern verwalten"}
             </div>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Der Berater erfasst hier den Bruttobetrag inklusive MwSt. Die Rechnung wird nur intern im Backend angelegt.
-              Der Kunde erhaelt dazu keine automatische Benachrichtigung.
+              Der Berater erfasst hier den Bruttobetrag inklusive MwSt. Die Rechnung wird nur intern im Backend
+              angelegt. Sie ist kein Blocker fuer Vertrag und Signatur; die Faelligkeit entsteht erst nach
+              Kreditauszahlung. Der Kunde erhaelt dazu keine automatische Benachrichtigung.
             </p>
           </div>
 
@@ -290,7 +291,7 @@ export default function SchufaFreeServiceFeePanel({
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Storno</div>
             <div className="mt-2 space-y-2 text-xs leading-relaxed text-slate-600">
               <div>Die Stornierung bleibt im Admin verfuegbar.</div>
-              <div>Wird eine Rechnung storniert, ist der Vertrag fuer diesen Fall nicht mehr freizugeben.</div>
+              <div>Die Stornierung betrifft nur die interne Servicepauschale und sperrt den Vertragsbereich nicht.</div>
               <div>Stornorechnung: {cancellationInvoiceNumber ?? "-"}</div>
             </div>
           </div>

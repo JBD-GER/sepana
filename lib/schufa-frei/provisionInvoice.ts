@@ -201,7 +201,8 @@ export function getSchufaFreeProvisionRefundLines() {
 
 export function getSchufaFreeServiceFeeInfoLines() {
   return [
-    "Die Servicepauschale wird intern vor Vertragsunterzeichnung im Fall angelegt.",
+    "Die Servicepauschale wird intern im Fall angelegt und ist kein Blocker fuer Vertrag oder Signatur.",
+    "Die Faelligkeit der Servicepauschale entsteht erst nach bestaetigter Kreditauszahlung.",
     "Der eingegebene Gesamtbetrag enthaelt 19 % MwSt. und wird nicht automatisch an den Kunden kommuniziert.",
   ]
 }

@@ -454,27 +454,38 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     null
   const serviceFeeInvoice = schufaData?.invoice ?? null
   const serviceFeePaid = isSchufaFreeProvisionPaid(serviceFeeInvoice?.status ?? null)
+  const serviceFeeCreated = Boolean(serviceFeeInvoice?.id)
+  const normalizedSkagStatus = String(schufaData?.sync?.last_status_alias ?? schufaData?.pushEvents?.[0]?.status_alias ?? "")
+    .trim()
+    .toLowerCase()
+  const payoutReached =
+    normalizedSkagStatus === "credit_payout" || String(c.status ?? "").trim().toLowerCase() === "completed"
+  const postidentLinkReady = Boolean(String(schufaData?.sync?.postident_url ?? "").trim())
   const documentCount = (data.documents ?? []).length
   const requestCount = (data.document_requests ?? []).length
   const requestedVariant = `${formatEUR(schufaData?.details?.loan_amount_requested ?? null)} / ${schufaData?.details?.term_months ?? "-"} Monate`
-  const advisorFocus = !serviceFeeInvoice?.id
-    ? "Servicepauschale anlegen"
-    : !serviceFeePaid
-      ? "Zahlung pruefen"
-      : signatureItems.length === 0
-        ? "Vertrag vorbereiten"
-        : !String(schufaData?.sync?.postident_url ?? "").trim()
-          ? "PostIdent hinterlegen"
-          : "Auszahlung beobachten"
-  const advisorFocusHint = !serviceFeeInvoice?.id
-    ? "Vor Vertrag und Signatur muss die interne Servicepauschale angelegt werden."
-    : !serviceFeePaid
-      ? "Der Vertragsbereich bleibt gesperrt, bis der Zahlungseingang bestaetigt ist."
-      : signatureItems.length === 0
-        ? "Sobald der Vertrag angelegt ist, kann der Signaturprozess starten."
-        : !String(schufaData?.sync?.postident_url ?? "").trim()
-          ? "Nach dem Vertrag fehlt als Naechstes noch der PostIdent-Link."
-          : "Die operativen Schritte sind angelegt, jetzt den SEPANA-Status weiter verfolgen."
+  const advisorFocus = signatureItems.length === 0
+    ? "Vertrag vorbereiten"
+    : !postidentLinkReady
+      ? "PostIdent hinterlegen"
+      : !payoutReached
+        ? "Auszahlung beobachten"
+        : !serviceFeeCreated
+          ? "Servicepauschale anlegen"
+          : !serviceFeePaid
+            ? "Servicepauschale nachhalten"
+            : "Fall abschliessen"
+  const advisorFocusHint = signatureItems.length === 0
+    ? "Der Vertragsbereich ist freigeschaltet. Laden Sie jetzt den Kreditvertrag hoch und starten Sie den Signaturprozess."
+    : !postidentLinkReady
+      ? "Nach dem Vertrag fehlt als Naechstes noch der PostIdent-Link."
+      : !payoutReached
+        ? "Die operativen Schritte sind angelegt, jetzt den SEPANA-Status bis zur Kreditauszahlung weiter verfolgen."
+        : !serviceFeeCreated
+          ? "Die Kreditauszahlung ist bestaetigt. Legen Sie jetzt die interne Servicepauschale im Fall an."
+          : !serviceFeePaid
+            ? "Die Servicepauschale ist jetzt faellig und kann im Fall intern als bezahlt nachgehalten werden."
+            : "Vertrag, Auszahlung und Servicepauschale sind sauber dokumentiert."
 
   if (isSchufaFree) {
     return (
@@ -667,8 +678,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           <section id="schufa-servicepauschale" className="space-y-3">
             <SchufaFreeIntroCard
               eyebrow="Servicepauschale"
-              title="Interne Rechnung vor Vertrag anlegen"
-              description="Der Berater hinterlegt hier die Servicepauschale mit manuellem Bruttobetrag inklusive MwSt. Die Rechnung wird nur intern angelegt und nicht automatisch an den Kunden versendet."
+              title="Interne Servicepauschale verwalten"
+              description="Der Berater hinterlegt hier die interne Servicepauschale mit manuellem Bruttobetrag inklusive MwSt. Sie blockiert Vertrag und Signatur nicht und wird erst nach Kreditauszahlung faellig."
               tone="cyan"
             />
             <SchufaFreeServiceFeePanel
@@ -685,28 +696,20 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
               description="Laden Sie hier den finalen Kreditvertrag hoch, setzen Sie Berater- und Kundenfelder und starten Sie den Signaturprozess direkt aus dem Fall."
               tone="emerald"
             />
-            {!serviceFeePaid ? (
+            {bankCaseDocuments.length > 0 ? (
               <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 shadow-sm">
-                Der Vertragsbereich bleibt gesperrt, bis die Servicepauschale im Fall als bezahlt markiert wurde.
+                Es liegen bereits importierte Bankdokumente im Fall vor. Pruefen Sie, ob der Kreditvertrag davon in
+                den Signaturbereich uebernommen werden soll.
               </div>
-            ) : (
-              <>
-                {bankCaseDocuments.length > 0 ? (
-                  <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 shadow-sm">
-                    Es liegen bereits importierte Bankdokumente im Fall vor. Pruefen Sie, ob der Kreditvertrag davon
-                    in den Signaturbereich uebernommen werden soll.
-                  </div>
-                ) : null}
-                <SignaturePanel
-                  caseId={c.id}
-                  canEdit
-                  fixedProviderName="SIGMA Kreditbank AG"
-                  providerProduct="konsum"
-                  advisorSignedDocumentActionLabel="An SKAG uebermitteln"
-                  skagDocumentStatuses={schufaData?.skagDocuments ?? []}
-                />
-              </>
-            )}
+            ) : null}
+            <SignaturePanel
+              caseId={c.id}
+              canEdit
+              fixedProviderName="SIGMA Kreditbank AG"
+              providerProduct="konsum"
+              advisorSignedDocumentActionLabel="An SKAG uebermitteln"
+              skagDocumentStatuses={schufaData?.skagDocuments ?? []}
+            />
           </section>
 
           <section id="schufa-postident" className="space-y-3">
