@@ -110,7 +110,7 @@ const FAQ_ITEMS = [
   {
     question: "Warum gibt es die Serviceprovision und ist das Geld dann weg?",
     answer:
-      "Die Serviceprovision wird im weiteren Verlauf direkt im Kreditvertrag geregelt. Eine separate Vorauszahlung vorab gibt es in dieser Strecke nicht.",
+      "Die Provisionsvereinbarung wird im weiteren Verlauf transparent ausgewiesen. Eine Vorauszahlung im ersten Schritt gibt es nicht. Fällig wird die Provisionszahlung erst nach Kreditauszahlung und nach Ablauf des 14-tägigen Widerrufsrechts.",
   },
   {
     question: "Welche Kreditsummen sind möglich?",

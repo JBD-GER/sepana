@@ -470,14 +470,14 @@ export default function SchufaFreeApplicationClient({
       const uploadedDocumentCount = Number(json?.uploadedDocumentCount ?? 0)
       const successParts = ["Ihr Antrag ist sicher bei SEPANA eingegangen."]
       if (form.ratenschutzOptIn) {
-        successParts.push("Der Wunsch nach Ratenschutz wurde fuer den Fall vorgemerkt.")
+        successParts.push("Der Wunsch nach Ratenschutz wurde für den Fall vorgemerkt.")
       }
       if (uploadedDocumentCount > 0) {
         successParts.push(
           `${uploadedDocumentCount} Dokument${uploadedDocumentCount === 1 ? "" : "e"} wurde${uploadedDocumentCount === 1 ? "" : "n"} direkt weitergeleitet.`
         )
       }
-      successParts.push("Status und Upload-Bereich werden jetzt fuer Sie geladen.")
+      successParts.push("Status und Upload-Bereich werden jetzt für Sie geladen.")
       const successText = successParts.join(" ")
       if (typeof window !== "undefined") {
         try {
@@ -486,7 +486,7 @@ export default function SchufaFreeApplicationClient({
           // ignore storage edge cases
         }
       }
-      setFeedback({ tone: "success", title: "Antrag erfolgreich uebermittelt", text: successText })
+      setFeedback({ tone: "success", title: "Antrag erfolgreich übermittelt", text: successText })
       window.setTimeout(() => window.location.reload(), 2200)
     } catch (error) {
       setFeedback({ tone: "error", text: error instanceof Error ? error.message : "Serverfehler" })
@@ -542,7 +542,7 @@ export default function SchufaFreeApplicationClient({
               </div>
               <div className="min-w-0">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">Status aktualisiert</div>
-                <div className="mt-1 text-lg font-semibold text-slate-900">{feedback.title ?? "Antrag erfolgreich uebermittelt"}</div>
+                <div className="mt-1 text-lg font-semibold text-slate-900">{feedback.title ?? "Antrag erfolgreich übermittelt"}</div>
                 <div className="mt-2 text-sm leading-relaxed text-slate-700">{feedback.text}</div>
               </div>
             </div>

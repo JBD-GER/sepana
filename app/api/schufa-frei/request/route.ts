@@ -173,6 +173,7 @@ export async function POST(req: Request) {
     const employmentStartDate = trimOrNull(body?.employmentStartDate)
     const netIncomeMonthly = parseAmount(body?.netIncomeMonthly)
     const acceptsPrivacyPolicy = Boolean(body?.acceptsPrivacyPolicy)
+    const acceptsProvisionAgreement = Boolean(body?.acceptsProvisionAgreement)
     const deferCustomerInvite = Boolean(body?.deferCustomerInvite)
 
     if (!firstName || !lastName || !email || !phone) {
@@ -189,6 +190,9 @@ export async function POST(req: Request) {
     }
     if (!acceptsPrivacyPolicy) {
       return NextResponse.json({ ok: false, error: "Bitte Datenschutz bestaetigen." }, { status: 400 })
+    }
+    if (!acceptsProvisionAgreement) {
+      return NextResponse.json({ ok: false, error: "Bitte Provisionsvereinbarung bestaetigen." }, { status: 400 })
     }
     const employmentMonthsCurrent = getSchufaFreeEmploymentMonthsSince(employmentStartDate)
     if (employmentMonthsCurrent === null) {
@@ -235,6 +239,7 @@ export async function POST(req: Request) {
         : null,
       precheck.employmentRequirementText,
       precheck.incomeCheckPending ? "Einkommen: wird erst im Vollantrag erfasst" : null,
+      "Provisionsvereinbarung in der Vorprüfung bestätigt: ja",
       precheck.reason ? `Begruendung: ${precheck.reason}` : null,
     ]
       .filter(Boolean)
@@ -278,6 +283,7 @@ export async function POST(req: Request) {
         precheck_reason: precheck.reason,
         precheck_income_pending: precheck.incomeCheckPending,
         privacy_accepted: acceptsPrivacyPolicy,
+        provision_agreement_accepted: acceptsProvisionAgreement,
       },
     }
 

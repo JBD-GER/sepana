@@ -37,17 +37,17 @@ const ADVISOR_TEAM = [
   {
     name: "Hr. Wagner",
     role: "Kreditexperte",
-    focus: "Finanzierungspruefung und Begleitung",
+    focus: "Finanzierungsprüfung und Begleitung",
     imageSrc: "/wagner.png",
     imageAlt: "Herr Wagner",
     imagePosition: "center 16%",
   },
   {
-    name: "Fr. Mueller",
+    name: "Fr. Müller",
     role: "Kreditexpertin",
-    focus: "Privatkredit und schnelle Rueckmeldung",
+    focus: "Privatkredit und schnelle Rückmeldung",
     imageSrc: "/mueller.png",
-    imageAlt: "Frau Mueller",
+    imageAlt: "Frau Müller",
     imagePosition: "center 14%",
   },
 ] as const
@@ -112,10 +112,12 @@ export default function SchufaFreePrecheck() {
     employmentMode: "salary",
     employmentStartDate: "",
     acceptsPrivacyPolicy: false,
+    acceptsProvisionAgreement: false,
   })
   const [busy, setBusy] = useState(false)
   const [resultModal, setResultModal] = useState<ResultModalState | null>(null)
-  const [privacyError, setPrivacyError] = useState<string | null>(null)
+  const [consentError, setConsentError] = useState<string | null>(null)
+  const [showProvisionPreview, setShowProvisionPreview] = useState(false)
 
   const amount = Number(form.desiredAmount)
   const termMonths = Number(form.termMonths)
@@ -137,7 +139,7 @@ export default function SchufaFreePrecheck() {
   )
 
   useEffect(() => {
-    if (!busy && !resultModal) return
+    if (!busy && !resultModal && !showProvisionPreview) return
 
     const previousBodyOverflow = document.body.style.overflow
     const previousHtmlOverflow = document.documentElement.style.overflow
@@ -148,17 +150,22 @@ export default function SchufaFreePrecheck() {
       document.body.style.overflow = previousBodyOverflow
       document.documentElement.style.overflow = previousHtmlOverflow
     }
-  }, [busy, resultModal])
+  }, [busy, resultModal, showProvisionPreview])
 
   async function submit() {
-    if (!form.acceptsPrivacyPolicy) {
-      setPrivacyError("Bitte bestaetigen Sie zuerst den Datenschutz.")
+    const missingConsents = [
+      !form.acceptsPrivacyPolicy ? "den Datenschutz" : null,
+      !form.acceptsProvisionAgreement ? "die Provisionsvereinbarung" : null,
+    ].filter(Boolean)
+
+    if (missingConsents.length) {
+      setConsentError(`Bitte bestätigen Sie zuerst ${missingConsents.join(" und ")}.`)
       return
     }
 
     setBusy(true)
     setResultModal(null)
-    setPrivacyError(null)
+    setConsentError(null)
 
     const minimumDelay = new Promise((resolve) => window.setTimeout(resolve, 3000))
 
@@ -172,6 +179,7 @@ export default function SchufaFreePrecheck() {
           termMonths: Number(form.termMonths),
           dependentChildrenCount: Number(form.dependentChildrenCount),
           acceptsPrivacyPolicy: form.acceptsPrivacyPolicy,
+          acceptsProvisionAgreement: form.acceptsProvisionAgreement,
         }),
       })
 
@@ -184,8 +192,8 @@ export default function SchufaFreePrecheck() {
         const rejected = response.status === 422
         setResultModal({
           tone: rejected ? "rejected" : "error",
-          title: rejected ? "Erste Vorpruefung aktuell nicht positiv" : "Pruefung konnte nicht abgeschlossen werden",
-          description: String(json.error ?? "Die Vorpruefung konnte nicht abgeschlossen werden."),
+          title: rejected ? "Erste Vorprüfung aktuell nicht positiv" : "Prüfung konnte nicht abgeschlossen werden",
+          description: String(json.error ?? "Die Vorprüfung konnte nicht abgeschlossen werden."),
           actionLabel: "Daten anpassen",
           precheck,
         })
@@ -194,15 +202,15 @@ export default function SchufaFreePrecheck() {
 
       const applicationHref = String(json.applicationHref ?? "").trim()
       if (!applicationHref) {
-        throw new Error("Die Vorpruefung war positiv, aber der naechste Schritt konnte nicht erzeugt werden.")
+        throw new Error("Die Vorprüfung war positiv, aber der nächste Schritt konnte nicht erzeugt werden.")
       }
 
       setResultModal({
         tone: "success",
-        title: "Erste Vorpruefung positiv",
+        title: "Erste Vorprüfung positiv",
         description:
-          "Ihre Eckdaten passen fuer den naechsten Schritt. Sie koennen den vollstaendigen Antrag jetzt direkt ohne Neustart fortsetzen.",
-        actionLabel: "Vollstaendigen Antrag starten",
+          "Ihre Eckdaten passen für den nächsten Schritt. Sie können den vollständigen Antrag jetzt direkt ohne Neustart fortsetzen.",
+        actionLabel: "Vollständigen Antrag starten",
         applicationHref,
         precheck,
       })
@@ -210,7 +218,7 @@ export default function SchufaFreePrecheck() {
       await minimumDelay
       setResultModal({
         tone: "error",
-        title: "Pruefung konnte nicht abgeschlossen werden",
+        title: "Prüfung konnte nicht abgeschlossen werden",
         description: requestError instanceof Error ? requestError.message : "Serverfehler",
         actionLabel: "Daten anpassen",
         precheck: null,
@@ -233,13 +241,13 @@ export default function SchufaFreePrecheck() {
         <section className="rounded-[28px] border border-slate-200/70 bg-white p-4 shadow-sm sm:rounded-[34px] sm:p-7">
           <div className="max-w-3xl">
             <div className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-800">
-              Diskrete Vorpruefung
+              Diskrete Vorprüfung
             </div>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-              Kredit ohne Schufa diskret vorpruefen
+              Kredit ohne Schufa diskret vorprüfen
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-slate-600">
-              Sie starten mit den wichtigsten Eckdaten und erhalten direkt eine erste Einschaetzung zu Ihrer Variante.
+              Sie starten mit den wichtigsten Eckdaten und erhalten direkt eine erste Einschätzung zu Ihrer Variante.
             </p>
           </div>
 
@@ -348,19 +356,19 @@ export default function SchufaFreePrecheck() {
               </select>
             </label>
             <label className="min-w-0 text-sm text-slate-700">
-              Staatsangehoerigkeit
+              Staatsangehörigkeit
               <select
                 value={form.nationalityGroup}
                 onChange={(event) => setForm((current) => ({ ...current, nationalityGroup: event.target.value }))}
                 className={FIELD_CLASS}
               >
-                <option value="de">DE-Buerger</option>
-                <option value="eu_ch">CH- / EU-Buerger</option>
+                <option value="de">DE-Bürger</option>
+                <option value="eu_ch">CH- / EU-Bürger</option>
                 <option value="other">Andere</option>
               </select>
             </label>
             <label className="min-w-0 text-sm text-slate-700">
-              Beschaeftigungsart
+              Beschäftigungsart
               <select
                 value={form.employmentMode}
                 onChange={(event) => setForm((current) => ({ ...current, employmentMode: event.target.value }))}
@@ -387,26 +395,71 @@ export default function SchufaFreePrecheck() {
                 checked={form.acceptsPrivacyPolicy}
                 onChange={(event) => {
                   setForm((current) => ({ ...current, acceptsPrivacyPolicy: event.target.checked }))
-                  setPrivacyError(null)
+                  setConsentError(null)
                 }}
                 className={CHECKBOX_CLASS}
               />
               <span className="min-w-0 leading-relaxed">
-                Ich stimme der Verarbeitung meiner Angaben gemaess{" "}
+                Ich stimme der Verarbeitung meiner Angaben gemäß{" "}
                 <Link
                   href="/datenschutz"
                   target="_blank"
                   rel="noreferrer"
                   className="font-semibold text-slate-900 underline underline-offset-2"
                 >
-                  Datenschutzerklaerung
+                  Datenschutzerklärung
                 </Link>{" "}
                 zu.
               </span>
             </label>
 
+            <div className="rounded-[22px] border border-cyan-200 bg-[linear-gradient(180deg,rgba(236,254,255,0.95),rgba(255,255,255,0.98))] px-4 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-800">
+                    Provisionsvereinbarung
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">
+                    Vorschau direkt im ersten Formular einsehbar
+                  </div>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                    Die Provisionsvereinbarung bleibt Teil der ersten Stufe. Eine Vorauszahlung ist hier aber nicht
+                    fällig.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowProvisionPreview(true)}
+                  className="inline-flex min-h-11 items-center justify-center rounded-[18px] border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-300"
+                >
+                  Vorschau öffnen
+                </button>
+              </div>
+              <div className="mt-3 rounded-2xl border border-cyan-100 bg-white px-4 py-3 text-xs leading-relaxed text-slate-600">
+                Die Provisionszahlung wird erst nach der Kreditauszahlung und nach Ablauf des 14-tägigen
+                Widerrufsrechts fällig.
+              </div>
+            </div>
+
+            <label className="flex items-start gap-3 rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 shadow-sm">
+              <input
+                type="checkbox"
+                checked={form.acceptsProvisionAgreement}
+                onChange={(event) => {
+                  setForm((current) => ({ ...current, acceptsProvisionAgreement: event.target.checked }))
+                  setConsentError(null)
+                }}
+                className={CHECKBOX_CLASS}
+              />
+              <span className="min-w-0 leading-relaxed">
+                Ich habe die Vorschau der Provisionsvereinbarung gelesen und bestätige, dass die Provisionszahlung
+                erst nach der Kreditauszahlung und nach Ablauf des 14-tägigen Widerrufsrechts fällig wird.
+              </span>
+            </label>
+
             <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4 text-xs leading-relaxed text-slate-500">
-              Die Provision wird im spaeteren Kreditvertrag geregelt. Vorab ist keine separate Vorauszahlung erforderlich.
+              Die konkrete Provisionsregelung wird im weiteren Verlauf in den Vertragsunterlagen ausgewiesen. Im ersten
+              Formular wird keine Vorauszahlung verlangt.
             </div>
 
             <div className="rounded-[22px] border border-cyan-200 bg-cyan-50/70 px-4 py-4">
@@ -431,9 +484,9 @@ export default function SchufaFreePrecheck() {
               </div>
             </div>
 
-            {privacyError ? (
+            {consentError ? (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-                {privacyError}
+                {consentError}
               </div>
             ) : null}
           </div>
@@ -445,14 +498,14 @@ export default function SchufaFreePrecheck() {
               disabled={busy}
               className={PRIMARY_BUTTON_CLASS}
             >
-              {busy ? "Vorpruefung laeuft..." : "Erste Vorpruefung starten"}
+              {busy ? "Vorprüfung läuft..." : "Erste Vorprüfung starten"}
             </button>
           </div>
         </section>
 
         <div className="space-y-5">
           <section className="rounded-[28px] border border-slate-200/70 bg-white p-4 shadow-sm sm:p-6">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Live-Einschaetzung</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Live-Einschätzung</div>
             <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
               So sieht Ihre aktuelle Variante aus
             </h3>
@@ -464,9 +517,9 @@ export default function SchufaFreePrecheck() {
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <div className="text-xs text-slate-500">Naechster Schritt</div>
+                <div className="text-xs text-slate-500">Nächster Schritt</div>
                 <div className="mt-1 text-sm font-semibold text-slate-900">
-                  Bei passender Vorpruefung direkt weiter in den vollstaendigen Antrag.
+                  Bei passender Vorprüfung direkt weiter in den vollständigen Antrag.
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -476,7 +529,7 @@ export default function SchufaFreePrecheck() {
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <div className="text-xs text-slate-500">Berechnete Beschaeftigungsdauer</div>
+                <div className="text-xs text-slate-500">Berechnete Beschäftigungsdauer</div>
                 <div className="mt-1 text-sm font-semibold text-slate-900">
                   {employmentMonthsCurrent == null ? "-" : `${employmentMonthsCurrent} Monate`}
                 </div>
@@ -491,8 +544,8 @@ export default function SchufaFreePrecheck() {
               }`}
             >
               {liveCheck.eligible
-                ? "Die Eckdaten passen grundsaetzlich. Sie koennen direkt mit dem naechsten Schritt fortfahren."
-                : liveCheck.reason ?? "Die aktuelle Auswahl passt noch nicht vollstaendig zur Strecke."}
+                ? "Die Eckdaten passen grundsätzlich. Sie können direkt mit dem nächsten Schritt fortfahren."
+                : liveCheck.reason ?? "Die aktuelle Auswahl passt noch nicht vollständig zur Strecke."}
             </div>
           </section>
 
@@ -502,7 +555,7 @@ export default function SchufaFreePrecheck() {
               Ihre Kreditexperten bei SEPANA
             </h3>
             <p className="mt-3 text-sm leading-7 text-slate-600">
-              Keine anonyme Strecke: Unser Team begleitet Ihre Anfrage strukturiert und persoenlich bis zur naechsten klaren Entscheidung.
+              Keine anonyme Strecke: Unser Team begleitet Ihre Anfrage strukturiert und persönlich bis zur nächsten klaren Entscheidung.
             </p>
 
             <div className="mt-5 grid gap-3 lg:grid-cols-3">
@@ -538,7 +591,7 @@ export default function SchufaFreePrecheck() {
                       <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-700">
                         OK
                       </span>
-                      Persoenliche Begleitung statt Standardstrecke
+                      Persönliche Begleitung statt Standardstrecke
                     </div>
                   </div>
                 </article>
@@ -546,11 +599,55 @@ export default function SchufaFreePrecheck() {
             </div>
 
             <div className="mt-4 rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm leading-7 text-emerald-900">
-              Sie starten digital, werden aber nicht allein gelassen. Genau dafuer ist diese Strecke bewusst persoenlich aufgebaut.
+              Sie starten digital, werden aber nicht allein gelassen. Genau dafür ist diese Strecke bewusst persönlich aufgebaut.
             </div>
           </section>
         </div>
       </div>
+
+      {showProvisionPreview ? (
+        <div className="fixed inset-0 z-[92] flex items-end justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="schufa-provision-preview-title"
+            className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-4 shadow-[0_30px_90px_rgba(15,23,42,0.32)] sm:rounded-[32px] sm:p-7"
+          >
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-800">Vorschau</div>
+            <h3 id="schufa-provision-preview-title" className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+              Provisionsvereinbarung
+            </h3>
+            <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-700">
+              <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
+                SEPANA begleitet Ihre Anfrage strukturiert bis zu den nächsten Schritten im Kreditprozess und weist die
+                Provisionsregelung transparent aus.
+              </div>
+              <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-4 py-4">
+                <div className="font-semibold text-slate-900">Fälligkeit</div>
+                <div className="mt-1">
+                  Die Provisionszahlung wird erst fällig, wenn der Kredit ausgezahlt wurde und das 14-tägige
+                  Widerrufsrecht vollständig abgelaufen ist.
+                </div>
+              </div>
+              <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
+                Vor diesem Zeitpunkt ist keine Vorauszahlung im ersten Formular geschuldet.
+              </div>
+              <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
+                Die konkrete Provisionsregelung wird im weiteren Verlauf in den Vertragsunterlagen ausgewiesen.
+              </div>
+            </div>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setShowProvisionPreview(false)}
+                className={`${PRIMARY_BUTTON_CLASS} flex-1`}
+              >
+                Vorschau schließen
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {busy ? (
         <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/72 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4">
@@ -558,12 +655,12 @@ export default function SchufaFreePrecheck() {
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/5">
               <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/20 border-t-emerald-300" />
             </div>
-            <div className="mt-6 text-center text-2xl font-semibold tracking-tight">Wir pruefen Ihre Eckdaten</div>
+            <div className="mt-6 text-center text-2xl font-semibold tracking-tight">Wir prüfen Ihre Eckdaten</div>
             <p className="mt-3 text-center text-sm leading-relaxed text-slate-200">
-              Einen Moment bitte. Die erste Vorpruefung laeuft und das Ergebnis wird anschliessend direkt eingeblendet.
+              Einen Moment bitte. Die erste Vorprüfung läuft und das Ergebnis wird anschließend direkt eingeblendet.
             </p>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              {["Kontakt wird vorbereitet", "Variante wird geprueft", "Naechster Schritt wird geladen"].map((item) => (
+              {["Kontakt wird vorbereitet", "Variante wird geprüft", "Nächster Schritt wird geladen"].map((item) => (
                 <div
                   key={item}
                   className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-slate-200"
@@ -586,9 +683,9 @@ export default function SchufaFreePrecheck() {
           >
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
               {resultModal.tone === "success"
-                ? "Erste Vorpruefung positiv"
+                ? "Erste Vorprüfung positiv"
                 : resultModal.tone === "rejected"
-                  ? "Erste Vorpruefung negativ"
+                  ? "Erste Vorprüfung negativ"
                   : "Technischer Hinweis"}
             </div>
             <h3 id="schufa-precheck-result-title" className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
@@ -604,20 +701,20 @@ export default function SchufaFreePrecheck() {
                   </div>
                   <div className="min-w-0">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
-                      Naechster Schritt freigeschaltet
+                      Nächster Schritt freigeschaltet
                     </div>
                     <div className="mt-1 text-lg font-semibold text-slate-900">
-                      Der vollstaendige Antrag ist jetzt direkt fuer Sie bereit.
+                      Der vollständige Antrag ist jetzt direkt für Sie bereit.
                     </div>
                     <div className="mt-2 text-sm leading-relaxed text-slate-700">
-                      Sie muessen nichts neu starten. Die Vorpruefungsdaten werden direkt in den naechsten Schritt uebernommen.
+                      Sie müssen nichts neu starten. Die Vorprüfungsdaten werden direkt in den nächsten Schritt übernommen.
                     </div>
                   </div>
                 </div>
                 <div className="mt-4 grid gap-2 sm:grid-cols-3">
                   {[
-                    "Antrag oeffnen",
-                    "Restliche Angaben ergaenzen",
+                    "Antrag öffnen",
+                    "Restliche Angaben ergänzen",
                     "Danach Unterlagen hochladen",
                   ].map((item) => (
                     <div
@@ -634,9 +731,9 @@ export default function SchufaFreePrecheck() {
             {resultModal.precheck ? (
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 shadow-sm">
-                  Naechster Schritt
+                  Nächster Schritt
                   <div className="mt-2 text-lg font-semibold text-slate-900">
-                    {resultModal.tone === "success" ? "Vollstaendigen Antrag ausfuellen" : "Daten pruefen und anpassen"}
+                    {resultModal.tone === "success" ? "Vollständigen Antrag ausfüllen" : "Daten prüfen und anpassen"}
                   </div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 shadow-sm">
@@ -650,7 +747,7 @@ export default function SchufaFreePrecheck() {
 
             {resultModal.precheck?.incomeCheckPending ? (
               <div className="mt-4 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
-                Hinweis: Diese erste Vorpruefung basiert bewusst nur auf den wichtigsten Eckdaten.
+                Hinweis: Diese erste Vorprüfung basiert bewusst nur auf den wichtigsten Eckdaten.
               </div>
             ) : null}
 
