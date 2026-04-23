@@ -723,7 +723,7 @@ export async function renderFinancialAnalysisActionPlanPdf(input: {
     logoImage,
     caseRef: input.caseRef,
     page,
-    cursorY: state.cursorY - 8,
+    cursorY: state.cursorY - 42,
     title: "Hinweis",
     text: `${FINANCIAL_ANALYSIS_LEGAL_NOTE}\n\nDieser Maßnahmenplan ersetzt keine steuerliche oder rechtliche Beratung. Angaben basieren auf den bereitgestellten Unterlagen und sollten bei neuen Informationen aktualisiert werden.`,
     pageNumber,

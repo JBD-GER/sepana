@@ -478,7 +478,7 @@ export default function CustomerFinancialAnalysisPanel({
                 ) : null}
 
                 {trimOrNull(service.published_recommendations) ? (
-                  <section className="rounded-3xl border border-cyan-200 bg-cyan-50/60 p-4 sm:p-5">
+                  <section className="rounded-3xl border border-cyan-200 bg-cyan-50/60 p-4 sm:p-5 xl:col-span-2">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-800">Empfehlungen</div>
                     <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
                       {service.published_recommendations}
