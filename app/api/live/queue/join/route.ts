@@ -22,7 +22,9 @@ type QueueTicket = {
 
 function parseAlertRecipients() {
   const input = String(process.env.LIVE_QUEUE_ALERT_TO ?? "").trim()
-  return sanitizeNotificationRecipients([input || DEFAULT_ALERT_RECIPIENT])
+  const configuredRecipients = sanitizeNotificationRecipients([input])
+  if (configuredRecipients.length) return configuredRecipients
+  return sanitizeNotificationRecipients([DEFAULT_ALERT_RECIPIENT])
 }
 
 function normalizeSiteUrl(raw: string | undefined) {
