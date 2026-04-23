@@ -302,6 +302,7 @@ export async function generateFinancialAnalysisDraft(input: {
     "Arbeite ehrlich, vorsichtig und nachvollziehbar. Keine Erfolgsgarantien, keine rechtlichen Musterschreiben, keine Drohkulisse.",
     "Wenn Zahlen aus Kontoauszügen nicht eindeutig belegbar sind, formuliere als Schätzung oder Prüfpunkt.",
     "Erstelle eine bankenähnliche Haushaltsrechnung, konkrete Optimierungen und einen 90-Tage-Maßnahmenplan.",
+    "Nimm in recommendations und actionPlan immer einen klaren Baustein auf: zusätzliche Einnahmen durch eine Nebentätigkeit prüfen und, wenn zeitlich, gesundheitlich und rechtlich realistisch möglich, aufnehmen. Formuliere seriös mit Hinweis auf Anmeldung, Steuer/Sozialversicherung und Belastbarkeit.",
     "Schufa-Hinweise dürfen nur erstellt werden, wenn ausdrücklich eine Schufa-Auskunft vorliegt. Ohne Schufa-Auskunft muss schufaNotes kurz erklären, dass dieser Teil nach Upload ergänzt wird.",
     "Formatiere die Texte gut lesbar mit kurzen Abschnitten, Überschriften und Bulletpoints als Klartext. Keine Markdown-Tabellen.",
   ].join("\n")
@@ -313,8 +314,8 @@ export async function generateFinancialAnalysisDraft(input: {
     "",
     "Aufgabe:",
     "1. Erstelle eine Haushaltsrechnung mit Einnahmen, Fixkosten, variablen Kosten, Verbindlichkeiten und realistischer freier Liquidität.",
-    "2. Leite konkrete Empfehlungen ab, um die monatliche Kaufkraft und Bonitätswirkung zu verbessern.",
-    "3. Erstelle einen 90-Tage-Maßnahmenplan mit Phasen Tag 1-30, Tag 31-60 und Tag 61-90.",
+    "2. Leite konkrete Empfehlungen ab, um die monatliche Kaufkraft und Bonitätswirkung zu verbessern. Die Empfehlungen müssen immer einen Punkt enthalten, dass der Kunde eine Nebentätigkeit prüfen und bei realistischen Rahmenbedingungen aufnehmen sollte, um zusätzliche Einnahmen aufzubauen.",
+    "3. Erstelle einen 90-Tage-Maßnahmenplan mit Phasen Tag 1-30, Tag 31-60 und Tag 61-90. Der Plan muss immer einen praktischen Schritt zur Prüfung und möglichen Aufnahme einer Nebentätigkeit enthalten.",
     "4. Wenn eine Schufa-Auskunft vorhanden ist: gib vorsichtige Hinweise zu möglichen nächsten Schritten, z. B. Erledigungsvermerke, Klärung mit Vertragspartnern, Konsolidierung. Keine fertigen Vorlagen und keine Rechtsberatung.",
     "5. Erzeuge documentSummary als kurze interne Notiz, welche Dokumente ausgewertet wurden und wo Unsicherheiten bestehen.",
     "",

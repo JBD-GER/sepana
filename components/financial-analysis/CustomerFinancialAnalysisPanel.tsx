@@ -51,6 +51,30 @@ const UPLOAD_CARDS: UploadCard[] = [
   },
 ]
 
+const RESULT_HIGHLIGHTS = [
+  {
+    label: "Haushalt",
+    title: "Klare Monatsrechnung",
+    text: "Einnahmen, Fixkosten und variable Ausgaben werden strukturiert gegenübergestellt.",
+  },
+  {
+    label: "Kaufkraft",
+    title: "Konkrete Hebel",
+    text: "Empfehlungen zeigen, wo Liquidität verbessert oder Belastung reduziert werden kann.",
+  },
+  {
+    label: "90 Tage",
+    title: "Umsetzung",
+    text: "Der Plan übersetzt die Analyse in realistische Schritte für die nächsten Wochen.",
+  },
+] as const
+
+const ACTION_PHASES = [
+  { label: "Tag 1-30", title: "Stabilisieren", width: "34%" },
+  { label: "Tag 31-60", title: "Optimieren", width: "67%" },
+  { label: "Tag 61-90", title: "Nachhalten", width: "100%" },
+] as const
+
 export default function CustomerFinancialAnalysisPanel({
   caseId,
   service,
@@ -180,33 +204,100 @@ export default function CustomerFinancialAnalysisPanel({
         ))}
       </div>
 
-      <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-4">
-          {service.published_at ? (
-            <div className="overflow-hidden rounded-[30px] border border-emerald-200 bg-white shadow-sm">
-              <div className="bg-[radial-gradient(circle_at_top_right,rgba(45,212,191,0.25),transparent_34%),linear-gradient(135deg,#052e2b,#0f172a)] p-5 text-white sm:p-6">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100">Veröffentlichte Auswertung</div>
-                <h3 className="mt-2 text-2xl font-semibold tracking-tight">Ihr 90-Tage-Plan steht bereit.</h3>
-                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-emerald-50/90">
-                  Die Finanzanalyse wurde freigegeben. SEPANA meldet sich zeitnah telefonisch, um die Ergebnisse
-                  persönlich mit Ihnen zu besprechen.
-                </p>
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+      <section className="mt-6 rounded-[30px] border border-slate-200 bg-white/95 p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Ihre Uploads</div>
+            <h3 className="mt-2 text-xl font-semibold text-slate-900">Hochgeladene Unterlagen</h3>
+            <p className="mt-1 text-sm leading-relaxed text-slate-600">
+              Diese Dokumente nutzt Ihr Berater für die Finanzanalyse. Sie können jederzeit weitere Unterlagen ergänzen.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center text-xs font-semibold text-slate-700">
+            <div className="rounded-2xl bg-emerald-50 px-3 py-2 text-emerald-900">{bankStatementCount} Konto</div>
+            <div className="rounded-2xl bg-cyan-50 px-3 py-2 text-cyan-900">{hasSchufaReport ? "Schufa da" : "Schufa offen"}</div>
+            <div className="rounded-2xl bg-slate-50 px-3 py-2">{documents.length} Gesamt</div>
+          </div>
+        </div>
+
+        {documents.length === 0 ? (
+          <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+            Noch keine Unterlagen hochgeladen.
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {documents.map((document) => {
+              const href = downloadHref(document.file_path, document.file_name)
+              const kind = String(document.document_kind ?? "").trim().toLowerCase()
+              const tone =
+                kind === "bank_statement"
+                  ? "border-emerald-100 bg-emerald-50/70 text-emerald-900"
+                  : kind === "schufa_report"
+                    ? "border-cyan-100 bg-cyan-50/70 text-cyan-900"
+                    : "border-slate-200 bg-slate-50 text-slate-800"
+              return (
+                <article key={document.id} className="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,#ffffff,#f8fafc)] p-4 shadow-sm">
+                  <div className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${tone}`}>
+                    {getFinancialAnalysisDocumentKindLabel(document.document_kind)}
+                  </div>
+                  <div className="mt-3 break-words text-sm font-semibold text-slate-900">{document.file_name ?? "Dokument"}</div>
+                  <div className="mt-1 text-xs text-slate-500">{formatDateTime(document.created_at)}</div>
+                  {href ? (
+                    <a
+                      href={href}
+                      className="mt-4 inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-emerald-200 hover:text-emerald-900"
+                    >
+                      Herunterladen
+                    </a>
+                  ) : null}
+                </article>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-6">
+        {service.published_at ? (
+          <div className="overflow-hidden rounded-[32px] border border-emerald-200 bg-white shadow-sm">
+            <div className="bg-[radial-gradient(circle_at_top_right,rgba(45,212,191,0.28),transparent_34%),radial-gradient(circle_at_left,rgba(14,165,233,0.18),transparent_32%),linear-gradient(135deg,#052e2b,#0f172a)] p-5 text-white sm:p-7">
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100">Veröffentlichte Auswertung</div>
+                  <h3 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Ihr 90-Tage-Plan steht bereit.</h3>
+                  <p className="mt-3 max-w-3xl text-sm leading-relaxed text-emerald-50/90">
+                    Die Finanzanalyse wurde freigegeben. SEPANA meldet sich zeitnah telefonisch, um die Ergebnisse
+                    persönlich mit Ihnen zu besprechen.
+                  </p>
+                </div>
+                <div className="rounded-3xl border border-white/12 bg-white/10 p-4 backdrop-blur">
                   {actionPlanPdfHref ? (
                     <a
                       href={actionPlanPdfHref}
-                      className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-emerald-50"
+                      className="inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-emerald-50"
                     >
                       90-Tage-Plan als PDF herunterladen
                     </a>
                   ) : null}
-                  <span className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-emerald-50">
+                  <div className="mt-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-emerald-50">
                     Veröffentlicht am {formatDateTime(service.published_at)}
-                  </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid gap-4 p-4 sm:p-5">
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
+                {RESULT_HIGHLIGHTS.map((item) => (
+                  <div key={item.label} className="rounded-3xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-100">{item.label}</div>
+                    <div className="mt-2 text-base font-semibold text-white">{item.title}</div>
+                    <p className="mt-2 text-xs leading-relaxed text-emerald-50/80">{item.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-4 p-4 sm:p-5">
+              <div className="grid gap-4 xl:grid-cols-2">
                 {trimOrNull(service.published_household_overview) ? (
                   <section className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Haushaltsrechnung</div>
@@ -224,93 +315,63 @@ export default function CustomerFinancialAnalysisPanel({
                     </div>
                   </section>
                 ) : null}
-
-                {trimOrNull(service.published_action_plan) ? (
-                  <section className="rounded-3xl border border-slate-900/10 bg-[linear-gradient(135deg,#ffffff,#f0fdf4)] p-4 shadow-sm sm:p-5">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
-                          90-Tage-Maßnahmenplan
-                        </div>
-                        <div className="mt-1 text-lg font-semibold text-slate-900">Stabilisieren. Optimieren. Nachhalten.</div>
-                      </div>
-                      {actionPlanPdfHref ? (
-                        <a
-                          href={actionPlanPdfHref}
-                          className="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-900 shadow-sm"
-                        >
-                          PDF
-                        </a>
-                      ) : null}
-                    </div>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                      {["Tag 1-30", "Tag 31-60", "Tag 61-90"].map((label) => (
-                        <div key={label} className="rounded-2xl border border-emerald-100 bg-white/80 px-3 py-3">
-                          <div className="text-xs font-semibold text-emerald-900">{label}</div>
-                          <div className="mt-1 h-1.5 rounded-full bg-emerald-100">
-                            <div className="h-1.5 rounded-full bg-emerald-500" style={{ width: "70%" }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-                      {service.published_action_plan}
-                    </div>
-                  </section>
-                ) : null}
-
-                {trimOrNull(service.published_schufa_notes) ? (
-                  <section className="rounded-3xl border border-amber-200 bg-amber-50/70 p-4 sm:p-5">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-800">Schufa-Hinweise</div>
-                    <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-                      {service.published_schufa_notes}
-                    </div>
-                  </section>
-                ) : null}
               </div>
-            </div>
-          ) : (
-            <div className="rounded-[30px] border border-dashed border-slate-200 bg-[linear-gradient(135deg,#ffffff,#f8fafc)] p-5 shadow-sm sm:p-6">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Auswertung in Vorbereitung</div>
-              <h3 className="mt-2 text-xl font-semibold text-slate-900">Ihr Berater erstellt die Finanzanalyse.</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                Sobald Haushaltsrechnung, Empfehlungen und 90-Tage-Maßnahmenplan freigegeben sind, sehen Sie alles direkt hier.
-              </p>
-            </div>
-          )}
-        </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm">
-          <div className="text-sm font-semibold text-slate-900">Ihre Uploads</div>
-          {documents.length === 0 ? (
-            <div className="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-              Noch keine Unterlagen hochgeladen.
-            </div>
-          ) : (
-            <div className="mt-4 grid gap-3">
-              {documents.map((document) => {
-                const href = downloadHref(document.file_path, document.file_name)
-                return (
-                  <div key={document.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                    <div className="text-sm font-semibold text-slate-900">{document.file_name ?? "Dokument"}</div>
-                    <div className="mt-1 text-xs text-slate-500">
-                      {getFinancialAnalysisDocumentKindLabel(document.document_kind)} - {formatDateTime(document.created_at)}
+              {trimOrNull(service.published_action_plan) ? (
+                <section className="rounded-[30px] border border-slate-900/10 bg-[linear-gradient(135deg,#ffffff,#f0fdf4)] p-4 shadow-sm sm:p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                        90-Tage-Maßnahmenplan
+                      </div>
+                      <div className="mt-1 text-xl font-semibold text-slate-900">Stabilisieren. Optimieren. Nachhalten.</div>
                     </div>
-                    {href ? (
+                    {actionPlanPdfHref ? (
                       <a
-                        href={href}
-                        className="mt-3 inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300"
+                        href={actionPlanPdfHref}
+                        className="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-900 shadow-sm"
                       >
-                        Herunterladen
+                        PDF herunterladen
                       </a>
                     ) : null}
                   </div>
-                )
-              })}
+                  <div className="mt-5 grid gap-3 md:grid-cols-3">
+                    {ACTION_PHASES.map((phase) => (
+                      <div key={phase.label} className="rounded-3xl border border-emerald-100 bg-white/85 p-4 shadow-sm">
+                        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-800">{phase.label}</div>
+                        <div className="mt-2 text-base font-semibold text-slate-900">{phase.title}</div>
+                        <div className="mt-3 h-2 rounded-full bg-emerald-100">
+                          <div className="h-2 rounded-full bg-emerald-500" style={{ width: phase.width }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-5 rounded-3xl border border-white bg-white/70 p-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                    {service.published_action_plan}
+                  </div>
+                </section>
+              ) : null}
+
+              {trimOrNull(service.published_schufa_notes) ? (
+                <section className="rounded-3xl border border-amber-200 bg-amber-50/70 p-4 sm:p-5">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-800">Schufa-Hinweise</div>
+                  <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                    {service.published_schufa_notes}
+                  </div>
+                </section>
+              ) : null}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        ) : (
+          <div className="rounded-[30px] border border-dashed border-slate-200 bg-[linear-gradient(135deg,#ffffff,#f8fafc)] p-5 shadow-sm sm:p-6">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Auswertung in Vorbereitung</div>
+            <h3 className="mt-2 text-xl font-semibold text-slate-900">Ihr Berater erstellt die Finanzanalyse.</h3>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              Sobald Haushaltsrechnung, Empfehlungen und 90-Tage-Maßnahmenplan freigegeben sind, sehen Sie alles direkt hier.
+            </p>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

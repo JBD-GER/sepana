@@ -16,8 +16,30 @@ function formatDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(normalized))
 }
 
+function toWinAnsiSafe(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFC")
+    .replace(/\u00a0/g, " ")
+    .replace(/[\u2192\u27f6\u21d2]/g, "->")
+    .replace(/[\u2190\u27f5\u21d0]/g, "<-")
+    .replace(/[\u2194\u27f7\u21d4]/g, "<->")
+    .replace(/[\u2010-\u2015\u2212]/g, "-")
+    .replace(/\u2026/g, "...")
+    .replace(/[\u2018\u2019\u2032]/g, "'")
+    .replace(/[\u201c\u201d\u2033]/g, '"')
+    .replace(/[\u2022\u25cf\u25e6\u2043]/g, "-")
+    .replace(/[\u2713\u2714]/g, "OK")
+    .replace(/[\u2717\u2718]/g, "x")
+    .replace(/\u20ac/g, "EUR")
+    .replace(/[^\u0009\u000a\u000d\u0020-\u007e\u00a1-\u00ff]/g, "")
+}
+
+function drawSafeText(page: PDFPage, text: string, options: Parameters<PDFPage["drawText"]>[1]) {
+  page.drawText(toWinAnsiSafe(text), options)
+}
+
 function wrapText(font: PDFFont, text: string, size: number, maxWidth: number) {
-  const words = String(text ?? "").split(/\s+/).filter(Boolean)
+  const words = toWinAnsiSafe(text).split(/\s+/).filter(Boolean)
   const lines: string[] = []
   let current = ""
 
@@ -37,7 +59,7 @@ function wrapText(font: PDFFont, text: string, size: number, maxWidth: number) {
 }
 
 function splitBlocks(value: string | null | undefined) {
-  return String(value ?? "")
+  return toWinAnsiSafe(value)
     .replace(/\r\n/g, "\n")
     .split(/\n{2,}/g)
     .map((block) => block.trim())
@@ -45,7 +67,7 @@ function splitBlocks(value: string | null | undefined) {
 }
 
 function normalizeBullet(value: string) {
-  return value.replace(/^[-•*]\s*/g, "").trim()
+  return toWinAnsiSafe(value).replace(/^[-\u2022*]\s*/g, "").trim()
 }
 
 function isHeading(value: string) {
@@ -67,7 +89,7 @@ function drawWrappedText(input: {
   const lines = wrapText(input.font, input.text, input.size, input.maxWidth)
   let cursorY = input.y
   for (const line of lines) {
-    input.page.drawText(line, {
+    drawSafeText(input.page, line, {
       x: input.x,
       y: cursorY,
       size: input.size,
@@ -97,7 +119,7 @@ function drawPill(input: {
     color: input.bg,
     borderWidth: 0,
   })
-  input.page.drawText(input.text, {
+  drawSafeText(input.page, input.text, {
     x: input.x + 10,
     y: input.y + 8,
     size: 9,
@@ -127,7 +149,7 @@ function drawHeader(input: {
   if (input.logoImage) {
     input.page.drawImage(input.logoImage as any, { x: MARGIN_X, y: 786, width: 104, height: 27 })
   } else {
-    input.page.drawText("SEPANA", { x: MARGIN_X, y: 798, size: 18, font: input.bold, color: rgb(0.06, 0.09, 0.16) })
+    drawSafeText(input.page, "SEPANA", { x: MARGIN_X, y: 798, size: 18, font: input.bold, color: rgb(0.06, 0.09, 0.16) })
   }
   drawPill({
     page: input.page,
@@ -155,8 +177,8 @@ function drawFooter(page: PDFPage, font: PDFFont, pdfLib: PdfLibModule, pageNumb
     thickness: 1,
     color: rgb(0.87, 0.9, 0.94),
   })
-  page.drawText("SEPANA Finanzanalyse · vertraulich", { x: MARGIN_X, y: 24, size: 8, font, color: rgb(0.39, 0.45, 0.54) })
-  page.drawText(`Seite ${pageNumber}`, { x: PAGE_WIDTH - MARGIN_X - 40, y: 24, size: 8, font, color: rgb(0.39, 0.45, 0.54) })
+  drawSafeText(page, "SEPANA Finanzanalyse - vertraulich", { x: MARGIN_X, y: 24, size: 8, font, color: rgb(0.39, 0.45, 0.54) })
+  drawSafeText(page, `Seite ${pageNumber}`, { x: PAGE_WIDTH - MARGIN_X - 40, y: 24, size: 8, font, color: rgb(0.39, 0.45, 0.54) })
 }
 
 function drawTimeline(page: PDFPage, bold: PDFFont, font: PDFFont, pdfLib: PdfLibModule, y: number) {
@@ -176,8 +198,8 @@ function drawTimeline(page: PDFPage, bold: PDFFont, font: PDFFont, pdfLib: PdfLi
 
   for (const step of steps) {
     page.drawCircle({ x: step.x + 18, y: y + 18, size: 18, color: step.color })
-    page.drawText(step.title, { x: step.x - 10, y: y - 18, size: 10, font: bold, color: rgb(0.06, 0.09, 0.16) })
-    page.drawText(step.sub, { x: step.x - 10, y: y - 34, size: 9, font, color: rgb(0.39, 0.45, 0.54) })
+    drawSafeText(page, step.title, { x: step.x - 10, y: y - 18, size: 10, font: bold, color: rgb(0.06, 0.09, 0.16) })
+    drawSafeText(page, step.sub, { x: step.x - 10, y: y - 34, size: 9, font, color: rgb(0.39, 0.45, 0.54) })
   }
 }
 
@@ -209,13 +231,13 @@ function drawContentBlocks(input: {
   }
 
   ensureSpace(54)
-  page.drawText(input.title, { x: MARGIN_X, y: cursorY, size: 17, font: input.bold, color: rgb(0.06, 0.09, 0.16) })
+  drawSafeText(page, input.title, { x: MARGIN_X, y: cursorY, size: 17, font: input.bold, color: rgb(0.06, 0.09, 0.16) })
   cursorY -= 24
 
   for (const block of splitBlocks(input.text)) {
     ensureSpace(70)
     if (isHeading(block)) {
-      page.drawText(block.replace(/:$/g, ""), { x: MARGIN_X, y: cursorY, size: 12, font: input.bold, color: rgb(0.02, 0.37, 0.31) })
+      drawSafeText(page, block.replace(/:$/g, ""), { x: MARGIN_X, y: cursorY, size: 12, font: input.bold, color: rgb(0.02, 0.37, 0.31) })
       cursorY -= 18
       continue
     }
@@ -291,10 +313,10 @@ export async function renderFinancialAnalysisActionPlanPdf(input: {
 
   page.drawRectangle({ x: MARGIN_X, y: 598, width: 511, height: 142, color: rgb(0.06, 0.09, 0.16) })
   page.drawCircle({ x: 506, y: 714, size: 70, color: rgb(0.02, 0.37, 0.31), opacity: 0.75 })
-  page.drawText("90-Tage-Maßnahmenplan", { x: 64, y: 696, size: 27, font: bold, color: rgb(1, 1, 1) })
-  page.drawText(FINANCIAL_ANALYSIS_SERVICE_TITLE, { x: 64, y: 668, size: 13, font, color: rgb(0.82, 0.9, 0.96) })
-  page.drawText(`Kunde: ${trimOrNull(input.customerName) ?? "-"}`, { x: 64, y: 638, size: 10, font, color: rgb(0.91, 0.96, 1) })
-  page.drawText(`Stand: ${formatDate(input.publishedAt ?? input.createdAt ?? new Date().toISOString())}`, {
+  drawSafeText(page, "90-Tage-Maßnahmenplan", { x: 64, y: 696, size: 27, font: bold, color: rgb(1, 1, 1) })
+  drawSafeText(page, FINANCIAL_ANALYSIS_SERVICE_TITLE, { x: 64, y: 668, size: 13, font, color: rgb(0.82, 0.9, 0.96) })
+  drawSafeText(page, `Kunde: ${trimOrNull(input.customerName) ?? "-"}`, { x: 64, y: 638, size: 10, font, color: rgb(0.91, 0.96, 1) })
+  drawSafeText(page, `Stand: ${formatDate(input.publishedAt ?? input.createdAt ?? new Date().toISOString())}`, {
     x: 64,
     y: 622,
     size: 10,
@@ -313,7 +335,7 @@ export async function renderFinancialAnalysisActionPlanPdf(input: {
     borderWidth: 1,
     borderColor: rgb(0.73, 0.91, 0.84),
   })
-  page.drawText("Ziel der nächsten 90 Tage", { x: 62, y: 456, size: 13, font: bold, color: rgb(0.02, 0.37, 0.31) })
+  drawSafeText(page, "Ziel der nächsten 90 Tage", { x: 62, y: 456, size: 13, font: bold, color: rgb(0.02, 0.37, 0.31) })
   drawWrappedText({
     page,
     font,
