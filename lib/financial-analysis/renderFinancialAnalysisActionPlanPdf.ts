@@ -15,7 +15,7 @@ type PdfLibModule = typeof import("pdf-lib")
 const PAGE_WIDTH = 595
 const PAGE_HEIGHT = 842
 const MARGIN_X = 42
-const BOTTOM_MARGIN = 54
+const BOTTOM_MARGIN = 86
 
 function formatDate(value: string | null | undefined) {
   const normalized = trimOrNull(value)
@@ -127,6 +127,25 @@ function drawRightText(input: {
   })
 }
 
+function drawCenteredText(input: {
+  page: PDFPage
+  font: PDFFont
+  text: string
+  centerX: number
+  y: number
+  size: number
+  color?: Color
+}) {
+  const safeText = toWinAnsiSafe(input.text)
+  drawSafeText(input.page, safeText, {
+    x: input.centerX - input.font.widthOfTextAtSize(safeText, input.size) / 2,
+    y: input.y,
+    size: input.size,
+    font: input.font,
+    color: input.color,
+  })
+}
+
 function drawPill(input: {
   page: PDFPage
   font: PDFFont
@@ -209,23 +228,26 @@ function drawFooter(page: PDFPage, font: PDFFont, pdfLib: PdfLibModule, pageNumb
 
 function drawTimeline(page: PDFPage, bold: PDFFont, font: PDFFont, pdfLib: PdfLibModule, y: number) {
   const { rgb } = pdfLib
+  const leftCenter = MARGIN_X + 58
+  const middleCenter = PAGE_WIDTH / 2
+  const rightCenter = PAGE_WIDTH - MARGIN_X - 58
   const steps = [
-    { title: "Tag 1-30", sub: "Stabilisieren", x: 82, color: rgb(0.02, 0.37, 0.31) },
-    { title: "Tag 31-60", sub: "Optimieren", x: 247, color: rgb(0.03, 0.31, 0.62) },
-    { title: "Tag 61-90", sub: "Nachhalten", x: 412, color: rgb(0.49, 0.24, 0.02) },
+    { title: "Tag 1-30", sub: "Stabilisieren", centerX: leftCenter, color: rgb(0.02, 0.37, 0.31) },
+    { title: "Tag 31-60", sub: "Optimieren", centerX: middleCenter, color: rgb(0.03, 0.31, 0.62) },
+    { title: "Tag 61-90", sub: "Nachhalten", centerX: rightCenter, color: rgb(0.49, 0.24, 0.02) },
   ]
 
   page.drawLine({
-    start: { x: steps[0].x + 18, y: y + 18 },
-    end: { x: steps[2].x + 18, y: y + 18 },
+    start: { x: steps[0].centerX, y: y + 18 },
+    end: { x: steps[2].centerX, y: y + 18 },
     thickness: 5,
     color: rgb(0.83, 0.9, 0.92),
   })
 
   for (const step of steps) {
-    page.drawCircle({ x: step.x + 18, y: y + 18, size: 18, color: step.color })
-    drawSafeText(page, step.title, { x: step.x - 10, y: y - 18, size: 10, font: bold, color: rgb(0.06, 0.09, 0.16) })
-    drawSafeText(page, step.sub, { x: step.x - 10, y: y - 34, size: 9, font, color: rgb(0.39, 0.45, 0.54) })
+    page.drawCircle({ x: step.centerX, y: y + 18, size: 18, color: step.color })
+    drawCenteredText({ page, text: step.title, centerX: step.centerX, y: y - 18, size: 10, font: bold, color: rgb(0.06, 0.09, 0.16) })
+    drawCenteredText({ page, text: step.sub, centerX: step.centerX, y: y - 34, size: 9, font, color: rgb(0.39, 0.45, 0.54) })
   }
 }
 
@@ -420,7 +442,7 @@ function drawHouseholdCalculationBlock(input: {
   const rows = [
     { label: "Einnahmen gesamt", value: calculation.incomeMonthly, kind: "income" },
     { label: "Belegte Fixkosten", value: calculation.provenFixedCostsMonthly, kind: "cost" },
-    { label: "Bankübliche Haushalts-/Lebenshaltungspauschale", value: calculation.bankHouseholdAllowanceMonthly, kind: "cost" },
+    { label: "Bankübliche Haushaltspauschale", value: calculation.bankHouseholdAllowanceMonthly, kind: "cost" },
     { label: "Laufende Verpflichtungen/Raten", value: calculation.obligationsMonthly, kind: "cost" },
     { label: "Variable Kosten", value: calculation.variableCostsMonthly, kind: "cost" },
     { label: "Sicherheitsabschlag", value: calculation.safetyBufferMonthly, kind: "cost" },
@@ -476,50 +498,68 @@ function drawHouseholdCalculationBlock(input: {
 
   const assessment = trimOrNull(calculation.assessment)
   if (assessment) {
-    ensureSpace(74)
+    const assessmentLines = wrapText(input.font, assessment, 9.5, tableWidth)
+    ensureSpace(Math.min(230, 38 + assessmentLines.length * 13))
     cursorY -= 16
     drawSafeText(page, "Einordnung", { x: tableX, y: cursorY, size: 12, font: input.bold, color: rgb(0.02, 0.37, 0.31) })
     cursorY -= 18
-    cursorY = drawWrappedText({
-      page,
-      font: input.font,
-      text: assessment,
-      x: tableX,
-      y: cursorY,
-      size: 9.5,
-      maxWidth: tableWidth,
-      lineHeight: 13,
-      color: rgb(0.2, 0.25, 0.33),
-    })
+    for (const line of assessmentLines) {
+      ensureSpace(21)
+      drawSafeText(page, line, {
+        x: tableX,
+        y: cursorY,
+        size: 9.5,
+        font: input.font,
+        color: rgb(0.2, 0.25, 0.33),
+      })
+      cursorY -= 13
+    }
   }
 
   const items = (calculation.items ?? []).slice(0, 10)
   if (items.length) {
-    ensureSpace(70)
+    const itemRows = items.map((item) => {
+      const label = trimOrNull(item.label) ?? "Position"
+      const labelLines = wrapText(input.bold, label, 8.6, tableWidth - 150)
+      const rowHeight = Math.max(34, 18 + labelLines.length * 10)
+      return {
+        item,
+        labelLines,
+        rowHeight,
+        category: trimOrNull(item.category) ?? trimOrNull(item.basis) ?? "Position",
+      }
+    })
+    const totalItemsHeight = 42 + itemRows.reduce<number>((sum, row) => sum + row.rowHeight, 0)
+
+    ensureSpace(totalItemsHeight)
     cursorY -= 16
     drawSafeText(page, "Erkannte Detailpositionen", { x: tableX, y: cursorY, size: 12, font: input.bold, color: rgb(0.02, 0.37, 0.31) })
     cursorY -= 20
 
-    for (const [index, item] of items.entries()) {
-      ensureSpace(31)
-      const rowY = cursorY - 28
+    for (const [index, row] of itemRows.entries()) {
+      ensureSpace(row.rowHeight + 4)
+      const rowY = cursorY - row.rowHeight
       page.drawRectangle({
         x: tableX,
         y: rowY,
         width: tableWidth,
-        height: 28,
+        height: row.rowHeight,
         color: index % 2 === 0 ? rgb(1, 1, 1) : rgb(0.97, 0.98, 0.99),
         borderWidth: 0.5,
         borderColor: rgb(0.88, 0.91, 0.94),
       })
-      drawSafeText(page, trimOrNull(item.label) ?? "Position", {
-        x: tableX + 12,
-        y: rowY + 14,
-        size: 9.5,
-        font: input.bold,
-        color: rgb(0.06, 0.09, 0.16),
-      })
-      drawSafeText(page, trimOrNull(item.category) ?? trimOrNull(item.basis) ?? "Position", {
+      let labelY = rowY + row.rowHeight - 13
+      for (const labelLine of row.labelLines.slice(0, 2)) {
+        drawSafeText(page, labelLine, {
+          x: tableX + 12,
+          y: labelY,
+          size: 8.6,
+          font: input.bold,
+          color: rgb(0.06, 0.09, 0.16),
+        })
+        labelY -= 10
+      }
+      drawSafeText(page, row.category, {
         x: tableX + 12,
         y: rowY + 4,
         size: 7.5,
@@ -529,13 +569,13 @@ function drawHouseholdCalculationBlock(input: {
       drawRightText({
         page,
         font: input.bold,
-        text: formatFinancialAnalysisEuro(item.amountMonthly),
+        text: formatFinancialAnalysisEuro(row.item.amountMonthly),
         rightX: tableX + tableWidth - 12,
-        y: rowY + 10,
+        y: rowY + Math.max(10, row.rowHeight / 2 - 4),
         size: 9.5,
         color: rgb(0.06, 0.09, 0.16),
       })
-      cursorY -= 28
+      cursorY -= row.rowHeight
     }
   }
 
