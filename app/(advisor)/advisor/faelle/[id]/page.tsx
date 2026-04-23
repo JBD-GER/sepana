@@ -11,8 +11,10 @@ import EuropaceStatusCard from "@/components/case/EuropaceStatusCard"
 import SignaturePanel from "@/components/case/SignaturePanel"
 import LiveCasePanel from "@/components/live/LiveCasePanel"
 import ClearSignatureHash from "@/components/case/ClearSignatureHash"
+import AdvisorFinancialAnalysisPanel from "@/components/financial-analysis/AdvisorFinancialAnalysisPanel"
 import RecommendedByCard from "@/components/case/RecommendedByCard"
 import ResendCustomerInviteButton from "@/components/case/ResendCustomerInviteButton"
+import type { FinancialAnalysisDocumentRow, FinancialAnalysisServiceRow } from "@/lib/financial-analysis/service"
 import { isImportedBankDocumentPath, type EuropaceFlowSummary } from "@/lib/europace/flow"
 import AdvisorCaseRefEditor from "./ui/AdvisorCaseRefEditor"
 import AdvisorPrivateNoteEditor from "./ui/AdvisorPrivateNoteEditor"
@@ -391,6 +393,10 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     } | null
     pushEvents?: SchufaPushEvent[]
     skagDocuments?: Array<{ local_document_id?: string | null; upload_status?: string | null; last_error?: string | null }>
+    financialAnalysis?: {
+      service?: FinancialAnalysisServiceRow | null
+      documents?: FinancialAnalysisDocumentRow[]
+    } | null
   } | null = schufaRes && schufaRes.ok ? await schufaRes.json() : null
   const signatureData: SignatureResp | null = signaturesRes && signaturesRes.ok ? await signaturesRes.json() : null
 
@@ -647,6 +653,20 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
               tone="slate"
             />
             <SchufaFreePrecheckDecisionPanel caseId={c.id} />
+          </section>
+
+          <section id="schufa-finanzanalyse" className="space-y-3">
+            <SchufaFreeIntroCard
+              eyebrow="Finanzanalyse"
+              title="Getrennten Zusatzservice steuern"
+              description="Bieten Sie die Finanzanalyse separat an, versenden Sie die Aktivierungsmail auf die externe Serviceseite, markieren Sie den Zahlungseingang und veroeffentlichen Sie spaeter die Auswertung im Kundendashboard."
+              tone="emerald"
+            />
+            <AdvisorFinancialAnalysisPanel
+              caseId={c.id}
+              service={schufaData?.financialAnalysis?.service ?? null}
+              documents={schufaData?.financialAnalysis?.documents ?? []}
+            />
           </section>
 
           <section id="schufa-versicherung" className="space-y-3">

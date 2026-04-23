@@ -4,6 +4,10 @@
     {
       "path": "/api/system/europace/sync",
       "schedule": "17 3 * * *"
+    },
+    {
+      "path": "/api/system/financial-analysis/sweep",
+      "schedule": "47 3 * * *"
     }
   ]
 }

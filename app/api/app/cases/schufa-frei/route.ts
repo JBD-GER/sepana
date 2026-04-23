@@ -2,6 +2,8 @@ export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
+import { loadFinancialAnalysisDocuments, loadLatestFinancialAnalysisService } from "@/lib/financial-analysis/data"
+import { normalizeFinancialAnalysisServiceRow } from "@/lib/financial-analysis/service"
 import { isMissingInsuranceTablesError } from "@/lib/insurance/routing"
 import { loadSchufaFreeSignatureInvoiceGate } from "@/lib/schufa-frei/signatureInvoiceGate"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
@@ -82,6 +84,21 @@ export async function GET(req: Request) {
   }
 
   const invoiceGate = invoiceGateResult?.data
+  const financialAnalysisService = await loadLatestFinancialAnalysisService(admin, caseId)
+  const financialAnalysisDocuments = financialAnalysisService?.id
+    ? await loadFinancialAnalysisDocuments(admin, financialAnalysisService.id)
+    : []
+  const normalizedFinancialAnalysisService = normalizeFinancialAnalysisServiceRow(financialAnalysisService)
+  const customerCanSeeFinancialAnalysis = role === "customer" && normalizedFinancialAnalysisService?.service_status === "active"
+  const shouldExposeFinancialAnalysis =
+    role === "advisor" || role === "admin" || customerCanSeeFinancialAnalysis
+  const financialAnalysis =
+    shouldExposeFinancialAnalysis && normalizedFinancialAnalysisService
+      ? {
+          service: normalizedFinancialAnalysisService,
+          documents: financialAnalysisDocuments,
+        }
+      : null
 
   return NextResponse.json({
     details: detailsResult.data ?? null,
@@ -94,5 +111,6 @@ export async function GET(req: Request) {
     invoice: shouldExposeInternalInvoice ? invoiceGate?.invoice ?? null : null,
     cancellationInvoice: shouldExposeInternalInvoice ? invoiceGate?.cancellationInvoice ?? null : null,
     insuranceRoute: insuranceRouteResult?.data ?? null,
+    financialAnalysis,
   })
 }

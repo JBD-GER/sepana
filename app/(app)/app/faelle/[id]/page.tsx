@@ -9,6 +9,7 @@ import EuropaceCustomerOffersCard from "@/components/case/EuropaceCustomerOffers
 import EuropaceStatusCard from "@/components/case/EuropaceStatusCard"
 import PrivatkreditJourneyPanel from "@/components/case/PrivatkreditJourneyPanel"
 import SignaturePanel from "@/components/case/SignaturePanel"
+import CustomerFinancialAnalysisPanel from "@/components/financial-analysis/CustomerFinancialAnalysisPanel"
 import { translateCaseStatus } from "@/lib/caseStatus"
 import OfferList from "@/components/case/OfferList"
 import LiveCasePanel from "@/components/live/LiveCasePanel"
@@ -23,6 +24,7 @@ import { getOnlinekreditAccountCheckRestrictionReason } from "@/lib/onlinekredit
 import { getOnlinekreditDocumentPin } from "@/lib/onlinekredit/documentPin"
 import SchufaFreePostIdentPanel from "@/components/schufa-frei/SchufaFreePostIdentPanel"
 import SchufaFreeWorkspaceOverview from "@/components/schufa-frei/SchufaFreeWorkspaceOverview"
+import type { FinancialAnalysisDocumentRow, FinancialAnalysisServiceRow } from "@/lib/financial-analysis/service"
 import { getSchufaFreeSignatureRequestMeta, isSignatureRequestComplete } from "@/lib/schufa-frei/contractPackage"
 
 type CaseApplicant = {
@@ -485,6 +487,10 @@ export default async function CaseDetailPage({
     contractSigningUnlocked?: boolean
     pushEvents?: SchufaPushEvent[]
     skagDocuments?: Array<{ local_document_id?: string | null; upload_status?: string | null; last_error?: string | null }>
+    financialAnalysis?: {
+      service?: FinancialAnalysisServiceRow | null
+      documents?: FinancialAnalysisDocumentRow[]
+    } | null
   } | null = schufaRes && schufaRes.ok ? await schufaRes.json() : null
   const signatureItems = signatureData?.items ?? []
   const documentCount = (data.documents ?? []).length
@@ -639,6 +645,22 @@ export default async function CaseDetailPage({
         </div>
 
         <div className="space-y-8">
+          {schufaData?.financialAnalysis?.service?.id ? (
+            <section id="schufa-finanzanalyse" className="space-y-3">
+              <SchufaFreeIntroCard
+                eyebrow="Finanzanalyse"
+                title="Finanzanalyse und Uploads"
+                description="Dieser Zusatzbereich ist nur fuer den freigeschalteten Finanzanalyse-Service sichtbar. Laden Sie hier Ihre Unterlagen hoch und sehen Sie spaeter die veroeffentlichte Auswertung direkt im Dashboard."
+                tone="emerald"
+              />
+              <CustomerFinancialAnalysisPanel
+                caseId={c.id}
+                service={schufaData.financialAnalysis.service}
+                documents={schufaData.financialAnalysis.documents ?? []}
+              />
+            </section>
+          ) : null}
+
           <section id="schufa-dokumente" className="space-y-3">
             <SchufaFreeIntroCard
               eyebrow="Unterlagen"
