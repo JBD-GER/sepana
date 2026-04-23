@@ -29,6 +29,39 @@ function downloadHref(path: string | null | undefined, fileName: string | null |
   return `/api/baufi/logo?bucket=case_documents&path=${encodeURIComponent(normalizedPath)}&raw=1&download=1${fileNamePart}`
 }
 
+function normalizedDocumentKind(document: FinancialAnalysisDocumentRow) {
+  return String(document.document_kind ?? "").trim().toLowerCase()
+}
+
+function financialAnalysisActionErrorMessage(error: unknown) {
+  const normalized = String(error ?? "").trim()
+  if (normalized === "customer_email_missing") return "Beim Kunden ist keine E-Mail-Adresse hinterlegt."
+  if (normalized === "mail_not_configured") return "Der E-Mail-Versand ist noch nicht konfiguriert."
+  if (normalized === "financial_analysis_customer_confirmation_missing") {
+    return "Der Kunde muss den Zusatzservice zuerst aktiv bestätigen. Danach wird automatisch die Rechnung versendet."
+  }
+  if (normalized === "financial_analysis_invoice_missing") return "Es liegt noch keine Rechnung zur Finanzanalyse vor."
+  if (normalized === "financial_analysis_invoice_not_payable") return "Die zugehörige Rechnung ist nicht mehr zahlbar."
+  if (normalized === "financial_analysis_not_active") {
+    return "Die Finanzanalyse ist noch nicht aktiv. Bitte zuerst Kundenbestätigung und Zahlung abschließen."
+  }
+  if (normalized === "financial_analysis_content_missing") return "Bitte mindestens einen Auswertungsbereich befüllen."
+  if (normalized === "financial_analysis_bank_statement_missing") {
+    return "Für den KI-Entwurf muss mindestens ein Kontoauszug hochgeladen sein."
+  }
+  if (normalized === "financial_analysis_documents_missing") return "Es wurden noch keine Finanzanalyse-Unterlagen hochgeladen."
+  if (normalized === "financial_analysis_documents_unreadable") {
+    return "Die hochgeladenen Dateien konnten nicht ausgelesen werden. Bitte prüfen Sie PDF/Textqualität oder laden Sie klarere Unterlagen hoch."
+  }
+  if (normalized === "openai_not_configured") {
+    return "OPENAI_API_KEY ist nicht konfiguriert. Der KI-Entwurf kann deshalb noch nicht erzeugt werden."
+  }
+  if (normalized === "financial_analysis_ai_output_truncated") {
+    return "Die KI-Antwort wurde abgeschnitten. Bitte weniger Unterlagen verwenden oder erneut starten."
+  }
+  return normalized || "Aktion fehlgeschlagen."
+}
+
 export default function AdvisorFinancialAnalysisPanel({
   caseId,
   service,
@@ -49,6 +82,13 @@ export default function AdvisorFinancialAnalysisPanel({
 
   const serviceStatus = String(service?.service_status ?? "").trim().toLowerCase()
   const isActive = serviceStatus === "active"
+  const bankStatementCount = documents.filter((document) => normalizedDocumentKind(document) === "bank_statement").length
+  const hasBankStatement = bankStatementCount > 0
+  const hasSchufaReport = documents.some((document) => normalizedDocumentKind(document) === "schufa_report")
+  const actionPlanPdfHref = trimOrNull(actionPlan)
+    ? `/api/app/cases/schufa-frei/financial-analysis/action-plan?caseId=${encodeURIComponent(caseId)}`
+    : null
+  const canGenerateAiDraft = Boolean(service?.id) && isActive && hasBankStatement
   const canPublish =
     Boolean(service?.id) &&
     isActive &&
@@ -56,7 +96,7 @@ export default function AdvisorFinancialAnalysisPanel({
   const canMarkPayment = Boolean(service?.id) && Boolean(service?.customer_confirmed_at) && !Boolean(service?.payment_received_at)
 
   async function runAction(
-    action: "create_offer" | "send_offer_email" | "mark_payment_received" | "publish_results"
+    action: "create_offer" | "send_offer_email" | "mark_payment_received" | "generate_ai_draft" | "publish_results"
   ) {
     setBusyAction(action)
     setFeedback(null)
@@ -78,23 +118,7 @@ export default function AdvisorFinancialAnalysisPanel({
       const json = await response.json().catch(() => ({}))
 
       if (!response.ok || !json?.ok) {
-        throw new Error(
-          json?.error === "customer_email_missing"
-            ? "Beim Kunden ist keine E-Mail-Adresse hinterlegt."
-            : json?.error === "mail_not_configured"
-              ? "Der E-Mail-Versand ist noch nicht konfiguriert."
-              : json?.error === "financial_analysis_customer_confirmation_missing"
-                ? "Der Kunde muss den Zusatzservice zuerst aktiv bestätigen. Danach wird automatisch die Rechnung versendet."
-                : json?.error === "financial_analysis_invoice_missing"
-                  ? "Es liegt noch keine Rechnung zur Finanzanalyse vor."
-                  : json?.error === "financial_analysis_invoice_not_payable"
-                    ? "Die zugehörige Rechnung ist nicht mehr zahlbar."
-                    : json?.error === "financial_analysis_not_active"
-                      ? "Die Finanzanalyse ist noch nicht aktiv. Bitte zuerst Kundenbestätigung und Zahlung abschließen."
-                      : json?.error === "financial_analysis_content_missing"
-                        ? "Bitte mindestens einen Auswertungsbereich befüllen."
-                        : json?.error || "Aktion fehlgeschlagen."
-        )
+        throw new Error(financialAnalysisActionErrorMessage(json?.error))
       }
 
       if (action === "create_offer") {
@@ -112,8 +136,25 @@ export default function AdvisorFinancialAnalysisPanel({
               ? "Zahlung markiert. Die Rechnung wurde als bezahlt verbucht und die Finanzanalyse ist jetzt aktiv."
               : "Zahlung wurde markiert. Es fehlt noch die aktive Kundenbestätigung.",
         })
+      } else if (action === "generate_ai_draft") {
+        const nextService = json?.service ?? {}
+        setHouseholdOverview(String(nextService?.published_household_overview ?? json?.generated?.householdOverview ?? ""))
+        setRecommendations(String(nextService?.published_recommendations ?? json?.generated?.recommendations ?? ""))
+        setActionPlan(String(nextService?.published_action_plan ?? json?.generated?.actionPlan ?? ""))
+        setSchufaNotes(String(nextService?.published_schufa_notes ?? json?.generated?.schufaNotes ?? ""))
+        setFeedback({
+          type: "success",
+          text: json?.hasSchufaReport
+            ? "KI-Entwurf erstellt. Bitte prüfen, anpassen und danach manuell veröffentlichen."
+            : "KI-Entwurf erstellt. Schufa-Hinweise bleiben bewusst eingeschränkt, bis eine Schufa-Auskunft hochgeladen wurde.",
+        })
       } else {
-        setFeedback({ type: "success", text: "Die Auswertung wurde für den Kunden im Dashboard veröffentlicht." })
+        setFeedback({
+          type: "success",
+          text: json?.publishedEmailSent
+            ? "Die Auswertung wurde veröffentlicht und der Kunde per E-Mail informiert."
+            : "Die Auswertung wurde veröffentlicht. Die Kundenmail konnte nicht automatisch versendet werden.",
+        })
       }
 
       startTransition(() => router.refresh())
@@ -181,6 +222,50 @@ export default function AdvisorFinancialAnalysisPanel({
             </div>
           </div>
 
+          <div className="overflow-hidden rounded-[30px] border border-emerald-200 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_34%),linear-gradient(135deg,#052e2b,#0f172a)] p-4 text-white shadow-sm sm:p-5">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-center">
+              <div>
+                <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-100">
+                  KI-Auswertung
+                </div>
+                <h3 className="mt-3 text-xl font-semibold tracking-tight">Entwurf aus Kontoauszügen erstellen</h3>
+                <p className="mt-2 text-sm leading-relaxed text-emerald-50/90">
+                  Die KI liest die hochgeladenen Finanzanalyse-Unterlagen aus und erstellt einen prüfbaren Entwurf für
+                  Haushaltsrechnung, Empfehlungen und 90-Tage-Maßnahmenplan. Veröffentlicht wird erst nach Ihrer Freigabe.
+                </p>
+                <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-white/10 bg-white/10 px-3 py-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-100">Kontoauszüge</div>
+                    <div className="mt-1 text-lg font-semibold">{bankStatementCount}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/10 px-3 py-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-100">Schufa</div>
+                    <div className="mt-1 text-lg font-semibold">{hasSchufaReport ? "vorhanden" : "fehlt"}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/10 px-3 py-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-100">Status</div>
+                    <div className="mt-1 text-lg font-semibold">{isActive ? "bereit" : "gesperrt"}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-white/12 bg-white/10 p-4 backdrop-blur">
+                <button
+                  type="button"
+                  onClick={() => runAction("generate_ai_draft")}
+                  disabled={busyAction !== null || !canGenerateAiDraft}
+                  className="inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {busyAction === "generate_ai_draft" ? "KI analysiert..." : "KI-Entwurf erstellen"}
+                </button>
+                <p className="mt-3 text-xs leading-relaxed text-emerald-50/80">
+                  Schufa-Hinweise werden erst erzeugt, wenn eine aktuelle Schufa-Auskunft hochgeladen wurde. Ohne
+                  Kontoauszug bleibt der KI-Button deaktiviert.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -189,14 +274,24 @@ export default function AdvisorFinancialAnalysisPanel({
                   Veröffentlichen Sie hier die fertige Haushaltsrechnung, Empfehlungen und den 90-Tage-Plan.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => runAction("publish_results")}
-                disabled={busyAction !== null || !canPublish}
-                className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {busyAction === "publish_results" ? "Veröffentliche..." : "Im Dashboard veröffentlichen"}
-              </button>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                {actionPlanPdfHref ? (
+                  <a
+                    href={actionPlanPdfHref}
+                    className="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:border-emerald-300"
+                  >
+                    90-Tage-Plan PDF
+                  </a>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => runAction("publish_results")}
+                  disabled={busyAction !== null || !canPublish}
+                  className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {busyAction === "publish_results" ? "Veröffentliche..." : "Im Dashboard veröffentlichen"}
+                </button>
+              </div>
             </div>
 
             <div className="mt-4 grid gap-3">

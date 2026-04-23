@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { loadLatestFinancialAnalysisService } from "@/lib/financial-analysis/data"
+import { generateFinancialAnalysisDraft } from "@/lib/financial-analysis/ai"
 import {
   isMissingCaseInvoicesTableError,
   loadLatestFinancialAnalysisInvoice,
 } from "@/lib/financial-analysis/invoice"
-import { sendFinancialAnalysisActivatedEmail } from "@/lib/financial-analysis/email"
+import { sendFinancialAnalysisActivatedEmail, sendFinancialAnalysisPublishedEmail } from "@/lib/financial-analysis/email"
 import { sendFinancialAnalysisOfferForCase, upsertFinancialAnalysisOffer } from "@/lib/financial-analysis/offer"
 import {
   FINANCIAL_ANALYSIS_DEFAULT_SUMMARY,
@@ -21,7 +22,12 @@ import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const runtime = "nodejs"
 
-type SupportedAction = "create_offer" | "send_offer_email" | "mark_payment_received" | "publish_results"
+type SupportedAction =
+  | "create_offer"
+  | "send_offer_email"
+  | "mark_payment_received"
+  | "generate_ai_draft"
+  | "publish_results"
 
 function resolveSiteOrigin(req: Request) {
   const configured = trimOrNull(process.env.NEXT_PUBLIC_SITE_URL)
@@ -36,7 +42,13 @@ function resolveSiteOrigin(req: Request) {
 }
 
 function isSupportedAction(value: string): value is SupportedAction {
-  return value === "create_offer" || value === "send_offer_email" || value === "mark_payment_received" || value === "publish_results"
+  return (
+    value === "create_offer" ||
+    value === "send_offer_email" ||
+    value === "mark_payment_received" ||
+    value === "generate_ai_draft" ||
+    value === "publish_results"
+  )
 }
 
 async function loadCaseForAction(admin: ReturnType<typeof supabaseAdmin>, caseId: string) {
@@ -83,6 +95,22 @@ async function maybeSendActivationMail(input: {
   }
 
   return { sent: true, error: null as string | null }
+}
+
+async function loadApplicantName(admin: ReturnType<typeof supabaseAdmin>, caseId: string) {
+  const result = await admin
+    .from("case_applicants")
+    .select("first_name,last_name")
+    .eq("case_id", caseId)
+    .eq("role", "primary")
+    .maybeSingle()
+
+  if (result.error) throw result.error
+  const row = (result.data ?? null) as { first_name?: string | null; last_name?: string | null } | null
+  return [row?.first_name, row?.last_name]
+    .map((value) => trimOrNull(value))
+    .filter(Boolean)
+    .join(" ")
 }
 
 export async function POST(req: Request) {
@@ -296,6 +324,72 @@ export async function POST(req: Request) {
     }
 
     const nowIso = new Date().toISOString()
+
+    if (actionRaw === "generate_ai_draft") {
+      const applicantName = await loadApplicantName(admin, caseId)
+      const draftResult = await generateFinancialAnalysisDraft({
+        admin,
+        caseId,
+        serviceId: existingService.id,
+        caseRef: trimOrNull(caseRow.case_ref),
+        applicantName: applicantName || null,
+      })
+
+      if (!draftResult.ok) {
+        const status =
+          draftResult.error === "openai_not_configured"
+            ? 503
+            : draftResult.error === "financial_analysis_documents_unreadable"
+              ? 422
+              : 409
+        return NextResponse.json({ ok: false, error: draftResult.error }, { status })
+      }
+
+      const result = await admin
+        .from("case_financial_analysis_services")
+        .update({
+          analysis_status: "in_review",
+          published_household_overview: draftResult.generated.householdOverview,
+          published_recommendations: draftResult.generated.recommendations,
+          published_action_plan: draftResult.generated.actionPlan,
+          published_schufa_notes: draftResult.generated.schufaNotes,
+          published_at: null,
+          published_by: null,
+          updated_at: nowIso,
+        })
+        .eq("id", existingService.id)
+        .select("*")
+        .single()
+
+      if (result.error) throw result.error
+
+      const nextService = normalizeFinancialAnalysisServiceRow((result.data ?? null) as FinancialAnalysisServiceRow | null)
+
+      await logCaseEvent({
+        caseId,
+        actorId: user.id,
+        actorRole: role,
+        type: "financial_analysis_ai_draft_generated",
+        title: "KI-Entwurf für Finanzanalyse erstellt",
+        body: "Aus den hochgeladenen Unterlagen wurde ein Entwurf für Haushaltsrechnung, Empfehlungen und 90-Tage-Plan erstellt.",
+        meta: {
+          service_id: existingService.id,
+          document_count: draftResult.documentCount,
+          has_schufa_report: draftResult.hasSchufaReport,
+          document_summary: draftResult.generated.documentSummary,
+        },
+        notifyCustomer: false,
+        notifyAdvisor: false,
+      })
+
+      return NextResponse.json({
+        ok: true,
+        service: nextService,
+        generated: draftResult.generated,
+        hasSchufaReport: draftResult.hasSchufaReport,
+      })
+    }
+
     const publishedHouseholdOverview = trimOrNull(body?.publishedHouseholdOverview)
     const publishedRecommendations = trimOrNull(body?.publishedRecommendations)
     const publishedActionPlan = trimOrNull(body?.publishedActionPlan)
@@ -324,6 +418,14 @@ export async function POST(req: Request) {
     if (result.error) throw result.error
 
     const nextService = normalizeFinancialAnalysisServiceRow((result.data ?? null) as FinancialAnalysisServiceRow | null)
+    const publishedEmail =
+      nextService?.id
+        ? await sendFinancialAnalysisPublishedEmail({
+            caseId,
+            siteOrigin,
+            service: nextService,
+          })
+        : { ok: false as const, error: "financial_analysis_missing" }
 
     await logCaseEvent({
       caseId,
@@ -334,12 +436,14 @@ export async function POST(req: Request) {
       body: "Die Auswertung wurde für den Kunden im Dashboard veröffentlicht.",
       meta: {
         service_id: existingService.id,
+        published_email_sent: publishedEmail.ok,
+        published_email_error: publishedEmail.ok ? null : publishedEmail.error,
       },
       notifyCustomer: false,
       notifyAdvisor: false,
     })
 
-    return NextResponse.json({ ok: true, service: nextService })
+    return NextResponse.json({ ok: true, service: nextService, publishedEmailSent: publishedEmail.ok })
   } catch (error) {
     if (isMissingFinancialAnalysisTablesError(error)) {
       return NextResponse.json({ ok: false, error: "financial_analysis_tables_missing" }, { status: 503 })

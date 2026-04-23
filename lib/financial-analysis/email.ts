@@ -180,6 +180,75 @@ export async function sendFinancialAnalysisActivatedEmail(input: {
   }
 }
 
+export async function sendFinancialAnalysisPublishedEmail(input: {
+  caseId: string
+  siteOrigin: string
+  service: FinancialAnalysisServiceRow
+}) : Promise<MailResult> {
+  const caseMeta = await getCaseMeta(input.caseId)
+  if (!caseMeta?.customer_email) {
+    return { ok: false, error: "customer_email_missing" }
+  }
+
+  const subject = "Ihre Finanzanalyse ist im Dashboard verfügbar"
+  const portalUrl = buildFinancialAnalysisPortalUrl(input.siteOrigin, input.caseId)
+  const publishedLabel = formatDate(input.service.published_at)
+
+  const html = buildEmailHtml({
+    title: "Ihre Finanzanalyse ist verfügbar",
+    intro: caseMeta.case_ref
+      ? `Die Auswertung für Ihren Fall ${caseMeta.case_ref} wurde im Kundendashboard veröffentlicht.`
+      : "Ihre Auswertung wurde im Kundendashboard veröffentlicht.",
+    bodyHtml: `
+      <div style="margin:0 0 16px 0; border:1px solid #bbf7d0; border-radius:16px; background:#f0fdf4; padding:16px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#047857;">Finanzanalyse abgeschlossen</div>
+        <div style="margin-top:6px; font-size:18px; line-height:26px; font-weight:700; color:#0f172a;">Haushaltsrechnung, Empfehlungen und 90-Tage-Plan stehen bereit.</div>
+        ${
+          publishedLabel
+            ? `<div style="margin-top:8px; font-size:13px; line-height:20px; color:#334155;">Veröffentlicht am ${escapeHtml(publishedLabel)}</div>`
+            : ""
+        }
+      </div>
+      <p style="margin:0 0 14px 0; font-size:14px; line-height:22px; color:#334155;">
+        Im Dashboard können Sie die veröffentlichte Haushaltsrechnung, die Empfehlungen und den 90-Tage-Maßnahmenplan einsehen.
+        Den 90-Tage-Maßnahmenplan können Sie dort zusätzlich als PDF herunterladen.
+      </p>
+      <p style="margin:0; font-size:14px; line-height:22px; color:#334155;">
+        Wir melden uns zeitnah auch telefonisch bei Ihnen, um die Ergebnisse persönlich zu besprechen und die nächsten Schritte sauber einzuordnen.
+      </p>
+    `,
+    steps: [
+      "Kundendashboard öffnen und Finanzanalyse ansehen.",
+      "90-Tage-Maßnahmenplan bei Bedarf als PDF herunterladen.",
+      "Telefonisches Gespräch mit SEPANA abwarten und Fragen notieren.",
+    ],
+    ctaLabel: "Finanzanalyse öffnen",
+    ctaUrl: portalUrl,
+    preheader: "Ihre Finanzanalyse wurde veröffentlicht. Der 90-Tage-Plan steht im Dashboard bereit.",
+    eyebrow: "SEPANA - Finanzanalyse",
+    supportNote: "Die Auswertung ist eine strukturierte Beratungseinschätzung auf Basis der vorliegenden Unterlagen und enthält keine Finanzierungsgarantie.",
+  })
+
+  const mailResult = await sendEmail({
+    to: caseMeta.customer_email,
+    subject,
+    html,
+  }).catch((error) => ({
+    ok: false as const,
+    error: error instanceof Error ? error.message : "mail_failed",
+  }))
+
+  if (!mailResult?.ok) {
+    return { ok: false, error: String(mailResult?.error ?? "mail_failed") }
+  }
+
+  return {
+    ok: true,
+    to: caseMeta.customer_email,
+    subject,
+  }
+}
+
 export async function sendFinancialAnalysisInvoiceEmail(input: {
   caseId: string
   caseRef: string | null | undefined
