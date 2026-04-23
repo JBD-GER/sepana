@@ -95,9 +95,9 @@ export default function SchufaFreeServiceFeePanel({
   const statusLabel = getSchufaFreeProvisionStatusLabel(invoice?.status, invoice?.invoice_type)
   const invoiceHref = invoice?.id ? `/api/app/cases/invoices/${invoice.id}` : null
   const cancellationInvoiceHref = cancellationInvoice?.id ? `/api/app/cases/invoices/${cancellationInvoice.id}` : null
-  const canEditAmount = !invoice?.id || normalizedStatus === "sent"
+  const canEditAmount = !invoice?.id || normalizedStatus === "sent" || isCancelled
 
-  async function runAction(action: "save" | "mark_paid" | "mark_refunded" | "mark_open") {
+  async function runAction(action: "save" | "recreate" | "mark_paid" | "mark_refunded" | "mark_open") {
     setBusyAction(action)
     setFeedback(null)
 
@@ -108,7 +108,7 @@ export default function SchufaFreeServiceFeePanel({
         body: JSON.stringify({
           caseId,
           action,
-          amountTotal: action === "save" ? parsedGrossAmount : undefined,
+          amountTotal: action === "save" || action === "recreate" ? parsedGrossAmount : undefined,
         }),
       })
       const json = await res.json().catch(() => ({}))
@@ -125,6 +125,11 @@ export default function SchufaFreeServiceFeePanel({
         setFeedback({
           type: "success",
           text: "Rechnung wurde intern gespeichert. Gesonderter Vermittlungsauftrag und Vertragsbereich sind jetzt freigeschaltet.",
+        })
+      } else if (action === "recreate") {
+        setFeedback({
+          type: "success",
+          text: "Neue Rechnung wurde angelegt. Gesonderter Vermittlungsauftrag und Vertragsbereich sind wieder freigeschaltet.",
         })
       } else if (action === "mark_paid") {
         setFeedback({ type: "success", text: "Zahlungseingang wurde bestaetigt." })
@@ -189,7 +194,7 @@ export default function SchufaFreeServiceFeePanel({
                   inputMode="decimal"
                   value={draftGrossAmount}
                   onChange={(event) => setDraftGrossAmount(event.target.value)}
-                  disabled={!canEditAmount || isCancelled}
+                  disabled={!canEditAmount}
                   placeholder="z. B. 399,00"
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:bg-slate-50"
                 />
@@ -208,6 +213,17 @@ export default function SchufaFreeServiceFeePanel({
                       : invoice?.id
                         ? "Rechnung aktualisieren"
                         : "Rechnung intern anlegen"}
+                  </button>
+                ) : null}
+
+                {isCancelled ? (
+                  <button
+                    type="button"
+                    onClick={() => runAction("recreate")}
+                    disabled={busyAction !== null || !parsedGrossAmount}
+                    className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {busyAction === "recreate" ? "Erstelle..." : "Neue Rechnung"}
                   </button>
                 ) : null}
 
@@ -292,7 +308,7 @@ export default function SchufaFreeServiceFeePanel({
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Storno</div>
             <div className="mt-2 space-y-2 text-xs leading-relaxed text-slate-600">
               <div>Die Stornierung bleibt im Admin verfuegbar.</div>
-              <div>Nach einer Stornierung muss vor weiteren Vertragsschritten wieder eine gueltige Rechnung angelegt werden.</div>
+              <div>Nach einer Stornierung kann der Berater hier direkt wieder eine neue gueltige Rechnung anlegen.</div>
               <div>Stornorechnung: {cancellationInvoiceNumber ?? "-"}</div>
             </div>
           </div>

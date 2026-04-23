@@ -54,6 +54,27 @@ function pickPreferredInvoice(rows: SchufaFreeInvoiceGateRow[], preferredTypes: 
   })[0]
 }
 
+function getCreatedAtMs(value: string | null | undefined) {
+  const timestamp = Date.parse(String(value ?? ""))
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+function pickRelevantCancellationInvoice(
+  rows: SchufaFreeInvoiceGateRow[],
+  invoice: SchufaFreeInvoiceGateRow | null
+) {
+  const preferredTypeSet = new Set(SCHUFA_FREE_SIGNATURE_CANCELLATION_INVOICE_TYPES)
+  const invoiceCreatedAt = getCreatedAtMs(invoice?.created_at)
+  const filtered = rows.filter((row) => {
+    const invoiceType = String(row.invoice_type ?? "").trim()
+    if (!preferredTypeSet.has(invoiceType)) return false
+    if (!invoice) return true
+    return getCreatedAtMs(row.created_at) >= invoiceCreatedAt
+  })
+  if (!filtered.length) return null
+  return pickPreferredInvoice(filtered, SCHUFA_FREE_SIGNATURE_CANCELLATION_INVOICE_TYPES)
+}
+
 export async function loadSchufaFreeSignatureInvoiceGate(
   admin: SupabaseClient,
   caseId: string
@@ -74,7 +95,7 @@ export async function loadSchufaFreeSignatureInvoiceGate(
 
   const rows = (data ?? []) as SchufaFreeInvoiceGateRow[]
   const invoice = pickPreferredInvoice(rows, SCHUFA_FREE_SIGNATURE_MAIN_INVOICE_TYPES)
-  const cancellationInvoice = pickPreferredInvoice(rows, SCHUFA_FREE_SIGNATURE_CANCELLATION_INVOICE_TYPES)
+  const cancellationInvoice = pickRelevantCancellationInvoice(rows, invoice)
   const invoiceCancelled =
     String(invoice?.status ?? "").trim().toLowerCase() === "cancelled" || Boolean(cancellationInvoice?.id)
 

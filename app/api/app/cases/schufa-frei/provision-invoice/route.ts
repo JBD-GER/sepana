@@ -22,7 +22,7 @@ import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const runtime = "nodejs"
 
-type SupportedAction = "save" | "mark_paid" | "mark_refunded" | "mark_open" | "cancel"
+type SupportedAction = "save" | "recreate" | "mark_paid" | "mark_refunded" | "mark_open" | "cancel"
 
 type CaseInvoiceRow = {
   id: string
@@ -63,7 +63,14 @@ function isMissingCaseInvoiceNumberMigrationError(error: unknown) {
 }
 
 function isSupportedAction(value: string): value is SupportedAction {
-  return value === "save" || value === "mark_paid" || value === "mark_refunded" || value === "mark_open" || value === "cancel"
+  return (
+    value === "save" ||
+    value === "recreate" ||
+    value === "mark_paid" ||
+    value === "mark_refunded" ||
+    value === "mark_open" ||
+    value === "cancel"
+  )
 }
 
 function parseAmountTotal(value: unknown) {
@@ -91,6 +98,24 @@ function pickPreferredInvoice(rows: CaseInvoiceRow[], preferredTypes: string[]) 
     const bCreated = Date.parse(String(b.created_at ?? ""))
     return Number.isFinite(bCreated) ? bCreated - (Number.isFinite(aCreated) ? aCreated : 0) : -1
   })[0]
+}
+
+function getCreatedAtMs(value: string | null | undefined) {
+  const timestamp = Date.parse(String(value ?? ""))
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+function pickRelevantCancellationInvoice(rows: CaseInvoiceRow[], invoice: CaseInvoiceRow | null) {
+  const preferredTypeSet = new Set(CANCELLATION_INVOICE_TYPES)
+  const invoiceCreatedAt = getCreatedAtMs(invoice?.created_at)
+  const filtered = rows.filter((row) => {
+    const invoiceType = String(row.invoice_type ?? "").trim()
+    if (!preferredTypeSet.has(invoiceType)) return false
+    if (!invoice) return true
+    return getCreatedAtMs(row.created_at) >= invoiceCreatedAt
+  })
+  if (filtered.length === 0) return null
+  return pickPreferredInvoice(filtered, CANCELLATION_INVOICE_TYPES)
 }
 
 async function resolveSchufaFreeCustomerCity(admin: ReturnType<typeof supabaseAdmin>, caseId: string) {
@@ -311,7 +336,7 @@ export async function POST(req: Request) {
 
   const invoiceRows = (invoiceRowsRaw ?? []) as CaseInvoiceRow[]
   const existingInvoice = pickPreferredInvoice(invoiceRows, MAIN_INVOICE_TYPES)
-  const cancellationInvoice = pickPreferredInvoice(invoiceRows, CANCELLATION_INVOICE_TYPES)
+  const cancellationInvoice = pickRelevantCancellationInvoice(invoiceRows, existingInvoice)
   const existingStatus = String(existingInvoice?.status ?? "").trim().toLowerCase()
   const invoiceCancelled = existingStatus === "cancelled" || Boolean(cancellationInvoice?.id)
   const now = new Date().toISOString()
@@ -412,11 +437,111 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, invoice: savedInvoice, emailSent: false })
   }
 
+  if (actionRaw === "recreate") {
+    const amountTotal = parseAmountTotal(body?.amountTotal)
+    if (!amountTotal) {
+      return NextResponse.json({ ok: false, error: "amount_total_invalid" }, { status: 400 })
+    }
+    if (!existingInvoice || !invoiceCancelled) {
+      return NextResponse.json({ ok: false, error: "Rechnung ist nicht storniert" }, { status: 409 })
+    }
+
+    const caseMeta = await getCaseMeta(caseId)
+    const insertPayload = {
+      case_id: caseId,
+      case_type: "schufa_frei",
+      invoice_type: SCHUFA_FREE_PROVISION_INVOICE_TYPE,
+      title: buildSchufaFreeProvisionInvoiceTitle(),
+      description: buildSchufaFreeProvisionDescription(amountTotal),
+      status: "sent",
+      loan_amount: null,
+      percentage_rate: null,
+      amount_total: amountTotal,
+      currency: "EUR",
+      recipient_name: caseMeta?.customer_name ?? trimOrNull(existingInvoice.recipient_name),
+      recipient_email: caseMeta?.customer_email ?? trimOrNull(existingInvoice.recipient_email),
+      sent_at: null,
+      paid_at: null,
+      refunded_at: null,
+      created_by: user.id,
+      updated_at: now,
+    }
+
+    const { data: recreatedInvoice, error: recreateError } = await admin
+      .from("case_invoices")
+      .insert(insertPayload)
+      .select("*")
+      .single()
+
+    if (recreateError) {
+      if (isMissingCaseInvoicesTableError(recreateError)) {
+        return NextResponse.json(
+          { ok: false, error: "DB-Migration fehlt: Tabelle case_invoices ist noch nicht vorhanden." },
+          { status: 503 }
+        )
+      }
+      if (isMissingCaseInvoiceNumberMigrationError(recreateError)) {
+        return NextResponse.json(
+          { ok: false, error: "DB-Migration fehlt: fortlaufende Rechnungsnummer in case_invoices ist noch nicht vorhanden." },
+          { status: 503 }
+        )
+      }
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            recreateError.code === "23505"
+              ? "DB-Migration fehlt: Mehrere Rechnungen pro Falltyp sind noch nicht freigeschaltet."
+              : recreateError.message,
+        },
+        { status: recreateError.code === "23505" ? 503 : 400 }
+      )
+    }
+
+    const customerCity = await resolveSchufaFreeCustomerCity(admin, caseId)
+    const mandateResult = await refreshSeparateMandateRequest({
+      admin,
+      caseId,
+      actorId: user.id,
+      amountTotal,
+      caseRef: caseRow.case_ref ?? caseId,
+      createdAt: recreatedInvoice.created_at ?? now,
+      customerName: caseMeta?.customer_name ?? null,
+      customerCity,
+      advisorName: caseMeta?.advisor_name ?? null,
+      forceRefresh: true,
+    })
+
+    await updateCaseStatusCompat(admin, {
+      caseId,
+      status: "skag_submitted",
+      updatedAt: now,
+    })
+
+    await logCaseEvent({
+      caseId,
+      actorId: user.id,
+      actorRole: role,
+      type: "schufa_free_service_fee_invoice_recreated",
+      title: "Neue Rechnung angelegt",
+      body: "Nach einer Stornierung wurde eine neue interne Servicepauschalenrechnung angelegt. Der Vertragsbereich ist wieder freigeschaltet.",
+      meta: {
+        invoice_id: recreatedInvoice.id,
+        amount_total: amountTotal,
+        separate_mandate_request_id: mandateResult.requestId,
+      },
+      notifyCustomer: false,
+      notifyAdvisor: false,
+    })
+
+    return NextResponse.json({ ok: true, invoice: recreatedInvoice, emailSent: false })
+  }
+
   if (!existingInvoice) {
     return NextResponse.json({ ok: false, error: "Rechnung noch nicht angelegt" }, { status: 404 })
   }
 
-  if (invoiceCancelled && actionRaw !== "cancel") {
+  if (invoiceCancelled && actionRaw !== "cancel" && actionRaw !== "recreate") {
     return NextResponse.json({ ok: false, error: "Rechnung wurde bereits storniert" }, { status: 409 })
   }
 
