@@ -1,31 +1,25 @@
-﻿"use client"
+"use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-
-const OPTIONS = [
-  { value: "neu", label: "Neu" },
-  { value: "kontaktaufnahme", label: "Kontaktaufnahme" },
-  { value: "terminiert", label: "Terminiert" },
-  { value: "angebot", label: "Angebot" },
-  { value: "nachfrage", label: "Nachfrage" },
-  { value: "abgelehnt", label: "Abgelehnt" },
-  { value: "abgeschlossen", label: "Abgeschlossen" },
-]
+import { getAdvisorCaseStatusOptions } from "@/lib/advisor/caseStatusOptions"
 
 export default function AdvisorCaseStatusSelect({
   caseId,
   value,
+  caseType,
   compact,
 }: {
   caseId: string
   value: string
+  caseType?: string | null
   compact?: boolean
 }) {
   const router = useRouter()
   const [selected, setSelected] = useState(value)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  const options = getAdvisorCaseStatusOptions(caseType)
 
   async function save(nextValue: string) {
     setMsg(null)
@@ -57,7 +51,7 @@ export default function AdvisorCaseStatusSelect({
           compact ? "text-[11px]" : "text-xs"
         }`}
       >
-        {OPTIONS.map((opt) => (
+        {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
           </option>

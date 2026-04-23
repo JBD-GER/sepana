@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { loadLatestFinancialAnalysisService } from "@/lib/financial-analysis/data"
+import {
+  isMissingCaseInvoicesTableError,
+  loadLatestFinancialAnalysisInvoice,
+} from "@/lib/financial-analysis/invoice"
 import { sendFinancialAnalysisActivatedEmail, sendFinancialAnalysisOfferEmail } from "@/lib/financial-analysis/email"
 import {
   FINANCIAL_ANALYSIS_CURRENCY,
@@ -187,13 +191,15 @@ export async function POST(req: Request) {
         caseId,
         actorId: user.id,
         actorRole: role,
-        type: existingService?.id && !isFinancialAnalysisTerminalStatus(existingService.service_status)
-          ? "financial_analysis_offer_updated"
-          : "financial_analysis_offer_created",
-        title: existingService?.id && !isFinancialAnalysisTerminalStatus(existingService.service_status)
-          ? "Finanzanalyse-Angebot aktualisiert"
-          : "Finanzanalyse-Angebot angelegt",
-        body: "Der gesonderte Zusatzservice Finanzanalyse wurde fuer diesen Fall vorbereitet.",
+        type:
+          existingService?.id && !isFinancialAnalysisTerminalStatus(existingService.service_status)
+            ? "financial_analysis_offer_updated"
+            : "financial_analysis_offer_created",
+        title:
+          existingService?.id && !isFinancialAnalysisTerminalStatus(existingService.service_status)
+            ? "Finanzanalyse-Angebot aktualisiert"
+            : "Finanzanalyse-Angebot angelegt",
+        body: "Der gesonderte Zusatzservice Finanzanalyse wurde für diesen Fall vorbereitet.",
         meta: {
           service_id: savedService?.id ?? null,
         },
@@ -284,8 +290,37 @@ export async function POST(req: Request) {
     }
 
     if (actionRaw === "mark_payment_received") {
+      if (!trimOrNull(existingService.customer_confirmed_at)) {
+        return NextResponse.json({ ok: false, error: "financial_analysis_customer_confirmation_missing" }, { status: 409 })
+      }
+
+      const relatedInvoice = await loadLatestFinancialAnalysisInvoice(admin, caseId, existingService.created_at ?? null)
+      if (!relatedInvoice?.id) {
+        return NextResponse.json({ ok: false, error: "financial_analysis_invoice_missing" }, { status: 409 })
+      }
+
+      const invoiceStatus = String(relatedInvoice.status ?? "").trim().toLowerCase()
+      if (invoiceStatus === "cancelled" || invoiceStatus === "refunded") {
+        return NextResponse.json({ ok: false, error: "financial_analysis_invoice_not_payable" }, { status: 409 })
+      }
+
       const previousStatus = existingService.service_status
       const nowIso = new Date().toISOString()
+
+      const invoiceUpdateResult = await admin
+        .from("case_invoices")
+        .update({
+          status: "paid",
+          paid_at: nowIso,
+          refunded_at: null,
+          updated_at: nowIso,
+        })
+        .eq("id", relatedInvoice.id)
+        .select("*")
+        .single()
+
+      if (invoiceUpdateResult.error) throw invoiceUpdateResult.error
+
       const patch = buildFinancialAnalysisServicePatch({
         row: existingService,
         nowIso,
@@ -314,13 +349,14 @@ export async function POST(req: Request) {
         actorId: user.id,
         actorRole: role,
         type: nextService?.service_status === "active" ? "financial_analysis_activated" : "financial_analysis_payment_received",
-        title: nextService?.service_status === "active" ? "Finanzanalyse aktiviert" : "Zahlung fuer Finanzanalyse markiert",
+        title: nextService?.service_status === "active" ? "Finanzanalyse aktiviert" : "Zahlung für Finanzanalyse markiert",
         body:
           nextService?.service_status === "active"
-            ? "Bestaetigung und Zahlungsmarkierung liegen vor. Der Finanzanalyse-Bereich ist jetzt freigeschaltet."
-            : "Der Zahlungseingang fuer die Finanzanalyse wurde markiert.",
+            ? "Bestätigung und Zahlungsmarkierung liegen vor. Der Finanzanalyse-Bereich ist jetzt freigeschaltet."
+            : "Der Zahlungseingang für die Finanzanalyse wurde markiert.",
         meta: {
           service_id: existingService.id,
+          invoice_id: relatedInvoice.id,
           activation_email_sent: activationMail.sent,
           activation_email_error: activationMail.error,
         },
@@ -331,6 +367,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         service: nextService,
+        invoice: invoiceUpdateResult.data ?? null,
         activationEmailSent: activationMail.sent,
       })
     }
@@ -375,8 +412,8 @@ export async function POST(req: Request) {
       actorId: user.id,
       actorRole: role,
       type: "financial_analysis_published",
-      title: "Finanzanalyse veroeffentlicht",
-      body: "Die Auswertung wurde fuer den Kunden im Dashboard veroeffentlicht.",
+      title: "Finanzanalyse veröffentlicht",
+      body: "Die Auswertung wurde für den Kunden im Dashboard veröffentlicht.",
       meta: {
         service_id: existingService.id,
       },
@@ -388,6 +425,9 @@ export async function POST(req: Request) {
   } catch (error) {
     if (isMissingFinancialAnalysisTablesError(error)) {
       return NextResponse.json({ ok: false, error: "financial_analysis_tables_missing" }, { status: 503 })
+    }
+    if (isMissingCaseInvoicesTableError(error)) {
+      return NextResponse.json({ ok: false, error: "case_invoices_missing" }, { status: 503 })
     }
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "financial_analysis_failed" },

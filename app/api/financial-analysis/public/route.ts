@@ -1,7 +1,22 @@
 import { NextResponse } from "next/server"
 import { loadFinancialAnalysisPublicContext } from "@/lib/financial-analysis/data"
-import { sendFinancialAnalysisActivatedEmail } from "@/lib/financial-analysis/email"
 import {
+  FINANCIAL_ANALYSIS_INVOICE_TYPE,
+  buildFinancialAnalysisInvoiceDescription,
+  buildFinancialAnalysisPaymentReference,
+  isMissingCaseInvoiceNumberMigrationError,
+  isMissingCaseInvoicesTableError,
+  loadFinancialAnalysisInvoiceRecipient,
+  loadLatestFinancialAnalysisInvoice,
+  type FinancialAnalysisInvoiceRow,
+} from "@/lib/financial-analysis/invoice"
+import {
+  sendFinancialAnalysisActivatedEmail,
+  sendFinancialAnalysisInvoiceEmail,
+} from "@/lib/financial-analysis/email"
+import { renderFinancialAnalysisInvoicePdf } from "@/lib/financial-analysis/renderFinancialAnalysisInvoicePdf"
+import {
+  FINANCIAL_ANALYSIS_PRICE_GROSS_CENTS,
   FINANCIAL_ANALYSIS_TERMS_VERSION,
   buildFinancialAnalysisServicePatch,
   isFinancialAnalysisTerminalStatus,
@@ -10,7 +25,7 @@ import {
   trimOrNull,
   type FinancialAnalysisServiceRow,
 } from "@/lib/financial-analysis/service"
-import { logCaseEvent } from "@/lib/notifications/notify"
+import { getCaseMeta, logCaseEvent } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const runtime = "nodejs"
@@ -25,6 +40,122 @@ function resolveSiteOrigin(req: Request) {
     }
   }
   return new URL(req.url).origin
+}
+
+async function syncAdvisorStatusToFinancialAnalysis(input: {
+  admin: ReturnType<typeof supabaseAdmin>
+  caseId: string
+  nowIso: string
+}) {
+  const caseResult = await input.admin
+    .from("cases")
+    .select("advisor_status,case_type")
+    .eq("id", input.caseId)
+    .maybeSingle()
+
+  if (caseResult.error) throw caseResult.error
+
+  const caseType = String(caseResult.data?.case_type ?? "").trim().toLowerCase()
+  if (caseType !== "schufa_frei") {
+    return { updated: false, reason: "case_type_not_supported" as const }
+  }
+
+  const currentStatus = trimOrNull(caseResult.data?.advisor_status)?.toLowerCase()
+  if (currentStatus === "finanzanalyse") {
+    return { updated: false, reason: "already_set" as const }
+  }
+
+  const updateResult = await input.admin
+    .from("cases")
+    .update({
+      advisor_status: "finanzanalyse",
+      updated_at: input.nowIso,
+    })
+    .eq("id", input.caseId)
+
+  if (updateResult.error) throw updateResult.error
+
+  return { updated: true, reason: "updated" as const }
+}
+
+function getFinancialAnalysisAmountTotal(servicePriceGrossCents: number | null | undefined) {
+  const cents = Number(servicePriceGrossCents ?? FINANCIAL_ANALYSIS_PRICE_GROSS_CENTS)
+  if (!Number.isFinite(cents) || cents <= 0) {
+    return FINANCIAL_ANALYSIS_PRICE_GROSS_CENTS / 100
+  }
+  return Math.round(cents) / 100
+}
+
+async function ensureFinancialAnalysisInvoice(input: {
+  admin: ReturnType<typeof supabaseAdmin>
+  caseId: string
+  caseRef: string | null | undefined
+  customerName: string | null
+  customerEmail: string | null
+  service: FinancialAnalysisServiceRow
+  nowIso: string
+  createdBy: string | null
+}) {
+  const existingInvoice = await loadLatestFinancialAnalysisInvoice(input.admin, input.caseId, input.service.created_at ?? null)
+  const existingStatus = String(existingInvoice?.status ?? "").trim().toLowerCase()
+  const shouldCreateNewInvoice = !existingInvoice?.id || existingStatus === "cancelled" || existingStatus === "refunded"
+  const invoicePaidAt = trimOrNull(input.service.payment_received_at)
+  const recipientAddress = await loadFinancialAnalysisInvoiceRecipient(input.admin, input.caseId)
+  const amountTotal = getFinancialAnalysisAmountTotal(input.service.price_gross_cents)
+
+  const payload = {
+    case_type: "schufa_frei",
+    invoice_type: FINANCIAL_ANALYSIS_INVOICE_TYPE,
+    title: "Rechnung Finanzanalyse",
+    description: buildFinancialAnalysisInvoiceDescription(amountTotal),
+    status: invoicePaidAt ? "paid" : "sent",
+    loan_amount: null,
+    percentage_rate: null,
+    amount_total: amountTotal,
+    currency: "EUR",
+    recipient_name: input.customerName ?? trimOrNull(existingInvoice?.recipient_name),
+    recipient_email: input.customerEmail ?? trimOrNull(existingInvoice?.recipient_email),
+    recipient_street: [recipientAddress.street, recipientAddress.houseNumber].filter(Boolean).join(" ").trim() || null,
+    recipient_zipcode: recipientAddress.zipcode,
+    recipient_city: recipientAddress.city,
+    paid_at: invoicePaidAt,
+    refunded_at: null,
+    updated_at: input.nowIso,
+  }
+
+  const query = shouldCreateNewInvoice
+    ? input.admin
+        .from("case_invoices")
+        .insert({
+          case_id: input.caseId,
+          created_by: input.createdBy,
+          sent_at: null,
+          ...payload,
+        })
+        .select("*")
+        .single()
+    : input.admin
+        .from("case_invoices")
+        .update({
+          ...payload,
+          sent_at: trimOrNull(existingInvoice?.sent_at),
+        })
+        .eq("id", existingInvoice.id)
+        .select("*")
+        .single()
+
+  const result = await query
+  if (result.error) throw result.error
+
+  const invoice = (result.data ?? null) as FinancialAnalysisInvoiceRow | null
+  const invoiceNumber = trimOrNull(invoice?.invoice_number) ?? trimOrNull(invoice?.id) ?? "-"
+  const paymentReference = buildFinancialAnalysisPaymentReference(invoiceNumber, input.caseRef) ?? invoiceNumber
+
+  return {
+    invoice,
+    amountTotal,
+    paymentReference,
+  }
 }
 
 export async function GET(req: Request) {
@@ -98,6 +229,80 @@ export async function POST(req: Request) {
     if (result.error) throw result.error
 
     const nextService = normalizeFinancialAnalysisServiceRow((result.data ?? null) as FinancialAnalysisServiceRow | null)
+    const advisorStatusSync = await syncAdvisorStatusToFinancialAnalysis({
+      admin,
+      caseId: access.caseRow.id,
+      nowIso,
+    })
+    const caseMeta = await getCaseMeta(access.caseRow.id)
+    const invoiceResult = await ensureFinancialAnalysisInvoice({
+      admin,
+      caseId: access.caseRow.id,
+      caseRef: access.caseRow.case_ref,
+      customerName: caseMeta?.customer_name ?? access.applicantName,
+      customerEmail: caseMeta?.customer_email ?? null,
+      service: nextService ?? access.service,
+      nowIso,
+      createdBy:
+        trimOrNull(access.caseRow.assigned_advisor_id) ??
+        trimOrNull(access.service.assigned_advisor_id) ??
+        trimOrNull(access.service.offered_by),
+    })
+
+    let invoiceEmailSent = false
+    let invoiceEmailError: string | null = null
+    const invoice = invoiceResult.invoice
+    const shouldSendInvoiceEmail =
+      Boolean(invoice?.id) &&
+      String(invoice?.status ?? "").trim().toLowerCase() !== "paid" &&
+      !trimOrNull(invoice?.sent_at)
+
+    if (shouldSendInvoiceEmail && invoice?.id) {
+      const invoiceNumber = trimOrNull(invoice.invoice_number) ?? invoice.id
+      const pdfBytes = await renderFinancialAnalysisInvoicePdf({
+        invoiceNumber,
+        createdAt: invoice.created_at,
+        caseRef: trimOrNull(access.caseRow.case_ref) ?? access.caseRow.id.slice(0, 8),
+        paymentReference: invoiceResult.paymentReference,
+        recipientName: trimOrNull(invoice.recipient_name) ?? caseMeta?.customer_name ?? access.applicantName,
+        recipientEmail: trimOrNull(invoice.recipient_email) ?? caseMeta?.customer_email ?? null,
+        recipientStreet: trimOrNull(invoice.recipient_street),
+        recipientHouseNumber: null,
+        recipientZipcode: trimOrNull(invoice.recipient_zipcode),
+        recipientCity: trimOrNull(invoice.recipient_city),
+        amountTotal: invoiceResult.amountTotal,
+        status: trimOrNull(invoice.status),
+        description: trimOrNull(invoice.description),
+      })
+
+      const invoiceMailResult = await sendFinancialAnalysisInvoiceEmail({
+        caseId: access.caseRow.id,
+        caseRef: access.caseRow.case_ref,
+        invoice,
+        invoicePdfBase64: Buffer.from(pdfBytes).toString("base64"),
+        attachmentFileName: `Rechnung-${invoiceNumber}.pdf`,
+      })
+
+      invoiceEmailSent = invoiceMailResult.ok
+      invoiceEmailError = invoiceMailResult.ok ? null : invoiceMailResult.error
+
+      if (invoiceMailResult.ok) {
+        const invoiceUpdateResult = await admin
+          .from("case_invoices")
+          .update({
+            sent_at: nowIso,
+            updated_at: nowIso,
+          })
+          .eq("id", invoice.id)
+          .select("*")
+          .single()
+
+        if (!invoiceUpdateResult.error) {
+          invoiceResult.invoice = (invoiceUpdateResult.data ?? invoice) as FinancialAnalysisInvoiceRow
+        }
+      }
+    }
+
     const siteOrigin = resolveSiteOrigin(req)
     let activationMailSent = false
     if (String(previousStatus ?? "").trim().toLowerCase() !== "active" && nextService?.service_status === "active") {
@@ -114,13 +319,19 @@ export async function POST(req: Request) {
       actorId: null,
       actorRole: "public",
       type: nextService?.service_status === "active" ? "financial_analysis_activated" : "financial_analysis_customer_confirmed",
-      title: nextService?.service_status === "active" ? "Finanzanalyse aktiviert" : "Finanzanalyse vom Kunden bestaetigt",
+      title: nextService?.service_status === "active" ? "Finanzanalyse aktiviert" : "Finanzanalyse vom Kunden bestätigt",
       body:
         nextService?.service_status === "active"
-          ? "Die Bestaetigung liegt vor und die Finanzanalyse ist jetzt freigeschaltet."
-          : "Der Kunde hat den Zusatzservice Finanzanalyse aktiv bestaetigt.",
+          ? "Die Bestätigung liegt vor und die Finanzanalyse ist jetzt freigeschaltet."
+          : invoiceEmailSent
+            ? "Der Kunde hat den Zusatzservice Finanzanalyse aktiv bestätigt. Die Rechnung wurde per E-Mail versendet."
+            : "Der Kunde hat den Zusatzservice Finanzanalyse aktiv bestätigt.",
       meta: {
         service_id: access.service.id,
+        invoice_id: invoiceResult.invoice?.id ?? null,
+        advisor_status_updated: advisorStatusSync.updated,
+        invoice_email_sent: invoiceEmailSent,
+        invoice_email_error: invoiceEmailError,
         activation_email_sent: activationMailSent,
       },
       notifyCustomer: false,
@@ -130,11 +341,20 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       service: nextService,
+      invoiceId: invoiceResult.invoice?.id ?? null,
+      invoiceEmailSent,
+      invoiceEmailError,
       activationEmailSent: activationMailSent,
     })
   } catch (error) {
     if (isMissingFinancialAnalysisTablesError(error)) {
       return NextResponse.json({ ok: false, error: "financial_analysis_tables_missing" }, { status: 503 })
+    }
+    if (isMissingCaseInvoicesTableError(error)) {
+      return NextResponse.json({ ok: false, error: "case_invoices_missing" }, { status: 503 })
+    }
+    if (isMissingCaseInvoiceNumberMigrationError(error)) {
+      return NextResponse.json({ ok: false, error: "case_invoice_number_missing" }, { status: 503 })
     }
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "financial_analysis_confirm_failed" },

@@ -45,7 +45,7 @@ export function createFinancialAnalysisPublicToken(input: {
   const serviceId = trimOrNull(input.serviceId)
   const caseId = trimOrNull(input.caseId)
   if (!serviceId || !caseId) {
-    throw new Error("serviceId und caseId werden benoetigt.")
+    throw new Error("serviceId und caseId werden benötigt.")
   }
 
   const issuedAt = Math.floor(Date.now() / 1000)

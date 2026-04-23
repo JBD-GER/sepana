@@ -36,18 +36,18 @@ type UploadCard = {
 const UPLOAD_CARDS: UploadCard[] = [
   {
     kind: "bank_statement",
-    title: "Kontoauszuege hochladen",
-    description: "Bitte laden Sie hier Ihre aktuellen Kontoauszuege hoch, damit die Haushaltsrechnung erstellt werden kann.",
+    title: "Kontoauszüge hochladen",
+    description: "Bitte laden Sie hier Ihre aktuellen Kontoauszüge hoch, damit die Haushaltsrechnung erstellt werden kann.",
   },
   {
     kind: "schufa_report",
     title: "Aktuelle Schufa hochladen",
-    description: "Laden Sie Ihre aktuelle Schufa hoch, damit moegliche Optimierungen sauber eingeordnet werden koennen.",
+    description: "Laden Sie Ihre aktuelle Schufa hoch, damit mögliche Optimierungen sauber eingeordnet werden können.",
   },
   {
     kind: "supporting_document",
     title: "Weitere Unterlagen",
-    description: "Nutzen Sie diesen Bereich fuer Zusatzdokumente, Ergaenzungen oder sonstige Nachweise.",
+    description: "Nutzen Sie diesen Bereich für Zusatzdokumente, Ergänzungen oder sonstige Nachweise.",
   },
 ]
 
@@ -90,7 +90,7 @@ export default function CustomerFinancialAnalysisPanel({
             json?.error === "financial_analysis_not_active"
               ? "Der Bereich ist aktuell nicht aktiv."
               : json?.error === "datei_zu_gross"
-                ? "Die Datei ist zu gross. Maximal 20 MB sind erlaubt."
+                ? "Die Datei ist zu groß. Maximal 20 MB sind erlaubt."
                 : json?.error === "dateityp_nicht_unterstuetzt"
                   ? "Bitte laden Sie PDF-Dateien oder Bilder hoch."
                   : json?.error || "Upload fehlgeschlagen."
@@ -117,7 +117,7 @@ export default function CustomerFinancialAnalysisPanel({
           <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">Finanzanalyse</div>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{FINANCIAL_ANALYSIS_SERVICE_TITLE}</h2>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">
-            Laden Sie hier Ihre Unterlagen hoch und verfolgen Sie die veroeffentlichte Auswertung direkt im Dashboard.
+            Laden Sie hier Ihre Unterlagen hoch und verfolgen Sie die veröffentlichte Auswertung direkt im Dashboard.
           </p>
         </div>
 
@@ -146,7 +146,7 @@ export default function CustomerFinancialAnalysisPanel({
             <div className="text-sm font-semibold text-slate-900">{card.title}</div>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">{card.description}</p>
             <label className="mt-4 inline-flex cursor-pointer items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm">
-              {busyKind === card.kind ? "Upload..." : "Dateien auswaehlen"}
+              {busyKind === card.kind ? "Upload..." : "Dateien auswählen"}
               <input
                 type="file"
                 multiple
@@ -168,7 +168,7 @@ export default function CustomerFinancialAnalysisPanel({
       <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
           <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm">
-            <div className="text-sm font-semibold text-slate-900">Veroeffentlichte Auswertung</div>
+            <div className="text-sm font-semibold text-slate-900">Veröffentlichte Auswertung</div>
             {service.published_at ? (
               <div className="mt-4 space-y-4">
                 {trimOrNull(service.published_household_overview) ? (
@@ -191,7 +191,7 @@ export default function CustomerFinancialAnalysisPanel({
 
                 {trimOrNull(service.published_action_plan) ? (
                   <section>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">90-Tage-Massnahmenplan</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">90-Tage-Maßnahmenplan</div>
                     <div className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
                       {service.published_action_plan}
                     </div>
@@ -207,7 +207,7 @@ export default function CustomerFinancialAnalysisPanel({
                   </section>
                 ) : null}
 
-                <div className="text-xs text-slate-500">Veroeffentlicht am {formatDateTime(service.published_at)}</div>
+                <div className="text-xs text-slate-500">Veröffentlicht am {formatDateTime(service.published_at)}</div>
               </div>
             ) : (
               <div className="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">

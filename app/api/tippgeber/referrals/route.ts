@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
-import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
+import { buildEmailHtml, sanitizeNotificationRecipients, sendEmail } from "@/lib/notifications/notify"
 import { isEmail, isPhone } from "@/lib/tippgeber/service"
 import { normalizeTippgeberKind, tippgeberKindLabel } from "@/lib/tippgeber/kinds"
 
@@ -63,21 +63,11 @@ function isMissingPrivateReferralColumnsError(error: unknown) {
 }
 
 function parseRecipients() {
-  const configured = [
+  return sanitizeNotificationRecipients([
     process.env.ADMIN_NOTIFY_TO,
     process.env.INVITE_ACCEPTED_NOTIFY_TO,
-  ]
-    .map((x) => String(x ?? "").trim())
-    .filter(Boolean)
-    .join(" ")
-
-  const set = new Set(
-    (`${configured} info@sepana.de`)
-      .split(/[;,\s]+/g)
-      .map((x) => x.trim().toLowerCase())
-      .filter((x) => x.includes("@"))
-  )
-  return Array.from(set)
+    "info@sepana.de",
+  ])
 }
 
 function siteBaseUrl() {

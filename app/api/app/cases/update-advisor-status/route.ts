@@ -1,18 +1,9 @@
-﻿import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"
+import { getAdvisorCaseStatusSet } from "@/lib/advisor/caseStatusOptions"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const runtime = "nodejs"
-
-const ALLOWED = new Set([
-  "neu",
-  "kontaktaufnahme",
-  "terminiert",
-  "angebot",
-  "nachfrage",
-  "abgelehnt",
-  "abgeschlossen",
-])
 
 export async function POST(req: Request) {
   const { user, role } = await getUserAndRole()
@@ -31,19 +22,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "caseId fehlt" }, { status: 400 })
   }
 
-  if (advisorStatus && !ALLOWED.has(advisorStatus)) {
-    return NextResponse.json({ ok: false, error: "Ungültiger Status" }, { status: 400 })
-  }
-
   const admin = supabaseAdmin()
   const { data: caseRow } = await admin
     .from("cases")
-    .select("id,assigned_advisor_id")
+    .select("id,assigned_advisor_id,case_type")
     .eq("id", caseId)
     .maybeSingle()
 
   if (!caseRow) {
     return NextResponse.json({ ok: false, error: "Fall nicht gefunden" }, { status: 404 })
+  }
+
+  const allowedStatuses = getAdvisorCaseStatusSet(caseRow.case_type)
+  if (advisorStatus && !allowedStatuses.has(advisorStatus)) {
+    return NextResponse.json({ ok: false, error: "Ungültiger Status" }, { status: 400 })
   }
 
   if (role === "advisor" && caseRow.assigned_advisor_id !== user.id) {
@@ -61,4 +53,3 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true, advisor_status: advisorStatus })
 }
-

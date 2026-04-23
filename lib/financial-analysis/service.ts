@@ -56,18 +56,18 @@ export type FinancialAnalysisDocumentRow = {
   updated_at?: string | null
 }
 
-export const FINANCIAL_ANALYSIS_SERVICE_TITLE = "Persoenliche Finanzanalyse"
+export const FINANCIAL_ANALYSIS_SERVICE_TITLE = "Persönliche Finanzanalyse"
 export const FINANCIAL_ANALYSIS_PRICE_GROSS_CENTS = 24900
 export const FINANCIAL_ANALYSIS_CURRENCY = "EUR"
 export const FINANCIAL_ANALYSIS_DURATION_DAYS = 90
 export const FINANCIAL_ANALYSIS_TERMS_VERSION = "financial_analysis_2026_04_23_v1"
 export const FINANCIAL_ANALYSIS_DEFAULT_SUMMARY =
-  "Persoenliche Finanzanalyse inklusive individueller 90-Tage-Massnahmenplan und bankenaehnlicher Haushaltsrechnung."
+  "Persönliche Finanzanalyse inklusive individuellem 90-Tage-Maßnahmenplan und bankenähnlicher Haushaltsrechnung."
 
 export const FINANCIAL_ANALYSIS_FEATURES = [
-  "Persoenliche Finanzanalyse mit bankenaehnlicher Haushaltsrechnung",
-  "Individueller 90-Tage-Massnahmenplan zur Verbesserung der Finanzlage",
-  "Hinweise zur Bonitaetsoptimierung und zu moeglichen naechsten Schritten bei Schufa-Themen",
+  "Persönliche Finanzanalyse mit bankenähnlicher Haushaltsrechnung",
+  "Individueller 90-Tage-Maßnahmenplan zur Verbesserung der Finanzlage",
+  "Hinweise zur Bonitätsoptimierung und zu möglichen nächsten Schritten bei Schufa-Themen",
 ] as const
 
 export const FINANCIAL_ANALYSIS_LEGAL_NOTE =
@@ -85,7 +85,7 @@ export function formatFinancialAnalysisPrice(cents: number | null | undefined) {
 
 export function getFinancialAnalysisServiceStatusLabel(status: unknown) {
   const normalized = String(status ?? "").trim().toLowerCase()
-  if (normalized === "customer_confirmed") return "Vom Kunden bestaetigt"
+  if (normalized === "customer_confirmed") return "Vom Kunden bestätigt"
   if (normalized === "payment_received") return "Zahlung markiert"
   if (normalized === "active") return "Aktiv"
   if (normalized === "expired") return "Abgelaufen"
@@ -97,13 +97,13 @@ export function getFinancialAnalysisAnalysisStatusLabel(status: unknown) {
   const normalized = String(status ?? "").trim().toLowerCase()
   if (normalized === "documents_received") return "Unterlagen eingegangen"
   if (normalized === "in_review") return "In Bearbeitung"
-  if (normalized === "published") return "Veroeffentlicht"
+  if (normalized === "published") return "Veröffentlicht"
   return "Noch nicht gestartet"
 }
 
 export function getFinancialAnalysisDocumentKindLabel(kind: unknown) {
   const normalized = String(kind ?? "").trim().toLowerCase()
-  if (normalized === "bank_statement") return "Kontoauszuege"
+  if (normalized === "bank_statement") return "Kontoauszüge"
   if (normalized === "schufa_report") return "Aktuelle Schufa"
   if (normalized === "supporting_document") return "Zusatzdokument"
   return "Dokument"

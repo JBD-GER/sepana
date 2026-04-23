@@ -1,4 +1,5 @@
 import { buildEmailHtml, getCaseMeta, sendEmail } from "@/lib/notifications/notify"
+import { buildFinancialAnalysisPaymentReference, type FinancialAnalysisInvoiceRow } from "@/lib/financial-analysis/invoice"
 import {
   FINANCIAL_ANALYSIS_FEATURES,
   FINANCIAL_ANALYSIS_LEGAL_NOTE,
@@ -69,31 +70,31 @@ export async function sendFinancialAnalysisOfferEmail(input: {
     return { ok: false, error: "customer_email_missing" }
   }
 
-  const subject = "Finanzanalyse aktiv bestaetigen"
+  const subject = "Finanzanalyse aktiv bestätigen"
   const html = buildEmailHtml({
-    title: "Finanzanalyse aktiv bestaetigen",
+    title: "Finanzanalyse aktiv bestätigen",
     intro: caseMeta.case_ref
-      ? `Fuer Ihren Fall ${caseMeta.case_ref} koennen Sie jetzt die persoenliche Finanzanalyse gesondert bestaetigen.`
-      : "Sie koennen die persoenliche Finanzanalyse jetzt gesondert bestaetigen.",
+      ? `Für Ihren Fall ${caseMeta.case_ref} können Sie jetzt die persönliche Finanzanalyse gesondert bestätigen.`
+      : "Sie können die persönliche Finanzanalyse jetzt gesondert bestätigen.",
     bodyHtml: `
       ${renderOfferSummaryHtml(input.service)}
       <p style="margin:0 0 14px 0; font-size:14px; line-height:22px; color:#334155;">
-        Ueber den Button unten sehen Sie den Service noch einmal auf einer separaten Seite und bestaetigen die Beauftragung aktiv.
+        Über den Button unten sehen Sie den Service noch einmal auf einer separaten Seite und bestätigen die Beauftragung aktiv.
       </p>
       <p style="margin:0; font-size:14px; line-height:22px; color:#334155;">
-        Der Bereich im Kundendashboard wird erst freigeschaltet, wenn Ihre Bestaetigung vorliegt und der Zahlungseingang intern markiert wurde.
+        Der Bereich im Kundendashboard wird erst freigeschaltet, wenn Ihre Bestätigung vorliegt und der Zahlungseingang intern markiert wurde.
       </p>
     `,
     steps: [
-      "Leistungsseite aufrufen und Angebot noch einmal in Ruhe pruefen.",
-      "Die Finanzanalyse aktiv bestaetigen.",
+      "Leistungsseite aufrufen und Angebot noch einmal in Ruhe prüfen.",
+      "Die Finanzanalyse aktiv bestätigen.",
       "Nach Zahlungsmarkierung wird der Bereich im Dashboard freigeschaltet.",
     ],
-    ctaLabel: "Finanzanalyse bestaetigen",
+    ctaLabel: "Finanzanalyse bestätigen",
     ctaUrl: input.activationUrl,
-    preheader: "Bitte bestaetigen Sie die Finanzanalyse aktiv auf der gesonderten Serviceseite.",
+    preheader: "Bitte bestätigen Sie die Finanzanalyse aktiv auf der gesonderten Serviceseite.",
     eyebrow: "SEPANA - Finanzanalyse",
-    supportNote: "Die Bestaetigung erfolgt separat. Ohne aktive Bestaetigung und Zahlungsmarkierung wird der Bereich nicht freigeschaltet.",
+    supportNote: "Die Bestätigung erfolgt separat. Ohne aktive Bestätigung und Zahlungsmarkierung wird der Bereich nicht freigeschaltet.",
   })
 
   const mailResult = await sendEmail({
@@ -133,32 +134,105 @@ export async function sendFinancialAnalysisActivatedEmail(input: {
   const html = buildEmailHtml({
     title: "Ihre Finanzanalyse ist jetzt freigeschaltet",
     intro: caseMeta.case_ref
-      ? `Der Zusatzservice fuer Ihren Fall ${caseMeta.case_ref} ist jetzt aktiv.`
+      ? `Der Zusatzservice für Ihren Fall ${caseMeta.case_ref} ist jetzt aktiv.`
       : "Ihr Zusatzservice ist jetzt aktiv.",
     bodyHtml: `
       <p style="margin:0 0 14px 0; font-size:14px; line-height:22px; color:#334155;">
         Ihr Bereich <strong style="color:#0f172a;">${escapeHtml(FINANCIAL_ANALYSIS_SERVICE_TITLE)}</strong> steht jetzt im Kundendashboard bereit.
       </p>
       <p style="margin:0; font-size:14px; line-height:22px; color:#334155;">
-        Laden Sie dort jetzt Ihre Kontoauszuege, Ihre aktuelle Schufa und weitere relevante Unterlagen hoch. Ihr Zugang bleibt${expiresLabel ? ` bis ${escapeHtml(expiresLabel)}` : ""} aktiv.
+        Laden Sie dort jetzt Ihre Kontoauszüge, Ihre aktuelle Schufa und weitere relevante Unterlagen hoch. Ihr Zugang bleibt${expiresLabel ? ` bis ${escapeHtml(expiresLabel)}` : ""} aktiv.
       </p>
     `,
     steps: [
-      "Im Dashboard den Bereich Finanzanalyse oeffnen.",
-      "Kontoauszuege, Schufa und Zusatzdokumente hochladen.",
-      "Sobald die Auswertung veroeffentlicht ist, sehen Sie Haushaltsrechnung und Massnahmenplan direkt dort.",
+      "Im Dashboard den Bereich Finanzanalyse öffnen.",
+      "Kontoauszüge, Schufa und Zusatzdokumente hochladen.",
+      "Sobald die Auswertung veröffentlicht ist, sehen Sie Haushaltsrechnung und Maßnahmenplan direkt dort.",
     ],
     ctaLabel: "Zum Finanzanalyse-Bereich",
     ctaUrl: portalUrl,
     preheader: "Ihr Finanzanalyse-Bereich ist jetzt im Dashboard freigeschaltet.",
     eyebrow: "SEPANA - Aktivierung",
-    supportNote: "Bei Rueckfragen begleitet Sie Ihr Ansprechpartner waehrend der aktiven Laufzeit.",
+    supportNote: "Bei Rückfragen begleitet Sie Ihr Ansprechpartner während der aktiven Laufzeit.",
   })
 
   const mailResult = await sendEmail({
     to: caseMeta.customer_email,
     subject,
     html,
+  }).catch((error) => ({
+    ok: false as const,
+    error: error instanceof Error ? error.message : "mail_failed",
+  }))
+
+  if (!mailResult?.ok) {
+    return { ok: false, error: String(mailResult?.error ?? "mail_failed") }
+  }
+
+  return {
+    ok: true,
+    to: caseMeta.customer_email,
+    subject,
+  }
+}
+
+export async function sendFinancialAnalysisInvoiceEmail(input: {
+  caseId: string
+  caseRef: string | null | undefined
+  invoice: FinancialAnalysisInvoiceRow
+  invoicePdfBase64: string
+  attachmentFileName: string
+}) : Promise<MailResult> {
+  const caseMeta = await getCaseMeta(input.caseId)
+  if (!caseMeta?.customer_email) {
+    return { ok: false, error: "customer_email_missing" }
+  }
+
+  const invoiceNumber = trimOrNull(input.invoice.invoice_number) ?? trimOrNull(input.invoice.id) ?? "-"
+  const paymentReference = buildFinancialAnalysisPaymentReference(invoiceNumber, input.caseRef)
+  const subject = "Ihre Rechnung zur Finanzanalyse"
+  const priceLabel = formatFinancialAnalysisPrice(input.invoice.amount_total ? Number(input.invoice.amount_total) * 100 : null)
+
+  const html = buildEmailHtml({
+    title: "Ihre Rechnung zur Finanzanalyse",
+    intro: caseMeta.case_ref
+      ? `Vielen Dank für Ihre Bestätigung. Für Ihren Fall ${caseMeta.case_ref} wurde jetzt die Rechnung zur Finanzanalyse erstellt.`
+      : "Vielen Dank für Ihre Bestätigung. Ihre Rechnung zur Finanzanalyse wurde jetzt erstellt.",
+    bodyHtml: `
+      <div style="margin:0 0 16px 0; border:1px solid #e2e8f0; border-radius:16px; background:#f8fafc; padding:16px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#64748b;">Rechnungsdaten</div>
+        <div style="margin-top:6px; font-size:18px; line-height:26px; font-weight:700; color:#0f172a;">Rechnung ${escapeHtml(invoiceNumber)}</div>
+        <div style="margin-top:8px; font-size:14px; line-height:22px; color:#334155;">Betrag: <strong style="color:#0f172a;">${escapeHtml(priceLabel)}</strong></div>
+        <div style="margin-top:4px; font-size:14px; line-height:22px; color:#334155;">Verwendungszweck: <strong style="color:#0f172a;">${escapeHtml(paymentReference ?? invoiceNumber)}</strong></div>
+        <div style="margin-top:4px; font-size:14px; line-height:22px; color:#334155;">Bitte nutzen Sie die beigefügte Rechnung für die Überweisung.</div>
+      </div>
+      <p style="margin:0 0 14px 0; font-size:14px; line-height:22px; color:#334155;">
+        Der Service wird erst nach intern markiertem Zahlungseingang freigeschaltet. Ab dann beginnt auch die 90-Tage-Laufzeit.
+      </p>
+      <p style="margin:0; font-size:12px; line-height:18px; color:#64748b;">
+        ${escapeHtml(FINANCIAL_ANALYSIS_LEGAL_NOTE)}
+      </p>
+    `,
+    steps: [
+      "Die beigefügte Rechnung öffnen und prüfen.",
+      `Den Betrag ${priceLabel} mit dem Verwendungszweck ${paymentReference ?? invoiceNumber} überweisen.`,
+      "Nach Zahlungsmarkierung wird der Bereich im Dashboard freigeschaltet.",
+    ],
+    preheader: "Ihre Rechnung zur Finanzanalyse ist als PDF im Anhang enthalten.",
+    eyebrow: "SEPANA - Rechnung",
+    supportNote: "Sobald der Zahlungseingang intern markiert wurde, startet die Finanzanalyse und der Zugang wird freigeschaltet.",
+  })
+
+  const mailResult = await sendEmail({
+    to: caseMeta.customer_email,
+    subject,
+    html,
+    attachments: [
+      {
+        filename: input.attachmentFileName,
+        content: input.invoicePdfBase64,
+      },
+    ],
   }).catch((error) => ({
     ok: false as const,
     error: error instanceof Error ? error.message : "mail_failed",

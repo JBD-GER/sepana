@@ -42,8 +42,10 @@ export default function PublicFinancialAnalysisActivationClient({
       if (!response.ok || !json?.ok) {
         throw new Error(
           json?.error === "financial_analysis_not_available"
-            ? "Dieser Service steht nicht mehr zur Verfuegung."
-            : json?.error || "Bestaetigung fehlgeschlagen."
+            ? "Dieser Service steht nicht mehr zur Verfügung."
+            : json?.error === "case_invoices_missing" || json?.error === "case_invoice_number_missing"
+              ? "Die Rechnung konnte gerade technisch noch nicht erstellt werden."
+              : json?.error || "Bestätigung fehlgeschlagen."
         )
       }
 
@@ -53,12 +55,14 @@ export default function PublicFinancialAnalysisActivationClient({
         text:
           String(json?.service?.service_status ?? "").trim().toLowerCase() === "active"
             ? "Danke. Die Finanzanalyse ist jetzt freigeschaltet."
-            : "Danke. Ihre Bestaetigung liegt vor. Der Bereich wird nach Zahlungsmarkierung freigeschaltet.",
+            : json?.invoiceEmailSent
+              ? "Danke. Ihre Bestätigung liegt vor. Die Rechnung wurde gerade per E-Mail versendet. Nach Zahlungseingang wird der Bereich freigeschaltet."
+              : "Danke. Ihre Bestätigung liegt vor. Die Rechnung wird separat versendet. Nach Zahlungseingang wird der Bereich freigeschaltet.",
       })
     } catch (error) {
       setFeedback({
         type: "error",
-        text: error instanceof Error ? error.message : "Bestaetigung fehlgeschlagen.",
+        text: error instanceof Error ? error.message : "Bestätigung fehlgeschlagen.",
       })
     } finally {
       setBusy(false)
@@ -67,10 +71,10 @@ export default function PublicFinancialAnalysisActivationClient({
 
   return (
     <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <div className="text-sm font-semibold text-slate-900">Aktive Bestaetigung</div>
+      <div className="text-sm font-semibold text-slate-900">Aktive Bestätigung</div>
       <p className="mt-2 text-sm leading-relaxed text-slate-600">
-        Bitte bestaetigen Sie den Zusatzservice aktiv. Erst danach und nach interner Zahlungsmarkierung wird der
-        Bereich im Kundendashboard freigeschaltet.
+        Bitte bestätigen Sie den Zusatzservice aktiv. Direkt danach wird automatisch Ihre Rechnung erstellt und per
+        E-Mail versendet. Der Bereich im Kundendashboard wird erst nach interner Zahlungsmarkierung freigeschaltet.
       </p>
 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -80,7 +84,7 @@ export default function PublicFinancialAnalysisActivationClient({
           disabled={busy || alreadyConfirmed}
           className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {busy ? "Bestaetige..." : alreadyConfirmed ? "Bereits bestaetigt" : "Finanzanalyse aktiv bestaetigen"}
+          {busy ? "Bestätige..." : alreadyConfirmed ? "Bereits bestätigt" : "Finanzanalyse aktiv bestätigen"}
         </button>
 
         {isActive ? (

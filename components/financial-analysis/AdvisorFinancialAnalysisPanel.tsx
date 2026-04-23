@@ -53,6 +53,7 @@ export default function AdvisorFinancialAnalysisPanel({
     Boolean(service?.id) &&
     isActive &&
     [householdOverview, recommendations, actionPlan, schufaNotes].some((value) => Boolean(trimOrNull(value)))
+  const canMarkPayment = Boolean(service?.id) && Boolean(service?.customer_confirmed_at) && !Boolean(service?.payment_received_at)
 
   async function runAction(
     action: "create_offer" | "send_offer_email" | "mark_payment_received" | "publish_results"
@@ -82,16 +83,22 @@ export default function AdvisorFinancialAnalysisPanel({
             ? "Beim Kunden ist keine E-Mail-Adresse hinterlegt."
             : json?.error === "mail_not_configured"
               ? "Der E-Mail-Versand ist noch nicht konfiguriert."
-              : json?.error === "financial_analysis_not_active"
-                ? "Die Finanzanalyse ist noch nicht aktiv. Bitte zuerst Kundenbestaetigung und Zahlung abschliessen."
-                : json?.error === "financial_analysis_content_missing"
-                  ? "Bitte mindestens einen Auswertungsbereich befuellen."
-                  : json?.error || "Aktion fehlgeschlagen."
+              : json?.error === "financial_analysis_customer_confirmation_missing"
+                ? "Der Kunde muss den Zusatzservice zuerst aktiv bestätigen. Danach wird automatisch die Rechnung versendet."
+                : json?.error === "financial_analysis_invoice_missing"
+                  ? "Es liegt noch keine Rechnung zur Finanzanalyse vor."
+                  : json?.error === "financial_analysis_invoice_not_payable"
+                    ? "Die zugehörige Rechnung ist nicht mehr zahlbar."
+                    : json?.error === "financial_analysis_not_active"
+                      ? "Die Finanzanalyse ist noch nicht aktiv. Bitte zuerst Kundenbestätigung und Zahlung abschließen."
+                      : json?.error === "financial_analysis_content_missing"
+                        ? "Bitte mindestens einen Auswertungsbereich befüllen."
+                        : json?.error || "Aktion fehlgeschlagen."
         )
       }
 
       if (action === "create_offer") {
-        setFeedback({ type: "success", text: "Das Angebot fuer die Finanzanalyse wurde gespeichert." })
+        setFeedback({ type: "success", text: "Das Angebot für die Finanzanalyse wurde gespeichert." })
       } else if (action === "send_offer_email") {
         setFeedback({
           type: "success",
@@ -102,11 +109,11 @@ export default function AdvisorFinancialAnalysisPanel({
           type: "success",
           text:
             String(json?.service?.service_status ?? "").trim().toLowerCase() === "active"
-              ? "Zahlung markiert. Die Finanzanalyse ist jetzt aktiv."
-              : "Zahlung wurde markiert. Es fehlt noch die aktive Kundenbestaetigung.",
+              ? "Zahlung markiert. Die Rechnung wurde als bezahlt verbucht und die Finanzanalyse ist jetzt aktiv."
+              : "Zahlung wurde markiert. Es fehlt noch die aktive Kundenbestätigung.",
         })
       } else {
-        setFeedback({ type: "success", text: "Die Auswertung wurde fuer den Kunden im Dashboard veroeffentlicht." })
+        setFeedback({ type: "success", text: "Die Auswertung wurde für den Kunden im Dashboard veröffentlicht." })
       }
 
       startTransition(() => router.refresh())
@@ -127,9 +134,9 @@ export default function AdvisorFinancialAnalysisPanel({
           <div>
             <div className="text-sm font-semibold text-slate-900">{FINANCIAL_ANALYSIS_SERVICE_TITLE}</div>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Getrennter Zusatzservice fuer persoenliche Finanzanalyse, Haushaltsrechnung und 90-Tage-Massnahmenplan.
-              Der Bereich im Kundendashboard wird erst freigeschaltet, wenn der Kunde aktiv bestaetigt hat und die
-              Zahlung intern markiert wurde.
+              Getrennter Zusatzservice für persönliche Finanzanalyse, Haushaltsrechnung und 90-Tage-Maßnahmenplan.
+              Der Bereich im Kundendashboard wird erst freigeschaltet, wenn der Kunde aktiv bestätigt hat, die
+              Rechnung erstellt wurde und die Zahlung intern markiert ist.
             </p>
           </div>
 
@@ -166,7 +173,7 @@ export default function AdvisorFinancialAnalysisPanel({
               <button
                 type="button"
                 onClick={() => runAction("mark_payment_received")}
-                disabled={busyAction !== null || !service?.id || Boolean(service?.payment_received_at)}
+                disabled={busyAction !== null || !canMarkPayment}
                 className="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {busyAction === "mark_payment_received" ? "Markiere..." : "Zahlung markieren"}
@@ -179,7 +186,7 @@ export default function AdvisorFinancialAnalysisPanel({
               <div>
                 <div className="text-sm font-semibold text-slate-900">Kundensicht vorbereiten</div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Veroeffentlichen Sie hier die fertige Haushaltsrechnung, Empfehlungen und den 90-Tage-Plan.
+                  Veröffentlichen Sie hier die fertige Haushaltsrechnung, Empfehlungen und den 90-Tage-Plan.
                 </p>
               </div>
               <button
@@ -188,7 +195,7 @@ export default function AdvisorFinancialAnalysisPanel({
                 disabled={busyAction !== null || !canPublish}
                 className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {busyAction === "publish_results" ? "Veroeffentliche..." : "Im Dashboard veroeffentlichen"}
+                {busyAction === "publish_results" ? "Veröffentliche..." : "Im Dashboard veröffentlichen"}
               </button>
             </div>
 
@@ -216,7 +223,7 @@ export default function AdvisorFinancialAnalysisPanel({
               </label>
 
               <label className="block">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">90-Tage-Massnahmenplan</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">90-Tage-Maßnahmenplan</div>
                 <textarea
                   value={actionPlan}
                   onChange={(event) => setActionPlan(event.target.value)}
@@ -295,7 +302,7 @@ export default function AdvisorFinancialAnalysisPanel({
               <div>Preis: {formatFinancialAnalysisPrice(service?.price_gross_cents)}</div>
               <div>Analyse: {getFinancialAnalysisAnalysisStatusLabel(service?.analysis_status)}</div>
               <div>Mail gesendet: {formatDateTime(service?.offer_email_sent_at)}</div>
-              <div>Bestaetigt: {formatDateTime(service?.customer_confirmed_at)}</div>
+              <div>Bestätigt: {formatDateTime(service?.customer_confirmed_at)}</div>
               <div>Zahlung: {formatDateTime(service?.payment_received_at)}</div>
               <div>Aktiv bis: {formatDateTime(service?.access_expires_at)}</div>
             </div>
@@ -304,9 +311,9 @@ export default function AdvisorFinancialAnalysisPanel({
           <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-4 shadow-sm">
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Hinweis</div>
             <div className="mt-2 space-y-2 text-xs leading-relaxed text-slate-600">
-              <div>Der Kunde sieht den Bereich im Dashboard erst nach aktiver Bestaetigung und Zahlungsmarkierung.</div>
-              <div>Der Aktivierungslink fuehrt bewusst auf eine separate Serviceseite ausserhalb des Dashboards.</div>
-              <div>Nach 90 Tagen laeuft der Zugang ab und der Berater kann einen neuen Zyklus starten.</div>
+              <div>Der Kunde bestätigt den Service zuerst auf der separaten Serviceseite.</div>
+              <div>Nach der Bestätigung wird die Rechnung automatisch erstellt und per E-Mail an den Kunden gesendet.</div>
+              <div>Erst nach Zahlungsmarkierung startet die 90-Tage-Laufzeit und der Dashboard-Bereich wird freigeschaltet.</div>
             </div>
           </div>
         </div>

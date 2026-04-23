@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
+import { buildEmailHtml, sanitizeNotificationRecipients, sendEmail } from "@/lib/notifications/notify"
 import { createCaseFromLead, ensureCustomerAccount, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
@@ -62,24 +62,13 @@ function escapeHtml(value: unknown) {
 }
 
 function parseAdminRecipients() {
-  const configured = [
+  return sanitizeNotificationRecipients([
     process.env.BAUFI_LEAD_NOTIFY_TO,
     process.env.ADMIN_NOTIFY_TO,
     process.env.LIVE_QUEUE_ALERT_TO,
     process.env.INVITE_ACCEPTED_NOTIFY_TO,
-  ]
-    .map((value) => String(value ?? "").trim())
-    .filter(Boolean)
-    .join(" ")
-
-  const normalized = `${configured} ${DEFAULT_ADMIN_RECIPIENT}`
-  const unique = new Set(
-    normalized
-      .split(/[;,\s]+/g)
-      .map((item) => item.trim().replace(/^["'<]+|[>"']+$/g, "").toLowerCase())
-      .filter((item) => item.includes("@"))
-  )
-  return Array.from(unique)
+    DEFAULT_ADMIN_RECIPIENT,
+  ])
 }
 
 function nextExternalLeadId() {

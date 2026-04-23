@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import {
+  buildFinancialAnalysisPaymentReference,
+  getFinancialAnalysisInvoiceTitle,
+  isFinancialAnalysisInvoiceType,
+  isMissingCaseInvoicesTableError,
+} from "@/lib/financial-analysis/invoice"
+import { renderFinancialAnalysisInvoicePdf } from "@/lib/financial-analysis/renderFinancialAnalysisInvoicePdf"
+import {
   buildInsuranceInvoicePaymentReference,
   extractInsurancePartnerCode,
   getInsuranceInvoiceTitle,
@@ -19,14 +26,6 @@ import {
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const runtime = "nodejs"
-
-function isMissingCaseInvoicesTableError(error: unknown) {
-  const anyError = error as { code?: string; message?: string } | null
-  if (!anyError) return false
-  if (anyError.code === "42P01") return true
-  const msg = String(anyError.message ?? "").toLowerCase()
-  return msg.includes("case_invoices") && (msg.includes("relation") || msg.includes("table"))
-}
 
 export async function GET(_req: Request, context: { params: Promise<{ invoiceId: string }> }) {
   const { user, role } = await getUserAndRole()
@@ -58,7 +57,8 @@ export async function GET(_req: Request, context: { params: Promise<{ invoiceId:
   const invoiceType = String(invoiceRow.invoice_type ?? "").trim().toLowerCase()
   const isSchufaInvoice = isSchufaFreeProvisionInvoiceType(invoiceType) || isSchufaFreeProvisionCancellationInvoiceType(invoiceType)
   const isInsurancePartnerInvoice = isInsuranceInvoiceType(invoiceType)
-  if (!isSchufaInvoice && !isInsurancePartnerInvoice) {
+  const isFinancialAnalysisInvoice = isFinancialAnalysisInvoiceType(invoiceType)
+  if (!isSchufaInvoice && !isInsurancePartnerInvoice && !isFinancialAnalysisInvoice) {
     return NextResponse.json({ error: "invoice_type_not_supported" }, { status: 409 })
   }
 
@@ -134,6 +134,47 @@ export async function GET(_req: Request, context: { params: Promise<{ invoiceId:
       recipientZipcode: trimOrNull(invoiceRow.recipient_zipcode) ?? trimOrNull(profileRow?.zipcode),
       recipientCity: trimOrNull(invoiceRow.recipient_city) ?? trimOrNull(profileRow?.city),
       partnerCode,
+      amountTotal: Number(invoiceRow.amount_total ?? 0),
+      status: trimOrNull(invoiceRow.status),
+      description: trimOrNull(invoiceRow.description),
+    })
+
+    return new NextResponse(pdfBytes, {
+      headers: {
+        "content-type": "application/pdf",
+        "content-disposition": `attachment; filename="${invoiceTitle}-${invoiceNumber}.pdf"`,
+        "cache-control": "private, no-store",
+      },
+    })
+  }
+
+  if (isFinancialAnalysisInvoice) {
+    const { data: detailsRow, error: detailsError } = await admin
+      .from("case_schufa_free_details")
+      .select("street,house_number,zipcode,city")
+      .eq("case_id", invoiceRow.case_id)
+      .maybeSingle()
+
+    if (detailsError) {
+      return NextResponse.json({ error: detailsError.message }, { status: 400 })
+    }
+
+    const invoiceNumber = trimOrNull(invoiceRow.invoice_number) ?? normalizedInvoiceId
+    const caseRef = trimOrNull(caseRow.case_ref) ?? caseRow.id.slice(0, 8)
+    const paymentReference = buildFinancialAnalysisPaymentReference(invoiceNumber, trimOrNull(caseRow.case_ref)) ?? invoiceNumber
+    const invoiceTitle = trimOrNull(invoiceRow.title) ?? getFinancialAnalysisInvoiceTitle()
+
+    const pdfBytes = await renderFinancialAnalysisInvoicePdf({
+      invoiceNumber,
+      createdAt: invoiceRow.created_at,
+      caseRef,
+      paymentReference,
+      recipientName: trimOrNull(invoiceRow.recipient_name),
+      recipientEmail: trimOrNull(invoiceRow.recipient_email),
+      recipientStreet: trimOrNull(invoiceRow.recipient_street) ?? trimOrNull(detailsRow?.street),
+      recipientHouseNumber: trimOrNull(invoiceRow.recipient_street) ? null : trimOrNull(detailsRow?.house_number),
+      recipientZipcode: trimOrNull(invoiceRow.recipient_zipcode) ?? trimOrNull(detailsRow?.zipcode),
+      recipientCity: trimOrNull(invoiceRow.recipient_city) ?? trimOrNull(detailsRow?.city),
       amountTotal: Number(invoiceRow.amount_total ?? 0),
       status: trimOrNull(invoiceRow.status),
       description: trimOrNull(invoiceRow.description),

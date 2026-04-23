@@ -3,10 +3,10 @@ import Link from "next/link"
 import PublicFinancialAnalysisActivationClient from "@/components/financial-analysis/PublicFinancialAnalysisActivationClient"
 import { loadFinancialAnalysisPublicContext } from "@/lib/financial-analysis/data"
 import {
+  FINANCIAL_ANALYSIS_DEFAULT_SUMMARY,
   FINANCIAL_ANALYSIS_FEATURES,
   FINANCIAL_ANALYSIS_LEGAL_NOTE,
   FINANCIAL_ANALYSIS_SERVICE_TITLE,
-  FINANCIAL_ANALYSIS_DEFAULT_SUMMARY,
   formatFinancialAnalysisPrice,
   getFinancialAnalysisServiceStatusLabel,
   trimOrNull,
@@ -59,7 +59,7 @@ export default async function FinancialAnalysisActivationPage({
   const token = trimOrNull(sp.token)
 
   if (!token) {
-    return <InvalidState title="Link ungueltig" description="Fuer diese Seite fehlt der Aktivierungslink." />
+    return <InvalidState title="Link ungültig" description="Für diese Seite fehlt der Aktivierungslink." />
   }
 
   const admin = supabaseAdmin()
@@ -71,7 +71,7 @@ export default async function FinancialAnalysisActivationPage({
   if (!access.ok) {
     return (
       <InvalidState
-        title={access.status === 403 ? "Link ungueltig oder abgelaufen" : "Finanzanalyse nicht verfuegbar"}
+        title={access.status === 403 ? "Link ungültig oder abgelaufen" : "Finanzanalyse nicht verfügbar"}
         description={
           access.status === 403
             ? "Bitte fordern Sie bei Bedarf einen neuen Aktivierungslink an."
@@ -91,14 +91,15 @@ export default async function FinancialAnalysisActivationPage({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-800">
-              SEPANA - Gesonderte Servicebestaetigung
+              SEPANA - Gesonderte Servicebestätigung
             </div>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-              {FINANCIAL_ANALYSIS_SERVICE_TITLE} aktiv bestaetigen
+              {FINANCIAL_ANALYSIS_SERVICE_TITLE} aktiv bestätigen
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">
-              Bitte pruefen Sie die Leistung noch einmal auf dieser separaten Seite und bestaetigen Sie den Zusatzservice
-              aktiv. Erst danach und nach interner Zahlungsmarkierung wird der Bereich im Kundendashboard freigeschaltet.
+              Bitte prüfen Sie die Leistung noch einmal auf dieser separaten Seite und bestätigen Sie den Zusatzservice
+              aktiv. Direkt danach wird Ihre Rechnung erstellt und per E-Mail versendet. Der Bereich im Kundendashboard
+              wird erst nach interner Zahlungsmarkierung freigeschaltet.
             </p>
           </div>
 
@@ -157,7 +158,7 @@ export default async function FinancialAnalysisActivationPage({
                 <span className="font-semibold text-slate-900">Mail versendet:</span> {formatDateTime(service.offer_email_sent_at)}
               </div>
               <div>
-                <span className="font-semibold text-slate-900">Bestaetigt:</span> {formatDateTime(service.customer_confirmed_at)}
+                <span className="font-semibold text-slate-900">Bestätigt:</span> {formatDateTime(service.customer_confirmed_at)}
               </div>
               <div>
                 <span className="font-semibold text-slate-900">Zahlung markiert:</span> {formatDateTime(service.payment_received_at)}
@@ -171,9 +172,9 @@ export default async function FinancialAnalysisActivationPage({
           <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Wichtiger Hinweis</div>
             <div className="mt-3 space-y-2 text-sm leading-relaxed text-slate-600">
-              <div>Die Bestaetigung auf dieser Seite ersetzt nicht die interne Zahlungsmarkierung.</div>
-              <div>Der Dashboard-Bereich wird erst freigeschaltet, wenn beide Schritte abgeschlossen sind.</div>
-              <div>Nach Freischaltung koennen Sie Ihre Unterlagen direkt im Portal hochladen.</div>
+              <div>Die Bestätigung auf dieser Seite ersetzt nicht die interne Zahlungsmarkierung.</div>
+              <div>Nach Ihrer Bestätigung erhalten Sie die Rechnung automatisch per E-Mail als PDF-Anhang.</div>
+              <div>Der Dashboard-Bereich wird erst nach bestätigtem Zahlungseingang freigeschaltet.</div>
             </div>
           </div>
         </aside>

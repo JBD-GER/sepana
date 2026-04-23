@@ -1,4 +1,10 @@
-﻿import Link from "next/link"
+import Link from "next/link"
+import {
+  getAdvisorCaseStatusLabel,
+  getAdvisorCaseStatusOptions,
+  getAdvisorCaseStatusSet,
+  normalizeAdvisorCaseProduct,
+} from "@/lib/advisor/caseStatusOptions"
 import { requireAdvisor } from "@/lib/advisor/requireAdvisor"
 import { authFetch } from "@/lib/app/authFetch"
 import AdvisorCaseStatusSelect from "./ui/AdvisorCaseStatusSelect"
@@ -24,42 +30,27 @@ type CaseRow = {
 }
 
 type CaseListResp = { cases: CaseRow[] }
-type ProductTab = "baufi" | "konsum" | "schufa_frei"
+type ProductTab = ReturnType<typeof normalizeAdvisorCaseProduct>
 
 function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(d))
 }
 
-const STATUS_TABS = [
-  { value: "neu", label: "Neu" },
-  { value: "kontaktaufnahme", label: "Kontaktaufnahme" },
-  { value: "terminiert", label: "Terminiert" },
-  { value: "angebot", label: "Angebot" },
-  { value: "nachfrage", label: "Nachfrage" },
-  { value: "abgelehnt", label: "Abgelehnt" },
-  { value: "abgeschlossen", label: "Abgeschlossen" },
-] as const
-
-const STATUS_SET = new Set<string>(STATUS_TABS.map((s) => s.value))
-
-function normalizeAdvisorStatus(row: CaseRow) {
+function normalizeAdvisorStatus(row: CaseRow, product: ProductTab) {
   const raw = String(row.advisor_status ?? "").trim().toLowerCase()
-  if (raw && STATUS_SET.has(raw)) return raw
+  if (raw && getAdvisorCaseStatusSet(product).has(raw)) return raw
   const caseStatus = String(row.status ?? "").trim().toLowerCase()
   if (caseStatus === "closed" || caseStatus === "completed") return "abgeschlossen"
   return "neu"
 }
 
-function statusLabel(value: string) {
-  return STATUS_TABS.find((s) => s.value === value)?.label ?? "Neu"
+function statusLabel(value: string, product: ProductTab) {
+  return getAdvisorCaseStatusLabel(value, product)
 }
 
 function normalizeProduct(value: string | string[] | undefined): ProductTab {
   const raw = Array.isArray(value) ? value[0] : value
-  const normalized = String(raw ?? "").trim().toLowerCase()
-  if (normalized === "konsum") return "konsum"
-  if (normalized === "schufa_frei" || normalized === "schufafrei") return "schufa_frei"
-  return "baufi"
+  return normalizeAdvisorCaseProduct(raw)
 }
 
 function productHref(product: ProductTab) {
@@ -86,6 +77,8 @@ export default async function CasesPage({
 
   const resolvedSearchParams = await searchParams
   const product = normalizeProduct(resolvedSearchParams?.product)
+  const statusTabs = getAdvisorCaseStatusOptions(product)
+  const statusSet = getAdvisorCaseStatusSet(product)
   const productLabel = product === "konsum" ? "Privatkredit" : product === "schufa_frei" ? "Kredit ohne Schufa" : "Baufinanzierung"
   const [activeRes, confirmedRes] = await Promise.all([
     authFetch(`/api/app/cases/list?advisorBucket=all&limit=1000&caseType=${product}`).catch(() => null),
@@ -97,7 +90,7 @@ export default async function CasesPage({
   const confirmedCount = Number(confirmedMeta?.total ?? 0)
   const enrichedCases = data.cases.map((c) => ({
     ...c,
-    advisor_status: normalizeAdvisorStatus(c),
+    advisor_status: normalizeAdvisorStatus(c, product),
   }))
   const totalCases = enrichedCases.length
   const withComparison = enrichedCases.filter((c) => c.previewsCount > 0).length
@@ -105,7 +98,7 @@ export default async function CasesPage({
   const activeTab = (() => {
     const rawParam = Array.isArray(resolvedSearchParams?.tab) ? resolvedSearchParams?.tab[0] : resolvedSearchParams?.tab
     const raw = String(rawParam ?? "").trim().toLowerCase()
-    return STATUS_SET.has(raw) ? raw : "neu"
+    return statusSet.has(raw) ? raw : "neu"
   })()
 
   const countsByStatus = new Map<string, number>()
@@ -177,7 +170,7 @@ export default async function CasesPage({
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap gap-2">
-          {STATUS_TABS.map((tab) => {
+          {statusTabs.map((tab) => {
             const isActive = activeTab === tab.value
             const count = countsByStatus.get(tab.value) ?? 0
             return (
@@ -204,7 +197,6 @@ export default async function CasesPage({
         </div>
       </div>
 
-      {/* Mobile-first: Cards */}
       <div className="grid grid-cols-1 gap-3 lg:hidden">
         {scopedCases.map((c) => {
           const customerLabel = c.customer_name || "Kunde -"
@@ -235,7 +227,7 @@ export default async function CasesPage({
                   </div>
                 )}
                 <div>
-                  Status: <span className="font-medium text-slate-900">{statusLabel(c.advisor_status ?? "neu")}</span>
+                  Status: <span className="font-medium text-slate-900">{statusLabel(c.advisor_status ?? "neu", product)}</span>
                 </div>
               </div>
             </div>
@@ -249,7 +241,6 @@ export default async function CasesPage({
         ) : null}
       </div>
 
-      {/* Desktop: Table */}
       <div className="hidden lg:block rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
         <div className="text-sm font-medium text-slate-900">Übersicht</div>
 
@@ -279,13 +270,9 @@ export default async function CasesPage({
                       </Link>
                     </td>
 
-                    <td className="px-4 py-3 text-slate-700">
-                      {customerLabel}
-                    </td>
+                    <td className="px-4 py-3 text-slate-700">{customerLabel}</td>
 
-                    <td className="px-4 py-3 text-slate-700">
-                      {customerPhone}
-                    </td>
+                    <td className="px-4 py-3 text-slate-700">{customerPhone}</td>
 
                     <td className="px-4 py-3">
                       {product === "schufa_frei" ? (
@@ -296,7 +283,7 @@ export default async function CasesPage({
                     </td>
 
                     <td className="px-4 py-3 text-slate-700">
-                      <AdvisorCaseStatusSelect caseId={c.id} value={c.advisor_status ?? "neu"} compact />
+                      <AdvisorCaseStatusSelect caseId={c.id} value={c.advisor_status ?? "neu"} caseType={c.case_type} compact />
                     </td>
                   </tr>
                 )
@@ -318,5 +305,3 @@ export default async function CasesPage({
     </div>
   )
 }
-
-

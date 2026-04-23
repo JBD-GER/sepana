@@ -650,7 +650,7 @@ export default async function CaseDetailPage({
               <SchufaFreeIntroCard
                 eyebrow="Finanzanalyse"
                 title="Finanzanalyse und Uploads"
-                description="Dieser Zusatzbereich ist nur fuer den freigeschalteten Finanzanalyse-Service sichtbar. Laden Sie hier Ihre Unterlagen hoch und sehen Sie spaeter die veroeffentlichte Auswertung direkt im Dashboard."
+                description="Dieser Zusatzbereich ist nur für den freigeschalteten Finanzanalyse-Service sichtbar. Laden Sie hier Ihre Unterlagen hoch und sehen Sie später die veröffentlichte Auswertung direkt im Dashboard."
                 tone="emerald"
               />
               <CustomerFinancialAnalysisPanel

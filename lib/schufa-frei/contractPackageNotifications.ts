@@ -6,6 +6,8 @@ import {
 } from "@/lib/schufa-frei/contractPackage"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
+const TERMINAL_ADVISOR_STATUSES = new Set(["abgelehnt", "abgeschlossen"])
+
 function resolveSiteUrl() {
   const fallback = "https://www.sepana.de"
   const raw = String(process.env.NEXT_PUBLIC_SITE_URL ?? "").trim()
@@ -15,6 +17,45 @@ function resolveSiteUrl() {
   } catch {
     return fallback
   }
+}
+
+async function syncSchufaFreeAdvisorStatusForBankSubmission(admin: SupabaseClient, caseId: string) {
+  const { data: caseRow } = await admin
+    .from("cases")
+    .select("advisor_status")
+    .eq("id", caseId)
+    .maybeSingle()
+
+  const currentStatus = String(caseRow?.advisor_status ?? "").trim().toLowerCase()
+  if (currentStatus === "bankeinreichung") {
+    return { updated: false, reason: "already_set" as const }
+  }
+
+  if (TERMINAL_ADVISOR_STATUSES.has(currentStatus)) {
+    return { updated: false, reason: "terminal_status" as const }
+  }
+
+  const { error } = await admin
+    .from("cases")
+    .update({ advisor_status: "bankeinreichung", updated_at: new Date().toISOString() })
+    .eq("id", caseId)
+
+  if (error) throw error
+
+  await logCaseEvent({
+    caseId,
+    actorId: null,
+    actorRole: "system",
+    type: "schufa_free_bank_submission_ready",
+    title: "Bereit für Bankeinreichung",
+    body: "Das Schufa-frei-Vertragspaket ist vollständig unterschrieben und kann jetzt eingereicht werden.",
+    meta: {
+      advisor_status: "bankeinreichung",
+    },
+    notifyCustomer: false,
+  }).catch(() => null)
+
+  return { updated: true, reason: "updated" as const }
 }
 
 export async function maybeNotifyAdvisorAboutCompletedSchufaFreeContractPackage(opts: {
@@ -68,6 +109,8 @@ export async function maybeNotifyAdvisorAboutCompletedSchufaFreeContractPackage(
   )
 
   if (!allComplete) return { sent: false, reason: "package_incomplete" as const }
+
+  await syncSchufaFreeAdvisorStatusForBankSubmission(admin, caseId)
 
   const caseMeta = await getCaseMeta(caseId)
   const siteUrl = resolveSiteUrl()
@@ -124,4 +167,3 @@ export async function maybeNotifyAdvisorAboutCompletedSchufaFreeContractPackage(
 
   return { sent: true, reason: "completed" as const }
 }
-

@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server"
-import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
+import { buildEmailHtml, sanitizeNotificationRecipients, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { createCaseFromLead, ensureCustomerAccount, pickStickyAdvisorId, LeadRow } from "@/lib/admin/leads"
 import { ONLINEKREDIT_MIN_LOAN_AMOUNT } from "@/lib/onlinekredit/validation"
@@ -124,24 +124,13 @@ function normalizePagePath(value: unknown) {
 }
 
 function parseAdminRecipients() {
-  const configured = [
+  return sanitizeNotificationRecipients([
     process.env.PRIVATKREDIT_NOTIFY_TO,
     process.env.ADMIN_NOTIFY_TO,
     process.env.LIVE_QUEUE_ALERT_TO,
     process.env.INVITE_ACCEPTED_NOTIFY_TO,
-  ]
-    .map((value) => String(value ?? "").trim())
-    .filter(Boolean)
-    .join(" ")
-
-  const normalized = `${configured} ${DEFAULT_ADMIN_RECIPIENT}`
-  const unique = new Set(
-    normalized
-      .split(/[;,\s]+/g)
-      .map((x) => x.trim().replace(/^["'<]+|[>"']+$/g, "").toLowerCase())
-      .filter((x) => x.includes("@"))
-  )
-  return Array.from(unique)
+    DEFAULT_ADMIN_RECIPIENT,
+  ])
 }
 
 function nextExternalLeadId() {

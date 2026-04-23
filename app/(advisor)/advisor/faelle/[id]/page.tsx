@@ -1,5 +1,6 @@
 ﻿// app/(app)/advisor/faelle/[id]/page.tsx
 import Link from "next/link"
+import { getAdvisorCaseStatusSet } from "@/lib/advisor/caseStatusOptions"
 import { requireAdvisor } from "@/lib/advisor/requireAdvisor"
 import { authFetch } from "@/lib/app/authFetch"
 import { translateCaseStatus } from "@/lib/caseStatus"
@@ -434,8 +435,9 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   }
   const advisor = data.advisor
   const advisorStatus = (() => {
+    const statusSet = getAdvisorCaseStatusSet(caseType)
     const raw = String(c.advisor_status ?? "").trim().toLowerCase()
-    if (raw) return raw
+    if (raw && statusSet.has(raw)) return raw
     const caseStatus = String(c.status ?? "").trim().toLowerCase()
     if (caseStatus === "closed" || caseStatus === "completed") return "abgeschlossen"
     return "neu"
@@ -613,7 +615,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
                 </p>
               </div>
               <div className="w-full max-w-sm">
-                <AdvisorCaseStatusSelect caseId={c.id} value={advisorStatus} />
+                <AdvisorCaseStatusSelect caseId={c.id} value={advisorStatus} caseType={caseType} />
               </div>
             </div>
           </div>
@@ -659,7 +661,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             <SchufaFreeIntroCard
               eyebrow="Finanzanalyse"
               title="Getrennten Zusatzservice steuern"
-              description="Bieten Sie die Finanzanalyse separat an, versenden Sie die Aktivierungsmail auf die externe Serviceseite, markieren Sie den Zahlungseingang und veroeffentlichen Sie spaeter die Auswertung im Kundendashboard."
+              description="Bieten Sie die Finanzanalyse separat an, versenden Sie die Aktivierungsmail auf die externe Serviceseite, markieren Sie den Zahlungseingang und veröffentlichen Sie später die Auswertung im Kundendashboard."
               tone="emerald"
             />
             <AdvisorFinancialAnalysisPanel
@@ -830,7 +832,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             </div>
           </div>
           <div className="w-full max-w-xs">
-            <AdvisorCaseStatusSelect caseId={c.id} value={advisorStatus} />
+            <AdvisorCaseStatusSelect caseId={c.id} value={advisorStatus} caseType={caseType} />
           </div>
         </div>
       </div>

@@ -6,7 +6,7 @@ import { processSkagLead } from "@/lib/skag/client"
 import { hasDedicatedSkagVariantCredentials, type SkagApiVariant } from "@/lib/skag/config"
 import { buildSkagOpenLeadPayload } from "@/lib/skag/openMapper"
 import { buildSkagStandardLeadPayload } from "@/lib/skag/standardMapper"
-import { buildEmailHtml, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
+import { buildEmailHtml, logCaseEvent, sanitizeNotificationRecipients, sendEmail } from "@/lib/notifications/notify"
 import {
   getSchufaFreeFamilyLabel,
   getSchufaFreeProfessionLabel,
@@ -77,24 +77,13 @@ function normalizeNationality(value: unknown) {
 }
 
 function parseAdminRecipients() {
-  const configured = [
+  return sanitizeNotificationRecipients([
     process.env.PRIVATKREDIT_NOTIFY_TO,
     process.env.ADMIN_NOTIFY_TO,
     process.env.LIVE_QUEUE_ALERT_TO,
     process.env.INVITE_ACCEPTED_NOTIFY_TO,
-  ]
-    .map((entry) => String(entry ?? "").trim())
-    .filter(Boolean)
-    .join(" ")
-
-  return Array.from(
-    new Set(
-      `${configured} ${DEFAULT_ADMIN_RECIPIENT}`
-        .split(/[;,\s]+/g)
-        .map((entry) => entry.trim().replace(/^["'<]+|[>"']+$/g, "").toLowerCase())
-        .filter((entry) => entry.includes("@"))
-    )
-  )
+    DEFAULT_ADMIN_RECIPIENT,
+  ])
 }
 
 function resolveSiteOrigin(req: Request) {

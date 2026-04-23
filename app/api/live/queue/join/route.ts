@@ -6,7 +6,7 @@ import {
   getLiveQueueCapacity,
 } from "@/lib/live/matchmaking"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
-import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
+import { buildEmailHtml, sanitizeNotificationRecipients, sendEmail } from "@/lib/notifications/notify"
 
 export const runtime = "nodejs"
 
@@ -22,14 +22,7 @@ type QueueTicket = {
 
 function parseAlertRecipients() {
   const input = String(process.env.LIVE_QUEUE_ALERT_TO ?? "").trim()
-  const raw = input || DEFAULT_ALERT_RECIPIENT
-  const unique = new Set(
-    raw
-      .split(/[;,\s]+/g)
-      .map((x) => x.trim().replace(/^["'<]+|[>"']+$/g, ""))
-      .filter((x) => x.includes("@"))
-  )
-  return Array.from(unique)
+  return sanitizeNotificationRecipients([input || DEFAULT_ALERT_RECIPIENT])
 }
 
 function normalizeSiteUrl(raw: string | undefined) {

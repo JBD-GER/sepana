@@ -72,6 +72,26 @@ function normalizeMailCopy(value: string) {
     .replaceAll("ÃŸ", "ß")
 }
 
+const BLOCKED_NOTIFICATION_RECIPIENTS = new Set(["christoph.pfad@gmail.com"])
+
+export function sanitizeNotificationRecipients(values: unknown[]) {
+  const unique = new Set<string>()
+
+  for (const value of values) {
+    const raw = String(value ?? "").trim()
+    if (!raw) continue
+
+    for (const entry of raw.split(/[;,\s]+/g)) {
+      const normalized = entry.trim().replace(/^["'<]+|[>"']+$/g, "").toLowerCase()
+      if (!normalized || !normalized.includes("@")) continue
+      if (BLOCKED_NOTIFICATION_RECIPIENTS.has(normalized)) continue
+      unique.add(normalized)
+    }
+  }
+
+  return Array.from(unique)
+}
+
 function fallbackAdvisorName(email: string | null) {
   const mail = cleanText(email)
   if (!mail.includes("@")) return "Ihr Ansprechpartner"
