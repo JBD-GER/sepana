@@ -4,6 +4,7 @@ import {
   FINANCIAL_ANALYSIS_INVOICE_TYPE,
   buildFinancialAnalysisInvoiceDescription,
   buildFinancialAnalysisPaymentReference,
+  isMissingFinancialAnalysisInvoiceAddressMigrationError,
   isMissingCaseInvoiceNumberMigrationError,
   isMissingCaseInvoicesTableError,
   loadFinancialAnalysisInvoiceRecipient,
@@ -42,6 +43,12 @@ function resolveSiteOrigin(req: Request) {
   return new URL(req.url).origin
 }
 
+function isAdvisorStatusConstraintError(error: unknown) {
+  const err = error as { code?: string; message?: string; details?: string } | null
+  const text = `${String(err?.code ?? "")} ${String(err?.message ?? "")} ${String(err?.details ?? "")}`.toLowerCase()
+  return text.includes("cases_advisor_status_check") || (text.includes("advisor_status") && text.includes("check constraint"))
+}
+
 async function syncAdvisorStatusToFinancialAnalysis(input: {
   admin: ReturnType<typeof supabaseAdmin>
   caseId: string
@@ -73,7 +80,12 @@ async function syncAdvisorStatusToFinancialAnalysis(input: {
     })
     .eq("id", input.caseId)
 
-  if (updateResult.error) throw updateResult.error
+  if (updateResult.error) {
+    if (isAdvisorStatusConstraintError(updateResult.error)) {
+      return { updated: false, reason: "advisor_status_constraint_missing" as const }
+    }
+    throw updateResult.error
+  }
 
   return { updated: true, reason: "updated" as const }
 }
@@ -115,36 +127,44 @@ async function ensureFinancialAnalysisInvoice(input: {
     currency: "EUR",
     recipient_name: input.customerName ?? trimOrNull(existingInvoice?.recipient_name),
     recipient_email: input.customerEmail ?? trimOrNull(existingInvoice?.recipient_email),
-    recipient_street: [recipientAddress.street, recipientAddress.houseNumber].filter(Boolean).join(" ").trim() || null,
-    recipient_zipcode: recipientAddress.zipcode,
-    recipient_city: recipientAddress.city,
     paid_at: invoicePaidAt,
     refunded_at: null,
     updated_at: input.nowIso,
   }
+  const addressPayload = {
+    recipient_street: [recipientAddress.street, recipientAddress.houseNumber].filter(Boolean).join(" ").trim() || null,
+    recipient_zipcode: recipientAddress.zipcode,
+    recipient_city: recipientAddress.city,
+  }
 
-  const query = shouldCreateNewInvoice
+  const runInvoiceQuery = (includeAddressFields: boolean) => {
+    const fullPayload = includeAddressFields ? { ...payload, ...addressPayload } : payload
+    return shouldCreateNewInvoice
     ? input.admin
         .from("case_invoices")
         .insert({
           case_id: input.caseId,
           created_by: input.createdBy,
           sent_at: null,
-          ...payload,
+          ...fullPayload,
         })
         .select("*")
         .single()
     : input.admin
         .from("case_invoices")
         .update({
-          ...payload,
+          ...fullPayload,
           sent_at: trimOrNull(existingInvoice?.sent_at),
         })
         .eq("id", existingInvoice.id)
         .select("*")
         .single()
+  }
 
-  const result = await query
+  let result = await runInvoiceQuery(true)
+  if (result.error && isMissingFinancialAnalysisInvoiceAddressMigrationError(result.error)) {
+    result = await runInvoiceQuery(false)
+  }
   if (result.error) throw result.error
 
   const invoice = (result.data ?? null) as FinancialAnalysisInvoiceRow | null

@@ -19,6 +19,12 @@ function resolveSiteUrl() {
   }
 }
 
+function isAdvisorStatusConstraintError(error: unknown) {
+  const err = error as { code?: string; message?: string; details?: string } | null
+  const text = `${String(err?.code ?? "")} ${String(err?.message ?? "")} ${String(err?.details ?? "")}`.toLowerCase()
+  return text.includes("cases_advisor_status_check") || (text.includes("advisor_status") && text.includes("check constraint"))
+}
+
 async function syncSchufaFreeAdvisorStatusForBankSubmission(admin: SupabaseClient, caseId: string) {
   const { data: caseRow } = await admin
     .from("cases")
@@ -40,7 +46,12 @@ async function syncSchufaFreeAdvisorStatusForBankSubmission(admin: SupabaseClien
     .update({ advisor_status: "bankeinreichung", updated_at: new Date().toISOString() })
     .eq("id", caseId)
 
-  if (error) throw error
+  if (error) {
+    if (isAdvisorStatusConstraintError(error)) {
+      return { updated: false, reason: "advisor_status_constraint_missing" as const }
+    }
+    throw error
+  }
 
   await logCaseEvent({
     caseId,

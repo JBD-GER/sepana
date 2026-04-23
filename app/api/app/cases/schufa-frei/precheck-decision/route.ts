@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
+import { sendFinancialAnalysisOfferForCase } from "@/lib/financial-analysis/offer"
 import { ensureInsuranceRoute } from "@/lib/insurance/routing"
 import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
@@ -133,6 +134,16 @@ export async function POST(req: Request) {
   }
 
   let insuranceRoute = null as Record<string, unknown> | null
+  let financialAnalysisOffer = null as
+    | {
+        sent: boolean
+        skipped: boolean
+        error: string | null
+        sentTo: string | null
+        serviceId: string | null
+      }
+    | null
+
   if (decisionRaw === "rejected") {
     try {
       insuranceRoute = await ensureInsuranceRoute(admin, {
@@ -146,6 +157,34 @@ export async function POST(req: Request) {
         { ok: false, error: error instanceof Error ? error.message : "insurance_routing_failed" },
         { status: 400 }
       )
+    }
+
+    try {
+      const offerResult = await sendFinancialAnalysisOfferForCase({
+        admin,
+        caseId,
+        userId: user.id,
+        assignedAdvisorId: trimOrNull(caseRow.assigned_advisor_id) ?? user.id,
+        siteOrigin,
+        skipIfAlreadySent: true,
+      })
+
+      financialAnalysisOffer = {
+        sent: Boolean(offerResult.ok && !offerResult.skipped),
+        skipped: Boolean(offerResult.ok && offerResult.skipped),
+        error: offerResult.ok ? null : offerResult.error,
+        sentTo: offerResult.ok ? offerResult.sentTo : null,
+        serviceId: offerResult.service?.id ?? null,
+      }
+    } catch (error) {
+      financialAnalysisOffer = {
+        sent: false,
+        skipped: false,
+        error: error instanceof Error ? error.message : "financial_analysis_offer_failed",
+        sentTo: null,
+        serviceId: null,
+      }
+      console.error("[financial-analysis:auto-offer] failed after rejected precheck", error)
     }
   }
 
@@ -163,6 +202,10 @@ export async function POST(req: Request) {
       decision: decisionRaw,
       email_subject: subject,
       insurance_route_source: insuranceRoute ? String(insuranceRoute.route_source ?? "") : null,
+      financial_analysis_offer_sent: financialAnalysisOffer?.sent ?? false,
+      financial_analysis_offer_skipped: financialAnalysisOffer?.skipped ?? false,
+      financial_analysis_offer_error: financialAnalysisOffer?.error ?? null,
+      financial_analysis_service_id: financialAnalysisOffer?.serviceId ?? null,
     },
     notifyAdvisor: false,
     notifyCustomer: false,
@@ -174,5 +217,6 @@ export async function POST(req: Request) {
     subject,
     sentTo: caseMeta.customer_email,
     insuranceRoute,
+    financialAnalysisOffer,
   })
 }

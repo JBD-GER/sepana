@@ -61,6 +61,27 @@ export function isMissingCaseInvoiceNumberMigrationError(error: unknown) {
   return msg.includes("case_invoice_number_seq") || (msg.includes("invoice_number") && msg.includes("default"))
 }
 
+export function isMissingFinancialAnalysisInvoiceAddressMigrationError(error: unknown) {
+  const anyError = error as { code?: string; message?: string; details?: string } | null
+  if (!anyError) return false
+
+  const text = `${String(anyError.code ?? "")} ${String(anyError.message ?? "")} ${String(anyError.details ?? "")}`.toLowerCase()
+  return (
+    (text.includes("recipient_street") || text.includes("recipient_zipcode") || text.includes("recipient_city")) &&
+    (text.includes("case_invoices") || text.includes("schema cache") || text.includes("column"))
+  )
+}
+
+export function isMissingSchufaFreeAddressMigrationError(error: unknown) {
+  const anyError = error as { code?: string; message?: string; details?: string } | null
+  if (!anyError) return false
+
+  const text = `${String(anyError.code ?? "")} ${String(anyError.message ?? "")} ${String(anyError.details ?? "")}`.toLowerCase()
+  const addressColumnMissing =
+    text.includes("house_number") || text.includes("zipcode") || text.includes("street") || text.includes("city")
+  return addressColumnMissing && (text.includes("case_schufa_free_details") || text.includes("schema cache") || text.includes("column"))
+}
+
 export function isFinancialAnalysisInvoiceType(invoiceType: unknown) {
   return trimOrNull(invoiceType) === FINANCIAL_ANALYSIS_INVOICE_TYPE
 }
@@ -190,7 +211,17 @@ export async function loadFinancialAnalysisInvoiceRecipient(admin: MinimalSupaba
     .eq("case_id", normalizedCaseId)
     .maybeSingle()
 
-  if (result.error) throw result.error
+  if (result.error) {
+    if (isMissingSchufaFreeAddressMigrationError(result.error)) {
+      return {
+        street: null,
+        houseNumber: null,
+        zipcode: null,
+        city: null,
+      }
+    }
+    throw result.error
+  }
 
   return {
     street: trimOrNull(result.data?.street),

@@ -5,14 +5,10 @@ import {
   isMissingCaseInvoicesTableError,
   loadLatestFinancialAnalysisInvoice,
 } from "@/lib/financial-analysis/invoice"
-import { sendFinancialAnalysisActivatedEmail, sendFinancialAnalysisOfferEmail } from "@/lib/financial-analysis/email"
+import { sendFinancialAnalysisActivatedEmail } from "@/lib/financial-analysis/email"
+import { sendFinancialAnalysisOfferForCase, upsertFinancialAnalysisOffer } from "@/lib/financial-analysis/offer"
 import {
-  FINANCIAL_ANALYSIS_CURRENCY,
   FINANCIAL_ANALYSIS_DEFAULT_SUMMARY,
-  FINANCIAL_ANALYSIS_DURATION_DAYS,
-  FINANCIAL_ANALYSIS_PRICE_GROSS_CENTS,
-  FINANCIAL_ANALYSIS_SERVICE_TITLE,
-  FINANCIAL_ANALYSIS_TERMS_VERSION,
   buildFinancialAnalysisServicePatch,
   isFinancialAnalysisTerminalStatus,
   isMissingFinancialAnalysisTablesError,
@@ -20,7 +16,6 @@ import {
   trimOrNull,
   type FinancialAnalysisServiceRow,
 } from "@/lib/financial-analysis/service"
-import { createFinancialAnalysisPublicToken } from "@/lib/financial-analysis/publicAccess"
 import { logCaseEvent } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
@@ -44,10 +39,6 @@ function isSupportedAction(value: string): value is SupportedAction {
   return value === "create_offer" || value === "send_offer_email" || value === "mark_payment_received" || value === "publish_results"
 }
 
-function buildActivationUrl(siteOrigin: string, token: string) {
-  return new URL(`/finanzanalyse/aktivieren?token=${encodeURIComponent(token)}`, siteOrigin).toString()
-}
-
 async function loadCaseForAction(admin: ReturnType<typeof supabaseAdmin>, caseId: string) {
   const result = await admin
     .from("cases")
@@ -65,53 +56,6 @@ async function loadCaseForAction(admin: ReturnType<typeof supabaseAdmin>, caseId
         assigned_advisor_id?: string | null
       }
     | null
-}
-
-async function upsertFinancialAnalysisOffer(input: {
-  admin: ReturnType<typeof supabaseAdmin>
-  existingService: FinancialAnalysisServiceRow | null
-  caseId: string
-  userId: string
-  assignedAdvisorId: string | null
-  offerSummary: string
-}) {
-  const nowIso = new Date().toISOString()
-  const payload = {
-    offer_title: FINANCIAL_ANALYSIS_SERVICE_TITLE,
-    offer_summary: input.offerSummary,
-    assigned_advisor_id: input.assignedAdvisorId,
-    price_gross_cents: FINANCIAL_ANALYSIS_PRICE_GROSS_CENTS,
-    currency: FINANCIAL_ANALYSIS_CURRENCY,
-    service_duration_days: FINANCIAL_ANALYSIS_DURATION_DAYS,
-    terms_version: FINANCIAL_ANALYSIS_TERMS_VERSION,
-    updated_at: nowIso,
-  }
-
-  if (input.existingService?.id && !isFinancialAnalysisTerminalStatus(input.existingService.service_status)) {
-    const result = await input.admin
-      .from("case_financial_analysis_services")
-      .update(payload)
-      .eq("id", input.existingService.id)
-      .select("*")
-      .single()
-
-    if (result.error) throw result.error
-    return normalizeFinancialAnalysisServiceRow((result.data ?? null) as FinancialAnalysisServiceRow | null)
-  }
-
-  const result = await input.admin
-    .from("case_financial_analysis_services")
-    .insert({
-      case_id: input.caseId,
-      offered_by: input.userId,
-      ...payload,
-      created_at: nowIso,
-    })
-    .select("*")
-    .single()
-
-  if (result.error) throw result.error
-  return normalizeFinancialAnalysisServiceRow((result.data ?? null) as FinancialAnalysisServiceRow | null)
 }
 
 async function maybeSendActivationMail(input: {
@@ -219,51 +163,25 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, error: "financial_analysis_not_available" }, { status: 409 })
       }
 
-      const serviceForEmail = await upsertFinancialAnalysisOffer({
+      const offerResult = await sendFinancialAnalysisOfferForCase({
         admin,
         existingService,
         caseId,
         userId: user.id,
         assignedAdvisorId: trimOrNull(caseRow.assigned_advisor_id) ?? user.id,
         offerSummary: trimOrNull(body?.offerSummary) ?? existingService.offer_summary ?? FINANCIAL_ANALYSIS_DEFAULT_SUMMARY,
+        siteOrigin,
       })
 
-      const token = createFinancialAnalysisPublicToken({
-        serviceId: serviceForEmail?.id ?? existingService.id,
-        caseId,
-      })
-      const activationUrl = buildActivationUrl(siteOrigin, token)
-
-      const mailResult = await sendFinancialAnalysisOfferEmail({
-        caseId,
-        activationUrl,
-        service: serviceForEmail ?? existingService,
-      })
-
-      if (!mailResult.ok) {
+      if (!offerResult.ok) {
         const error =
-          mailResult.error === "customer_email_missing"
+          offerResult.error === "customer_email_missing"
             ? "customer_email_missing"
-            : mailResult.error === "missing_resend_env"
+            : offerResult.error === "missing_resend_env"
               ? "mail_not_configured"
-              : mailResult.error
+              : offerResult.error
         return NextResponse.json({ ok: false, error }, { status: 502 })
       }
-
-      const sentAt = new Date().toISOString()
-      const result = await admin
-        .from("case_financial_analysis_services")
-        .update({
-          offer_email_sent_at: sentAt,
-          updated_at: sentAt,
-        })
-        .eq("id", serviceForEmail?.id ?? existingService.id)
-        .select("*")
-        .single()
-
-      if (result.error) throw result.error
-
-      const updatedService = normalizeFinancialAnalysisServiceRow((result.data ?? null) as FinancialAnalysisServiceRow | null)
 
       await logCaseEvent({
         caseId,
@@ -274,8 +192,8 @@ export async function POST(req: Request) {
         body: "Dem Kunden wurde die separate Aktivierungsmail zur Finanzanalyse gesendet.",
         meta: {
           service_id: existingService.id,
-          latest_service_id: serviceForEmail?.id ?? existingService.id,
-          sent_to: mailResult.to,
+          latest_service_id: offerResult.service?.id ?? existingService.id,
+          sent_to: offerResult.sentTo,
         },
         notifyCustomer: false,
         notifyAdvisor: false,
@@ -283,9 +201,9 @@ export async function POST(req: Request) {
 
       return NextResponse.json({
         ok: true,
-        service: updatedService,
-        sentTo: mailResult.to,
-        activationUrl,
+        service: offerResult.service,
+        sentTo: offerResult.sentTo,
+        activationUrl: offerResult.activationUrl,
       })
     }
 

@@ -74,10 +74,14 @@ export async function sendFinancialAnalysisOfferEmail(input: {
   const html = buildEmailHtml({
     title: "Finanzanalyse aktiv bestätigen",
     intro: caseMeta.case_ref
-      ? `Für Ihren Fall ${caseMeta.case_ref} können Sie jetzt die persönliche Finanzanalyse gesondert bestätigen.`
-      : "Sie können die persönliche Finanzanalyse jetzt gesondert bestätigen.",
+      ? `Für Ihren Fall ${caseMeta.case_ref} können Sie jetzt die persönliche Finanzanalyse gesondert bestätigen. Der Service richtet sich besonders an Personen mit starkem Kreditbedarf, wiederholten Ablehnungen oder einer sehr engen Haushaltsrechnung.`
+      : "Sie können die persönliche Finanzanalyse jetzt gesondert bestätigen. Der Service richtet sich besonders an Personen mit starkem Kreditbedarf, wiederholten Ablehnungen oder einer sehr engen Haushaltsrechnung.",
     bodyHtml: `
       ${renderOfferSummaryHtml(input.service)}
+      <p style="margin:0 0 14px 0; font-size:14px; line-height:22px; color:#334155;">
+        Auf Basis der bisherigen Rückmeldung vermuten wir, dass Ihre aktuelle finanzielle Situation an einer Kapazitätsgrenze angekommen sein könnte.
+        Genau hier setzt die Finanzanalyse an: Wir ordnen Einnahmen, Ausgaben, bestehende Verpflichtungen und mögliche Schufa-Themen strukturiert ein und leiten daraus konkrete nächste Schritte ab.
+      </p>
       <p style="margin:0 0 14px 0; font-size:14px; line-height:22px; color:#334155;">
         Über den Button unten sehen Sie den Service noch einmal auf einer separaten Seite und bestätigen die Beauftragung aktiv.
       </p>

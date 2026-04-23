@@ -17,7 +17,8 @@ const LABELS: Record<DecisionType, { idle: string; busy: string; success: string
   rejected: {
     idle: "Vorpruefung fehlgeschlagen senden",
     busy: "Versende Absage-Mail...",
-    success: "Absage-Mail wurde an den Kunden versendet. Der Fall wurde zusaetzlich intern an den Versicherungsbereich uebergeben.",
+    success:
+      "Absage-Mail wurde an den Kunden versendet. Der Fall wurde zusaetzlich intern an den Versicherungsbereich uebergeben.",
   },
 }
 
@@ -47,7 +48,19 @@ export default function SchufaFreePrecheckDecisionPanel({ caseId }: { caseId: st
         )
       }
 
-      setFeedback({ type: "success", text: LABELS[decision].success })
+      let successText = LABELS[decision].success
+      if (decision === "rejected") {
+        const financialOffer = json?.financialAnalysisOffer
+        if (financialOffer?.sent) {
+          successText += " Das Finanzanalyse-Angebot mit Aktivierungslink wurde automatisch versendet."
+        } else if (financialOffer?.skipped) {
+          successText += " Das Finanzanalyse-Angebot war bereits versendet oder gestartet."
+        } else if (financialOffer?.error) {
+          successText += ` Das Finanzanalyse-Angebot konnte nicht automatisch versendet werden: ${financialOffer.error}`
+        }
+      }
+
+      setFeedback({ type: "success", text: successText })
     } catch (error) {
       setFeedback({
         type: "error",
