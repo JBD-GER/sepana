@@ -26,12 +26,23 @@ function trimOrNull(value: unknown) {
   return trimmed ? trimmed : null
 }
 
-function isGeneralCaseDocument(input: { signature_request_id?: string | null; document_kind?: string | null }) {
+function isBankSubmissionBundleDocument(input: { document_kind?: string | null; file_path?: string | null }) {
+  const documentKind = String(input.document_kind ?? "").trim().toLowerCase()
+  if (documentKind === "bank_submission_bundle") return true
+
+  const filePath = String(input.file_path ?? "").trim().toLowerCase()
+  return filePath.includes("/bank-submission/")
+}
+
+function isGeneralCaseDocument(input: {
+  signature_request_id?: string | null
+  document_kind?: string | null
+  file_path?: string | null
+}) {
   const signatureRequestId = trimOrNull(input.signature_request_id)
   if (signatureRequestId) return false
 
-  const documentKind = String(input.document_kind ?? "").trim().toLowerCase()
-  if (documentKind === "bank_submission_bundle") return false
+  if (isBankSubmissionBundleDocument(input)) return false
 
   return true
 }

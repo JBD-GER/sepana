@@ -16,6 +16,23 @@ function safeFileName(value: string) {
   return value.replace(/[^\w.-]+/g, "_").slice(0, 160)
 }
 
+function isBankSubmissionBundleDocument(input: { document_kind?: string | null; file_path?: string | null }) {
+  const documentKind = String(input.document_kind ?? "").trim().toLowerCase()
+  if (documentKind === "bank_submission_bundle") return true
+
+  const filePath = String(input.file_path ?? "").trim().toLowerCase()
+  return filePath.includes("/bank-submission/")
+}
+
+function isDocumentKindConstraintError(error: unknown) {
+  const anyError = error as { code?: string | null; message?: string | null } | null
+  if (!anyError) return false
+  if (String(anyError.code ?? "").trim() === "23514") return true
+
+  const message = String(anyError.message ?? "").toLowerCase()
+  return message.includes("documents_document_kind_check") || message.includes("document_kind")
+}
+
 async function canAccessSchufaFreeCase(
   admin: ReturnType<typeof supabaseAdmin>,
   caseId: string,
@@ -40,16 +57,16 @@ async function canAccessSchufaFreeCase(
 async function removeExistingBankSubmissionBundles(admin: ReturnType<typeof supabaseAdmin>, caseId: string) {
   const { data: docs } = await admin
     .from("documents")
-    .select("id,file_path")
+    .select("id,file_path,document_kind")
     .eq("case_id", caseId)
-    .eq("document_kind", "bank_submission_bundle")
 
-  const documentIds = ((docs ?? []) as Array<{ id?: string | null }>).map((doc) => trimOrNull(doc.id)).filter(
-    (value): value is string => Boolean(value)
-  )
+  const bundleDocs = ((docs ?? []) as Array<{ id?: string | null; file_path?: string | null; document_kind?: string | null }>)
+    .filter((doc) => isBankSubmissionBundleDocument(doc))
+
+  const documentIds = bundleDocs.map((doc) => trimOrNull(doc.id)).filter((value): value is string => Boolean(value))
   const filePaths = Array.from(
     new Set(
-      ((docs ?? []) as Array<{ file_path?: string | null }>)
+      bundleDocs
         .map((doc) => trimOrNull(doc.file_path))
         .filter((value): value is string => Boolean(value))
     )
@@ -157,7 +174,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: upload.error.message }, { status: 500 })
   }
 
-  const insertedDocument = await admin
+  let insertedDocument = await admin
     .from("documents")
     .insert({
       case_id: caseId,
@@ -170,6 +187,22 @@ export async function POST(req: Request) {
     })
     .select("id")
     .single()
+
+  if (insertedDocument.error && isDocumentKindConstraintError(insertedDocument.error)) {
+    insertedDocument = await admin
+      .from("documents")
+      .insert({
+        case_id: caseId,
+        document_kind: null,
+        uploaded_by: user.id,
+        file_path: storagePath,
+        file_name: bundle.fileName,
+        mime_type: "application/pdf",
+        size_bytes: bundle.pdfBytes.length,
+      })
+      .select("id")
+      .single()
+  }
 
   if (insertedDocument.error || !insertedDocument.data?.id) {
     try {

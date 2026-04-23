@@ -13,6 +13,14 @@ function trimOrNull(value: unknown) {
   return trimmed ? trimmed : null
 }
 
+function isBankSubmissionBundleDocument(input: { document_kind?: string | null; file_path?: string | null }) {
+  const documentKind = String(input.document_kind ?? "").trim().toLowerCase()
+  if (documentKind === "bank_submission_bundle") return true
+
+  const filePath = String(input.file_path ?? "").trim().toLowerCase()
+  return filePath.includes("/bank-submission/")
+}
+
 type PushPayloadInput = Record<string, unknown>
 
 function parseDocumentsList(payload: PushPayloadInput) {
@@ -53,15 +61,13 @@ async function resolveSkagDocumentTarget(
 > {
   const { data: documentRow } = await admin
     .from("documents")
-    .select("document_kind")
+    .select("document_kind,file_path")
     .eq("id", localDocumentId)
     .maybeSingle()
 
-  const documentKind = String((documentRow as { document_kind?: string | null } | null)?.document_kind ?? "")
-    .trim()
-    .toLowerCase()
+  const document = (documentRow as { document_kind?: string | null; file_path?: string | null } | null) ?? {}
 
-  if (documentKind === "bank_submission_bundle") {
+  if (isBankSubmissionBundleDocument(document)) {
     return {
       uploadAllowed: true,
       documentType: "bankeinreichung",

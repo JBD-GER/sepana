@@ -22,6 +22,14 @@ function trimOrNull(value: unknown) {
   return trimmed ? trimmed : null
 }
 
+function isBankSubmissionBundleDocument(input: { document_kind?: string | null; file_path?: string | null }) {
+  const documentKind = String(input.document_kind ?? "").trim().toLowerCase()
+  if (documentKind === "bank_submission_bundle") return true
+
+  const filePath = String(input.file_path ?? "").trim().toLowerCase()
+  return filePath.includes("/bank-submission/")
+}
+
 function integerOrNull(value: unknown) {
   if (value === null || value === undefined || value === "") return null
   const numeric = Number(value)
@@ -613,18 +621,18 @@ export async function POST(req: Request) {
 
     const { data: uploadedDocumentRows } = await admin
       .from("documents")
-      .select("id,signature_request_id,document_kind")
+      .select("id,signature_request_id,document_kind,file_path")
       .eq("case_id", caseId)
     const uploadedDocumentCount = (
       (uploadedDocumentRows as Array<{
         id?: string | null
         signature_request_id?: string | null
         document_kind?: string | null
+        file_path?: string | null
       }> | null) ?? []
     ).filter((row) => {
       const signatureRequestId = trimOrNull(row.signature_request_id)
-      const documentKind = String(row.document_kind ?? "").trim().toLowerCase()
-      return !signatureRequestId && documentKind !== "bank_submission_bundle"
+      return !signatureRequestId && !isBankSubmissionBundleDocument(row)
     }).length
     const siteOrigin = resolveSiteOrigin(req)
     const advisorCaseUrl = new URL(`/advisor/faelle/${encodeURIComponent(caseId)}`, siteOrigin).toString()

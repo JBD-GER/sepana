@@ -63,7 +63,7 @@ function pickRelevantCancellationInvoice(
   rows: SchufaFreeInvoiceGateRow[],
   invoice: SchufaFreeInvoiceGateRow | null
 ) {
-  const preferredTypeSet = new Set(SCHUFA_FREE_SIGNATURE_CANCELLATION_INVOICE_TYPES)
+  const preferredTypeSet = new Set<string>(SCHUFA_FREE_SIGNATURE_CANCELLATION_INVOICE_TYPES)
   const invoiceCreatedAt = getCreatedAtMs(invoice?.created_at)
   const filtered = rows.filter((row) => {
     const invoiceType = String(row.invoice_type ?? "").trim()

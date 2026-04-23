@@ -541,7 +541,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Rechnung noch nicht angelegt" }, { status: 404 })
   }
 
-  if (invoiceCancelled && actionRaw !== "cancel" && actionRaw !== "recreate") {
+  if (invoiceCancelled && actionRaw !== "cancel") {
     return NextResponse.json({ ok: false, error: "Rechnung wurde bereits storniert" }, { status: 409 })
   }
 
