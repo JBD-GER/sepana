@@ -1,7 +1,10 @@
 import { loadFinancialAnalysisDocuments } from "@/lib/financial-analysis/data"
 import {
+  buildFinancialAnalysisHouseholdOverviewText,
   getFinancialAnalysisDocumentKindLabel,
   trimOrNull,
+  type FinancialAnalysisHouseholdCalculation,
+  type FinancialAnalysisHouseholdLineItem,
   type FinancialAnalysisDocumentRow,
 } from "@/lib/financial-analysis/service"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
@@ -10,6 +13,7 @@ type FinancialAnalysisAdmin = ReturnType<typeof supabaseAdmin>
 
 export type GeneratedFinancialAnalysisDraft = {
   householdOverview: string
+  householdCalculation: FinancialAnalysisHouseholdCalculation
   recommendations: string
   actionPlan: string
   schufaNotes: string
@@ -237,13 +241,74 @@ function buildDocumentText(prepared: PreparedDocument[]) {
 }
 
 function parseGeneratedDraft(value: unknown): GeneratedFinancialAnalysisDraft {
-  const record = value as Partial<GeneratedFinancialAnalysisDraft> | null
+  const record = value as Partial<GeneratedFinancialAnalysisDraft> & {
+    householdCalculation?: Partial<FinancialAnalysisHouseholdCalculation> | null
+  } | null
+  const householdCalculation = parseHouseholdCalculation(record?.householdCalculation)
   return {
-    householdOverview: asCleanText(record?.householdOverview),
+    householdOverview: buildFinancialAnalysisHouseholdOverviewText({
+      calculation: householdCalculation,
+      fallbackText: record?.householdOverview,
+    }),
+    householdCalculation,
     recommendations: asCleanText(record?.recommendations),
     actionPlan: asCleanText(record?.actionPlan),
     schufaNotes: asCleanText(record?.schufaNotes),
     documentSummary: asCleanText(record?.documentSummary),
+  }
+}
+
+function nullableNumber(value: unknown) {
+  if (value == null) return null
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : null
+}
+
+function parseHouseholdCalculation(value: unknown): FinancialAnalysisHouseholdCalculation {
+  const record = (value ?? {}) as Partial<FinancialAnalysisHouseholdCalculation>
+  const items = Array.isArray(record.items)
+    ? record.items
+        .map((item) => {
+          const row = (item ?? {}) as Partial<FinancialAnalysisHouseholdLineItem>
+          return {
+            label: trimOrNull(row.label) ?? "Position",
+            category: trimOrNull(row.category),
+            amountMonthly: nullableNumber(row.amountMonthly),
+            basis: trimOrNull(row.basis),
+          }
+        })
+        .filter((item) => item.amountMonthly != null)
+        .slice(0, 20)
+    : []
+
+  const totalCostsMonthly = nullableNumber(record.totalCostsMonthly)
+  const incomeMonthly = nullableNumber(record.incomeMonthly)
+  const costParts = [
+    record.provenFixedCostsMonthly,
+    record.bankHouseholdAllowanceMonthly,
+    record.obligationsMonthly,
+    record.variableCostsMonthly,
+    record.safetyBufferMonthly,
+  ]
+  const hasCostParts = costParts.some((current) => nullableNumber(current) != null)
+  const computedTotalCosts =
+    totalCostsMonthly ??
+    (hasCostParts ? costParts.reduce<number>((sum, current) => sum + (nullableNumber(current) ?? 0), 0) : null)
+  const freeLiquidityMonthly =
+    nullableNumber(record.freeLiquidityMonthly) ??
+    (incomeMonthly != null && computedTotalCosts != null && Number.isFinite(computedTotalCosts) ? incomeMonthly - computedTotalCosts : null)
+
+  return {
+    incomeMonthly,
+    provenFixedCostsMonthly: nullableNumber(record.provenFixedCostsMonthly),
+    bankHouseholdAllowanceMonthly: nullableNumber(record.bankHouseholdAllowanceMonthly),
+    obligationsMonthly: nullableNumber(record.obligationsMonthly),
+    variableCostsMonthly: nullableNumber(record.variableCostsMonthly),
+    safetyBufferMonthly: nullableNumber(record.safetyBufferMonthly),
+    totalCostsMonthly: computedTotalCosts,
+    freeLiquidityMonthly,
+    assessment: trimOrNull(record.assessment),
+    items,
   }
 }
 
@@ -287,9 +352,51 @@ export async function generateFinancialAnalysisDraft(input: {
   const schema = {
     type: "object",
     additionalProperties: false,
-    required: ["householdOverview", "recommendations", "actionPlan", "schufaNotes", "documentSummary"],
+    required: ["householdOverview", "householdCalculation", "recommendations", "actionPlan", "schufaNotes", "documentSummary"],
     properties: {
       householdOverview: { type: "string" },
+      householdCalculation: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "incomeMonthly",
+          "provenFixedCostsMonthly",
+          "bankHouseholdAllowanceMonthly",
+          "obligationsMonthly",
+          "variableCostsMonthly",
+          "safetyBufferMonthly",
+          "totalCostsMonthly",
+          "freeLiquidityMonthly",
+          "assessment",
+          "items",
+        ],
+        properties: {
+          incomeMonthly: { type: ["number", "null"] },
+          provenFixedCostsMonthly: { type: ["number", "null"] },
+          bankHouseholdAllowanceMonthly: { type: ["number", "null"] },
+          obligationsMonthly: { type: ["number", "null"] },
+          variableCostsMonthly: { type: ["number", "null"] },
+          safetyBufferMonthly: { type: ["number", "null"] },
+          totalCostsMonthly: { type: ["number", "null"] },
+          freeLiquidityMonthly: { type: ["number", "null"] },
+          assessment: { type: "string" },
+          items: {
+            type: "array",
+            maxItems: 20,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["label", "category", "amountMonthly", "basis"],
+              properties: {
+                label: { type: "string" },
+                category: { type: "string" },
+                amountMonthly: { type: ["number", "null"] },
+                basis: { type: "string" },
+              },
+            },
+          },
+        },
+      },
       recommendations: { type: "string" },
       actionPlan: { type: "string" },
       schufaNotes: { type: "string" },
@@ -301,7 +408,9 @@ export async function generateFinancialAnalysisDraft(input: {
     "Du bist ein erfahrener deutscher Finanzberater und erstellst interne Entwürfe für SEPANA.",
     "Arbeite ehrlich, vorsichtig und nachvollziehbar. Keine Erfolgsgarantien, keine rechtlichen Musterschreiben, keine Drohkulisse.",
     "Wenn Zahlen aus Kontoauszügen nicht eindeutig belegbar sind, formuliere als Schätzung oder Prüfpunkt.",
-    "Erstelle eine bankenähnliche Haushaltsrechnung, konkrete Optimierungen und einen 90-Tage-Maßnahmenplan.",
+    "Erstelle eine echte bankenähnliche Haushaltsrechnung mit Zahlenstruktur. Trenne belegte Kontowerte von banküblichen Pauschalen. Erfinde keine exakten Beträge: nutze null, wenn ein Wert nicht belastbar ableitbar ist.",
+    "householdCalculation ist die wichtigste Grundlage für die spätere grafische Darstellung. Rechne monatlich: Einnahmen - belegte Fixkosten - bankübliche Haushalts-/Lebenshaltungspauschale - laufende Raten/Verpflichtungen - variable Kosten - Sicherheitsabschlag = freie Liquidität.",
+    "bankHouseholdAllowanceMonthly soll eine realistische bankübliche Pauschale für Lebenshaltung/Haushalt sein. Wenn Personenzahl unbekannt ist, nutze eine vorsichtige Schätzung und erkläre das in assessment.",
     "Nimm in recommendations und actionPlan immer einen klaren Baustein auf: zusätzliche Einnahmen durch eine Nebentätigkeit prüfen und, wenn zeitlich, gesundheitlich und rechtlich realistisch möglich, aufnehmen. Formuliere seriös mit Hinweis auf Anmeldung, Steuer/Sozialversicherung und Belastbarkeit.",
     "Schufa-Hinweise dürfen nur erstellt werden, wenn ausdrücklich eine Schufa-Auskunft vorliegt. Ohne Schufa-Auskunft muss schufaNotes kurz erklären, dass dieser Teil nach Upload ergänzt wird.",
     "Formatiere die Texte gut lesbar mit kurzen Abschnitten, Überschriften und Bulletpoints als Klartext. Keine Markdown-Tabellen.",
@@ -313,11 +422,12 @@ export async function generateFinancialAnalysisDraft(input: {
     `Schufa-Auskunft vorhanden: ${hasSchufaReport ? "ja" : "nein"}`,
     "",
     "Aufgabe:",
-    "1. Erstelle eine Haushaltsrechnung mit Einnahmen, Fixkosten, variablen Kosten, Verbindlichkeiten und realistischer freier Liquidität.",
-    "2. Leite konkrete Empfehlungen ab, um die monatliche Kaufkraft und Bonitätswirkung zu verbessern. Die Empfehlungen müssen immer einen Punkt enthalten, dass der Kunde eine Nebentätigkeit prüfen und bei realistischen Rahmenbedingungen aufnehmen sollte, um zusätzliche Einnahmen aufzubauen.",
-    "3. Erstelle einen 90-Tage-Maßnahmenplan mit Phasen Tag 1-30, Tag 31-60 und Tag 61-90. Der Plan muss immer einen praktischen Schritt zur Prüfung und möglichen Aufnahme einer Nebentätigkeit enthalten.",
-    "4. Wenn eine Schufa-Auskunft vorhanden ist: gib vorsichtige Hinweise zu möglichen nächsten Schritten, z. B. Erledigungsvermerke, Klärung mit Vertragspartnern, Konsolidierung. Keine fertigen Vorlagen und keine Rechtsberatung.",
-    "5. Erzeuge documentSummary als kurze interne Notiz, welche Dokumente ausgewertet wurden und wo Unsicherheiten bestehen.",
+    "1. Befülle householdCalculation numerisch als monatliche Haushaltsrechnung. incomeMonthly = monatliche Einnahmen. provenFixedCostsMonthly = nachweisbare Fixkosten aus Kontoauszügen. bankHouseholdAllowanceMonthly = bankübliche Lebenshaltungs-/Haushaltspauschale. obligationsMonthly = Raten, Kredite, Pfändungen, laufende Verpflichtungen. variableCostsMonthly = erkennbare variable Ausgaben. safetyBufferMonthly = vorsichtiger Puffer. totalCostsMonthly = Summe der Kosten. freeLiquidityMonthly = Einkommen minus totalCostsMonthly.",
+    "2. householdOverview ist nur eine kurze Einordnung der Haushaltsrechnung, keine lange Tabelle. Die Darstellung wird technisch aus householdCalculation gebaut.",
+    "3. Leite konkrete Empfehlungen ab, um die monatliche Kaufkraft und Bonitätswirkung zu verbessern. Die Empfehlungen müssen immer einen Punkt enthalten, dass der Kunde eine Nebentätigkeit prüfen und bei realistischen Rahmenbedingungen aufnehmen sollte, um zusätzliche Einnahmen aufzubauen.",
+    "4. Erstelle einen 90-Tage-Maßnahmenplan mit Phasen Tag 1-30, Tag 31-60 und Tag 61-90. Der Plan muss immer einen praktischen Schritt zur Prüfung und möglichen Aufnahme einer Nebentätigkeit enthalten.",
+    "5. Wenn eine Schufa-Auskunft vorhanden ist: gib vorsichtige Hinweise zu möglichen nächsten Schritten, z. B. Erledigungsvermerke, Klärung mit Vertragspartnern, Konsolidierung. Keine fertigen Vorlagen und keine Rechtsberatung.",
+    "6. Erzeuge documentSummary als kurze interne Notiz, welche Dokumente ausgewertet wurden und wo Unsicherheiten bestehen.",
     "",
     "Ausgelesene Dokumenttexte:",
     documentText || "[Keine Texte extrahierbar. Nutze die angehängten Dokumente/Bilder, soweit vorhanden.]",

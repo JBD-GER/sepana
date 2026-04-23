@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { loadLatestFinancialAnalysisService } from "@/lib/financial-analysis/data"
+import { sendFinancialAnalysisDocumentsReceivedEmail } from "@/lib/financial-analysis/email"
 import {
   buildFinancialAnalysisServicePatch,
   getFinancialAnalysisDocumentKindLabel,
@@ -57,6 +58,23 @@ function normalizeDocumentKind(value: unknown): FinancialAnalysisDocumentKind | 
   return null
 }
 
+function resolveSiteOrigin(req: Request) {
+  const configured = trimOrNull(process.env.NEXT_PUBLIC_SITE_URL)
+  if (configured) {
+    try {
+      return new URL(configured).origin
+    } catch {
+      // fallback below
+    }
+  }
+  return new URL(req.url).origin
+}
+
+function shouldSendUploadMail(value: unknown) {
+  const normalized = String(value ?? "").trim().toLowerCase()
+  return normalized === "1" || normalized === "true" || normalized === "yes"
+}
+
 async function loadCaseAccess(admin: ReturnType<typeof supabaseAdmin>, caseId: string) {
   const result = await admin
     .from("cases")
@@ -95,6 +113,7 @@ export async function POST(req: Request) {
   const caseId = trimOrNull(form?.get("caseId"))
   const serviceId = trimOrNull(form?.get("serviceId"))
   const documentKind = normalizeDocumentKind(form?.get("documentKind"))
+  const sendCustomerUploadMail = shouldSendUploadMail(form?.get("sendCustomerUploadMail"))
   const file = form?.get("file")
 
   if (!caseId || !serviceId || !documentKind || !(file instanceof File)) {
@@ -196,10 +215,44 @@ export async function POST(req: Request) {
       notifyAdvisor: false,
     })
 
+    const documentLabel = `${getFinancialAnalysisDocumentKindLabel(documentKind)} - ${originalName}`
+    const uploadMail =
+      role === "customer" && sendCustomerUploadMail
+        ? await sendFinancialAnalysisDocumentsReceivedEmail({
+            caseId,
+            siteOrigin: resolveSiteOrigin(req),
+            service: nextService ?? latestService,
+            uploadedDocumentLabel: documentLabel,
+          })
+        : null
+
+    if (uploadMail) {
+      await logCaseEvent({
+        caseId,
+        actorId: user.id,
+        actorRole: role ?? "customer",
+        type: "financial_analysis_document_upload_mail",
+        title: "Upload-Bestätigung zur Finanzanalyse versendet",
+        body: uploadMail.ok
+          ? "Der Kunde wurde per E-Mail über den Eingang der Unterlagen informiert."
+          : "Die Upload-Bestätigung konnte nicht automatisch versendet werden.",
+        meta: {
+          service_id: serviceId,
+          file_name: originalName,
+          document_kind: documentKind,
+          mail_sent: uploadMail.ok,
+          mail_error: uploadMail.ok ? null : uploadMail.error,
+        },
+        notifyCustomer: false,
+        notifyAdvisor: false,
+      })
+    }
+
     return NextResponse.json({
       ok: true,
       service: nextService,
       document: insertedResult.data ?? null,
+      uploadMailSent: uploadMail?.ok ?? false,
     })
   } catch (error) {
     if (isMissingFinancialAnalysisTablesError(error)) {

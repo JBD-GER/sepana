@@ -56,6 +56,26 @@ export type FinancialAnalysisDocumentRow = {
   updated_at?: string | null
 }
 
+export type FinancialAnalysisHouseholdLineItem = {
+  label: string
+  category?: string | null
+  amountMonthly: number | null
+  basis?: string | null
+}
+
+export type FinancialAnalysisHouseholdCalculation = {
+  incomeMonthly: number | null
+  provenFixedCostsMonthly: number | null
+  bankHouseholdAllowanceMonthly: number | null
+  obligationsMonthly: number | null
+  variableCostsMonthly: number | null
+  safetyBufferMonthly: number | null
+  totalCostsMonthly: number | null
+  freeLiquidityMonthly: number | null
+  assessment?: string | null
+  items?: FinancialAnalysisHouseholdLineItem[]
+}
+
 export const FINANCIAL_ANALYSIS_SERVICE_TITLE = "Persönliche Finanzanalyse"
 export const FINANCIAL_ANALYSIS_PRICE_GROSS_CENTS = 24900
 export const FINANCIAL_ANALYSIS_CURRENCY = "EUR"
@@ -81,6 +101,148 @@ export function trimOrNull(value: unknown) {
 export function formatFinancialAnalysisPrice(cents: number | null | undefined) {
   const amount = Number.isFinite(Number(cents)) ? Number(cents) / 100 : FINANCIAL_ANALYSIS_PRICE_GROSS_CENTS / 100
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: FINANCIAL_ANALYSIS_CURRENCY }).format(amount)
+}
+
+export function formatFinancialAnalysisEuro(amount: number | null | undefined) {
+  if (amount == null || !Number.isFinite(Number(amount))) return "-"
+  return new Intl.NumberFormat("de-DE", { style: "currency", currency: FINANCIAL_ANALYSIS_CURRENCY }).format(Number(amount))
+}
+
+function normalizeFinancialAnalysisNumber(value: unknown) {
+  if (value == null) return null
+  if (typeof value === "number") return Number.isFinite(value) ? value : null
+
+  const raw = String(value).trim()
+  if (!raw) return null
+  const normalized = raw
+    .replace(/[^\d,.-]/g, "")
+    .replace(/\.(?=\d{3}(?:\D|$))/g, "")
+    .replace(",", ".")
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function parseHouseholdValue(text: string, labels: string[]) {
+  for (const label of labels) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    const match = text.match(new RegExp(`${escaped}\\s*:\\s*(-?[\\d.,]+)\\s*(?:EUR|€)?`, "i"))
+    const parsed = normalizeFinancialAnalysisNumber(match?.[1])
+    if (parsed != null) return parsed
+  }
+  return null
+}
+
+function sanitizeHouseholdText(value: unknown) {
+  return String(value ?? "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\u00a0/g, " ")
+    .trim()
+}
+
+export function buildFinancialAnalysisHouseholdOverviewText(input: {
+  calculation: FinancialAnalysisHouseholdCalculation
+  fallbackText?: string | null
+}) {
+  const c = input.calculation
+  const costParts = [
+    c.provenFixedCostsMonthly,
+    c.bankHouseholdAllowanceMonthly,
+    c.obligationsMonthly,
+    c.variableCostsMonthly,
+    c.safetyBufferMonthly,
+  ]
+  const hasCostParts = costParts.some((value) => value != null && Number.isFinite(Number(value)))
+  const totalCosts =
+    c.totalCostsMonthly ??
+    (hasCostParts ? costParts.reduce<number>((sum, value) => sum + (Number.isFinite(Number(value)) ? Number(value) : 0), 0) : null)
+  const freeLiquidity =
+    c.freeLiquidityMonthly ??
+    (c.incomeMonthly != null && Number.isFinite(Number(totalCosts)) ? Number(c.incomeMonthly) - Number(totalCosts) : null)
+  const items = (c.items ?? []).filter((item) => trimOrNull(item.label) && item.amountMonthly != null)
+  const fallback = trimOrNull(input.fallbackText)
+
+  return [
+    "Monatliche Haushaltsrechnung (Banklogik)",
+    `Einnahmen gesamt: ${formatFinancialAnalysisEuro(c.incomeMonthly)}`,
+    `Belegte Fixkosten: ${formatFinancialAnalysisEuro(c.provenFixedCostsMonthly)}`,
+    `Bankübliche Haushalts-/Lebenshaltungspauschale: ${formatFinancialAnalysisEuro(c.bankHouseholdAllowanceMonthly)}`,
+    `Laufende Verpflichtungen/Raten: ${formatFinancialAnalysisEuro(c.obligationsMonthly)}`,
+    `Variable Kosten: ${formatFinancialAnalysisEuro(c.variableCostsMonthly)}`,
+    `Sicherheitsabschlag: ${formatFinancialAnalysisEuro(c.safetyBufferMonthly)}`,
+    `Gesamtausgaben nach Bankrechnung: ${formatFinancialAnalysisEuro(totalCosts)}`,
+    `Freie Liquidität nach Bankrechnung: ${formatFinancialAnalysisEuro(freeLiquidity)}`,
+    "",
+    "Einordnung:",
+    trimOrNull(c.assessment) ?? fallback ?? "Die Werte basieren auf den vorliegenden Unterlagen und sollten bei neuen Informationen aktualisiert werden.",
+    "",
+    "Positionen:",
+    ...(items.length
+      ? items.map(
+          (item) =>
+            `- ${trimOrNull(item.label) ?? "Position"} | ${trimOrNull(item.category) ?? "Sonstiges"} | ${formatFinancialAnalysisEuro(item.amountMonthly)} | ${trimOrNull(item.basis) ?? "aus Unterlagen/Schätzung"}`
+        )
+      : ["- Keine Detailpositionen ermittelt | Hinweis | - | Bitte manuell prüfen"]),
+  ].join("\n")
+}
+
+export function parseFinancialAnalysisHouseholdCalculation(value: unknown): FinancialAnalysisHouseholdCalculation | null {
+  const text = sanitizeHouseholdText(value)
+  if (!text) return null
+
+  const incomeMonthly = parseHouseholdValue(text, ["Einnahmen gesamt", "Einnahmen monatlich", "Gesamteinnahmen"])
+  const provenFixedCostsMonthly = parseHouseholdValue(text, ["Belegte Fixkosten", "Nachweisbare Fixkosten", "Fixkosten"])
+  const bankHouseholdAllowanceMonthly = parseHouseholdValue(text, [
+    "Bankübliche Haushalts-/Lebenshaltungspauschale",
+    "Bankübliche Haushaltspauschale",
+    "Bankpauschale Lebenshaltung",
+    "Bank-Pauschale Lebenshaltung",
+  ])
+  const obligationsMonthly = parseHouseholdValue(text, ["Laufende Verpflichtungen/Raten", "Verpflichtungen", "Raten"])
+  const variableCostsMonthly = parseHouseholdValue(text, ["Variable Kosten", "Variable Ausgaben"])
+  const safetyBufferMonthly = parseHouseholdValue(text, ["Sicherheitsabschlag", "Sicherheitspuffer"])
+  const totalCostsMonthly = parseHouseholdValue(text, ["Gesamtausgaben nach Bankrechnung", "Gesamtkosten nach Bankrechnung"])
+  const freeLiquidityMonthly = parseHouseholdValue(text, ["Freie Liquidität nach Bankrechnung", "Freie Liquiditaet nach Bankrechnung", "Freie Liquidität"])
+
+  if (
+    incomeMonthly == null &&
+    provenFixedCostsMonthly == null &&
+    bankHouseholdAllowanceMonthly == null &&
+    obligationsMonthly == null &&
+    variableCostsMonthly == null &&
+    safetyBufferMonthly == null &&
+    totalCostsMonthly == null &&
+    freeLiquidityMonthly == null
+  ) {
+    return null
+  }
+
+  const assessmentMatch = text.match(/Einordnung:\s*([\s\S]*?)(?:\n\s*Positionen:|\n\s*$)/i)
+  const itemBlock = text.match(/Positionen:\s*([\s\S]*)$/i)?.[1] ?? ""
+  const items = itemBlock
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("-"))
+    .map((line) => line.replace(/^-\s*/, "").split("|").map((part) => part.trim()))
+    .map((parts) => ({
+      label: parts[0] || "Position",
+      category: parts[1] || null,
+      amountMonthly: normalizeFinancialAnalysisNumber(parts[2]),
+      basis: parts[3] || null,
+    }))
+    .filter((item) => item.amountMonthly != null)
+
+  return {
+    incomeMonthly,
+    provenFixedCostsMonthly,
+    bankHouseholdAllowanceMonthly,
+    obligationsMonthly,
+    variableCostsMonthly,
+    safetyBufferMonthly,
+    totalCostsMonthly,
+    freeLiquidityMonthly,
+    assessment: trimOrNull(assessmentMatch?.[1]) ?? null,
+    items,
+  }
 }
 
 export function getFinancialAnalysisServiceStatusLabel(status: unknown) {

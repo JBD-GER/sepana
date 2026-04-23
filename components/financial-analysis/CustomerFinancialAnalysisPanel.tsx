@@ -4,9 +4,12 @@ import { startTransition, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   FINANCIAL_ANALYSIS_SERVICE_TITLE,
+  formatFinancialAnalysisEuro,
   getFinancialAnalysisDocumentKindLabel,
   getFinancialAnalysisServiceStatusLabel,
+  parseFinancialAnalysisHouseholdCalculation,
   trimOrNull,
+  type FinancialAnalysisHouseholdCalculation,
   type FinancialAnalysisDocumentKind,
   type FinancialAnalysisDocumentRow,
   type FinancialAnalysisServiceRow,
@@ -75,6 +78,170 @@ const ACTION_PHASES = [
   { label: "Tag 61-90", title: "Nachhalten", width: "100%" },
 ] as const
 
+function getHouseholdTotalCosts(calculation: FinancialAnalysisHouseholdCalculation) {
+  if (calculation.totalCostsMonthly != null) return calculation.totalCostsMonthly
+  const costParts = [
+    calculation.provenFixedCostsMonthly,
+    calculation.bankHouseholdAllowanceMonthly,
+    calculation.obligationsMonthly,
+    calculation.variableCostsMonthly,
+    calculation.safetyBufferMonthly,
+  ]
+  const hasCostParts = costParts.some((value) => value != null && Number.isFinite(Number(value)))
+  return hasCostParts ? costParts.reduce<number>((sum, value) => sum + (Number.isFinite(Number(value)) ? Number(value) : 0), 0) : null
+}
+
+function HouseholdMetricCard({
+  label,
+  value,
+  hint,
+  tone = "slate",
+}: {
+  label: string
+  value: string
+  hint: string
+  tone?: "slate" | "emerald" | "rose" | "cyan"
+}) {
+  const toneClass =
+    tone === "emerald"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+      : tone === "rose"
+        ? "border-rose-200 bg-rose-50 text-rose-950"
+        : tone === "cyan"
+          ? "border-cyan-200 bg-cyan-50 text-cyan-950"
+          : "border-slate-200 bg-white text-slate-950"
+
+  return (
+    <div className={`rounded-3xl border p-4 shadow-sm ${toneClass}`}>
+      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-70">{label}</div>
+      <div className="mt-2 text-xl font-semibold tracking-tight">{value}</div>
+      <div className="mt-1 text-xs leading-relaxed opacity-75">{hint}</div>
+    </div>
+  )
+}
+
+function HouseholdCalculationView({
+  calculation,
+  fallbackText,
+}: {
+  calculation: FinancialAnalysisHouseholdCalculation | null
+  fallbackText: string | null | undefined
+}) {
+  if (!calculation) {
+    return (
+      <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+        {fallbackText}
+      </div>
+    )
+  }
+
+  const totalCosts = getHouseholdTotalCosts(calculation)
+  const freeLiquidity =
+    calculation.freeLiquidityMonthly ??
+    (calculation.incomeMonthly != null && totalCosts != null ? Number(calculation.incomeMonthly) - Number(totalCosts) : null)
+  const isPositive = Number(freeLiquidity ?? 0) >= 0
+  const rows = [
+    { label: "Belegte Fixkosten", value: calculation.provenFixedCostsMonthly, tone: "bg-slate-700" },
+    { label: "Bankübliche Haushaltspauschale", value: calculation.bankHouseholdAllowanceMonthly, tone: "bg-cyan-500" },
+    { label: "Laufende Verpflichtungen/Raten", value: calculation.obligationsMonthly, tone: "bg-amber-500" },
+    { label: "Variable Kosten", value: calculation.variableCostsMonthly, tone: "bg-emerald-500" },
+    { label: "Sicherheitsabschlag", value: calculation.safetyBufferMonthly, tone: "bg-rose-500" },
+  ].filter((row) => row.value != null && Number(row.value) !== 0)
+  const maxRowValue = Math.max(1, ...rows.map((row) => Math.abs(Number(row.value ?? 0))), Math.abs(Number(calculation.incomeMonthly ?? 0)))
+
+  return (
+    <div className="mt-4 space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <HouseholdMetricCard
+          label="Einnahmen pro Monat"
+          value={formatFinancialAnalysisEuro(calculation.incomeMonthly)}
+          hint="Aus Kontoauszug belegt oder vorsichtig angenommen"
+          tone="emerald"
+        />
+        <HouseholdMetricCard
+          label="Kosten nach Banklogik"
+          value={formatFinancialAnalysisEuro(totalCosts)}
+          hint="Fixkosten, Pauschale, Verpflichtungen und Puffer"
+          tone="slate"
+        />
+        <HouseholdMetricCard
+          label="Bank-Pauschale"
+          value={formatFinancialAnalysisEuro(calculation.bankHouseholdAllowanceMonthly)}
+          hint="Lebenshaltung/Haushalt bankähnlich angesetzt"
+          tone="cyan"
+        />
+        <HouseholdMetricCard
+          label="Freie Liquidität"
+          value={formatFinancialAnalysisEuro(freeLiquidity)}
+          hint={isPositive ? "Monatlich rechnerisch verfügbar" : "Monatlich rechnerisch überlastet"}
+          tone={isPositive ? "emerald" : "rose"}
+        />
+      </div>
+
+      <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Monatliche Bankrechnung</div>
+            <div className="mt-1 text-lg font-semibold text-slate-900">So setzt sich die Haushaltsrechnung zusammen</div>
+          </div>
+          <div className={`rounded-2xl px-4 py-2 text-sm font-semibold ${isPositive ? "bg-emerald-50 text-emerald-900" : "bg-rose-50 text-rose-900"}`}>
+            Ergebnis: {formatFinancialAnalysisEuro(freeLiquidity)}
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          <div>
+            <div className="mb-1 flex items-center justify-between text-xs font-semibold text-slate-600">
+              <span>Einnahmen</span>
+              <span>{formatFinancialAnalysisEuro(calculation.incomeMonthly)}</span>
+            </div>
+            <div className="h-3 overflow-hidden rounded-full bg-emerald-100">
+              <div className="h-3 rounded-full bg-emerald-500" style={{ width: `${Math.min(100, (Math.abs(Number(calculation.incomeMonthly ?? 0)) / maxRowValue) * 100)}%` }} />
+            </div>
+          </div>
+
+          {rows.map((row) => (
+            <div key={row.label}>
+              <div className="mb-1 flex items-center justify-between gap-3 text-xs font-semibold text-slate-600">
+                <span>{row.label}</span>
+                <span>{formatFinancialAnalysisEuro(row.value)}</span>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                <div className={`h-3 rounded-full ${row.tone}`} style={{ width: `${Math.min(100, (Math.abs(Number(row.value ?? 0)) / maxRowValue) * 100)}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {trimOrNull(calculation.assessment) ? (
+          <div className="mt-5 rounded-3xl border border-emerald-100 bg-emerald-50/60 p-4 text-sm leading-relaxed text-slate-700">
+            {calculation.assessment}
+          </div>
+        ) : null}
+      </div>
+
+      {calculation.items?.length ? (
+        <div className="rounded-[28px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Detailpositionen</div>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {calculation.items.slice(0, 12).map((item, index) => (
+              <div key={`${item.label}-${index}`} className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">{item.label}</div>
+                    <div className="mt-1 text-xs text-slate-500">{item.category || item.basis || "Position"}</div>
+                  </div>
+                  <div className="shrink-0 text-sm font-semibold text-slate-900">{formatFinancialAnalysisEuro(item.amountMonthly)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export default function CustomerFinancialAnalysisPanel({
   caseId,
   service,
@@ -91,6 +258,7 @@ export default function CustomerFinancialAnalysisPanel({
     service.published_at && trimOrNull(service.published_action_plan)
       ? `/api/app/cases/schufa-frei/financial-analysis/action-plan?caseId=${encodeURIComponent(caseId)}`
       : null
+  const householdCalculation = parseFinancialAnalysisHouseholdCalculation(service.published_household_overview)
   const bankStatementCount = documents.filter((document) => String(document.document_kind ?? "").trim().toLowerCase() === "bank_statement").length
   const hasSchufaReport = documents.some((document) => String(document.document_kind ?? "").trim().toLowerCase() === "schufa_report")
 
@@ -102,11 +270,12 @@ export default function CustomerFinancialAnalysisPanel({
     setFeedback(null)
 
     try {
-      for (const file of selectedFiles) {
+      for (const [index, file] of selectedFiles.entries()) {
         const form = new FormData()
         form.set("caseId", caseId)
         form.set("serviceId", service.id)
         form.set("documentKind", kind)
+        form.set("sendCustomerUploadMail", index === 0 ? "1" : "0")
         form.set("file", file)
 
         const response = await fetch("/api/app/cases/schufa-frei/financial-analysis/upload", {
@@ -141,7 +310,7 @@ export default function CustomerFinancialAnalysisPanel({
   }
 
   return (
-    <div className="rounded-[28px] border border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_36%),linear-gradient(180deg,#ffffff,#f8fffc)] p-5 shadow-sm sm:p-6">
+    <div className="mx-auto w-full max-w-7xl rounded-[28px] border border-emerald-200/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_36%),linear-gradient(180deg,#ffffff,#f8fffc)] p-5 shadow-sm sm:p-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">Finanzanalyse</div>
@@ -299,11 +468,12 @@ export default function CustomerFinancialAnalysisPanel({
             <div className="grid gap-4 p-4 sm:p-5">
               <div className="grid gap-4 xl:grid-cols-2">
                 {trimOrNull(service.published_household_overview) ? (
-                  <section className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+                  <section className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5 xl:col-span-2">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Haushaltsrechnung</div>
-                    <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-                      {service.published_household_overview}
-                    </div>
+                    <HouseholdCalculationView
+                      calculation={householdCalculation}
+                      fallbackText={service.published_household_overview}
+                    />
                   </section>
                 ) : null}
 

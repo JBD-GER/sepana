@@ -1,7 +1,14 @@
 import fs from "fs/promises"
 import path from "path"
 import type { Color, PDFDocument, PDFFont, PDFPage } from "pdf-lib"
-import { FINANCIAL_ANALYSIS_LEGAL_NOTE, FINANCIAL_ANALYSIS_SERVICE_TITLE, trimOrNull } from "@/lib/financial-analysis/service"
+import {
+  FINANCIAL_ANALYSIS_LEGAL_NOTE,
+  FINANCIAL_ANALYSIS_SERVICE_TITLE,
+  formatFinancialAnalysisEuro,
+  parseFinancialAnalysisHouseholdCalculation,
+  trimOrNull,
+  type FinancialAnalysisHouseholdCalculation,
+} from "@/lib/financial-analysis/service"
 
 type PdfLibModule = typeof import("pdf-lib")
 
@@ -99,6 +106,25 @@ function drawWrappedText(input: {
     cursorY -= input.lineHeight ?? input.size + 4
   }
   return cursorY
+}
+
+function drawRightText(input: {
+  page: PDFPage
+  font: PDFFont
+  text: string
+  rightX: number
+  y: number
+  size: number
+  color?: Color
+}) {
+  const safeText = toWinAnsiSafe(input.text)
+  drawSafeText(input.page, safeText, {
+    x: input.rightX - input.font.widthOfTextAtSize(safeText, input.size),
+    y: input.y,
+    size: input.size,
+    font: input.font,
+    color: input.color,
+  })
 }
 
 function drawPill(input: {
@@ -284,6 +310,238 @@ function drawContentBlocks(input: {
   return { page, cursorY, pageNumber }
 }
 
+function getHouseholdTotalCosts(calculation: FinancialAnalysisHouseholdCalculation) {
+  if (calculation.totalCostsMonthly != null) return calculation.totalCostsMonthly
+  const costParts = [
+    calculation.provenFixedCostsMonthly,
+    calculation.bankHouseholdAllowanceMonthly,
+    calculation.obligationsMonthly,
+    calculation.variableCostsMonthly,
+    calculation.safetyBufferMonthly,
+  ]
+  const hasCostParts = costParts.some((value) => value != null && Number.isFinite(Number(value)))
+  return hasCostParts ? costParts.reduce<number>((sum, value) => sum + (Number.isFinite(Number(value)) ? Number(value) : 0), 0) : null
+}
+
+function drawHouseholdCalculationBlock(input: {
+  pdfDoc: PDFDocument
+  pdfLib: PdfLibModule
+  font: PDFFont
+  bold: PDFFont
+  logoImage?: unknown
+  caseRef: string
+  page: PDFPage
+  cursorY: number
+  pageNumber: number
+  calculation: FinancialAnalysisHouseholdCalculation
+}) {
+  const { rgb } = input.pdfLib
+  let page = input.page
+  let cursorY = input.cursorY
+  let pageNumber = input.pageNumber
+
+  const ensureSpace = (height: number) => {
+    if (cursorY - height > BOTTOM_MARGIN) return
+    drawFooter(page, input.font, input.pdfLib, pageNumber)
+    pageNumber += 1
+    page = createPage(input.pdfDoc, input.pdfLib)
+    drawHeader({ page, logoImage: input.logoImage, font: input.font, bold: input.bold, pdfLib: input.pdfLib, caseRef: input.caseRef })
+    cursorY = 728
+  }
+
+  const calculation = input.calculation
+  const totalCosts = getHouseholdTotalCosts(calculation)
+  const freeLiquidity =
+    calculation.freeLiquidityMonthly ??
+    (calculation.incomeMonthly != null && totalCosts != null ? Number(calculation.incomeMonthly) - Number(totalCosts) : null)
+  const resultPositive = freeLiquidity == null || Number(freeLiquidity) >= 0
+
+  ensureSpace(260)
+  drawSafeText(page, "Haushaltsrechnung nach Banklogik", {
+    x: MARGIN_X,
+    y: cursorY,
+    size: 17,
+    font: input.bold,
+    color: rgb(0.06, 0.09, 0.16),
+  })
+  cursorY -= 28
+
+  const metrics = [
+    {
+      label: "Einnahmen pro Monat",
+      value: formatFinancialAnalysisEuro(calculation.incomeMonthly),
+      bg: rgb(0.91, 0.98, 0.95),
+      fg: rgb(0.02, 0.37, 0.31),
+    },
+    {
+      label: "Kosten nach Banklogik",
+      value: formatFinancialAnalysisEuro(totalCosts),
+      bg: rgb(0.96, 0.98, 1),
+      fg: rgb(0.06, 0.09, 0.16),
+    },
+    {
+      label: "Bank-Pauschale",
+      value: formatFinancialAnalysisEuro(calculation.bankHouseholdAllowanceMonthly),
+      bg: rgb(0.9, 0.97, 1),
+      fg: rgb(0.03, 0.31, 0.62),
+    },
+    {
+      label: "Freie Liquidität",
+      value: formatFinancialAnalysisEuro(freeLiquidity),
+      bg: resultPositive ? rgb(0.9, 0.98, 0.95) : rgb(1, 0.93, 0.93),
+      fg: resultPositive ? rgb(0.02, 0.37, 0.31) : rgb(0.59, 0.05, 0.12),
+    },
+  ]
+  const cardWidth = 248
+  const cardHeight = 54
+  const cardGap = 15
+  const cardTopY = cursorY
+
+  for (const [index, metric] of metrics.entries()) {
+    const col = index % 2
+    const row = Math.floor(index / 2)
+    const x = MARGIN_X + col * (cardWidth + cardGap)
+    const y = cardTopY - cardHeight - row * (cardHeight + 10)
+    page.drawRectangle({
+      x,
+      y,
+      width: cardWidth,
+      height: cardHeight,
+      color: metric.bg,
+      borderWidth: 1,
+      borderColor: rgb(0.82, 0.88, 0.91),
+    })
+    drawSafeText(page, metric.label, { x: x + 12, y: y + 34, size: 8, font: input.bold, color: rgb(0.39, 0.45, 0.54) })
+    drawSafeText(page, metric.value, { x: x + 12, y: y + 13, size: 15, font: input.bold, color: metric.fg })
+  }
+
+  cursorY = cardTopY - cardHeight * 2 - 34
+
+  const rows = [
+    { label: "Einnahmen gesamt", value: calculation.incomeMonthly, kind: "income" },
+    { label: "Belegte Fixkosten", value: calculation.provenFixedCostsMonthly, kind: "cost" },
+    { label: "Bankübliche Haushalts-/Lebenshaltungspauschale", value: calculation.bankHouseholdAllowanceMonthly, kind: "cost" },
+    { label: "Laufende Verpflichtungen/Raten", value: calculation.obligationsMonthly, kind: "cost" },
+    { label: "Variable Kosten", value: calculation.variableCostsMonthly, kind: "cost" },
+    { label: "Sicherheitsabschlag", value: calculation.safetyBufferMonthly, kind: "cost" },
+    { label: "Gesamtausgaben nach Bankrechnung", value: totalCosts, kind: "total" },
+    { label: "Freie Liquidität nach Bankrechnung", value: freeLiquidity, kind: "result" },
+  ]
+  const tableX = MARGIN_X
+  const tableWidth = PAGE_WIDTH - MARGIN_X * 2
+  const rowHeight = 27
+
+  ensureSpace(rows.length * rowHeight + 26)
+  drawSafeText(page, "Monatliche Rechnung", { x: tableX, y: cursorY, size: 12, font: input.bold, color: rgb(0.02, 0.37, 0.31) })
+  cursorY -= 18
+
+  for (const [index, row] of rows.entries()) {
+    ensureSpace(rowHeight + 4)
+    const isEmphasis = row.kind === "total" || row.kind === "result"
+    const rowY = cursorY - rowHeight
+    const valueColor =
+      row.kind === "income"
+        ? rgb(0.02, 0.37, 0.31)
+        : row.kind === "result" && !resultPositive
+          ? rgb(0.59, 0.05, 0.12)
+          : rgb(0.06, 0.09, 0.16)
+
+    page.drawRectangle({
+      x: tableX,
+      y: rowY,
+      width: tableWidth,
+      height: rowHeight,
+      color: isEmphasis ? rgb(0.93, 0.97, 0.96) : index % 2 === 0 ? rgb(1, 1, 1) : rgb(0.97, 0.98, 0.99),
+      borderWidth: 0.5,
+      borderColor: rgb(0.86, 0.9, 0.94),
+    })
+    drawSafeText(page, row.label, {
+      x: tableX + 12,
+      y: rowY + 9,
+      size: isEmphasis ? 10 : 9.5,
+      font: isEmphasis ? input.bold : input.font,
+      color: rgb(0.2, 0.25, 0.33),
+    })
+    drawRightText({
+      page,
+      font: isEmphasis ? input.bold : input.font,
+      text: formatFinancialAnalysisEuro(row.value),
+      rightX: tableX + tableWidth - 12,
+      y: rowY + 9,
+      size: isEmphasis ? 10 : 9.5,
+      color: valueColor,
+    })
+    cursorY -= rowHeight
+  }
+
+  const assessment = trimOrNull(calculation.assessment)
+  if (assessment) {
+    ensureSpace(74)
+    cursorY -= 16
+    drawSafeText(page, "Einordnung", { x: tableX, y: cursorY, size: 12, font: input.bold, color: rgb(0.02, 0.37, 0.31) })
+    cursorY -= 18
+    cursorY = drawWrappedText({
+      page,
+      font: input.font,
+      text: assessment,
+      x: tableX,
+      y: cursorY,
+      size: 9.5,
+      maxWidth: tableWidth,
+      lineHeight: 13,
+      color: rgb(0.2, 0.25, 0.33),
+    })
+  }
+
+  const items = (calculation.items ?? []).slice(0, 10)
+  if (items.length) {
+    ensureSpace(70)
+    cursorY -= 16
+    drawSafeText(page, "Erkannte Detailpositionen", { x: tableX, y: cursorY, size: 12, font: input.bold, color: rgb(0.02, 0.37, 0.31) })
+    cursorY -= 20
+
+    for (const [index, item] of items.entries()) {
+      ensureSpace(31)
+      const rowY = cursorY - 28
+      page.drawRectangle({
+        x: tableX,
+        y: rowY,
+        width: tableWidth,
+        height: 28,
+        color: index % 2 === 0 ? rgb(1, 1, 1) : rgb(0.97, 0.98, 0.99),
+        borderWidth: 0.5,
+        borderColor: rgb(0.88, 0.91, 0.94),
+      })
+      drawSafeText(page, trimOrNull(item.label) ?? "Position", {
+        x: tableX + 12,
+        y: rowY + 14,
+        size: 9.5,
+        font: input.bold,
+        color: rgb(0.06, 0.09, 0.16),
+      })
+      drawSafeText(page, trimOrNull(item.category) ?? trimOrNull(item.basis) ?? "Position", {
+        x: tableX + 12,
+        y: rowY + 4,
+        size: 7.5,
+        font: input.font,
+        color: rgb(0.39, 0.45, 0.54),
+      })
+      drawRightText({
+        page,
+        font: input.bold,
+        text: formatFinancialAnalysisEuro(item.amountMonthly),
+        rightX: tableX + tableWidth - 12,
+        y: rowY + 10,
+        size: 9.5,
+        color: rgb(0.06, 0.09, 0.16),
+      })
+      cursorY -= 28
+    }
+  }
+
+  return { page, cursorY, pageNumber }
+}
+
 export async function renderFinancialAnalysisActionPlanPdf(input: {
   caseRef: string
   customerName?: string | null
@@ -383,7 +641,23 @@ export async function renderFinancialAnalysisActionPlanPdf(input: {
     pageNumber = state.pageNumber
   }
 
-  if (trimOrNull(input.householdOverview)) {
+  const householdCalculation = parseFinancialAnalysisHouseholdCalculation(input.householdOverview)
+  if (householdCalculation) {
+    state = drawHouseholdCalculationBlock({
+      pdfDoc,
+      pdfLib,
+      font,
+      bold,
+      logoImage,
+      caseRef: input.caseRef,
+      page,
+      cursorY: state.cursorY - 8,
+      pageNumber,
+      calculation: householdCalculation,
+    })
+    page = state.page
+    pageNumber = state.pageNumber
+  } else if (trimOrNull(input.householdOverview)) {
     state = drawContentBlocks({
       pdfDoc,
       pdfLib,

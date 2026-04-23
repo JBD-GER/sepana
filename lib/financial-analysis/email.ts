@@ -180,6 +180,75 @@ export async function sendFinancialAnalysisActivatedEmail(input: {
   }
 }
 
+export async function sendFinancialAnalysisDocumentsReceivedEmail(input: {
+  caseId: string
+  siteOrigin: string
+  service: FinancialAnalysisServiceRow
+  uploadedDocumentLabel?: string | null
+}) : Promise<MailResult> {
+  const caseMeta = await getCaseMeta(input.caseId)
+  if (!caseMeta?.customer_email) {
+    return { ok: false, error: "customer_email_missing" }
+  }
+
+  const subject = "Ihre Unterlagen zur Finanzanalyse sind eingegangen"
+  const portalUrl = buildFinancialAnalysisPortalUrl(input.siteOrigin, input.caseId)
+  const documentLabel = trimOrNull(input.uploadedDocumentLabel)
+
+  const html = buildEmailHtml({
+    title: "Ihre Unterlagen sind eingegangen",
+    intro: caseMeta.case_ref
+      ? `Ihre Unterlagen zur Finanzanalyse für den Fall ${caseMeta.case_ref} wurden erfolgreich hochgeladen.`
+      : "Ihre Unterlagen zur Finanzanalyse wurden erfolgreich hochgeladen.",
+    bodyHtml: `
+      <div style="margin:0 0 16px 0; border:1px solid #bbf7d0; border-radius:16px; background:#f0fdf4; padding:16px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#047857;">Upload bestätigt</div>
+        <div style="margin-top:6px; font-size:18px; line-height:26px; font-weight:700; color:#0f172a;">Wir prüfen Ihre Unterlagen sorgfältig.</div>
+        ${
+          documentLabel
+            ? `<div style="margin-top:8px; font-size:13px; line-height:20px; color:#334155;">Eingegangen: ${escapeHtml(documentLabel)}</div>`
+            : ""
+        }
+      </div>
+      <p style="margin:0 0 14px 0; font-size:14px; line-height:22px; color:#334155;">
+        Ihr Kundenberater analysiert die hochgeladenen Unterlagen nun genau. Dazu gehört insbesondere die strukturierte Prüfung Ihrer Einnahmen, Ausgaben, laufenden Verpflichtungen und möglichen Optimierungspunkte.
+      </p>
+      <p style="margin:0; font-size:14px; line-height:22px; color:#334155;">
+        In der Regel stellen wir Ihnen die Finanzanalyse innerhalb der nächsten 1-2 Werktage im Dashboard zur Verfügung. Sobald die Auswertung veröffentlicht ist, erhalten Sie eine separate Benachrichtigung.
+      </p>
+    `,
+    steps: [
+      "Unterlagen wurden erfolgreich im Finanzanalyse-Bereich gespeichert.",
+      "Ihr Kundenberater prüft und analysiert die Angaben sorgfältig.",
+      "Die fertige Finanzanalyse wird innerhalb von 1-2 Werktagen im Dashboard bereitgestellt.",
+    ],
+    ctaLabel: "Zum Finanzanalyse-Bereich",
+    ctaUrl: portalUrl,
+    preheader: "Ihre Unterlagen sind eingegangen. Ihr Kundenberater stellt die Finanzanalyse in der Regel innerhalb von 1-2 Werktagen bereit.",
+    eyebrow: "SEPANA - Finanzanalyse",
+    supportNote: "Falls Sie weitere Kontoauszüge, Ihre aktuelle Schufa oder ergänzende Nachweise haben, können Sie diese jederzeit im Dashboard hochladen.",
+  })
+
+  const mailResult = await sendEmail({
+    to: caseMeta.customer_email,
+    subject,
+    html,
+  }).catch((error) => ({
+    ok: false as const,
+    error: error instanceof Error ? error.message : "mail_failed",
+  }))
+
+  if (!mailResult?.ok) {
+    return { ok: false, error: String(mailResult?.error ?? "mail_failed") }
+  }
+
+  return {
+    ok: true,
+    to: caseMeta.customer_email,
+    subject,
+  }
+}
+
 export async function sendFinancialAnalysisPublishedEmail(input: {
   caseId: string
   siteOrigin: string
