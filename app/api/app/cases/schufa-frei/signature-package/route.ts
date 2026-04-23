@@ -18,7 +18,6 @@ import {
   getSchufaFreeSignatureInvoiceGateMessage,
   loadSchufaFreeSignatureInvoiceGate,
 } from "@/lib/schufa-frei/signatureInvoiceGate"
-import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 function safeFileName(name: string) {
@@ -292,13 +291,6 @@ export async function POST(req: Request) {
       }
 
       createdDocumentIds.push(documentRow.id)
-
-      await syncLocalDocumentToSkag(admin, {
-        caseId,
-        localDocumentId: documentRow.id,
-        filePath: storagePath,
-        fileName,
-      }).catch(() => null)
     }
 
     const caseMeta = await getCaseMeta(caseId)

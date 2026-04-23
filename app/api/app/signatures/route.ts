@@ -2,10 +2,8 @@
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
-import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 import {
   isSchufaSignatureRequestLockedUntilInvoice,
-  shouldSyncSchufaSignatureRequestToSkag,
 } from "@/lib/schufa-frei/contractPackage"
 import {
   getSchufaFreeSignatureInvoiceGateMessage,
@@ -297,7 +295,7 @@ export async function POST(req: Request) {
       .upload(path, file, { upsert: true, contentType: file.type || "application/octet-stream" })
     if (upErr) throw upErr
 
-    const { data: insertedDoc, error: docErr } = await admin
+    const { error: docErr } = await admin
       .from("documents")
       .insert({
         case_id: caseId,
@@ -309,21 +307,7 @@ export async function POST(req: Request) {
         mime_type: file.type || null,
         size_bytes: file.size || null,
       })
-      .select("id")
-      .single()
     if (docErr) throw docErr
-
-    const localDocumentId = String((insertedDoc as { id?: string | null } | null)?.id ?? "").trim()
-    if (localDocumentId) {
-      if (isSchufaFreeCase && shouldSyncSchufaSignatureRequestToSkag(title)) {
-        await syncLocalDocumentToSkag(admin, {
-          caseId,
-          localDocumentId,
-          filePath: path,
-          fileName: file.name,
-        }).catch(() => null)
-      }
-    }
 
     await logCaseEvent({
       caseId,

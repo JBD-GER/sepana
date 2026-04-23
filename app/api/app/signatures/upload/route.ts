@@ -2,10 +2,8 @@ export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
-import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 import {
   isSchufaSignatureRequestLockedUntilInvoice,
-  shouldSyncSchufaSignatureRequestToSkag,
 } from "@/lib/schufa-frei/contractPackage"
 import {
   getSchufaFreeSignatureInvoiceGateMessage,
@@ -115,8 +113,8 @@ export async function POST(req: Request) {
       .maybeSingle()
     if (!reqRow || reqRow.case_id !== caseId) return NextResponse.json({ error: "Not found" }, { status: 404 })
     const { data: caseMeta } = await admin.from("cases").select("case_type").eq("id", caseId).maybeSingle()
-    const shouldSyncToSkag = String(caseMeta?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
-    if (shouldSyncToSkag && isSchufaSignatureRequestLockedUntilInvoice(reqRow.title)) {
+    const isSchufaFreeCase = String(caseMeta?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
+    if (isSchufaFreeCase && isSchufaSignatureRequestLockedUntilInvoice(reqRow.title)) {
       try {
         const invoiceGate = await loadSchufaFreeSignatureInvoiceGate(admin, caseId)
         if (!invoiceGate.ready) {
@@ -140,7 +138,7 @@ export async function POST(req: Request) {
         .upload(path, file, { upsert: true, contentType: file.type || "application/octet-stream" })
       if (upErr) throw upErr
 
-      const { data: insertedDoc, error: docErr } = await admin
+      const { error: docErr } = await admin
         .from("documents")
         .insert({
           case_id: caseId,
@@ -152,19 +150,7 @@ export async function POST(req: Request) {
           mime_type: file.type || null,
           size_bytes: file.size || null,
         })
-        .select("id")
-        .single()
       if (docErr) throw docErr
-
-      const localDocumentId = String((insertedDoc as { id?: string | null } | null)?.id ?? "").trim()
-      if (shouldSyncToSkag && localDocumentId && shouldSyncSchufaSignatureRequestToSkag(reqRow.title)) {
-        await syncLocalDocumentToSkag(admin, {
-          caseId,
-          localDocumentId,
-          filePath: path,
-          fileName: file.name,
-        }).catch(() => null)
-      }
     }
 
     await updateSignedState(admin, requestId, role, advisorRequired)

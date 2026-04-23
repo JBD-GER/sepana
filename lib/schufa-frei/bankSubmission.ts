@@ -95,6 +95,7 @@ const REQUEST_ORDER = new Map<string, number>([
   [normalizeTitleKey("Personalausweis / Reisepass (Vorder- & Rueckseite)"), 10],
   [normalizeTitleKey("Meldebescheinigung"), 20],
   [normalizeTitleKey("Letzte 3 Gehaltsabrechnungen"), 30],
+  [normalizeTitleKey("Kontoauszug vom Gehaltseingang"), 40],
   [normalizeTitleKey("Kontoauszuege der letzten 3 Monate vom Gehaltskonto (Gehaltseingang sichtbar)"), 40],
   [normalizeTitleKey("IBAN-Nachweis (Foto von der Karte)"), 50],
   [normalizeTitleKey("Weitere Unterlagen laut Pruefung"), 90],
@@ -501,11 +502,6 @@ export async function buildSchufaFreeBankSubmission(
       customer_signed_at: request.customer_signed_at,
       status: request.status,
     })
-
-    if (meta.key === "separate_mandate") {
-      if (!isComplete) missing.push(label)
-      continue
-    }
 
     if (meta.downloadOnly) {
       const originalDoc = pickLatestDocument(requestDocs, "signature_original")

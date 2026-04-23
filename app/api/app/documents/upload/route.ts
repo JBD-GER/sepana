@@ -6,7 +6,6 @@ import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { syncLocalDocumentToEuropace } from "@/lib/europace/documents"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { logCaseEvent } from "@/lib/notifications/notify"
-import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 
 function safeFileName(name: string) {
   return name.replace(/[^\w.-]+/g, "_").slice(0, 160)
@@ -264,14 +263,6 @@ export async function POST(req: Request) {
           europaceDocumentId: string | null
         }
       | undefined
-    let skagSync:
-      | {
-          attempted: boolean
-          ok: boolean
-          reason: string | null
-        }
-      | undefined
-
     if (localDocumentId && caseType === "konsum") {
       const { data: europaceMeta } = await admin
         .from("case_europace")
@@ -296,15 +287,6 @@ export async function POST(req: Request) {
       }))
     }
 
-    if (localDocumentId && caseType === "schufa_frei") {
-      skagSync = await syncLocalDocumentToSkag(admin, {
-        caseId,
-        localDocumentId,
-        filePath: path,
-        fileName: originalName,
-      })
-    }
-
     await logCaseEvent({
       caseId,
       actorId: user.id,
@@ -320,7 +302,7 @@ export async function POST(req: Request) {
       path,
       request_id: requestIdFinal,
       europaceSync: europaceSync ?? null,
-      skagSync: skagSync ?? null,
+      skagSync: null,
     })
   } catch (e: unknown) {
     const raw = e instanceof Error ? e.message : String(e ?? "")

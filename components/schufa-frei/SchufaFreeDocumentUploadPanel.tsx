@@ -28,6 +28,19 @@ function dt(value: string) {
 
 function uploadStatusLabel(value: string | null | undefined) {
   const normalized = String(value ?? "").trim().toLowerCase()
+  const nextLabel =
+    !normalized
+      ? "im Fall gespeichert"
+      : normalized === "uploaded"
+        ? "an SKAG übermittelt"
+        : normalized === "pending_credit_id"
+          ? "wartet auf manuelle Bankeinreichung"
+          : normalized === "error"
+            ? "Übertragung prüfen"
+            : normalized === "pending"
+              ? "wird vorbereitet"
+              : null
+  if (nextLabel) return nextLabel
   if (!normalized) return "bei SEPANA gespeichert"
   if (normalized === "uploaded") return "an SEPANA übermittelt"
   if (normalized === "pending_credit_id") return "wartet auf SEPANA-Fall"

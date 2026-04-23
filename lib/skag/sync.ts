@@ -44,18 +44,13 @@ function parseDocumentsList(payload: PushPayloadInput) {
   return []
 }
 
-function inferSkagDocumentTypeFromName(fileName: string) {
-  const normalized = String(fileName ?? "").trim().toLowerCase()
-  if (!normalized) return "unterlagen" as const
-  if (normalized.includes("vertrag") || normalized.includes("contract")) return "bankeinreichung" as const
-  return "unterlagen" as const
-}
-
-async function resolveSkagDocumentType(
+async function resolveSkagDocumentTarget(
   admin: AdminClient,
-  localDocumentId: string,
-  fileName: string
-): Promise<"unterlagen" | "bankeinreichung"> {
+  localDocumentId: string
+): Promise<
+  | { uploadAllowed: true; documentType: "bankeinreichung" }
+  | { uploadAllowed: false; reason: "manual_bank_submission_only" }
+> {
   const { data: documentRow } = await admin
     .from("documents")
     .select("document_kind")
@@ -66,15 +61,17 @@ async function resolveSkagDocumentType(
     .trim()
     .toLowerCase()
 
-  if (
-    documentKind === "signature_original" ||
-    documentKind === "signature_signed" ||
-    documentKind === "bank_submission_bundle"
-  ) {
-    return "bankeinreichung"
+  if (documentKind === "bank_submission_bundle") {
+    return {
+      uploadAllowed: true,
+      documentType: "bankeinreichung",
+    }
   }
 
-  return inferSkagDocumentTypeFromName(fileName)
+  return {
+    uploadAllowed: false,
+    reason: "manual_bank_submission_only",
+  }
 }
 
 async function ensureDocumentRequestsForPush(admin: AdminClient, caseId: string, payload: PushPayloadInput) {
@@ -110,6 +107,15 @@ export async function syncLocalDocumentToSkag(
     fileName: string
   }
 ) {
+  const target = await resolveSkagDocumentTarget(admin, input.localDocumentId)
+  if (!target.uploadAllowed) {
+    return {
+      attempted: false,
+      ok: false,
+      reason: target.reason,
+    }
+  }
+
   const { data: syncRow } = await admin
     .from("case_skag_sync")
     .select("skag_credit_id,api_variant")
@@ -163,7 +169,7 @@ export async function syncLocalDocumentToSkag(
 
   const arrayBuffer = await download.data.arrayBuffer()
   const contentType = download.data.type || "application/octet-stream"
-  const documentType = await resolveSkagDocumentType(admin, input.localDocumentId, input.fileName)
+  const documentType = target.documentType
 
   try {
     const result = await uploadSkagDocument({

@@ -802,8 +802,8 @@ export default function SignaturePanel({
             <div className="max-w-2xl">
               <div className="text-sm font-semibold text-cyan-950">Bankeinreichung erzeugen</div>
               <div className="mt-1 text-sm leading-relaxed text-cyan-900">
-                Prüft jetzt alle Pflichtunterlagen im Fall, bündelt die vollständige Reihenfolge in ein PDF und lädt
-                die Bankeinreichung anschließend direkt zu SKAG hoch.
+                Prüft jetzt alle Pflichtunterlagen im Fall, bündelt die vollständige Reihenfolge in ein PDF und
+                übermittelt die Bankeinreichung erst jetzt gesammelt an SKAG.
               </div>
             </div>
             <button

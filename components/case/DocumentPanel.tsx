@@ -60,7 +60,7 @@ const CANONICAL_TITLE_BY_KEY: Record<CanonicalRequestKey, string> = {
   general_id_passport: "Personalausweis / Reisepass (Vorder- & Rückseite)",
   general_registration: "Meldebescheinigung",
   general_salary_slips_3: "Letzte 3 Gehaltsabrechnungen",
-  general_bank_statements_salary_3m: "Kontoauszüge der letzten 3 Monate vom Gehaltskonto (Gehaltseingang sichtbar)",
+  general_bank_statements_salary_3m: "Kontoauszug vom Gehaltseingang",
   equity_proof: "Eigenkapital-Nachweis (aktueller Kontoauszug)",
   object_expose: "Exposé / Objektbeschreibung",
   object_purchase_contract: "Kaufvertragsentwurf (sobald vorhanden)",
@@ -446,10 +446,10 @@ function translateEuropaceReleaseStatus(value: string | null | undefined) {
 function translateSkagUploadStatus(value: string | null | undefined) {
   const normalized = String(value ?? "").trim().toLowerCase()
   if (!normalized) return null
-  if (normalized === "uploaded") return "an SEPANA übermittelt"
-  if (normalized === "pending_credit_id") return "wartet auf SEPANA-Fall"
+  if (normalized === "uploaded") return "an SKAG übermittelt"
+  if (normalized === "pending_credit_id") return "wartet auf manuelle Bankeinreichung"
   if (normalized === "pending") return "wird vorbereitet"
-  if (normalized === "error") return "Upload prüfen"
+  if (normalized === "error") return "Übertragung prüfen"
   return normalized
 }
 
@@ -940,7 +940,7 @@ export default function DocumentPanel({
                                 : "bg-cyan-100 text-cyan-800"
                             }`}
                           >
-                            SEPANA: {skagStatusLabel ?? "unbekannt"}
+                            SKAG: {skagStatusLabel ?? "unbekannt"}
                           </span>
                         </div>
                         {skagDocument?.last_error ? (
@@ -948,7 +948,9 @@ export default function DocumentPanel({
                         ) : null}
                       </>
                     ) : (
-                      <div className="text-[11px] text-slate-500">SEPANA: wird nach der Fallübergabe synchronisiert</div>
+                      <div className="text-[11px] text-slate-500">
+                        SKAG: wird erst mit der manuellen Bankeinreichung übertragen
+                      </div>
                     )}
                   </div>
                 ) : null}

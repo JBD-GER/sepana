@@ -734,7 +734,6 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
               fixedProviderName="SIGMA Kreditbank AG"
               providerProduct="konsum"
               uploadMode="schufaFreePackage"
-              advisorSignedDocumentActionLabel="An SKAG uebermitteln"
               skagDocumentStatuses={schufaData?.skagDocuments ?? []}
               contractSigningUnlocked={contractSigningUnlocked}
             />

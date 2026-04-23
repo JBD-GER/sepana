@@ -12,7 +12,6 @@ import {
   getSchufaFreeProfessionLabel,
   requiresSchufaFreeEmployerData,
 } from "@/lib/schufa-frei/application"
-import { syncPendingCaseDocumentsToSkag } from "@/lib/skag/sync"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const runtime = "nodejs"
@@ -129,7 +128,7 @@ async function notifyAdminSubmitted(input: {
       : null,
     input.netIncomeMonthly ? `Nettoeinkommen: ${input.netIncomeMonthly.toLocaleString("de-DE")} EUR` : null,
     input.professionLabel ? `Beschäftigungsverhältnis: ${input.professionLabel}` : null,
-    `Dokumente bereits synchronisiert: ${input.uploadedDocumentCount}`,
+    `Dokumente bereits im Fall vorhanden: ${input.uploadedDocumentCount}`,
     "Der Vollantrag wurde erfolgreich abgesendet und an SEPANA uebermittelt.",
   ].filter((entry): entry is string => Boolean(entry))
 
@@ -612,8 +611,21 @@ export async function POST(req: Request) {
       updatedAt: now,
     })
 
-    const documentSyncResults = await syncPendingCaseDocumentsToSkag(admin, caseId)
-    const uploadedDocumentCount = documentSyncResults.filter((entry) => entry.ok).length
+    const { data: uploadedDocumentRows } = await admin
+      .from("documents")
+      .select("id,signature_request_id,document_kind")
+      .eq("case_id", caseId)
+    const uploadedDocumentCount = (
+      (uploadedDocumentRows as Array<{
+        id?: string | null
+        signature_request_id?: string | null
+        document_kind?: string | null
+      }> | null) ?? []
+    ).filter((row) => {
+      const signatureRequestId = trimOrNull(row.signature_request_id)
+      const documentKind = String(row.document_kind ?? "").trim().toLowerCase()
+      return !signatureRequestId && documentKind !== "bank_submission_bundle"
+    }).length
     const siteOrigin = resolveSiteOrigin(req)
     const advisorCaseUrl = new URL(`/advisor/faelle/${encodeURIComponent(caseId)}`, siteOrigin).toString()
     const customerDashboardUrl = new URL(`/app/faelle/${encodeURIComponent(caseId)}#schufa-dokumente`, siteOrigin).toString()

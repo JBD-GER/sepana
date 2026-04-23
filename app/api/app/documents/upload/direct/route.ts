@@ -5,7 +5,6 @@ import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { syncLocalDocumentToEuropace } from "@/lib/europace/documents"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { logCaseEvent } from "@/lib/notifications/notify"
-import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 
 const MAX_DOCUMENT_UPLOAD_BYTES = 20 * 1024 * 1024
 
@@ -343,14 +342,6 @@ export async function POST(req: Request) {
             europaceDocumentId: string | null
           }
         | undefined
-      let skagSync:
-        | {
-            attempted: boolean
-            ok: boolean
-            reason: string | null
-          }
-        | undefined
-
       if (localDocumentId && caseType === "konsum") {
         const { data: europaceMeta } = await admin
           .from("case_europace")
@@ -375,15 +366,6 @@ export async function POST(req: Request) {
         }))
       }
 
-      if (localDocumentId && caseType === "schufa_frei") {
-        skagSync = await syncLocalDocumentToSkag(admin, {
-          caseId,
-          localDocumentId,
-          filePath: path,
-          fileName,
-        })
-      }
-
       await logCustomerUploadEvent({
         role,
         userId: user.id,
@@ -396,7 +378,7 @@ export async function POST(req: Request) {
         ok: true,
         request_id: requestId ?? null,
         europaceSync: europaceSync ?? null,
-        skagSync: skagSync ?? null,
+        skagSync: null,
       })
     }
 

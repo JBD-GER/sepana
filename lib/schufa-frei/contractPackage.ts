@@ -360,7 +360,8 @@ export function isSchufaFreeCompletionRelevantRequest(input: {
 }
 
 export function shouldSyncSchufaSignatureRequestToSkag(title: string | null | undefined) {
-  return normalizeTitle(title) !== normalizeTitle(SEPARATE_MANDATE_TITLE)
+  const meta = getSchufaFreeSignatureRequestMeta({ title })
+  return !meta.packageRelated
 }
 
 export function isSchufaSignatureRequestLockedUntilInvoice(title: string | null | undefined) {

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { logCaseEvent } from "@/lib/notifications/notify"
 import { resolvePublicOnlinekreditCaseAccess } from "@/lib/onlinekredit/caseAccess"
-import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const runtime = "nodejs"
@@ -194,23 +193,12 @@ export async function POST(req: Request) {
       .single()
     if (inserted.error) throw inserted.error
 
-    const localDocumentId = trimOrNull(inserted.data?.id)
-    const skagSync =
-      localDocumentId
-        ? await syncLocalDocumentToSkag(admin, {
-            caseId,
-            localDocumentId,
-            filePath: path,
-            fileName: originalName,
-          })
-        : { attempted: false, ok: false, reason: "missing_local_document_id" }
-
     await logCustomerUploadEvent(caseId, originalName, requestIdFinal, access.caseRow.customer_id ?? null)
 
     return NextResponse.json({
       ok: true,
       requestId: requestIdFinal,
-      skagSync,
+      skagSync: null,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Serverfehler"
