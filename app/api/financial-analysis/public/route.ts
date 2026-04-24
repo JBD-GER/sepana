@@ -13,6 +13,7 @@ import {
 } from "@/lib/financial-analysis/invoice"
 import {
   sendFinancialAnalysisActivatedEmail,
+  sendFinancialAnalysisCustomerConfirmedAdminEmail,
   sendFinancialAnalysisInvoiceEmail,
 } from "@/lib/financial-analysis/email"
 import { renderFinancialAnalysisInvoicePdf } from "@/lib/financial-analysis/renderFinancialAnalysisInvoicePdf"
@@ -249,6 +250,7 @@ export async function POST(req: Request) {
     if (result.error) throw result.error
 
     const nextService = normalizeFinancialAnalysisServiceRow((result.data ?? null) as FinancialAnalysisServiceRow | null)
+    const isFirstCustomerConfirmation = !trimOrNull(access.service.customer_confirmed_at)
     const advisorStatusSync = await syncAdvisorStatusToFinancialAnalysis({
       admin,
       caseId: access.caseRow.id,
@@ -325,6 +327,8 @@ export async function POST(req: Request) {
 
     const siteOrigin = resolveSiteOrigin(req)
     let activationMailSent = false
+    let adminConfirmationMailSent = false
+    let adminConfirmationMailError: string | null = null
     if (String(previousStatus ?? "").trim().toLowerCase() !== "active" && nextService?.service_status === "active") {
       const mailResult = await sendFinancialAnalysisActivatedEmail({
         caseId: access.caseRow.id,
@@ -332,6 +336,16 @@ export async function POST(req: Request) {
         service: nextService,
       })
       activationMailSent = mailResult.ok
+    }
+
+    if (isFirstCustomerConfirmation && nextService?.id) {
+      const mailResult = await sendFinancialAnalysisCustomerConfirmedAdminEmail({
+        caseId: access.caseRow.id,
+        siteOrigin,
+        service: nextService,
+      })
+      adminConfirmationMailSent = mailResult.ok
+      adminConfirmationMailError = mailResult.ok ? null : mailResult.error
     }
 
     await logCaseEvent({
@@ -353,6 +367,8 @@ export async function POST(req: Request) {
         invoice_email_sent: invoiceEmailSent,
         invoice_email_error: invoiceEmailError,
         activation_email_sent: activationMailSent,
+        admin_confirmation_email_sent: adminConfirmationMailSent,
+        admin_confirmation_email_error: adminConfirmationMailError,
       },
       notifyCustomer: false,
       notifyAdvisor: true,
@@ -365,6 +381,8 @@ export async function POST(req: Request) {
       invoiceEmailSent,
       invoiceEmailError,
       activationEmailSent: activationMailSent,
+      adminConfirmationMailSent,
+      adminConfirmationMailError,
     })
   } catch (error) {
     if (isMissingFinancialAnalysisTablesError(error)) {

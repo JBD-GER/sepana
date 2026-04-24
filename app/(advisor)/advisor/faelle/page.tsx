@@ -61,25 +61,28 @@ function normalizeAdvisorStatus(row: CaseRow, product: ProductTab): AdvisorCaseS
 function resolveSchufaFreeCaseFilter(row: CaseRow & { advisor_status: AdvisorCaseStatusValue }): AdvisorCaseFilterValue {
   const stored = row.advisor_status
   const financialAnalysisStatus = String(row.financial_analysis_service_status ?? "").trim().toLowerCase()
-  const hasFinancialAnalysisConfirmation = Boolean(row.financial_analysis_customer_confirmed_at)
+  const hasFinancialAnalysisConfirmation =
+    Boolean(row.financial_analysis_customer_confirmed_at) || financialAnalysisStatus === "customer_confirmed"
   const hasFinancialAnalysisPaymentOrActivation =
-    Boolean(row.financial_analysis_payment_received_at) || financialAnalysisStatus === "active"
+    Boolean(row.financial_analysis_payment_received_at) ||
+    financialAnalysisStatus === "payment_received" ||
+    financialAnalysisStatus === "active"
   const financialAnalysisStillOpen = financialAnalysisStatus !== "expired" && financialAnalysisStatus !== "cancelled"
 
   if (stored === "bankeinreichung" || stored === "abgelehnt" || stored === "abgeschlossen") {
     return stored
   }
 
-  const secondFormCompleted = Boolean(row.schufa_submitted_to_skag_at || row.schufa_completed_application_at)
-  if (!secondFormCompleted) return "lead"
-
   if (hasFinancialAnalysisConfirmation && !hasFinancialAnalysisPaymentOrActivation && financialAnalysisStillOpen) {
     return "temp_finanzanalyse"
   }
 
-  if (stored === "finanzanalyse") {
-    return stored
+  if (stored === "finanzanalyse" || hasFinancialAnalysisPaymentOrActivation) {
+    return "finanzanalyse"
   }
+
+  const secondFormCompleted = Boolean(row.schufa_submitted_to_skag_at || row.schufa_completed_application_at)
+  if (!secondFormCompleted) return "lead"
 
   return stored
 }
@@ -209,7 +212,8 @@ export default async function CasesPage({
               <span className="font-medium text-amber-700">Lead</span> zeigt offene Zweitformulare.
               {" "}
               <span className="font-medium text-cyan-700">Temp. Finanzanalyse</span> zeigt bestätigte
-              Finanzanalyse-Fälle vor Zahlung bzw. Freischaltung.
+              Finanzanalyse-Fälle vor Zahlung bzw. Freischaltung.{" "}
+              <span className="font-medium text-slate-900">Finanzanalyse</span> zeigt freigeschaltete oder aktiv bearbeitete Fälle.
             </>
           ) : (
             <>
@@ -367,8 +371,8 @@ export default async function CasesPage({
         <div className="text-sm font-medium text-slate-900">Übersicht</div>
         {product === "schufa_frei" ? (
           <div className="mt-1 text-xs text-slate-500">
-            Gruppe priorisiert offene Zweitformulare und bestätigte Finanzanalyse-Fälle vor Zahlung. Der Select bleibt der
-            eigentliche Bearbeitungsstatus.
+            Gruppe trennt offene Zweitformulare, bestätigte Finanzanalyse vor Zahlung und die reguläre Finanzanalyse nach
+            Freischaltung. Der Select bleibt der eigentliche Bearbeitungsstatus.
           </div>
         ) : null}
 

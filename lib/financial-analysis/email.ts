@@ -1,4 +1,4 @@
-import { buildEmailHtml, getCaseMeta, sendEmail } from "@/lib/notifications/notify"
+import { buildEmailHtml, getCaseMeta, sanitizeNotificationRecipients, sendEmail } from "@/lib/notifications/notify"
 import { buildFinancialAnalysisPaymentReference, type FinancialAnalysisInvoiceRow } from "@/lib/financial-analysis/invoice"
 import {
   FINANCIAL_ANALYSIS_FEATURES,
@@ -22,6 +22,23 @@ type MailResult =
       error: string
     }
 
+type InternalMailResult =
+  | {
+      ok: true
+      attempted: number
+      successCount: number
+      recipients: string[]
+    }
+  | {
+      ok: false
+      error: string
+      attempted: number
+      successCount: number
+      recipients: string[]
+    }
+
+const DEFAULT_ADMIN_RECIPIENT = "info@sepana.de"
+
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
@@ -35,6 +52,14 @@ function formatDate(value: string | null | undefined) {
   const normalized = trimOrNull(value)
   if (!normalized) return null
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(normalized))
+}
+
+function parseFinancialAnalysisAdminRecipients() {
+  return sanitizeNotificationRecipients([
+    process.env.ADMIN_NOTIFY_TO,
+    process.env.INVITE_ACCEPTED_NOTIFY_TO,
+    DEFAULT_ADMIN_RECIPIENT,
+  ])
 }
 
 function renderFeatureListHtml() {
@@ -388,5 +413,77 @@ export async function sendFinancialAnalysisInvoiceEmail(input: {
     ok: true,
     to: caseMeta.customer_email,
     subject,
+  }
+}
+
+export async function sendFinancialAnalysisCustomerConfirmedAdminEmail(input: {
+  caseId: string
+  siteOrigin: string
+  service: FinancialAnalysisServiceRow
+}) : Promise<InternalMailResult> {
+  const recipients = parseFinancialAnalysisAdminRecipients()
+  if (!recipients.length) {
+    return { ok: false, error: "missing_recipients", attempted: 0, successCount: 0, recipients: [] }
+  }
+
+  const caseMeta = await getCaseMeta(input.caseId)
+  const caseRef = trimOrNull(caseMeta?.case_ref)
+  const caseLabel = caseRef ?? input.caseId
+  const subject = caseRef
+    ? `Finanzanalyse angenommen: ${caseRef}`
+    : "Finanzanalyse angenommen"
+  const advisorUrl = `${input.siteOrigin}/advisor/faelle/${encodeURIComponent(input.caseId)}#schufa-finanzanalyse`
+  const confirmedLabel = formatDate(input.service.customer_confirmed_at) ?? "soeben"
+  const customerLabel = trimOrNull(caseMeta?.customer_name) ?? trimOrNull(caseMeta?.customer_email) ?? "Kunde"
+  const advisorLabel = trimOrNull(caseMeta?.advisor_name) ?? trimOrNull(caseMeta?.advisor_email) ?? "-"
+  const priceLabel = formatFinancialAnalysisPrice(input.service.price_gross_cents)
+
+  const html = buildEmailHtml({
+    title: "Finanzanalyse wurde angenommen",
+    intro: `Der Kunde hat die Finanzanalyse für den Fall ${caseLabel} aktiv bestätigt.`,
+    bodyHtml: `
+      <div style="margin:0 0 16px 0; border:1px solid #e2e8f0; border-radius:16px; background:#f8fafc; padding:16px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#64748b;">Fallübersicht</div>
+        <div style="margin-top:8px; font-size:14px; line-height:22px; color:#334155;"><strong style="color:#0f172a;">Fall:</strong> ${escapeHtml(caseLabel)}</div>
+        <div style="margin-top:4px; font-size:14px; line-height:22px; color:#334155;"><strong style="color:#0f172a;">Kunde:</strong> ${escapeHtml(customerLabel)}</div>
+        <div style="margin-top:4px; font-size:14px; line-height:22px; color:#334155;"><strong style="color:#0f172a;">Berater:</strong> ${escapeHtml(advisorLabel)}</div>
+        <div style="margin-top:4px; font-size:14px; line-height:22px; color:#334155;"><strong style="color:#0f172a;">Bestätigt am:</strong> ${escapeHtml(confirmedLabel)}</div>
+        <div style="margin-top:4px; font-size:14px; line-height:22px; color:#334155;"><strong style="color:#0f172a;">Preis:</strong> ${escapeHtml(priceLabel)}</div>
+      </div>
+      <p style="margin:0; font-size:14px; line-height:22px; color:#334155;">
+        Der Fall gehört jetzt in <strong style="color:#0f172a;">Temp. Finanzanalyse</strong>. Nach geprüftem Zahlungseingang kann der Bereich im Fall freigeschaltet werden.
+      </p>
+    `,
+    steps: [
+      "Fall im Beraterbereich öffnen.",
+      "Zahlungseingang prüfen und intern markieren.",
+      "Danach läuft der Fall in die reguläre Finanzanalyse.",
+    ],
+    ctaLabel: "Zum Finanzanalyse-Bereich",
+    ctaUrl: advisorUrl,
+    preheader: subject,
+    eyebrow: "SEPANA - Admin Hinweis",
+    supportNote: "Diese Info wurde automatisch beim ersten Bestätigen der Finanzanalyse versendet.",
+  })
+
+  const results = await Promise.all(recipients.map((to) => sendEmail({ to, subject, html })))
+  const successCount = results.filter((result) => result?.ok).length
+  const failed = results.find((result) => !result?.ok)
+
+  if (successCount <= 0) {
+    return {
+      ok: false,
+      error: String((failed as { error?: unknown } | undefined)?.error ?? "mail_send_failed"),
+      attempted: recipients.length,
+      successCount,
+      recipients,
+    }
+  }
+
+  return {
+    ok: true,
+    attempted: recipients.length,
+    successCount,
+    recipients,
   }
 }
