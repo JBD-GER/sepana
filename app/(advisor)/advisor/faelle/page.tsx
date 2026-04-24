@@ -1,9 +1,13 @@
 import Link from "next/link"
 import {
+  getAdvisorCaseFilterLabel,
+  getAdvisorCaseFilterOptions,
+  getAdvisorCaseFilterSet,
   getAdvisorCaseStatusLabel,
-  getAdvisorCaseStatusOptions,
   getAdvisorCaseStatusSet,
   normalizeAdvisorCaseProduct,
+  type AdvisorCaseFilterValue,
+  type AdvisorCaseStatusValue,
 } from "@/lib/advisor/caseStatusOptions"
 import { requireAdvisor } from "@/lib/advisor/requireAdvisor"
 import { authFetch } from "@/lib/app/authFetch"
@@ -23,10 +27,20 @@ type CaseRow = {
   created_at: string
   assigned_advisor_id: string | null
   insurance_routed_at?: string | null
-
+  schufa_completed_application_at?: string | null
+  schufa_submitted_to_skag_at?: string | null
+  financial_analysis_service_status?: string | null
+  financial_analysis_customer_confirmed_at?: string | null
+  financial_analysis_payment_received_at?: string | null
   docsCount: number
   offersCount: number
   previewsCount: number
+}
+
+type EnrichedCaseRow = Omit<CaseRow, "advisor_status"> & {
+  advisor_status: AdvisorCaseStatusValue
+  case_filter: AdvisorCaseFilterValue
+  special_group_label: string | null
 }
 
 type CaseListResp = { cases: CaseRow[] }
@@ -36,16 +50,57 @@ function dt(d: string) {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(d))
 }
 
-function normalizeAdvisorStatus(row: CaseRow, product: ProductTab) {
+function normalizeAdvisorStatus(row: CaseRow, product: ProductTab): AdvisorCaseStatusValue {
   const raw = String(row.advisor_status ?? "").trim().toLowerCase()
-  if (raw && getAdvisorCaseStatusSet(product).has(raw)) return raw
+  if (raw && getAdvisorCaseStatusSet(product).has(raw)) return raw as AdvisorCaseStatusValue
   const caseStatus = String(row.status ?? "").trim().toLowerCase()
   if (caseStatus === "closed" || caseStatus === "completed") return "abgeschlossen"
   return "neu"
 }
 
+function resolveSchufaFreeCaseFilter(row: CaseRow & { advisor_status: AdvisorCaseStatusValue }): AdvisorCaseFilterValue {
+  const stored = row.advisor_status
+  const financialAnalysisStatus = String(row.financial_analysis_service_status ?? "").trim().toLowerCase()
+  const hasFinancialAnalysisConfirmation = Boolean(row.financial_analysis_customer_confirmed_at)
+  const hasFinancialAnalysisPaymentOrActivation =
+    Boolean(row.financial_analysis_payment_received_at) || financialAnalysisStatus === "active"
+  const financialAnalysisStillOpen = financialAnalysisStatus !== "expired" && financialAnalysisStatus !== "cancelled"
+
+  if (stored === "bankeinreichung" || stored === "abgelehnt" || stored === "abgeschlossen") {
+    return stored
+  }
+
+  const secondFormCompleted = Boolean(row.schufa_submitted_to_skag_at || row.schufa_completed_application_at)
+  if (!secondFormCompleted) return "lead"
+
+  if (hasFinancialAnalysisConfirmation && !hasFinancialAnalysisPaymentOrActivation && financialAnalysisStillOpen) {
+    return "temp_finanzanalyse"
+  }
+
+  return stored
+}
+
+function resolveCaseFilter(row: CaseRow & { advisor_status: AdvisorCaseStatusValue }, product: ProductTab): AdvisorCaseFilterValue {
+  if (product === "schufa_frei") return resolveSchufaFreeCaseFilter(row)
+  return row.advisor_status
+}
+
 function statusLabel(value: string, product: ProductTab) {
   return getAdvisorCaseStatusLabel(value, product)
+}
+
+function filterLabel(value: AdvisorCaseFilterValue, product: ProductTab) {
+  return getAdvisorCaseFilterLabel(value, product)
+}
+
+function specialGroupBadgeClass(value: AdvisorCaseFilterValue) {
+  if (value === "lead") {
+    return "border-amber-200 bg-amber-50 text-amber-900"
+  }
+  if (value === "temp_finanzanalyse") {
+    return "border-cyan-200 bg-cyan-50 text-cyan-900"
+  }
+  return "border-slate-200 bg-slate-50 text-slate-700"
 }
 
 function normalizeProduct(value: string | string[] | undefined): ProductTab {
@@ -59,7 +114,7 @@ function productHref(product: ProductTab) {
   return "/advisor/faelle?product=baufi"
 }
 
-function statusHref(product: ProductTab, status: string) {
+function statusHref(product: ProductTab, status: AdvisorCaseFilterValue) {
   const params = new URLSearchParams()
   if (product !== "baufi") params.set("product", product)
   params.set("tab", status)
@@ -77,8 +132,8 @@ export default async function CasesPage({
 
   const resolvedSearchParams = await searchParams
   const product = normalizeProduct(resolvedSearchParams?.product)
-  const statusTabs = getAdvisorCaseStatusOptions(product)
-  const statusSet = getAdvisorCaseStatusSet(product)
+  const statusTabs = getAdvisorCaseFilterOptions(product)
+  const statusSet = getAdvisorCaseFilterSet(product)
   const productLabel = product === "konsum" ? "Privatkredit" : product === "schufa_frei" ? "Kredit ohne Schufa" : "Baufinanzierung"
   const [activeRes, confirmedRes] = await Promise.all([
     authFetch(`/api/app/cases/list?advisorBucket=all&limit=1000&caseType=${product}`).catch(() => null),
@@ -88,26 +143,39 @@ export default async function CasesPage({
   const data: CaseListResp = activeRes && activeRes.ok ? await activeRes.json() : { cases: [] }
   const confirmedMeta: { total?: number } = confirmedRes && confirmedRes.ok ? await confirmedRes.json() : {}
   const confirmedCount = Number(confirmedMeta?.total ?? 0)
-  const enrichedCases = data.cases.map((c) => ({
-    ...c,
-    advisor_status: normalizeAdvisorStatus(c, product),
-  }))
+  const enrichedCases: EnrichedCaseRow[] = data.cases.map((c) => {
+    const advisorStatus = normalizeAdvisorStatus(c, product)
+    const caseFilter = resolveCaseFilter({ ...c, advisor_status: advisorStatus }, product)
+    return {
+      ...c,
+      advisor_status: advisorStatus,
+      case_filter: caseFilter,
+      special_group_label:
+        caseFilter === "lead" || caseFilter === "temp_finanzanalyse" ? filterLabel(caseFilter, product) : null,
+    }
+  })
+
   const totalCases = enrichedCases.length
   const withComparison = enrichedCases.filter((c) => c.previewsCount > 0).length
   const withOffers = enrichedCases.filter((c) => c.offersCount > 0).length
+  const leadCount = enrichedCases.filter((c) => c.case_filter === "lead").length
+  const tempFinancialAnalysisCount = enrichedCases.filter((c) => c.case_filter === "temp_finanzanalyse").length
+  const bankSubmissionCount = enrichedCases.filter((c) => c.case_filter === "bankeinreichung").length
+
   const activeTab = (() => {
     const rawParam = Array.isArray(resolvedSearchParams?.tab) ? resolvedSearchParams?.tab[0] : resolvedSearchParams?.tab
     const raw = String(rawParam ?? "").trim().toLowerCase()
-    return statusSet.has(raw) ? raw : "neu"
+    if (statusSet.has(raw)) return raw as AdvisorCaseFilterValue
+    return product === "schufa_frei" ? "lead" : "neu"
   })()
 
-  const countsByStatus = new Map<string, number>()
+  const countsByStatus = new Map<AdvisorCaseFilterValue, number>()
   for (const row of enrichedCases) {
-    const key = row.advisor_status ?? "neu"
-    countsByStatus.set(key, (countsByStatus.get(key) ?? 0) + 1)
+    countsByStatus.set(row.case_filter, (countsByStatus.get(row.case_filter) ?? 0) + 1)
   }
 
-  const scopedCases = enrichedCases.filter((c) => c.advisor_status === activeTab)
+  const visibleTabs = statusTabs.filter((tab) => (countsByStatus.get(tab.value) ?? 0) > 0 || tab.value === activeTab)
+  const scopedCases = enrichedCases.filter((c) => c.case_filter === activeTab)
 
   return (
     <div className="space-y-6">
@@ -122,18 +190,31 @@ export default async function CasesPage({
           </Link>
         </div>
         <p className="mt-1 text-sm text-slate-600">
-          Status wird pro Fall gepflegt. Bereich: <span className="font-medium text-slate-900">{productLabel}</span>.
-          Bankseitig bestätigte Fälle finden Sie auf der separaten Seite
-          <span className="font-medium text-slate-900"> Bestätigte Fälle</span>.
+          Bereich: <span className="font-medium text-slate-900">{productLabel}</span>.
+          {product === "schufa_frei" ? (
+            <>
+              {" "}
+              <span className="font-medium text-amber-700">Lead</span> zeigt offene Zweitformulare.
+              {" "}
+              <span className="font-medium text-cyan-700">Temp. Finanzanalyse</span> zeigt bestätigte
+              Finanzanalyse-Fälle vor Zahlung bzw. Freischaltung.
+            </>
+          ) : (
+            <>
+              {" "}
+              Bankseitig bestätigte Fälle finden Sie auf der separaten Seite
+              <span className="font-medium text-slate-900"> Bestätigte Fälle</span>.
+            </>
+          )}
         </p>
       </div>
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap gap-2">
           {([
+            { id: "schufa_frei" as const, label: "Kredit ohne Schufa" },
             { id: "baufi" as const, label: "Baufinanzierung" },
             { id: "konsum" as const, label: "Privatkredit" },
-            { id: "schufa_frei" as const, label: "Kredit ohne Schufa" },
           ] as const).map((tab) => {
             const active = product === tab.id
             return (
@@ -153,24 +234,45 @@ export default async function CasesPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
-          <div className="text-xs text-slate-500">Gesamt</div>
-          <div className="text-lg font-semibold text-slate-900">{totalCases}</div>
+      {product === "schufa_frei" ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+            <div className="text-xs text-slate-500">Gesamt</div>
+            <div className="text-lg font-semibold text-slate-900">{totalCases}</div>
+          </div>
+          <div className="rounded-2xl border border-amber-200/70 bg-amber-50/60 p-4 shadow-sm">
+            <div className="text-xs text-amber-700">Lead</div>
+            <div className="text-lg font-semibold text-amber-950">{leadCount}</div>
+          </div>
+          <div className="rounded-2xl border border-cyan-200/70 bg-cyan-50/60 p-4 shadow-sm">
+            <div className="text-xs text-cyan-700">Temp. Finanzanalyse</div>
+            <div className="text-lg font-semibold text-cyan-950">{tempFinancialAnalysisCount}</div>
+          </div>
+          <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/60 p-4 shadow-sm">
+            <div className="text-xs text-emerald-700">Bankeinreichung</div>
+            <div className="text-lg font-semibold text-emerald-950">{bankSubmissionCount}</div>
+          </div>
         </div>
-        <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
-          <div className="text-xs text-slate-500">Vergleich bereit</div>
-          <div className="text-lg font-semibold text-slate-900">{withComparison}</div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+            <div className="text-xs text-slate-500">Gesamt</div>
+            <div className="text-lg font-semibold text-slate-900">{totalCases}</div>
+          </div>
+          <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+            <div className="text-xs text-slate-500">Vergleich bereit</div>
+            <div className="text-lg font-semibold text-slate-900">{withComparison}</div>
+          </div>
+          <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+            <div className="text-xs text-slate-500">Angebote</div>
+            <div className="text-lg font-semibold text-slate-900">{withOffers}</div>
+          </div>
         </div>
-        <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
-          <div className="text-xs text-slate-500">Angebote</div>
-          <div className="text-lg font-semibold text-slate-900">{withOffers}</div>
-        </div>
-      </div>
+      )}
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap gap-2">
-          {statusTabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const isActive = activeTab === tab.value
             const count = countsByStatus.get(tab.value) ?? 0
             return (
@@ -206,13 +308,21 @@ export default async function CasesPage({
             <div key={c.id} className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <Link href={`/advisor/faelle/${c.id}`} className="text-sm font-semibold text-slate-900 truncate">
+                  <Link href={`/advisor/faelle/${c.id}`} className="truncate text-sm font-semibold text-slate-900">
                     Fall {c.case_ref || c.id.slice(0, 8)}
                   </Link>
                   <div className="mt-0.5 text-xs text-slate-500">{customerLabel}</div>
                 </div>
                 <div className="text-xs text-slate-600">{dt(c.created_at)}</div>
               </div>
+
+              {c.special_group_label ? (
+                <div
+                  className={`mt-3 inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold ${specialGroupBadgeClass(c.case_filter)}`}
+                >
+                  {c.special_group_label}
+                </div>
+              ) : null}
 
               <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-slate-600">
                 {isSchufaCase ? (
@@ -227,7 +337,7 @@ export default async function CasesPage({
                   </div>
                 )}
                 <div>
-                  Status: <span className="font-medium text-slate-900">{statusLabel(c.advisor_status ?? "neu", product)}</span>
+                  Bearbeitung: <span className="font-medium text-slate-900">{statusLabel(c.advisor_status, product)}</span>
                 </div>
               </div>
             </div>
@@ -236,13 +346,19 @@ export default async function CasesPage({
 
         {scopedCases.length === 0 ? (
           <div className="rounded-3xl border border-slate-200/70 bg-white p-6 text-sm text-slate-600 shadow-sm">
-            Noch keine {productLabel}-Fälle in diesem Status vorhanden.
+            Noch keine {productLabel}-Fälle in dieser Gruppe vorhanden.
           </div>
         ) : null}
       </div>
 
-      <div className="hidden lg:block rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
+      <div className="hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm lg:block">
         <div className="text-sm font-medium text-slate-900">Übersicht</div>
+        {product === "schufa_frei" ? (
+          <div className="mt-1 text-xs text-slate-500">
+            Gruppe priorisiert offene Zweitformulare und bestätigte Finanzanalyse-Fälle vor Zahlung. Der Select bleibt der
+            eigentliche Bearbeitungsstatus.
+          </div>
+        ) : null}
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70">
           <table className="w-full text-left text-sm">
@@ -251,8 +367,9 @@ export default async function CasesPage({
                 <th className="px-4 py-3 font-medium text-slate-700">Fall-ID</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Kunde</th>
                 <th className="px-4 py-3 font-medium text-slate-700">Telefon</th>
+                {product === "schufa_frei" ? <th className="px-4 py-3 font-medium text-slate-700">Gruppe</th> : null}
                 <th className="px-4 py-3 font-medium text-slate-700">{product === "schufa_frei" ? "Versicherung" : "Vorgangsnummer"}</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Status</th>
+                <th className="px-4 py-3 font-medium text-slate-700">{product === "schufa_frei" ? "Bearbeitung" : "Status"}</th>
               </tr>
             </thead>
 
@@ -274,6 +391,22 @@ export default async function CasesPage({
 
                     <td className="px-4 py-3 text-slate-700">{customerPhone}</td>
 
+                    {product === "schufa_frei" ? (
+                      <td className="px-4 py-3">
+                        <div className="min-h-8">
+                          {c.special_group_label ? (
+                            <div
+                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold ${specialGroupBadgeClass(c.case_filter)}`}
+                            >
+                              {c.special_group_label}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400">-</span>
+                          )}
+                        </div>
+                      </td>
+                    ) : null}
+
                     <td className="px-4 py-3">
                       {product === "schufa_frei" ? (
                         <AdvisorInsuranceForwardButton caseId={c.id} initialRouted={Boolean(c.insurance_routed_at)} />
@@ -283,7 +416,7 @@ export default async function CasesPage({
                     </td>
 
                     <td className="px-4 py-3 text-slate-700">
-                      <AdvisorCaseStatusSelect caseId={c.id} value={c.advisor_status ?? "neu"} caseType={c.case_type} compact />
+                      <AdvisorCaseStatusSelect caseId={c.id} value={c.advisor_status} caseType={c.case_type} compact />
                     </td>
                   </tr>
                 )
@@ -291,8 +424,8 @@ export default async function CasesPage({
 
               {scopedCases.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-slate-500" colSpan={5}>
-                    Noch keine {productLabel}-Fälle in diesem Status vorhanden.
+                  <td className="px-4 py-6 text-slate-500" colSpan={product === "schufa_frei" ? 6 : 5}>
+                    Noch keine {productLabel}-Fälle in dieser Gruppe vorhanden.
                   </td>
                 </tr>
               ) : null}

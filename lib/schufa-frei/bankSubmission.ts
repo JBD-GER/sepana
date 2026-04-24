@@ -1,5 +1,6 @@
 import { PDFDocument } from "pdf-lib"
 import type { SupabaseClient } from "@supabase/supabase-js"
+import sharp from "sharp"
 import { normalizeSchufaFreeDocumentRequest } from "@/lib/schufa-frei/documentRecommendations"
 import { getSchufaFreeSignatureRequestMeta, isSignatureRequestComplete } from "@/lib/schufa-frei/contractPackage"
 import { renderSignedPdf } from "@/lib/signatures/renderSignedPdf"
@@ -77,6 +78,16 @@ type SignatureValuesByRole = {
   customer?: Record<string, unknown>
 }
 
+type BankSubmissionCompressionProfile = {
+  name: string
+  pdfScale: number
+  jpegQuality: number
+  imageMaxEdge: number
+}
+
+type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs")
+type CreateCanvasFn = typeof import("@napi-rs/canvas").createCanvas
+
 export type SchufaFreeBankSubmissionBuildResult =
   | {
       ok: true
@@ -101,6 +112,14 @@ const REQUEST_ORDER = new Map<string, number>([
   [normalizeTitleKey("Weitere Unterlagen laut Pruefung"), 90],
   [normalizeTitleKey("Rechtliche Unterlagen"), 90],
 ])
+
+const SKAG_MAX_UPLOAD_BYTES = 18_000_000
+const BANK_SUBMISSION_COMPRESSION_PROFILES: readonly BankSubmissionCompressionProfile[] = [
+  { name: "balanced", pdfScale: 1.75, jpegQuality: 72, imageMaxEdge: 2200 },
+  { name: "compact", pdfScale: 1.35, jpegQuality: 58, imageMaxEdge: 1700 },
+]
+
+let pdfRasterDepsPromise: Promise<{ pdfjs: PdfJsModule; createCanvas: CreateCanvasFn }> | null = null
 
 function trimOrNull(value: unknown) {
   const trimmed = String(value ?? "").trim()
@@ -130,6 +149,31 @@ function fileExt(fileName: string | null | undefined) {
   const index = raw.lastIndexOf(".")
   if (index < 0) return ""
   return raw.slice(index + 1).trim().toLowerCase()
+}
+
+function formatMegabytes(bytes: number) {
+  return new Intl.NumberFormat("de-DE", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(bytes / 1_000_000)
+}
+
+export class BankSubmissionTooLargeError extends Error {
+  actualBytes: number
+  limitBytes: number
+
+  constructor(actualBytes: number, limitBytes: number) {
+    super(
+      `Die Bankeinreichung wurde automatisch komprimiert, ist mit ${formatMegabytes(actualBytes)} MB aber weiterhin groesser als das SKAG-Limit von ${formatMegabytes(limitBytes)} MB. Bitte grosse Scans/Bilder verkleinern und erneut versuchen.`
+    )
+    this.name = "BankSubmissionTooLargeError"
+    this.actualBytes = actualBytes
+    this.limitBytes = limitBytes
+  }
+}
+
+export function isBankSubmissionTooLargeError(error: unknown): error is BankSubmissionTooLargeError {
+  return error instanceof BankSubmissionTooLargeError
 }
 
 function inferMimeType(mimeType: string | null | undefined, fileName: string | null | undefined) {
@@ -234,16 +278,162 @@ async function appendBinaryToPdf(target: PDFDocument, binary: BundleBinary) {
     return
   }
 
-  if (mimeType === "image/png" || mimeType === "image/jpeg") {
-    const image =
-      mimeType === "image/png" ? await target.embedPng(binary.bytes) : await target.embedJpg(binary.bytes)
-    const page = target.addPage([image.width, image.height])
-    page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
-    return
-  }
+  if (mimeType === "image/png" || mimeType === "image/jpeg") return appendImageBinaryToPdf(target, binary)
 
   throw new Error(
     `${binary.label}: ${binary.fileName} kann nicht in die Bankeinreichung übernommen werden. Unterstützt sind PDF, JPG und PNG.`
+  )
+}
+
+async function appendImageBinaryToPdf(target: PDFDocument, binary: BundleBinary) {
+  const mimeType = inferMimeType(binary.mimeType, binary.fileName)
+  const image =
+    mimeType === "image/png" ? await target.embedPng(binary.bytes) : await target.embedJpg(binary.bytes)
+  const page = target.addPage([image.width, image.height])
+  page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+}
+
+async function getPdfRasterDeps() {
+  if (!pdfRasterDepsPromise) {
+    pdfRasterDepsPromise = Promise.all([
+      import("pdfjs-dist/legacy/build/pdf.mjs"),
+      import("@napi-rs/canvas"),
+    ]).then(([pdfModule, canvasModule]) => ({
+      pdfjs: pdfModule,
+      createCanvas: canvasModule.createCanvas,
+    }))
+  }
+  return pdfRasterDepsPromise
+}
+
+async function optimizeImageBinaryForCompression(binary: BundleBinary, profile: BankSubmissionCompressionProfile) {
+  const mimeType = inferMimeType(binary.mimeType, binary.fileName)
+  if (mimeType !== "image/png" && mimeType !== "image/jpeg") return binary
+
+  const source = sharp(binary.bytes, { limitInputPixels: false }).rotate()
+  const metadata = await source.metadata().catch(() => null)
+  const width = Number(metadata?.width ?? 0)
+  const height = Number(metadata?.height ?? 0)
+  const longEdge = Math.max(width, height)
+
+  let pipeline = source.flatten({ background: "#ffffff" })
+  if (width > 0 && height > 0 && longEdge > profile.imageMaxEdge) {
+    pipeline = pipeline.resize({
+      width: width >= height ? profile.imageMaxEdge : undefined,
+      height: height > width ? profile.imageMaxEdge : undefined,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+  }
+
+  const optimizedBuffer = await pipeline
+    .jpeg({
+      quality: profile.jpegQuality,
+      mozjpeg: true,
+      chromaSubsampling: "4:2:0",
+    })
+    .toBuffer()
+
+  const shouldKeepOriginal =
+    mimeType === "image/jpeg" && longEdge <= profile.imageMaxEdge && optimizedBuffer.length >= binary.bytes.length
+
+  if (shouldKeepOriginal) return binary
+
+  return {
+    ...binary,
+    bytes: new Uint8Array(optimizedBuffer),
+    mimeType: "image/jpeg",
+  } satisfies BundleBinary
+}
+
+async function appendPdfAsRasterToPdf(
+  target: PDFDocument,
+  binary: BundleBinary,
+  profile: BankSubmissionCompressionProfile
+) {
+  const { pdfjs, createCanvas } = await getPdfRasterDeps()
+  const task = pdfjs.getDocument({
+    data: binary.bytes,
+    useSystemFonts: true,
+    isEvalSupported: false,
+  })
+  const pdf = await task.promise
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const sourcePage = await pdf.getPage(pageNumber)
+    const outputViewport = sourcePage.getViewport({ scale: 1 })
+    const renderViewport = sourcePage.getViewport({ scale: profile.pdfScale })
+    const canvas = createCanvas(Math.max(1, Math.ceil(renderViewport.width)), Math.max(1, Math.ceil(renderViewport.height)))
+    const context = canvas.getContext("2d") as unknown as CanvasRenderingContext2D
+    context.fillStyle = "#ffffff"
+    context.fillRect(0, 0, canvas.width, canvas.height)
+
+    await sourcePage.render({
+      canvasContext: context,
+      viewport: renderViewport,
+    }).promise
+
+    const jpegBuffer = canvas.toBuffer("image/jpeg", profile.jpegQuality)
+    const image = await target.embedJpg(jpegBuffer)
+    const page = target.addPage([outputViewport.width, outputViewport.height])
+    page.drawImage(image, {
+      x: 0,
+      y: 0,
+      width: outputViewport.width,
+      height: outputViewport.height,
+    })
+
+    if (typeof sourcePage.cleanup === "function") sourcePage.cleanup()
+  }
+
+  if (typeof task.destroy === "function") {
+    await task.destroy().catch(() => null)
+  }
+}
+
+async function appendCompressedBinaryToPdf(
+  target: PDFDocument,
+  binary: BundleBinary,
+  profile: BankSubmissionCompressionProfile
+) {
+  const mimeType = inferMimeType(binary.mimeType, binary.fileName)
+  if (mimeType === "application/pdf") {
+    try {
+      await appendPdfAsRasterToPdf(target, binary, profile)
+      return
+    } catch {
+      await appendBinaryToPdf(target, binary)
+      return
+    }
+  }
+
+  if (mimeType === "image/png" || mimeType === "image/jpeg") {
+    const optimized = await optimizeImageBinaryForCompression(binary, profile)
+    await appendImageBinaryToPdf(target, optimized)
+    return
+  }
+
+  await appendBinaryToPdf(target, binary)
+}
+
+async function buildMergedPdfBytes(
+  sources: BundleSource[],
+  profile: BankSubmissionCompressionProfile | null = null
+) {
+  const mergedPdf = await PDFDocument.create()
+  for (const source of sources) {
+    if (profile) {
+      await appendCompressedBinaryToPdf(mergedPdf, source.binary, profile)
+    } else {
+      await appendBinaryToPdf(mergedPdf, source.binary)
+    }
+  }
+
+  return new Uint8Array(
+    await mergedPdf.save({
+      useObjectStreams: true,
+      addDefaultPage: false,
+    })
   )
 }
 
@@ -579,15 +769,35 @@ export async function buildSchufaFreeBankSubmission(
     }
   }
 
-  const mergedPdf = await PDFDocument.create()
   const orderedSources = sources.slice().sort((left, right) => left.order - right.order)
-  for (const source of orderedSources) {
-    await appendBinaryToPdf(mergedPdf, source.binary)
+  let pdfBytes = await buildMergedPdfBytes(orderedSources)
+
+  if (pdfBytes.length > SKAG_MAX_UPLOAD_BYTES) {
+    let smallestBytes = pdfBytes
+
+    for (const profile of BANK_SUBMISSION_COMPRESSION_PROFILES) {
+      const compressedBytes = await buildMergedPdfBytes(orderedSources, profile)
+      if (compressedBytes.length < smallestBytes.length) {
+        smallestBytes = compressedBytes
+      }
+      if (compressedBytes.length <= SKAG_MAX_UPLOAD_BYTES) {
+        pdfBytes = compressedBytes
+        break
+      }
+    }
+
+    if (pdfBytes.length > SKAG_MAX_UPLOAD_BYTES) {
+      pdfBytes = smallestBytes
+    }
+  }
+
+  if (pdfBytes.length > SKAG_MAX_UPLOAD_BYTES) {
+    throw new BankSubmissionTooLargeError(pdfBytes.length, SKAG_MAX_UPLOAD_BYTES)
   }
 
   return {
     ok: true,
-    pdfBytes: new Uint8Array(await mergedPdf.save()),
+    pdfBytes,
     fileName: buildBundleFileName(input.caseRef),
     included: Array.from(new Set(included)),
     missing: [],

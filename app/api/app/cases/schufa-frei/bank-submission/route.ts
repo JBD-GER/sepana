@@ -3,7 +3,7 @@ export const runtime = "nodejs"
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { logCaseEvent } from "@/lib/notifications/notify"
-import { buildSchufaFreeBankSubmission } from "@/lib/schufa-frei/bankSubmission"
+import { buildSchufaFreeBankSubmission, isBankSubmissionTooLargeError } from "@/lib/schufa-frei/bankSubmission"
 import { syncLocalDocumentToSkag } from "@/lib/skag/sync"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
@@ -139,6 +139,16 @@ export async function POST(req: Request) {
       caseRef: trimOrNull(access.caseRow.case_ref) ?? caseId,
     })
   } catch (error) {
+    if (isBankSubmissionTooLargeError(error)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: error.message,
+        },
+        { status: 413 }
+      )
+    }
+
     return NextResponse.json(
       {
         ok: false,

@@ -233,6 +233,8 @@ type UploadAttempt = {
   includeCreditIdField: boolean
 }
 
+const SKAG_MAX_UPLOAD_BYTES = 18_000_000
+
 export async function uploadSkagDocument(input: {
   creditId: string
   fileName: string
@@ -243,6 +245,12 @@ export async function uploadSkagDocument(input: {
 }) {
   const variant = input.variant ?? "standard"
   const documentType = input.documentType ?? "unterlagen"
+  if (input.data.byteLength > SKAG_MAX_UPLOAD_BYTES) {
+    throw new Error(
+      `Datei ${input.fileName} ist mit ${(input.data.byteLength / 1_000_000).toFixed(1)} MB groesser als das SKAG-Upload-Limit von 18 MB.`
+    )
+  }
+
   const config = getSkagConfig(variant)
   const accessToken = await getSkagAccessToken(variant)
   const attempts: UploadAttempt[] = [

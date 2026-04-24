@@ -3,6 +3,8 @@ export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
+import { isMissingFinancialAnalysisTablesError } from "@/lib/financial-analysis/service"
+import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 function readPositiveInt(raw: string | null, fallback: number) {
   const value = Number(raw)
@@ -53,6 +55,20 @@ type ApplicantRow = {
 type InsuranceRouteRow = {
   case_id: string
   routed_at: string | null
+}
+
+type SchufaDetailsMiniRow = {
+  case_id: string
+  completed_application_at: string | null
+  submitted_to_skag_at: string | null
+}
+
+type FinancialAnalysisServiceMiniRow = {
+  case_id: string
+  service_status: string | null
+  customer_confirmed_at: string | null
+  payment_received_at: string | null
+  created_at: string
 }
 
 type OfferRow = {
@@ -223,7 +239,20 @@ export async function GET(req: Request) {
   }
 
   const caseIds = baseCases.map((row) => row.id)
-  const [{ data: docs }, { data: offers }, { data: previews }, { data: applicants }, { data: insuranceRoutes }, providersRes] = await Promise.all([
+  const schufaCaseIds = baseCases
+    .filter((row) => String(row.case_type ?? "").trim().toLowerCase() === "schufa_frei")
+    .map((row) => row.id)
+  const admin = supabaseAdmin()
+  const [
+    { data: docs },
+    { data: offers },
+    { data: previews },
+    { data: applicants },
+    { data: insuranceRoutes },
+    schufaDetailsResult,
+    financialAnalysisServicesResult,
+    providersRes,
+  ] = await Promise.all([
     caseIds.length
       ? supabase.from("documents").select("id,case_id").in("case_id", caseIds)
       : Promise.resolve({ data: [] as DocRow[] }),
@@ -246,13 +275,35 @@ export async function GET(req: Request) {
     caseIds.length
       ? supabase.from("case_insurance_routes").select("case_id,routed_at").in("case_id", caseIds)
       : Promise.resolve({ data: [] as InsuranceRouteRow[] }),
+    schufaCaseIds.length
+      ? admin
+          .from("case_schufa_free_details")
+          .select("case_id,completed_application_at,submitted_to_skag_at")
+          .in("case_id", schufaCaseIds)
+      : Promise.resolve({ data: [] as SchufaDetailsMiniRow[], error: null }),
+    schufaCaseIds.length
+      ? admin
+          .from("case_financial_analysis_services")
+          .select("case_id,service_status,customer_confirmed_at,payment_received_at,created_at")
+          .in("case_id", schufaCaseIds)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as FinancialAnalysisServiceMiniRow[], error: null }),
     supabase.from("providers").select("id,name,logo_horizontal_path,logo_icon_path,preferred_logo_variant,logo_path"),
   ])
+
+  if (schufaDetailsResult.error) {
+    return NextResponse.json({ error: schufaDetailsResult.error.message }, { status: 400 })
+  }
+  if (financialAnalysisServicesResult.error && !isMissingFinancialAnalysisTablesError(financialAnalysisServicesResult.error)) {
+    return NextResponse.json({ error: financialAnalysisServicesResult.error.message }, { status: 400 })
+  }
 
   const docRows = (docs ?? []) as DocRow[]
   const offerRows = (offers ?? []) as OfferRow[]
   const applicantRows = (applicants ?? []) as ApplicantRow[]
   const insuranceRouteRows = (insuranceRoutes ?? []) as InsuranceRouteRow[]
+  const schufaDetailsRows = (schufaDetailsResult.data ?? []) as SchufaDetailsMiniRow[]
+  const financialAnalysisServiceRows = (financialAnalysisServicesResult.data ?? []) as FinancialAnalysisServiceMiniRow[]
   const visibleOfferRows =
     role === "customer"
       ? offerRows.filter((row) => {
@@ -290,6 +341,20 @@ export async function GET(req: Request) {
   for (const row of insuranceRouteRows) {
     if (!insuranceRouteByCase.has(row.case_id)) {
       insuranceRouteByCase.set(row.case_id, row)
+    }
+  }
+
+  const schufaDetailsByCase = new Map<string, SchufaDetailsMiniRow>()
+  for (const row of schufaDetailsRows) {
+    if (!schufaDetailsByCase.has(row.case_id)) {
+      schufaDetailsByCase.set(row.case_id, row)
+    }
+  }
+
+  const financialAnalysisServiceByCase = new Map<string, FinancialAnalysisServiceMiniRow>()
+  for (const row of financialAnalysisServiceRows) {
+    if (!financialAnalysisServiceByCase.has(row.case_id)) {
+      financialAnalysisServiceByCase.set(row.case_id, row)
     }
   }
 
@@ -358,6 +423,8 @@ export async function GET(req: Request) {
     const bestOffer = bestOfferSummary(caseOffers)
     const applicant = applicantByCase.get(baseCase.id) ?? null
     const insuranceRoute = insuranceRouteByCase.get(baseCase.id) ?? null
+    const schufaDetails = schufaDetailsByCase.get(baseCase.id) ?? null
+    const financialAnalysisService = financialAnalysisServiceByCase.get(baseCase.id) ?? null
 
     const latestOfferStatus = latestOffer?.status ?? null
     const statusDisplay = approvedOffer
@@ -385,6 +452,11 @@ export async function GET(req: Request) {
       customer_name: buildName(applicant),
       customer_phone: String(applicant?.phone ?? "").trim() || null,
       insurance_routed_at: insuranceRoute?.routed_at ?? null,
+      schufa_completed_application_at: schufaDetails?.completed_application_at ?? null,
+      schufa_submitted_to_skag_at: schufaDetails?.submitted_to_skag_at ?? null,
+      financial_analysis_service_status: financialAnalysisService?.service_status ?? null,
+      financial_analysis_customer_confirmed_at: financialAnalysisService?.customer_confirmed_at ?? null,
+      financial_analysis_payment_received_at: financialAnalysisService?.payment_received_at ?? null,
       is_bank_confirmed: !!approvedOffer,
       confirmed_at: approvedOffer ? approvedOffer.bank_confirmed_at ?? approvedOffer.created_at : null,
       confirmed_loan_amount: approvedOffer?.loan_amount ?? null,

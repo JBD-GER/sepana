@@ -16,6 +16,13 @@ export type AdvisorCaseStatusOption = {
   label: string
 }
 
+export type AdvisorCaseFilterValue = AdvisorCaseStatusValue | "lead" | "temp_finanzanalyse"
+
+export type AdvisorCaseFilterOption = {
+  value: AdvisorCaseFilterValue
+  label: string
+}
+
 const BASE_STATUS_OPTIONS: AdvisorCaseStatusOption[] = [
   { value: "neu", label: "Neu" },
   { value: "kontaktaufnahme", label: "Kontaktaufnahme" },
@@ -29,6 +36,11 @@ const BASE_STATUS_OPTIONS: AdvisorCaseStatusOption[] = [
 const SCHUFA_FREI_EXTRA_STATUS_OPTIONS: AdvisorCaseStatusOption[] = [
   { value: "finanzanalyse", label: "Finanzanalyse" },
   { value: "bankeinreichung", label: "Bankeinreichung" },
+]
+
+const SCHUFA_FREI_SPECIAL_FILTER_OPTIONS: AdvisorCaseFilterOption[] = [
+  { value: "lead", label: "Lead" },
+  { value: "temp_finanzanalyse", label: "Temp. Finanzanalyse" },
 ]
 
 export function normalizeAdvisorCaseProduct(value: string | null | undefined): AdvisorCaseProduct {
@@ -58,4 +70,29 @@ export function getAdvisorCaseStatusLabel(value: string | null | undefined, case
   const normalized = String(value ?? "").trim().toLowerCase()
   if (!normalized) return "Neu"
   return getAdvisorCaseStatusOptions(caseType).find((option) => option.value === normalized)?.label ?? "Neu"
+}
+
+export function getAdvisorCaseFilterOptions(caseType: string | null | undefined): AdvisorCaseFilterOption[] {
+  const product = normalizeAdvisorCaseProduct(caseType)
+  if (product === "schufa_frei") {
+    return [
+      SCHUFA_FREI_SPECIAL_FILTER_OPTIONS[0],
+      ...BASE_STATUS_OPTIONS.slice(0, 5),
+      SCHUFA_FREI_SPECIAL_FILTER_OPTIONS[1],
+      ...SCHUFA_FREI_EXTRA_STATUS_OPTIONS,
+      ...BASE_STATUS_OPTIONS.slice(5),
+    ]
+  }
+
+  return getAdvisorCaseStatusOptions(caseType)
+}
+
+export function getAdvisorCaseFilterSet(caseType: string | null | undefined) {
+  return new Set<string>(getAdvisorCaseFilterOptions(caseType).map((option) => option.value))
+}
+
+export function getAdvisorCaseFilterLabel(value: string | null | undefined, caseType: string | null | undefined) {
+  const normalized = String(value ?? "").trim().toLowerCase()
+  if (!normalized) return "Neu"
+  return getAdvisorCaseFilterOptions(caseType).find((option) => option.value === normalized)?.label ?? "Neu"
 }
