@@ -33,9 +33,10 @@ export default function AdvisorCaseStatusSelect({
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json?.error || "Speichern fehlgeschlagen")
       setSelected(nextValue)
+      setMsg(typeof json?.warning === "string" && json.warning ? json.warning : null)
       router.refresh()
-    } catch (error: any) {
-      setMsg(error?.message ?? "Fehler")
+    } catch (error: unknown) {
+      setMsg(error instanceof Error ? error.message : "Fehler")
     } finally {
       setSaving(false)
     }
