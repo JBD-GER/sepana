@@ -11,7 +11,7 @@ import {
 } from "@/lib/advisor/caseStatusOptions"
 import { requireAdvisor } from "@/lib/advisor/requireAdvisor"
 import { authFetch } from "@/lib/app/authFetch"
-import AdvisorCaseStatusSelect from "./ui/AdvisorCaseStatusSelect"
+import AdvisorCasesOverviewTable from "./ui/AdvisorCasesOverviewTable"
 import AdvisorInsuranceForwardButton from "./ui/AdvisorInsuranceForwardButton"
 
 type CaseRow = {
@@ -367,90 +367,12 @@ export default async function CasesPage({
         ) : null}
       </div>
 
-      <div className="hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm lg:block">
-        <div className="text-sm font-medium text-slate-900">Übersicht</div>
-        {product === "schufa_frei" ? (
-          <div className="mt-1 text-xs text-slate-500">
-            Gruppe trennt offene Zweitformulare, bestätigte Finanzanalyse vor Zahlung und die reguläre Finanzanalyse nach
-            Freischaltung. Der Select bleibt der eigentliche Bearbeitungsstatus.
-          </div>
-        ) : null}
-
-        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-white/80 backdrop-blur">
-              <tr className="border-b border-slate-200/70">
-                <th className="px-4 py-3 font-medium text-slate-700">Fall-ID</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Kunde</th>
-                <th className="px-4 py-3 font-medium text-slate-700">Telefon</th>
-                {product === "schufa_frei" ? <th className="px-4 py-3 font-medium text-slate-700">Gruppe</th> : null}
-                <th className="px-4 py-3 font-medium text-slate-700">{product === "schufa_frei" ? "Versicherung" : "Vorgangsnummer"}</th>
-                <th className="px-4 py-3 font-medium text-slate-700">{product === "schufa_frei" ? "Bearbeitung" : "Status"}</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {scopedCases.map((c) => {
-                const customerLabel = c.customer_name || "Kunde -"
-                const customerPhone = String(c.customer_phone ?? "").trim() || "-"
-
-                return (
-                  <tr key={c.id} className="border-b border-slate-200/60 last:border-0 hover:bg-slate-50/60">
-                    <td className="px-4 py-3">
-                      <Link href={`/advisor/faelle/${c.id}`} className="block">
-                        <div className="font-medium text-slate-900">{c.case_ref || c.id.slice(0, 8)}</div>
-                        <div className="text-xs text-slate-500">{dt(c.created_at)}</div>
-                      </Link>
-                    </td>
-
-                    <td className="px-4 py-3 text-slate-700">{customerLabel}</td>
-
-                    <td className="px-4 py-3 text-slate-700">{customerPhone}</td>
-
-                    {product === "schufa_frei" ? (
-                      <td className="px-4 py-3">
-                        <div className="min-h-8">
-                          {c.special_group_label ? (
-                            <div
-                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold ${specialGroupBadgeClass(c.case_filter)}`}
-                            >
-                              {c.special_group_label}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-slate-400">-</span>
-                          )}
-                        </div>
-                      </td>
-                    ) : null}
-
-                    <td className="px-4 py-3">
-                      {product === "schufa_frei" ? (
-                        <AdvisorInsuranceForwardButton caseId={c.id} initialRouted={Boolean(c.insurance_routed_at)} />
-                      ) : (
-                        c.advisor_case_ref || "-"
-                      )}
-                    </td>
-
-                    <td className="px-4 py-3 text-slate-700">
-                      <AdvisorCaseStatusSelect caseId={c.id} value={c.advisor_status} caseType={c.case_type} compact />
-                    </td>
-                  </tr>
-                )
-              })}
-
-              {scopedCases.length === 0 ? (
-                <tr>
-                  <td className="px-4 py-6 text-slate-500" colSpan={product === "schufa_frei" ? 6 : 5}>
-                    Noch keine {productLabel}-Fälle in dieser Gruppe vorhanden.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="mt-4 text-xs text-slate-500">Tipp: Klicken Sie auf einen Fall für Details.</div>
-      </div>
+      <AdvisorCasesOverviewTable
+        cases={scopedCases}
+        product={product}
+        productLabel={productLabel}
+        enableBulkReject={product === "schufa_frei" && activeTab === "neu"}
+      />
     </div>
   )
 }
