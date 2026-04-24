@@ -77,6 +77,10 @@ function resolveSchufaFreeCaseFilter(row: CaseRow & { advisor_status: AdvisorCas
     return "temp_finanzanalyse"
   }
 
+  if (stored === "finanzanalyse") {
+    return stored
+  }
+
   return stored
 }
 
@@ -103,20 +107,26 @@ function specialGroupBadgeClass(value: AdvisorCaseFilterValue) {
   return "border-slate-200 bg-slate-50 text-slate-700"
 }
 
+function shouldAlwaysShowTab(product: ProductTab, value: AdvisorCaseFilterValue) {
+  if (product !== "schufa_frei") return false
+  return value === "temp_finanzanalyse" || value === "finanzanalyse"
+}
+
 function normalizeProduct(value: string | string[] | undefined): ProductTab {
   const raw = Array.isArray(value) ? value[0] : value
+  if (!String(raw ?? "").trim()) return "schufa_frei"
   return normalizeAdvisorCaseProduct(raw)
 }
 
 function productHref(product: ProductTab) {
   if (product === "konsum") return "/advisor/faelle?product=konsum"
-  if (product === "schufa_frei") return "/advisor/faelle?product=schufa_frei"
+  if (product === "schufa_frei") return "/advisor/faelle"
   return "/advisor/faelle?product=baufi"
 }
 
 function statusHref(product: ProductTab, status: AdvisorCaseFilterValue) {
   const params = new URLSearchParams()
-  if (product !== "baufi") params.set("product", product)
+  if (product !== "schufa_frei") params.set("product", product)
   params.set("tab", status)
   return `/advisor/faelle?${params.toString()}`
 }
@@ -174,7 +184,9 @@ export default async function CasesPage({
     countsByStatus.set(row.case_filter, (countsByStatus.get(row.case_filter) ?? 0) + 1)
   }
 
-  const visibleTabs = statusTabs.filter((tab) => (countsByStatus.get(tab.value) ?? 0) > 0 || tab.value === activeTab)
+  const visibleTabs = statusTabs.filter(
+    (tab) => (countsByStatus.get(tab.value) ?? 0) > 0 || tab.value === activeTab || shouldAlwaysShowTab(product, tab.value)
+  )
   const scopedCases = enrichedCases.filter((c) => c.case_filter === activeTab)
 
   return (
@@ -183,7 +195,7 @@ export default async function CasesPage({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold text-slate-900">Fälle</h1>
           <Link
-            href={`/advisor/faelle/bestaetigt?product=${product}`}
+            href={product === "schufa_frei" ? "/advisor/faelle/bestaetigt" : `/advisor/faelle/bestaetigt?product=${product}`}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
           >
             Bestätigte Fälle ({confirmedCount})

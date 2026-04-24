@@ -432,8 +432,17 @@ async function appendCompressedBinaryToPdf(
   }
 
   if (mimeType === "image/png" || mimeType === "image/jpeg") {
-    const optimized = await optimizeImageBinaryForCompression(binary, profile)
-    await appendImageBinaryToPdf(target, optimized)
+    try {
+      const optimized = await optimizeImageBinaryForCompression(binary, profile)
+      await appendImageBinaryToPdf(target, optimized)
+    } catch (error) {
+      console.warn(
+        `[bankSubmission] image compression skipped for ${binary.fileName} (${binary.label}) using profile ${profile.name}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      )
+      await appendImageBinaryToPdf(target, binary)
+    }
     return
   }
 

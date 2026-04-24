@@ -36,7 +36,7 @@ type CaseListResp = {
   total?: number
 }
 
-type ProductTab = "baufi" | "konsum"
+type ProductTab = "baufi" | "konsum" | "schufa_frei"
 
 const COMMISSION_SHARE_RATE = 0.3
 
@@ -59,7 +59,11 @@ function isCurrentMonth(value: string | null | undefined) {
 
 function normalizeProduct(raw: string | string[] | undefined): ProductTab {
   const value = Array.isArray(raw) ? raw[0] : raw
-  return String(value ?? "").trim().toLowerCase() === "konsum" ? "konsum" : "baufi"
+  const normalized = String(value ?? "").trim().toLowerCase()
+  if (!normalized) return "schufa_frei"
+  if (normalized === "konsum") return "konsum"
+  if (normalized === "schufa_frei" || normalized === "schufafrei") return "schufa_frei"
+  return "baufi"
 }
 
 export default async function AdvisorConfirmedCasesPage({
@@ -70,7 +74,7 @@ export default async function AdvisorConfirmedCasesPage({
   await requireAdvisor()
   const resolvedSearchParams = searchParams ? await searchParams : undefined
   const product = normalizeProduct(resolvedSearchParams?.product)
-  const productLabel = product === "konsum" ? "Privatkredit" : "Baufinanzierung"
+  const productLabel = product === "konsum" ? "Privatkredit" : product === "schufa_frei" ? "Kredit ohne Schufa" : "Baufinanzierung"
 
   const res = await authFetch(`/api/app/cases/list?advisorBucket=confirmed&limit=1000&caseType=${product}`).catch(() => null)
   const data: CaseListResp = res && res.ok ? await res.json() : { cases: [] }
@@ -118,6 +122,16 @@ export default async function AdvisorConfirmedCasesPage({
 
       <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap gap-2">
+          <Link
+            href="/advisor/faelle/bestaetigt"
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+              product === "schufa_frei"
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            Kredit ohne Schufa
+          </Link>
           <Link
             href="/advisor/faelle/bestaetigt?product=baufi"
             className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
