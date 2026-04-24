@@ -1,3 +1,4 @@
+import { createRequire } from "node:module"
 import { PDFDocument } from "pdf-lib"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import sharp from "sharp"
@@ -86,7 +87,22 @@ type BankSubmissionCompressionProfile = {
 }
 
 type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs")
-type CreateCanvasFn = typeof import("@napi-rs/canvas").createCanvas
+type Canvas2dContextLike = {
+  fillStyle: string
+  fillRect(x: number, y: number, width: number, height: number): void
+}
+
+type CanvasLike = {
+  width: number
+  height: number
+  getContext(contextId: "2d"): Canvas2dContextLike | null
+  toBuffer(mimeType: "image/jpeg", quality?: number): Buffer
+}
+
+type CreateCanvasFn = (width: number, height: number) => CanvasLike
+type CanvasModule = {
+  createCanvas: CreateCanvasFn
+}
 
 export type SchufaFreeBankSubmissionBuildResult =
   | {
@@ -120,6 +136,7 @@ const BANK_SUBMISSION_COMPRESSION_PROFILES: readonly BankSubmissionCompressionPr
 ]
 
 let pdfRasterDepsPromise: Promise<{ pdfjs: PdfJsModule; createCanvas: CreateCanvasFn }> | null = null
+const runtimeRequire = createRequire(process.cwd() + "/package.json")
 
 function trimOrNull(value: unknown) {
   const trimmed = String(value ?? "").trim()
@@ -297,7 +314,10 @@ async function getPdfRasterDeps() {
   if (!pdfRasterDepsPromise) {
     pdfRasterDepsPromise = Promise.all([
       import("pdfjs-dist/legacy/build/pdf.mjs"),
-      import("@napi-rs/canvas"),
+      Promise.resolve().then(() => {
+        const moduleName = "@napi-rs" + "/canvas"
+        return runtimeRequire(moduleName) as CanvasModule
+      }),
     ]).then(([pdfModule, canvasModule]) => ({
       pdfjs: pdfModule,
       createCanvas: canvasModule.createCanvas,
@@ -364,12 +384,16 @@ async function appendPdfAsRasterToPdf(
     const outputViewport = sourcePage.getViewport({ scale: 1 })
     const renderViewport = sourcePage.getViewport({ scale: profile.pdfScale })
     const canvas = createCanvas(Math.max(1, Math.ceil(renderViewport.width)), Math.max(1, Math.ceil(renderViewport.height)))
-    const context = canvas.getContext("2d") as unknown as CanvasRenderingContext2D
+    const context = canvas.getContext("2d")
+    if (!context) {
+      throw new Error(`${binary.label}: Canvas-Kontext konnte nicht erstellt werden.`)
+    }
+    const renderContext = context as unknown as CanvasRenderingContext2D
     context.fillStyle = "#ffffff"
     context.fillRect(0, 0, canvas.width, canvas.height)
 
     await sourcePage.render({
-      canvasContext: context,
+      canvasContext: renderContext,
       viewport: renderViewport,
     }).promise
 
