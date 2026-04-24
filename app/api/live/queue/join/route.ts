@@ -10,8 +10,6 @@ import { buildEmailHtml, sanitizeNotificationRecipients, sendEmail } from "@/lib
 
 export const runtime = "nodejs"
 
-const DEFAULT_ALERT_RECIPIENT = "c.pfad@flaaq.com"
-
 type QueueTicket = {
   id: string
   status: string
@@ -22,9 +20,7 @@ type QueueTicket = {
 
 function parseAlertRecipients() {
   const input = String(process.env.LIVE_QUEUE_ALERT_TO ?? "").trim()
-  const configuredRecipients = sanitizeNotificationRecipients([input])
-  if (configuredRecipients.length) return configuredRecipients
-  return sanitizeNotificationRecipients([DEFAULT_ALERT_RECIPIENT])
+  return sanitizeNotificationRecipients([input])
 }
 
 function normalizeSiteUrl(raw: string | undefined) {

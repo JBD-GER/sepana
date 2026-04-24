@@ -44,6 +44,7 @@ export async function runSchufaFreePrecheckDecisionAutomation(input: {
   }
 
   const customerPortalUrl = `${input.siteOrigin}/app/faelle/${input.caseId}#schufa-signatur`
+  const restartRequestUrl = `${input.siteOrigin}/kredit-ohne-schufa`
   const subject = input.decision === "approved" ? "Vorpruefung erfolgreich" : "Vorpruefung fehlgeschlagen"
 
   const html =
@@ -80,6 +81,17 @@ export async function runSchufaFreePrecheckDecisionAutomation(input: {
               Sobald sich die Ausgangslage veraendert oder ergaenzende Informationen vorliegen, kann der Fall erneut
               bewertet werden.
             </p>
+            <div style="margin-top:16px; border:1px solid #fcd34d; background:#fffbeb; border-radius:16px; padding:14px 16px;">
+              <div style="margin:0 0 6px 0; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#b45309;">
+                Tipp
+              </div>
+              <p style="margin:0; font-size:14px; line-height:22px; color:#92400e;">
+                Bei verheirateten Paaren ist es oft sinnvoll, die Person mit dem hoeheren Nettoeinkommen als ersten
+                Kreditnehmer einzutragen, weil Banken sich primaer den ersten Kreditnehmer anschauen. Wenn Sie das
+                aendern moechten, starten Sie bitte eine neue Anfrage ueber
+                <a href="${restartRequestUrl}" style="color:#92400e; font-weight:700; text-decoration:underline;"> kredit-ohne-schufa</a>.
+              </p>
+            </div>
           `,
           preheader: "Leider liegt keine positive Rueckmeldung zur Vorpruefung vor.",
           eyebrow: "SEPANA - Vorpruefung",
