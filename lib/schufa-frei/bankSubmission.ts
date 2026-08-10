@@ -3,7 +3,12 @@ import { PDFDocument } from "pdf-lib"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import sharp from "sharp"
 import { normalizeSchufaFreeDocumentRequest } from "@/lib/schufa-frei/documentRecommendations"
-import { getSchufaFreeSignatureRequestMeta, isSignatureRequestComplete } from "@/lib/schufa-frei/contractPackage"
+import {
+  PRECONTRACT_INFO_TITLE,
+  getEffectiveSchufaFreeSignatureFields,
+  getSchufaFreeSignatureRequestMeta,
+  isSignatureRequestComplete,
+} from "@/lib/schufa-frei/contractPackage"
 import { renderSignedPdf } from "@/lib/signatures/renderSignedPdf"
 
 type AdminClient = SupabaseClient
@@ -239,6 +244,15 @@ function normalizeSignatureFields(fields: SignatureFieldRow[] | null | undefined
       height: Number(field.height ?? 0),
     })
   )
+}
+
+function areDigitalSignatureFieldsFilled(fields: SignatureFieldRow[] | null | undefined, values: SignatureValuesByRole) {
+  return (fields ?? []).every((field) => {
+    const owner = String(field.owner ?? "").trim().toLowerCase() === "customer" ? "customer" : "advisor"
+    const value = values[owner]?.[String(field.id ?? "")]
+    if (String(field.type ?? "").trim().toLowerCase() === "checkbox") return value === true
+    return typeof value === "string" && value.trim().length > 0
+  })
 }
 
 function compareByCreatedAtAsc<T extends { created_at?: string | null }>(left: T, right: T) {
@@ -600,7 +614,13 @@ export async function buildSchufaFreeBankSubmission(
     normalizeSchufaFreeDocumentRequest(request)
   )
   const documentRows = (documentRowsResult.data ?? []) as CaseDocumentRow[]
-  const signatureRows = (signatureRowsResult.data ?? []) as SignatureRequestRow[]
+  const signatureRows = ((signatureRowsResult.data ?? []) as SignatureRequestRow[]).map((request) => ({
+    ...request,
+    fields: getEffectiveSchufaFreeSignatureFields({
+      title: request.title,
+      fields: Array.isArray(request.fields) ? request.fields : [],
+    }) as SignatureFieldRow[],
+  }))
 
   const requestDocsById = new Map<string, CaseDocumentRow[]>()
   const signatureDocsById = new Map<string, CaseDocumentRow[]>()
@@ -631,6 +651,15 @@ export async function buildSchufaFreeBankSubmission(
   const missing: string[] = []
   const included: string[] = []
   const sources: BundleSource[] = []
+
+  const hasPrecontractInfoRequest = signatureRows.some((request) =>
+    getSchufaFreeSignatureRequestMeta({
+      title: request.title,
+      requiresWetSignature: Boolean(request.requires_wet_signature),
+      fields: request.fields ?? [],
+    }).key === "precontract_info"
+  )
+  if (!hasPrecontractInfoRequest) missing.push(PRECONTRACT_INFO_TITLE)
 
   const orderedRequests = requestRows.slice().sort((left, right) => {
     const leftOrder = REQUEST_ORDER.get(normalizeTitleKey(left.title)) ?? 999
@@ -718,13 +747,16 @@ export async function buildSchufaFreeBankSubmission(
     })
     const label = trimOrNull(request.title) ?? "Signaturdokument"
     const requestDocs = signatureDocsById.get(requestId) ?? []
-    const isComplete = isSignatureRequestComplete({
-      fields: request.fields ?? [],
-      requires_wet_signature: Boolean(request.requires_wet_signature),
-      advisor_signed_at: request.advisor_signed_at,
-      customer_signed_at: request.customer_signed_at,
-      status: request.status,
-    })
+    const valuesByRole = valuesByRequest.get(requestId) ?? {}
+    const isComplete =
+      isSignatureRequestComplete({
+        fields: request.fields ?? [],
+        requires_wet_signature: Boolean(request.requires_wet_signature),
+        advisor_signed_at: request.advisor_signed_at,
+        customer_signed_at: request.customer_signed_at,
+        status: request.status,
+      }) &&
+      (Boolean(request.requires_wet_signature) || areDigitalSignatureFieldsFilled(request.fields, valuesByRole))
 
     if (meta.downloadOnly) {
       const originalDoc = pickLatestDocument(requestDocs, "signature_original")
@@ -784,7 +816,7 @@ export async function buildSchufaFreeBankSubmission(
       caseId: input.caseId,
       request,
       requestDocs,
-      valuesByRole: valuesByRequest.get(requestId) ?? {},
+      valuesByRole,
     })
     sources.push({
       order: 1000 + meta.order,

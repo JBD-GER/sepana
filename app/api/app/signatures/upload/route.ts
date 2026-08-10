@@ -112,6 +112,12 @@ export async function POST(req: Request) {
       .eq("id", requestId)
       .maybeSingle()
     if (!reqRow || reqRow.case_id !== caseId) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    if (!reqRow.requires_wet_signature) {
+      return NextResponse.json(
+        { error: "Dieses Dokument muss digital im vorgesehenen Unterschriftsfeld unterschrieben werden." },
+        { status: 409 }
+      )
+    }
     const { data: caseMeta } = await admin.from("cases").select("case_type").eq("id", caseId).maybeSingle()
     const isSchufaFreeCase = String(caseMeta?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
     if (isSchufaFreeCase && isSchufaSignatureRequestLockedUntilInvoice(reqRow.title)) {

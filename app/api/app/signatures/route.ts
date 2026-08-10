@@ -3,6 +3,8 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import {
+  getEffectiveSchufaFreeSignatureFields,
+  getSchufaFreeSignatureRequestMeta,
   isSchufaSignatureRequestLockedUntilInvoice,
 } from "@/lib/schufa-frei/contractPackage"
 import {
@@ -137,6 +139,8 @@ export async function GET(req: Request) {
     const admin = supabaseAdmin()
     const allowed = await canAccessCase(admin, caseId, user.id, role)
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const { data: caseRow } = await admin.from("cases").select("case_type").eq("id", caseId).maybeSingle()
+    const isSchufaFreeCase = String(caseRow?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
 
     const { data: requests, error } = await admin
       .from("case_signature_requests")
@@ -202,14 +206,20 @@ export async function GET(req: Request) {
       }
     }
 
-    const items = (requests ?? []).map((r: any) => ({
-      ...r,
-      provider_name: r.provider_id ? providerMap.get(r.provider_id) ?? null : null,
-      fields: normalizeFields(r.fields),
-      documents: docsByRequest.get(r.id) ?? [],
-      my_values: myValueMap.get(r.id) ?? null,
-      values_by_role: valuesByRoleMap.get(r.id) ?? null,
-    }))
+    const items = (requests ?? []).map((r) => {
+      const storedFields = normalizeFields(r.fields)
+      const fields = isSchufaFreeCase
+        ? getEffectiveSchufaFreeSignatureFields({ title: r.title, fields: storedFields })
+        : storedFields
+      return {
+        ...r,
+        provider_name: r.provider_id ? providerMap.get(r.provider_id) ?? null : null,
+        fields,
+        documents: docsByRequest.get(r.id) ?? [],
+        my_values: myValueMap.get(r.id) ?? null,
+        values_by_role: valuesByRoleMap.get(r.id) ?? null,
+      }
+    })
 
     const filtered = role === "customer" ? items.filter((r: any) => !isAdvisorOnly(r.fields)) : items
 
@@ -478,13 +488,32 @@ export async function DELETE(req: Request) {
     const admin = supabaseAdmin()
     const { data: reqRow } = await admin
       .from("case_signature_requests")
-      .select("id,case_id,title")
+      .select("id,case_id,title,requires_wet_signature,fields")
       .eq("id", id)
       .maybeSingle()
     if (!reqRow) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     const allowed = await canAccessCase(admin, reqRow.case_id, user.id, role)
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+    const { data: caseRow } = await admin.from("cases").select("case_type").eq("id", reqRow.case_id).maybeSingle()
+    if (String(caseRow?.case_type ?? "").trim().toLowerCase() === "schufa_frei") {
+      const fields = getEffectiveSchufaFreeSignatureFields({
+        title: reqRow.title,
+        fields: normalizeFields(reqRow.fields),
+      })
+      const meta = getSchufaFreeSignatureRequestMeta({
+        title: reqRow.title,
+        requiresWetSignature: Boolean(reqRow.requires_wet_signature),
+        fields,
+      })
+      if (meta.packageRelated && meta.completionRequired) {
+        return NextResponse.json(
+          { error: "Pflichtdokumente des Vertragspakets können nicht einzeln gelöscht werden. Bitte das Vertragspaket neu importieren." },
+          { status: 409 }
+        )
+      }
+    }
 
     const { data: docs, error: docsErr } = await admin
       .from("documents")
@@ -526,5 +555,3 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
 }
-
-

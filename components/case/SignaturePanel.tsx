@@ -830,7 +830,8 @@ export default function SignaturePanel({
       {!canEdit && hasSchufaFreePackageFlow ? (
         <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4 text-sm text-sky-900">
           Bitte gehe die Unterlagen Schritt für Schritt durch. Pflichtdokumente musst du unterschreiben, optionale
-          Dokumente kannst du bei Bedarf auslassen und Informationsblätter stehen nur zum Download bereit.
+          Dokumente kannst du bei Bedarf auslassen. Auch die vorvertraglichen Informationen müssen unterschrieben
+          werden.
         </div>
       ) : null}
 
@@ -1146,7 +1147,7 @@ function SignatureRequestCard({
               Editor öffnen
             </button>
           ) : null}
-          {canEdit ? (
+          {canEdit && !(meta.packageRelated && meta.completionRequired) ? (
             <button
               type="button"
               onClick={() => onDeleteRequest(req.id)}
@@ -2412,6 +2413,8 @@ function SignaturePad({
   const drawingRef = useRef(false)
   const activePointerIdRef = useRef<number | null>(null)
   const activeRectRef = useRef<DOMRect | null>(null)
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null)
+  const strokeDistanceRef = useRef(0)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -2462,6 +2465,8 @@ function SignaturePad({
     } catch {}
     const p = getPoint(e, activeRectRef.current)
     drawingRef.current = true
+    lastPointRef.current = p
+    strokeDistanceRef.current = 0
     ctx.beginPath()
     ctx.moveTo(p.x, p.y)
   }
@@ -2474,6 +2479,9 @@ function SignaturePad({
     if (!canvas || !ctx) return
     e.preventDefault()
     const p = getPoint(e, activeRectRef.current)
+    const previous = lastPointRef.current
+    if (previous) strokeDistanceRef.current += Math.hypot(p.x - previous.x, p.y - previous.y)
+    lastPointRef.current = p
     ctx.lineTo(p.x, p.y)
     ctx.stroke()
     ctx.beginPath()
@@ -2491,7 +2499,9 @@ function SignaturePad({
     }
     activePointerIdRef.current = null
     activeRectRef.current = null
-    if (canvas) onChange(canvas.toDataURL("image/png"))
+    lastPointRef.current = null
+    if (canvas && strokeDistanceRef.current >= 8) onChange(canvas.toDataURL("image/png"))
+    strokeDistanceRef.current = 0
   }
 
   function clearPad() {
@@ -2695,5 +2705,3 @@ function ImagePage({
     />
   )
 }
-
-

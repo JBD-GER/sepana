@@ -2,6 +2,7 @@ type SignatureFieldOwner = "advisor" | "customer"
 type SignatureFieldType = "signature" | "checkbox" | "text"
 
 type MinimalSignatureField = {
+  id?: string | null
   owner?: string | null
 }
 
@@ -53,7 +54,19 @@ export const SEPARATE_MANDATE_TITLE = "Gesonderter Vermittlungsauftrag"
 const INSURANCE_OPTIONAL_TITLE = "Ratenschutz (optional)"
 const SERVICE_FEE_TITLE = "Serviceprovision an SEPANA"
 const ASSIGNMENT_TITLE = "Abtretungserklärung (Original unterschreiben und wieder hochladen)"
-const PRECONTRACT_INFO_TITLE = "Vorvertragliche Informationen"
+export const PRECONTRACT_INFO_TITLE = "Vorvertragliche Informationen"
+
+const PRECONTRACT_INFO_SIGNATURE_FIELD: SchufaFreeContractPackageField = {
+  id: "customer_precontract_info_signature",
+  owner: "customer",
+  type: "signature",
+  label: "Unterschrift Vorvertragliche Informationen",
+  page: 1,
+  x: 38.2,
+  y: 4.8,
+  width: 50,
+  height: 5.7,
+}
 
 const KNOWN_PACKAGE_TITLES = new Set(
   [
@@ -80,6 +93,18 @@ function hasAdvisorFields(fields: MinimalSignatureField[] | null | undefined) {
 function hasCustomerFields(fields: MinimalSignatureField[] | null | undefined) {
   if (!Array.isArray(fields) || fields.length === 0) return false
   return fields.some((field) => String(field?.owner ?? "").trim().toLowerCase() === "customer")
+}
+
+export function getEffectiveSchufaFreeSignatureFields<T extends MinimalSignatureField>(input: {
+  title?: string | null
+  fields?: T[] | null
+}): Array<T | SchufaFreeContractPackageField> {
+  const fields = Array.isArray(input.fields) ? [...input.fields] : []
+  if (normalizeTitle(input.title) !== normalizeTitle(PRECONTRACT_INFO_TITLE)) return fields
+  if (fields.some((field) => String(field?.id ?? "").trim() === PRECONTRACT_INFO_SIGNATURE_FIELD.id)) {
+    return fields
+  }
+  return [...fields, { ...PRECONTRACT_INFO_SIGNATURE_FIELD }]
 }
 
 export function detectSchufaFreeContractVariant(pageCount: number): SchufaFreeContractVariant | null {
@@ -202,7 +227,7 @@ export function getSchufaFreeContractPackageItems(
       pageFrom: variant === "with_assignment" ? 13 : 11,
       pageTo: variant === "with_assignment" ? 19 : 17,
       requiresWetSignature: false,
-      fields: [],
+      fields: [{ ...PRECONTRACT_INFO_SIGNATURE_FIELD }],
     },
   ]
 
@@ -316,17 +341,20 @@ export function getSchufaFreeSignatureRequestMeta(input: {
   }
 
   if (normalizedTitle === normalizeTitle(PRECONTRACT_INFO_TITLE)) {
+    const signatureRequired = hasCustomerFields(fields)
     return {
       packageRelated: true,
       key: "precontract_info",
       order: 50,
       stepLabel: null,
-      kindLabel: "Nur Download",
-      description: "Zur Information ansehen oder herunterladen. Keine Unterschrift erforderlich.",
-      actionLabel: "PDF ansehen",
+      kindLabel: signatureRequired ? "Pflichtdokument" : "Nur Download",
+      description: signatureRequired
+        ? "Bitte die vorvertraglichen Informationen prüfen und digital unterschreiben."
+        : "Zur Information ansehen oder herunterladen. Keine Unterschrift erforderlich.",
+      actionLabel: signatureRequired ? "Vorvertragliche Informationen unterschreiben" : "PDF ansehen",
       optional: false,
-      downloadOnly: true,
-      completionRequired: false,
+      downloadOnly: !signatureRequired,
+      completionRequired: signatureRequired,
       requiresWetSignature: false,
     }
   }

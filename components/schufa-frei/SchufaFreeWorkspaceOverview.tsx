@@ -55,7 +55,6 @@ function hasCustomerFields(fields: SignatureField[] | null | undefined) {
 }
 
 function isSignatureCompleted(item: SignatureRow) {
-  if (String(item.status ?? "").trim().toLowerCase() === "completed") return true
   const advisorRequired = hasAdvisorFields(item.fields)
   const customerRequired = hasCustomerFields(item.fields) || Boolean(item.requires_wet_signature)
   return (!advisorRequired || Boolean(item.advisor_signed_at)) && (!customerRequired || Boolean(item.customer_signed_at))

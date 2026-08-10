@@ -1,8 +1,10 @@
 ﻿export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
+import sharp from "sharp"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import {
+  getEffectiveSchufaFreeSignatureFields,
   isSchufaSignatureRequestLockedUntilInvoice,
 } from "@/lib/schufa-frei/contractPackage"
 import {
@@ -13,6 +15,18 @@ import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import { renderSignedPdf } from "@/lib/signatures/renderSignedPdf"
 import { logCaseEvent } from "@/lib/notifications/notify"
 import { maybeNotifyAdvisorAboutCompletedSchufaFreeContractPackage } from "@/lib/schufa-frei/contractPackageNotifications"
+
+type SubmittedSignatureField = {
+  id: string
+  owner: "advisor" | "customer"
+  type: "signature" | "checkbox" | "text"
+  label: string
+  page: number
+  width: number
+  height: number
+  x: number
+  y: number
+}
 
 function clientIp(req: Request) {
   const forwarded = req.headers.get("x-forwarded-for") || ""
@@ -50,6 +64,55 @@ function hasCustomerFields(raw: any) {
     const owner = String(f?.owner || "").toLowerCase()
     return owner === "customer"
   })
+}
+
+async function hasVisibleSignatureInk(value: unknown) {
+  if (typeof value !== "string") return false
+  const match = value.match(/^data:image\/png;base64,([a-z0-9+/=]+)$/i)
+  if (!match) return false
+
+  const bytes = Buffer.from(match[1], "base64")
+  if (!bytes.length || bytes.length > 2_000_000) return false
+
+  try {
+    const image = sharp(bytes, { limitInputPixels: 2_000_000, failOn: "error" })
+    const metadata = await image.metadata()
+    if (metadata.format !== "png" || !metadata.width || !metadata.height) return false
+
+    const { data, info } = await image.ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+    let inkPixels = 0
+    let minX = info.width
+    let minY = info.height
+    let maxX = -1
+    let maxY = -1
+
+    for (let y = 0; y < info.height; y += 1) {
+      for (let x = 0; x < info.width; x += 1) {
+        const offset = (y * info.width + x) * info.channels
+        const red = data[offset]
+        const green = data[offset + 1]
+        const blue = data[offset + 2]
+        const alpha = data[offset + 3]
+        if (alpha <= 32 || (red >= 245 && green >= 245 && blue >= 245)) continue
+        inkPixels += 1
+        minX = Math.min(minX, x)
+        minY = Math.min(minY, y)
+        maxX = Math.max(maxX, x)
+        maxY = Math.max(maxY, y)
+      }
+    }
+
+    return inkPixels >= 40 && maxX - minX + 1 >= 12 && maxY - minY + 1 >= 4
+  } catch {
+    return false
+  }
+}
+
+async function isSubmittedFieldValueFilled(field: SubmittedSignatureField, value: unknown) {
+  const type = String(field?.type ?? "").trim().toLowerCase()
+  if (type === "checkbox") return value === true
+  if (type === "signature") return hasVisibleSignatureInk(value)
+  return typeof value === "string" && value.trim().length > 0
 }
 
 async function canAccessCase(admin: any, caseId: string, userId: string, role: string | null) {
@@ -112,16 +175,9 @@ export async function POST(req: Request) {
       .eq("id", requestId)
       .maybeSingle()
     if (!reqRow) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    const advisorRequired = hasAdvisorFields(reqRow.fields)
-    const customerRequired = hasCustomerFields(reqRow.fields)
-    const advisorOnly = advisorRequired && !customerRequired
 
     if (reqRow.requires_wet_signature) {
       return NextResponse.json({ error: "wet_signature_required" }, { status: 409 })
-    }
-
-    if (role === "customer" && customerRequired && advisorRequired && !reqRow.advisor_signed_at) {
-      return NextResponse.json({ error: "advisor_not_signed" }, { status: 409 })
     }
 
     const allowed = await canAccessCase(admin, reqRow.case_id, user.id, role)
@@ -133,6 +189,18 @@ export async function POST(req: Request) {
       .eq("id", reqRow.case_id)
       .maybeSingle()
     const isSchufaFreeCase = String(caseMeta?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
+    const storedFields = normalizeFields(reqRow.fields) as SubmittedSignatureField[]
+    const effectiveFields = isSchufaFreeCase
+      ? getEffectiveSchufaFreeSignatureFields({ title: reqRow.title, fields: storedFields })
+      : storedFields
+    const advisorRequired = hasAdvisorFields(effectiveFields)
+    const customerRequired = hasCustomerFields(effectiveFields)
+    const advisorOnly = advisorRequired && !customerRequired
+
+    if (role === "customer" && customerRequired && advisorRequired && !reqRow.advisor_signed_at) {
+      return NextResponse.json({ error: "advisor_not_signed" }, { status: 409 })
+    }
+
     if (isSchufaFreeCase && isSchufaSignatureRequestLockedUntilInvoice(reqRow.title)) {
       try {
         const invoiceGate = await loadSchufaFreeSignatureInvoiceGate(admin, reqRow.case_id)
@@ -145,6 +213,32 @@ export async function POST(req: Request) {
       } catch (error: any) {
         return NextResponse.json({ error: error?.message ?? "invoice_gate_failed" }, { status: 400 })
       }
+    }
+
+    const actorOwner = role === "customer" ? "customer" : role === "advisor" || role === "admin" ? "advisor" : null
+    const actorFields = effectiveFields.filter((field) => {
+      const owner = String(field.owner ?? "").trim().toLowerCase() === "customer" ? "customer" : "advisor"
+      return owner === actorOwner
+    })
+    const submittedValues = values as Record<string, unknown>
+    const fieldChecks = await Promise.all(
+      actorFields.map(async (field) => ({
+        field,
+        filled: await isSubmittedFieldValueFilled(field, submittedValues[String(field.id ?? "")]),
+      }))
+    )
+    const missingFieldLabels = fieldChecks
+      .filter((check) => !check.filled)
+      .map((check) => String(check.field.label ?? "Pflichtfeld").trim() || "Pflichtfeld")
+    if (!actorOwner || !actorFields.length || missingFieldLabels.length) {
+      return NextResponse.json(
+        {
+          error: missingFieldLabels.length
+            ? `Bitte alle Pflichtfelder ausfüllen: ${missingFieldLabels.join(", ")}.`
+            : "Keine ausfüllbaren Felder für diese Rolle vorhanden.",
+        },
+        { status: 400 }
+      )
     }
 
     const { error } = await admin
@@ -191,8 +285,12 @@ export async function POST(req: Request) {
       .eq("id", requestId)
       .maybeSingle()
 
-    const advisorRequiredFinal = hasAdvisorFields(reqFull?.fields)
-    const customerRequiredFinal = hasCustomerFields(reqFull?.fields)
+    const storedFieldsFinal = normalizeFields(reqFull?.fields) as SubmittedSignatureField[]
+    const effectiveFieldsFinal = isSchufaFreeCase
+      ? getEffectiveSchufaFreeSignatureFields({ title: reqFull?.title, fields: storedFieldsFinal })
+      : storedFieldsFinal
+    const advisorRequiredFinal = hasAdvisorFields(effectiveFieldsFinal)
+    const customerRequiredFinal = hasCustomerFields(effectiveFieldsFinal)
     const isComplete =
       (!advisorRequiredFinal || !!reqFull?.advisor_signed_at) &&
       (!customerRequiredFinal || !!reqFull?.customer_signed_at)
@@ -251,7 +349,7 @@ export async function POST(req: Request) {
               finalBytes = await renderSignedPdf({
                 originalBytes: bytes,
                 originalMime: originalDoc.mime_type || null,
-                fields: Array.isArray(reqFull.fields) ? reqFull.fields : [],
+                fields: effectiveFieldsFinal,
                 values: valuesByRole,
                 events: (events ?? []) as any,
                 auditTitle: `${reqFull.title} · ${reqFull.case_id}`,
@@ -298,4 +396,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e?.message ?? "Serverfehler" }, { status: 500 })
   }
 }
-
