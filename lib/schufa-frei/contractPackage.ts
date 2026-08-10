@@ -8,6 +8,16 @@ type MinimalSignatureField = {
 
 export type SchufaFreeContractVariant = "without_assignment" | "with_assignment"
 
+export type SchufaFreeContractPackageLayout = {
+  pageCount: 17 | 19
+  brokerageMandatePage: number
+  brokerageMandateField: Pick<SchufaFreeContractPackageField, "x" | "y" | "width" | "height">
+  insurancePage: number | null
+  serviceFeePage: number
+  assignmentPageFrom: number | null
+  precontractPageFrom: number
+}
+
 export type SchufaFreeContractPackageField = {
   id: string
   owner: SignatureFieldOwner
@@ -24,6 +34,7 @@ export type SchufaFreeContractPackageItem = {
   key:
     | "separate_mandate"
     | "contract"
+    | "brokerage_mandate"
     | "insurance_optional"
     | "service_fee"
     | "assignment"
@@ -51,26 +62,17 @@ export type SchufaFreeSignatureRequestMeta = {
 
 const CONTRACT_TITLE = "Kreditvertrag"
 export const SEPARATE_MANDATE_TITLE = "Gesonderter Vermittlungsauftrag"
+export const BROKERAGE_MANDATE_TITLE = "Kreditvermittlungsauftrag"
+const BROKERAGE_MANDATE_SIGNATURE_FIELD_ID = "customer_brokerage_mandate_signature"
 const INSURANCE_OPTIONAL_TITLE = "Ratenschutz (optional)"
 const SERVICE_FEE_TITLE = "Serviceprovision an SEPANA"
 const ASSIGNMENT_TITLE = "Abtretungserklärung (Original unterschreiben und wieder hochladen)"
 export const PRECONTRACT_INFO_TITLE = "Vorvertragliche Informationen"
 
-const PRECONTRACT_INFO_SIGNATURE_FIELD: SchufaFreeContractPackageField = {
-  id: "customer_precontract_info_signature",
-  owner: "customer",
-  type: "signature",
-  label: "Unterschrift Vorvertragliche Informationen",
-  page: 1,
-  x: 38.2,
-  y: 4.8,
-  width: 50,
-  height: 5.7,
-}
-
 const KNOWN_PACKAGE_TITLES = new Set(
   [
     CONTRACT_TITLE,
+    BROKERAGE_MANDATE_TITLE,
     INSURANCE_OPTIONAL_TITLE,
     SERVICE_FEE_TITLE,
     ASSIGNMENT_TITLE,
@@ -95,93 +97,104 @@ function hasCustomerFields(fields: MinimalSignatureField[] | null | undefined) {
   return fields.some((field) => String(field?.owner ?? "").trim().toLowerCase() === "customer")
 }
 
-export function getEffectiveSchufaFreeSignatureFields<T extends MinimalSignatureField>(input: {
-  title?: string | null
-  fields?: T[] | null
-}): Array<T | SchufaFreeContractPackageField> {
-  const fields = Array.isArray(input.fields) ? [...input.fields] : []
-  if (normalizeTitle(input.title) !== normalizeTitle(PRECONTRACT_INFO_TITLE)) return fields
-  const protectedFieldIndex = fields.findIndex(
-    (field) => String(field?.id ?? "").trim() === PRECONTRACT_INFO_SIGNATURE_FIELD.id
-  )
-  if (protectedFieldIndex < 0) return [...fields, { ...PRECONTRACT_INFO_SIGNATURE_FIELD }]
-
-  return fields
-    .map((field, index) => (index === protectedFieldIndex ? { ...PRECONTRACT_INFO_SIGNATURE_FIELD } : field))
-    .filter(
-      (field, index) =>
-        String(field?.id ?? "").trim() !== PRECONTRACT_INFO_SIGNATURE_FIELD.id || index === protectedFieldIndex
-    )
-}
-
-export function detectSchufaFreeContractVariant(pageCount: number): SchufaFreeContractVariant | null {
-  if (pageCount === 17) return "without_assignment"
-  if (pageCount === 19) return "with_assignment"
-  return null
+export function getSchufaFreeContractVariant(layout: SchufaFreeContractPackageLayout): SchufaFreeContractVariant {
+  return layout.assignmentPageFrom ? "with_assignment" : "without_assignment"
 }
 
 export function getSchufaFreeContractPackageItems(
-  variant: SchufaFreeContractVariant
+  layout: SchufaFreeContractPackageLayout
 ): SchufaFreeContractPackageItem[] {
-  const commonItems: SchufaFreeContractPackageItem[] = [
+  const brokerageMandatePage = Number(layout.brokerageMandatePage)
+  if (
+    !Number.isInteger(brokerageMandatePage) ||
+    brokerageMandatePage < 2 ||
+    brokerageMandatePage >= layout.serviceFeePage
+  ) {
+    throw new Error("Die Seite des Kreditvermittlungsauftrags ist ungültig.")
+  }
+
+  const contractPageTo = brokerageMandatePage - 1
+  const contractFields: SchufaFreeContractPackageField[] = ([
+    {
+      id: "customer_contract_signature_page_4",
+      owner: "customer",
+      type: "signature",
+      label: "Unterschrift Kunde",
+      page: 4,
+      x: 40,
+      y: 85,
+      width: 21,
+      height: 5,
+    },
+    {
+      id: "customer_contract_signature_page_5",
+      owner: "customer",
+      type: "signature",
+      label: "Unterschrift Kunde",
+      page: 5,
+      x: 52,
+      y: 80,
+      width: 24,
+      height: 5,
+    },
+    {
+      id: "customer_contract_signature_page_6",
+      owner: "customer",
+      type: "signature",
+      label: "Unterschrift Kunde",
+      page: 6,
+      x: 51,
+      y: 24,
+      width: 29,
+      height: 5,
+    },
+    {
+      id: "customer_contract_signature_page_7",
+      owner: "customer",
+      type: "signature",
+      label: "Unterschrift Kunde",
+      page: 7,
+      x: 41,
+      y: 74,
+      width: 32,
+      height: 6,
+    },
+  ] satisfies SchufaFreeContractPackageField[]).filter((field) => field.page <= contractPageTo)
+
+  const items: SchufaFreeContractPackageItem[] = [
     {
       key: "contract",
       title: CONTRACT_TITLE,
       pageFrom: 1,
-      pageTo: 7,
+      pageTo: contractPageTo,
+      requiresWetSignature: false,
+      fields: contractFields,
+    },
+    {
+      key: "brokerage_mandate",
+      title: BROKERAGE_MANDATE_TITLE,
+      pageFrom: brokerageMandatePage,
+      pageTo: brokerageMandatePage,
       requiresWetSignature: false,
       fields: [
         {
-          id: "customer_contract_signature_page_4",
+          id: BROKERAGE_MANDATE_SIGNATURE_FIELD_ID,
           owner: "customer",
           type: "signature",
-          label: "Unterschrift Kunde",
-          page: 4,
-          x: 40,
-          y: 85,
-          width: 21,
-          height: 5,
-        },
-        {
-          id: "customer_contract_signature_page_5",
-          owner: "customer",
-          type: "signature",
-          label: "Unterschrift Kunde",
-          page: 5,
-          x: 52,
-          y: 80,
-          width: 24,
-          height: 5,
-        },
-        {
-          id: "customer_contract_signature_page_6",
-          owner: "customer",
-          type: "signature",
-          label: "Unterschrift Kunde",
-          page: 6,
-          x: 51,
-          y: 24,
-          width: 29,
-          height: 5,
-        },
-        {
-          id: "customer_contract_signature_page_7",
-          owner: "customer",
-          type: "signature",
-          label: "Unterschrift Kunde",
-          page: 7,
-          x: 41,
-          y: 74,
-          width: 32,
-          height: 6,
+          label: "Unterschrift Kreditvermittlungsauftrag",
+          page: 1,
+          ...layout.brokerageMandateField,
         },
       ],
     },
-    {
+  ]
+
+  if (layout.insurancePage) {
+    items.push({
       key: "insurance_optional",
       title: INSURANCE_OPTIONAL_TITLE,
-      pageFrom: 8,
-      pageTo: 8,
+      pageFrom: layout.insurancePage,
+      pageTo: layout.insurancePage,
       requiresWetSignature: false,
       fields: [
         {
@@ -207,49 +220,51 @@ export function getSchufaFreeContractPackageItems(
           height: 5,
         },
       ],
-    },
-    {
-      key: "service_fee",
-      title: SERVICE_FEE_TITLE,
-      pageFrom: 9,
-      pageTo: 9,
-      requiresWetSignature: false,
-      fields: [
-        {
-          id: "customer_service_fee_signature",
-          owner: "customer",
-          type: "signature",
-          label: "Unterschrift Serviceprovision",
-          page: 1,
-          x: 55.50747380443959,
-          y: 92.85955056179775,
-          width: 30,
-          height: 5,
-        },
-      ],
-    },
-    {
-      key: "precontract_info",
-      title: PRECONTRACT_INFO_TITLE,
-      pageFrom: variant === "with_assignment" ? 13 : 11,
-      pageTo: variant === "with_assignment" ? 19 : 17,
-      requiresWetSignature: false,
-      fields: [{ ...PRECONTRACT_INFO_SIGNATURE_FIELD }],
-    },
-  ]
+    })
+  }
 
-  if (variant === "with_assignment") {
-    commonItems.splice(3, 0, {
+  items.push({
+    key: "service_fee",
+    title: SERVICE_FEE_TITLE,
+    pageFrom: layout.serviceFeePage,
+    pageTo: layout.serviceFeePage,
+    requiresWetSignature: false,
+    fields: [
+      {
+        id: "customer_service_fee_signature",
+        owner: "customer",
+        type: "signature",
+        label: "Unterschrift Serviceprovision",
+        page: 1,
+        x: 55.50747380443959,
+        y: 92.85955056179775,
+        width: 30,
+        height: 5,
+      },
+    ],
+  })
+
+  if (layout.assignmentPageFrom) {
+    items.push({
       key: "assignment",
       title: ASSIGNMENT_TITLE,
-      pageFrom: 11,
-      pageTo: 12,
+      pageFrom: layout.assignmentPageFrom,
+      pageTo: layout.assignmentPageFrom + 1,
       requiresWetSignature: true,
       fields: [],
     })
   }
 
-  return commonItems
+  items.push({
+    key: "precontract_info",
+    title: PRECONTRACT_INFO_TITLE,
+    pageFrom: layout.precontractPageFrom,
+    pageTo: layout.pageCount,
+    requiresWetSignature: false,
+    fields: [],
+  })
+
+  return items
 }
 
 export function isSchufaFreeContractPackageTitle(title: string | null | undefined) {
@@ -299,11 +314,34 @@ export function getSchufaFreeSignatureRequestMeta(input: {
     }
   }
 
+  if (normalizedTitle === normalizeTitle(BROKERAGE_MANDATE_TITLE)) {
+    const signatureRequired = fields.some(
+      (field) =>
+        String(field?.id ?? "").trim() === BROKERAGE_MANDATE_SIGNATURE_FIELD_ID &&
+        String(field?.owner ?? "").trim().toLowerCase() === "customer"
+    )
+    return {
+      packageRelated: true,
+      key: "brokerage_mandate",
+      order: 20,
+      stepLabel: null,
+      kindLabel: signatureRequired ? "Pflichtdokument" : "Nur Download",
+      description: signatureRequired
+        ? "Bitte den Kreditvermittlungsauftrag prüfen und digital unterschreiben."
+        : "Zur Information ansehen oder herunterladen. Keine Unterschrift erforderlich.",
+      actionLabel: signatureRequired ? "Kreditvermittlungsauftrag unterschreiben" : "PDF ansehen",
+      optional: false,
+      downloadOnly: !signatureRequired,
+      completionRequired: signatureRequired,
+      requiresWetSignature: false,
+    }
+  }
+
   if (normalizedTitle === normalizeTitle(INSURANCE_OPTIONAL_TITLE)) {
     return {
       packageRelated: true,
       key: "insurance_optional",
-      order: 20,
+      order: 25,
       stepLabel: null,
       kindLabel: "Optional",
       description: "Nur unterschreiben, wenn Sie den Ratenschutz nutzen möchten.",
@@ -348,20 +386,17 @@ export function getSchufaFreeSignatureRequestMeta(input: {
   }
 
   if (normalizedTitle === normalizeTitle(PRECONTRACT_INFO_TITLE)) {
-    const signatureRequired = hasCustomerFields(fields)
     return {
       packageRelated: true,
       key: "precontract_info",
       order: 50,
       stepLabel: null,
-      kindLabel: signatureRequired ? "Pflichtdokument" : "Nur Download",
-      description: signatureRequired
-        ? "Bitte die vorvertraglichen Informationen prüfen und digital unterschreiben."
-        : "Zur Information ansehen oder herunterladen. Keine Unterschrift erforderlich.",
-      actionLabel: signatureRequired ? "Vorvertragliche Informationen unterschreiben" : "PDF ansehen",
+      kindLabel: "Nur Download",
+      description: "Zur Information ansehen oder herunterladen. Keine Unterschrift erforderlich.",
+      actionLabel: "PDF ansehen",
       optional: false,
-      downloadOnly: !signatureRequired,
-      completionRequired: signatureRequired,
+      downloadOnly: true,
+      completionRequired: false,
       requiresWetSignature: false,
     }
   }
@@ -394,13 +429,21 @@ export function isSchufaFreeCompletionRelevantRequest(input: {
   return meta.packageRelated && meta.completionRequired
 }
 
-export function shouldSyncSchufaSignatureRequestToSkag(title: string | null | undefined) {
-  const meta = getSchufaFreeSignatureRequestMeta({ title })
+export function shouldSyncSchufaSignatureRequestToSkag(
+  title: string | null | undefined,
+  fields?: MinimalSignatureField[] | null
+) {
+  const meta = getSchufaFreeSignatureRequestMeta({ title, fields })
+  if (meta.key === "brokerage_mandate" && !meta.completionRequired) return true
   return !meta.packageRelated
 }
 
-export function isSchufaSignatureRequestLockedUntilInvoice(title: string | null | undefined) {
-  const meta = getSchufaFreeSignatureRequestMeta({ title })
+export function isSchufaSignatureRequestLockedUntilInvoice(
+  title: string | null | undefined,
+  fields?: MinimalSignatureField[] | null
+) {
+  const meta = getSchufaFreeSignatureRequestMeta({ title, fields })
+  if (meta.key === "brokerage_mandate" && !meta.completionRequired) return false
   return meta.packageRelated && meta.key !== "separate_mandate"
 }
 

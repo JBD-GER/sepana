@@ -3,7 +3,6 @@
 import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import {
-  getEffectiveSchufaFreeSignatureFields,
   getSchufaFreeSignatureRequestMeta,
   isSchufaSignatureRequestLockedUntilInvoice,
 } from "@/lib/schufa-frei/contractPackage"
@@ -139,7 +138,12 @@ export async function GET(req: Request) {
     const admin = supabaseAdmin()
     const allowed = await canAccessCase(admin, caseId, user.id, role)
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    const { data: caseRow } = await admin.from("cases").select("case_type").eq("id", caseId).maybeSingle()
+    const { data: caseRow, error: caseRowError } = await admin
+      .from("cases")
+      .select("case_type")
+      .eq("id", caseId)
+      .maybeSingle()
+    if (caseRowError) return NextResponse.json({ error: caseRowError.message }, { status: 500 })
     const isSchufaFreeCase = String(caseRow?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
 
     const { data: requests, error } = await admin
@@ -208,16 +212,23 @@ export async function GET(req: Request) {
 
     const items = (requests ?? []).map((r) => {
       const storedFields = normalizeFields(r.fields)
-      const fields = isSchufaFreeCase
-        ? getEffectiveSchufaFreeSignatureFields({ title: r.title, fields: storedFields })
-        : storedFields
+      const meta = getSchufaFreeSignatureRequestMeta({
+        title: r.title,
+        requiresWetSignature: Boolean(r.requires_wet_signature),
+        fields: storedFields,
+      })
+      const fields = isSchufaFreeCase && meta.key === "precontract_info" ? [] : storedFields
+      const documents = docsByRequest.get(r.id) ?? []
+      const isReadOnlyPrecontract = isSchufaFreeCase && meta.key === "precontract_info"
       return {
         ...r,
         provider_name: r.provider_id ? providerMap.get(r.provider_id) ?? null : null,
         fields,
-        documents: docsByRequest.get(r.id) ?? [],
-        my_values: myValueMap.get(r.id) ?? null,
-        values_by_role: valuesByRoleMap.get(r.id) ?? null,
+        documents: isReadOnlyPrecontract
+          ? documents.filter((document) => document.document_kind === "signature_original")
+          : documents,
+        my_values: isReadOnlyPrecontract ? null : myValueMap.get(r.id) ?? null,
+        values_by_role: isReadOnlyPrecontract ? null : valuesByRoleMap.get(r.id) ?? null,
       }
     })
 
@@ -254,7 +265,7 @@ export async function POST(req: Request) {
 
     const { data: caseMeta } = await admin.from("cases").select("case_type").eq("id", caseId).maybeSingle()
     const isSchufaFreeCase = String(caseMeta?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
-    if (isSchufaFreeCase && isSchufaSignatureRequestLockedUntilInvoice(title)) {
+    if (isSchufaFreeCase && isSchufaSignatureRequestLockedUntilInvoice(title, [])) {
       try {
         const invoiceGate = await loadSchufaFreeSignatureInvoiceGate(admin, caseId)
         if (!invoiceGate.ready) {
@@ -363,11 +374,28 @@ export async function PATCH(req: Request) {
     const allowed = await canAccessCase(admin, reqRow.case_id, user.id, role)
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-    const { data: caseRow } = await admin.from("cases").select("case_type").eq("id", reqRow.case_id).maybeSingle()
-    const nextFields =
-      String(caseRow?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
-        ? getEffectiveSchufaFreeSignatureFields({ title: reqRow.title, fields })
-        : fields
+    const { data: caseRow, error: caseRowError } = await admin
+      .from("cases")
+      .select("case_type")
+      .eq("id", reqRow.case_id)
+      .maybeSingle()
+    if (caseRowError) return NextResponse.json({ error: caseRowError.message }, { status: 500 })
+    const isSchufaFreeCase = String(caseRow?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
+    const requestMeta = getSchufaFreeSignatureRequestMeta({
+      title: reqRow.title,
+      requiresWetSignature: Boolean(reqRow.requires_wet_signature),
+      fields: normalizeFields(reqRow.fields),
+    })
+    if (isSchufaFreeCase && requestMeta.key === "precontract_info") {
+      return NextResponse.json({ error: "Dieses Dokument dient nur zur Durchsicht." }, { status: 409 })
+    }
+    if (isSchufaFreeCase && requestMeta.key === "brokerage_mandate") {
+      return NextResponse.json(
+        { error: "Das Unterschriftsfeld des Kreditvermittlungsauftrags wird automatisch gesetzt." },
+        { status: 409 }
+      )
+    }
+    const nextFields = fields
 
     const customerFieldsChanged = ownerFieldsChanged(reqRow.fields, nextFields, "customer")
     const advisorFieldsChanged = ownerFieldsChanged(reqRow.fields, nextFields, "advisor")
@@ -502,20 +530,22 @@ export async function DELETE(req: Request) {
     const allowed = await canAccessCase(admin, reqRow.case_id, user.id, role)
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-    const { data: caseRow } = await admin.from("cases").select("case_type").eq("id", reqRow.case_id).maybeSingle()
+    const { data: caseRow, error: caseRowError } = await admin
+      .from("cases")
+      .select("case_type")
+      .eq("id", reqRow.case_id)
+      .maybeSingle()
+    if (caseRowError) return NextResponse.json({ error: caseRowError.message }, { status: 500 })
     if (String(caseRow?.case_type ?? "").trim().toLowerCase() === "schufa_frei") {
-      const fields = getEffectiveSchufaFreeSignatureFields({
-        title: reqRow.title,
-        fields: normalizeFields(reqRow.fields),
-      })
+      const fields = normalizeFields(reqRow.fields)
       const meta = getSchufaFreeSignatureRequestMeta({
         title: reqRow.title,
         requiresWetSignature: Boolean(reqRow.requires_wet_signature),
         fields,
       })
-      if (meta.packageRelated && meta.completionRequired) {
+      if (meta.packageRelated && (meta.completionRequired || meta.key === "precontract_info")) {
         return NextResponse.json(
-          { error: "Pflichtdokumente des Vertragspakets können nicht einzeln gelöscht werden. Bitte das Vertragspaket neu importieren." },
+          { error: "Unterlagen des Vertragspakets können nicht einzeln gelöscht werden. Bitte das Vertragspaket neu importieren." },
           { status: 409 }
         )
       }

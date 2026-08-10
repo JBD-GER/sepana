@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 import sharp from "sharp"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import {
-  getEffectiveSchufaFreeSignatureFields,
+  getSchufaFreeSignatureRequestMeta,
   isSchufaSignatureRequestLockedUntilInvoice,
 } from "@/lib/schufa-frei/contractPackage"
 import {
@@ -183,16 +183,23 @@ export async function POST(req: Request) {
     const allowed = await canAccessCase(admin, reqRow.case_id, user.id, role)
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-    const { data: caseMeta } = await admin
+    const { data: caseMeta, error: caseMetaError } = await admin
       .from("cases")
       .select("case_type")
       .eq("id", reqRow.case_id)
       .maybeSingle()
+    if (caseMetaError) return NextResponse.json({ error: caseMetaError.message }, { status: 500 })
     const isSchufaFreeCase = String(caseMeta?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
     const storedFields = normalizeFields(reqRow.fields) as SubmittedSignatureField[]
-    const effectiveFields = isSchufaFreeCase
-      ? getEffectiveSchufaFreeSignatureFields({ title: reqRow.title, fields: storedFields })
-      : storedFields
+    const requestMeta = getSchufaFreeSignatureRequestMeta({
+      title: reqRow.title,
+      requiresWetSignature: Boolean(reqRow.requires_wet_signature),
+      fields: storedFields,
+    })
+    if (isSchufaFreeCase && requestMeta.packageRelated && requestMeta.downloadOnly) {
+      return NextResponse.json({ error: "Dieses Dokument dient nur zur Durchsicht." }, { status: 409 })
+    }
+    const effectiveFields = storedFields
     const advisorRequired = hasAdvisorFields(effectiveFields)
     const customerRequired = hasCustomerFields(effectiveFields)
     const advisorOnly = advisorRequired && !customerRequired
@@ -201,7 +208,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "advisor_not_signed" }, { status: 409 })
     }
 
-    if (isSchufaFreeCase && isSchufaSignatureRequestLockedUntilInvoice(reqRow.title)) {
+    if (isSchufaFreeCase && isSchufaSignatureRequestLockedUntilInvoice(reqRow.title, storedFields)) {
       try {
         const invoiceGate = await loadSchufaFreeSignatureInvoiceGate(admin, reqRow.case_id)
         if (!invoiceGate.ready) {
@@ -286,9 +293,7 @@ export async function POST(req: Request) {
       .maybeSingle()
 
     const storedFieldsFinal = normalizeFields(reqFull?.fields) as SubmittedSignatureField[]
-    const effectiveFieldsFinal = isSchufaFreeCase
-      ? getEffectiveSchufaFreeSignatureFields({ title: reqFull?.title, fields: storedFieldsFinal })
-      : storedFieldsFinal
+    const effectiveFieldsFinal = storedFieldsFinal
     const advisorRequiredFinal = hasAdvisorFields(effectiveFieldsFinal)
     const customerRequiredFinal = hasCustomerFields(effectiveFieldsFinal)
     const isComplete =

@@ -5,6 +5,7 @@ import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { deleteEuropaceDocumentForCase, markLocalEuropaceDocumentDeleted } from "@/lib/europace/documents"
 import { isImportedBankDocumentPath } from "@/lib/europace/flow"
+import { getSchufaFreeSignatureRequestMeta } from "@/lib/schufa-frei/contractPackage"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 async function getAccessibleCase(supabase: any, caseId: string, userId: string, role: string | null) {
@@ -32,7 +33,7 @@ export async function DELETE(req: Request) {
     const admin = supabaseAdmin()
     const { data: doc } = await admin
       .from("documents")
-      .select("id,case_id,file_name,file_path,uploaded_by,document_kind")
+      .select("id,case_id,file_name,file_path,uploaded_by,document_kind,signature_request_id")
       .eq("id", docId)
       .maybeSingle()
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -43,6 +44,35 @@ export async function DELETE(req: Request) {
     const isSignedSignatureDoc = String(doc.document_kind || "") === "signature_signed"
     if (isSignedSignatureDoc && role !== "advisor" && role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+    const isSchufaFreeCase = String(accessibleCase.case_type ?? "").trim().toLowerCase() === "schufa_frei"
+    if (
+      isSchufaFreeCase &&
+      doc.signature_request_id &&
+      String(doc.document_kind ?? "").trim().toLowerCase() === "signature_original"
+    ) {
+      const { data: signatureRequest, error: signatureRequestError } = await admin
+        .from("case_signature_requests")
+        .select("title,requires_wet_signature,fields")
+        .eq("id", doc.signature_request_id)
+        .maybeSingle()
+      if (signatureRequestError) {
+        return NextResponse.json({ error: signatureRequestError.message }, { status: 500 })
+      }
+
+      const meta = getSchufaFreeSignatureRequestMeta({
+        title: signatureRequest?.title,
+        requiresWetSignature: Boolean(signatureRequest?.requires_wet_signature),
+        fields: Array.isArray(signatureRequest?.fields) ? signatureRequest.fields : [],
+      })
+      const protectedPackageDocument =
+        meta.packageRelated && !(meta.key === "brokerage_mandate" && !meta.completionRequired)
+      if (protectedPackageDocument) {
+        return NextResponse.json(
+          { error: "Unterlagen des Vertragspakets können nicht einzeln gelöscht werden. Bitte das Paket neu importieren." },
+          { status: 409 }
+        )
+      }
     }
     if (isImportedBankDocumentPath(doc.file_path)) {
       return NextResponse.json(

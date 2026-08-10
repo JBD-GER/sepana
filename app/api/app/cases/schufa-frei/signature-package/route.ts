@@ -7,11 +7,12 @@ import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
 import {
   SEPARATE_MANDATE_TITLE,
-  detectSchufaFreeContractVariant,
   getSchufaFreeContractPackageItems,
+  getSchufaFreeContractVariant,
   isSchufaFreeContractPackageTitle,
   type SchufaFreeContractPackageItem,
 } from "@/lib/schufa-frei/contractPackage"
+import { detectSchufaFreeContractPackageLayout } from "@/lib/schufa-frei/contractPackagePdf"
 import { fillSchufaFreeServiceProvisionSlipPdf } from "@/lib/schufa-frei/signatureDocuments"
 import { getSchufaFreeProvisionInvoiceNumber } from "@/lib/schufa-frei/provisionInvoice"
 import {
@@ -69,10 +70,6 @@ async function resolveSigmaProviderId(admin: ReturnType<typeof supabaseAdmin>) {
 async function splitPdfPackage(pdfBytes: Uint8Array, items: SchufaFreeContractPackageItem[]) {
   const source = await PDFDocument.load(pdfBytes)
   const pageCount = source.getPageCount()
-  const variant = detectSchufaFreeContractVariant(pageCount)
-  if (!variant) {
-    throw new Error(`Das PDF hat ${pageCount} Seiten. Erwartet werden 17 Seiten ohne Abtretung oder 19 Seiten mit Abtretung.`)
-  }
 
   const outputs: Array<SchufaFreeContractPackageItem & { bytes: Uint8Array }> = []
   for (const item of items) {
@@ -86,7 +83,7 @@ async function splitPdfPackage(pdfBytes: Uint8Array, items: SchufaFreeContractPa
     })
   }
 
-  return { outputs, pageCount, variant }
+  return { outputs, pageCount }
 }
 
 async function removeExistingPackageRequests(admin: ReturnType<typeof supabaseAdmin>, caseId: string) {
@@ -191,33 +188,23 @@ export async function POST(req: Request) {
   }
 
   const originalBytes = new Uint8Array(await file.arrayBuffer())
-  let pageCount = 0
-  let variant = detectSchufaFreeContractVariant(0)
+  let packageLayout: Awaited<ReturnType<typeof detectSchufaFreeContractPackageLayout>>
 
   try {
-    const probe = await PDFDocument.load(originalBytes)
-    pageCount = probe.getPageCount()
-    variant = detectSchufaFreeContractVariant(pageCount)
-    if (!variant) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: `Das hochgeladene Dokument hat ${pageCount} Seiten. Unterstützt werden 17 Seiten ohne Abtretung und 19 Seiten mit Abtretung.`,
-        },
-        { status: 409 }
-      )
-    }
+    packageLayout = await detectSchufaFreeContractPackageLayout(originalBytes)
   } catch (error) {
     return NextResponse.json(
       {
         ok: false,
-        error: error instanceof Error ? error.message : "PDF konnte nicht verarbeitet werden.",
+        error: error instanceof Error ? error.message : "Die Struktur des Vertragspakets konnte nicht erkannt werden.",
       },
-      { status: 400 }
+      { status: 409 }
     )
   }
 
-  const packageItems = getSchufaFreeContractPackageItems(variant)
+  const pageCount = packageLayout.pageCount
+  const variant = getSchufaFreeContractVariant(packageLayout)
+  const packageItems = getSchufaFreeContractPackageItems(packageLayout)
   const providerId = await resolveSigmaProviderId(admin)
   const fileBaseName = path.parse(file.name || "vertragspaket.pdf").name || "vertragspaket"
   const createdRequestIds: string[] = []
@@ -333,6 +320,11 @@ export async function POST(req: Request) {
       meta: {
         variant,
         page_count: pageCount,
+        brokerage_mandate_page: packageLayout.brokerageMandatePage,
+        insurance_page: packageLayout.insurancePage,
+        service_fee_page: packageLayout.serviceFeePage,
+        assignment_page_from: packageLayout.assignmentPageFrom,
+        precontract_page_from: packageLayout.precontractPageFrom,
         documents: outputs.map((item) => item.title),
       },
       notifyAdvisor: false,

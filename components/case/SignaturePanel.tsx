@@ -111,6 +111,12 @@ function getCustomerRequestStatus(input: {
   requiresWetSignature: boolean
   optional: boolean
 }) {
+  if (input.downloadOnly) {
+    return {
+      label: "Nur zur Info",
+      className: "border-slate-200 bg-white text-slate-600",
+    }
+  }
   if (input.lockedUntilInvoice) {
     return {
       label: "Wartet auf Freigabe",
@@ -121,12 +127,6 @@ function getCustomerRequestStatus(input: {
     return {
       label: "Erledigt",
       className: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    }
-  }
-  if (input.downloadOnly) {
-    return {
-      label: "Nur zur Info",
-      className: "border-slate-200 bg-white text-slate-600",
     }
   }
   if (input.requiresWetSignature) {
@@ -830,8 +830,8 @@ export default function SignaturePanel({
       {!canEdit && hasSchufaFreePackageFlow ? (
         <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4 text-sm text-sky-900">
           Bitte gehe die Unterlagen Schritt für Schritt durch. Pflichtdokumente musst du unterschreiben, optionale
-          Dokumente kannst du bei Bedarf auslassen. Auch die vorvertraglichen Informationen müssen unterschrieben
-          werden.
+          Dokumente kannst du bei Bedarf auslassen. Die vorvertraglichen Informationen stehen nur zur Durchsicht
+          bereit und müssen nicht unterschrieben werden.
         </div>
       ) : null}
 
@@ -919,17 +919,18 @@ function SignatureRequestCard({
     requiresWetSignature: req.requires_wet_signature,
     fields: req.fields,
   })
-  const lockedUntilInvoice = !contractSigningUnlocked && isSchufaSignatureRequestLockedUntilInvoice(req.title)
+  const lockedUntilInvoice =
+    !contractSigningUnlocked && isSchufaSignatureRequestLockedUntilInvoice(req.title, req.fields)
   const downloadOnly = meta.downloadOnly || (!advisorRequired && !customerRequired && !req.requires_wet_signature)
   const isComplete = req.requires_wet_signature
     ? !!req.customer_signed_at
     : (!advisorRequired || !!req.advisor_signed_at) && (!customerRequired || !!req.customer_signed_at)
   const hasAnySignature = !!req.advisor_signed_at || !!req.customer_signed_at
   const finalDoc = isComplete ? primarySigned : null
-  const statusLabel = isComplete ? "Abgeschlossen" : hasAnySignature ? "Gestartet" : "Entwurf"
+  const statusLabel = downloadOnly ? "Zur Ansicht" : isComplete ? "Abgeschlossen" : hasAnySignature ? "Gestartet" : "Entwurf"
   const alreadySigned = canEdit ? !!req.advisor_signed_at : !!req.customer_signed_at
   const advisorLabel = advisorRequired ? (req.advisor_signed_at ? shortIso(req.advisor_signed_at) : "--") : "nicht erforderlich"
-  const allowEditor = canEdit && !downloadOnly && !lockedUntilInvoice
+  const allowEditor = canEdit && !downloadOnly && !lockedUntilInvoice && meta.key !== "brokerage_mandate"
   const canOpenSign = lockedUntilInvoice
     ? false
     : downloadOnly
@@ -940,7 +941,8 @@ function SignatureRequestCard({
           ? advisorRequired
           : customerRequired
   const providerLabel = req.provider_name || fallbackProviderName || "--"
-  const allowSignedDocumentAction = Boolean(advisorSignedDocumentActionLabel) && shouldSyncSchufaSignatureRequestToSkag(req.title)
+  const allowSignedDocumentAction =
+    Boolean(advisorSignedDocumentActionLabel) && shouldSyncSchufaSignatureRequestToSkag(req.title, req.fields)
   const finalDocSync = finalDoc
     ? skagDocumentStatuses.find((item) => String(item.local_document_id ?? "").trim() === finalDoc.id)
     : null
@@ -1027,7 +1029,7 @@ function SignatureRequestCard({
               {meta.description ? (
                 <div className="mt-3 text-sm leading-relaxed text-slate-700">{meta.description}</div>
               ) : null}
-              {isComplete && !finalDoc ? (
+              {isComplete && !finalDoc && !downloadOnly ? (
                 <div className="mt-2 text-xs text-emerald-700">Dieser Schritt ist bereits abgeschlossen.</div>
               ) : null}
             </>
@@ -1147,7 +1149,7 @@ function SignatureRequestCard({
               Editor öffnen
             </button>
           ) : null}
-          {canEdit && !(meta.packageRelated && meta.completionRequired) ? (
+          {canEdit && !(meta.packageRelated && (meta.completionRequired || meta.key === "precontract_info")) ? (
             <button
               type="button"
               onClick={() => onDeleteRequest(req.id)}

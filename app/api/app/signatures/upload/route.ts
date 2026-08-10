@@ -118,9 +118,14 @@ export async function POST(req: Request) {
         { status: 409 }
       )
     }
-    const { data: caseMeta } = await admin.from("cases").select("case_type").eq("id", caseId).maybeSingle()
+    const { data: caseMeta, error: caseMetaError } = await admin
+      .from("cases")
+      .select("case_type")
+      .eq("id", caseId)
+      .maybeSingle()
+    if (caseMetaError) return NextResponse.json({ error: caseMetaError.message }, { status: 500 })
     const isSchufaFreeCase = String(caseMeta?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
-    if (isSchufaFreeCase && isSchufaSignatureRequestLockedUntilInvoice(reqRow.title)) {
+    if (isSchufaFreeCase && isSchufaSignatureRequestLockedUntilInvoice(reqRow.title, reqRow.fields)) {
       try {
         const invoiceGate = await loadSchufaFreeSignatureInvoiceGate(admin, caseId)
         if (!invoiceGate.ready) {

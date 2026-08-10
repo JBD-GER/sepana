@@ -1,6 +1,5 @@
 import { buildEmailHtml, getCaseMeta, logCaseEvent, sendEmail } from "@/lib/notifications/notify"
 import {
-  getEffectiveSchufaFreeSignatureFields,
   getSchufaFreeSignatureRequestMeta,
   isSchufaFreeCompletionRelevantRequest,
   isSignatureRequestComplete,
@@ -84,15 +83,7 @@ export async function maybeNotifyAdvisorAboutCompletedSchufaFreeContractPackage(
     .select("id,title,status,requires_wet_signature,advisor_signed_at,customer_signed_at,fields")
     .eq("case_id", caseId)
 
-  const requestsWithEffectiveFields = (requests ?? []).map((request) => ({
-    ...request,
-    fields: getEffectiveSchufaFreeSignatureFields({
-      title: request.title,
-      fields: Array.isArray(request.fields) ? request.fields : [],
-    }),
-  }))
-
-  const relevant = requestsWithEffectiveFields.filter((request) =>
+  const relevant = (requests ?? []).filter((request) =>
     isSchufaFreeCompletionRelevantRequest({
       title: request.title,
       requiresWetSignature: request.requires_wet_signature,

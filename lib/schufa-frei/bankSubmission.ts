@@ -5,7 +5,6 @@ import sharp from "sharp"
 import { normalizeSchufaFreeDocumentRequest } from "@/lib/schufa-frei/documentRecommendations"
 import {
   PRECONTRACT_INFO_TITLE,
-  getEffectiveSchufaFreeSignatureFields,
   getSchufaFreeSignatureRequestMeta,
   isSignatureRequestComplete,
 } from "@/lib/schufa-frei/contractPackage"
@@ -614,13 +613,7 @@ export async function buildSchufaFreeBankSubmission(
     normalizeSchufaFreeDocumentRequest(request)
   )
   const documentRows = (documentRowsResult.data ?? []) as CaseDocumentRow[]
-  const signatureRows = ((signatureRowsResult.data ?? []) as SignatureRequestRow[]).map((request) => ({
-    ...request,
-    fields: getEffectiveSchufaFreeSignatureFields({
-      title: request.title,
-      fields: Array.isArray(request.fields) ? request.fields : [],
-    }) as SignatureFieldRow[],
-  }))
+  const signatureRows = (signatureRowsResult.data ?? []) as SignatureRequestRow[]
 
   const requestDocsById = new Map<string, CaseDocumentRow[]>()
   const signatureDocsById = new Map<string, CaseDocumentRow[]>()
@@ -760,7 +753,7 @@ export async function buildSchufaFreeBankSubmission(
 
     if (meta.downloadOnly) {
       const originalDoc = pickLatestDocument(requestDocs, "signature_original")
-      if (!originalDoc && meta.completionRequired) {
+      if (!originalDoc && (meta.completionRequired || meta.key === "precontract_info")) {
         missing.push(label)
         continue
       }
