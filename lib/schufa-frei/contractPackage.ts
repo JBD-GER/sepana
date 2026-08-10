@@ -101,10 +101,17 @@ export function getEffectiveSchufaFreeSignatureFields<T extends MinimalSignature
 }): Array<T | SchufaFreeContractPackageField> {
   const fields = Array.isArray(input.fields) ? [...input.fields] : []
   if (normalizeTitle(input.title) !== normalizeTitle(PRECONTRACT_INFO_TITLE)) return fields
-  if (fields.some((field) => String(field?.id ?? "").trim() === PRECONTRACT_INFO_SIGNATURE_FIELD.id)) {
-    return fields
-  }
-  return [...fields, { ...PRECONTRACT_INFO_SIGNATURE_FIELD }]
+  const protectedFieldIndex = fields.findIndex(
+    (field) => String(field?.id ?? "").trim() === PRECONTRACT_INFO_SIGNATURE_FIELD.id
+  )
+  if (protectedFieldIndex < 0) return [...fields, { ...PRECONTRACT_INFO_SIGNATURE_FIELD }]
+
+  return fields
+    .map((field, index) => (index === protectedFieldIndex ? { ...PRECONTRACT_INFO_SIGNATURE_FIELD } : field))
+    .filter(
+      (field, index) =>
+        String(field?.id ?? "").trim() !== PRECONTRACT_INFO_SIGNATURE_FIELD.id || index === protectedFieldIndex
+    )
 }
 
 export function detectSchufaFreeContractVariant(pageCount: number): SchufaFreeContractVariant | null {

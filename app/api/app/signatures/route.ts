@@ -363,8 +363,14 @@ export async function PATCH(req: Request) {
     const allowed = await canAccessCase(admin, reqRow.case_id, user.id, role)
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-    const customerFieldsChanged = ownerFieldsChanged(reqRow.fields, fields, "customer")
-    const advisorFieldsChanged = ownerFieldsChanged(reqRow.fields, fields, "advisor")
+    const { data: caseRow } = await admin.from("cases").select("case_type").eq("id", reqRow.case_id).maybeSingle()
+    const nextFields =
+      String(caseRow?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
+        ? getEffectiveSchufaFreeSignatureFields({ title: reqRow.title, fields })
+        : fields
+
+    const customerFieldsChanged = ownerFieldsChanged(reqRow.fields, nextFields, "customer")
+    const advisorFieldsChanged = ownerFieldsChanged(reqRow.fields, nextFields, "advisor")
     const hasSignedActors = !!reqRow.advisor_signed_at || !!reqRow.customer_signed_at
 
     if (hasSignedActors && (customerFieldsChanged || advisorFieldsChanged) && !reopenCustomerSignature) {
@@ -384,15 +390,15 @@ export async function PATCH(req: Request) {
       if (customerFieldsChanged && nextCustomerSignedAt) nextCustomerSignedAt = null
     }
 
-    const advisorRequiredAfter = hasAdvisorFields(fields)
-    const customerRequiredAfter = hasCustomerFields(fields)
+    const advisorRequiredAfter = hasAdvisorFields(nextFields)
+    const customerRequiredAfter = hasCustomerFields(nextFields)
     const isCompleteAfter =
       (!advisorRequiredAfter || !!nextAdvisorSignedAt) && (!customerRequiredAfter || !!nextCustomerSignedAt)
 
     const { error } = await admin
       .from("case_signature_requests")
       .update({
-        fields,
+        fields: nextFields,
         advisor_signed_at: nextAdvisorSignedAt,
         customer_signed_at: nextCustomerSignedAt,
         status: isCompleteAfter ? "completed" : "pending",
@@ -400,8 +406,8 @@ export async function PATCH(req: Request) {
       .eq("id", id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    const advisorOnly = isAdvisorOnly(fields)
-    const customerRelevant = !advisorOnly && (hasCustomerFields(fields) || !!reqRow.requires_wet_signature)
+    const advisorOnly = isAdvisorOnly(nextFields)
+    const customerRelevant = !advisorOnly && (hasCustomerFields(nextFields) || !!reqRow.requires_wet_signature)
     const shouldSendReopenCustomerMail =
       reopenCustomerSignature && customerRelevant && customerFieldsChanged && !!reqRow.customer_signed_at
     const shouldSendInitialCustomerMail = customerRelevant && !reqRow.customer_notified_at
