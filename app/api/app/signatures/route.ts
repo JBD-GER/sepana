@@ -358,24 +358,6 @@ export async function PATCH(req: Request) {
     const allowed = await canAccessCase(admin, reqRow.case_id, user.id, role)
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-    const { data: caseRow, error: caseRowError } = await admin
-      .from("cases")
-      .select("case_type")
-      .eq("id", reqRow.case_id)
-      .maybeSingle()
-    if (caseRowError) return NextResponse.json({ error: caseRowError.message }, { status: 500 })
-    const isSchufaFreeCase = String(caseRow?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
-    const requestMeta = getSchufaFreeSignatureRequestMeta({
-      title: reqRow.title,
-      requiresWetSignature: Boolean(reqRow.requires_wet_signature),
-      fields: normalizeFields(reqRow.fields),
-    })
-    if (isSchufaFreeCase && requestMeta.key === "brokerage_mandate") {
-      return NextResponse.json(
-        { error: "Das Unterschriftsfeld des Kreditvermittlungsauftrags wird automatisch gesetzt." },
-        { status: 409 }
-      )
-    }
     const nextFields = fields
 
     const customerFieldsChanged = ownerFieldsChanged(reqRow.fields, nextFields, "customer")

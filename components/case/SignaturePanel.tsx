@@ -930,7 +930,7 @@ function SignatureRequestCard({
   const statusLabel = downloadOnly ? "Zur Ansicht" : isComplete ? "Abgeschlossen" : hasAnySignature ? "Gestartet" : "Entwurf"
   const alreadySigned = canEdit ? !!req.advisor_signed_at : !!req.customer_signed_at
   const advisorLabel = advisorRequired ? (req.advisor_signed_at ? shortIso(req.advisor_signed_at) : "--") : "nicht erforderlich"
-  const allowEditor = canEdit && !lockedUntilInvoice && meta.key !== "brokerage_mandate"
+  const allowEditor = canEdit && !lockedUntilInvoice
   const canOpenSign = lockedUntilInvoice
     ? false
     : downloadOnly
