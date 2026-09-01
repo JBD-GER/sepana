@@ -386,17 +386,20 @@ export function getSchufaFreeSignatureRequestMeta(input: {
   }
 
   if (normalizedTitle === normalizeTitle(PRECONTRACT_INFO_TITLE)) {
+    const hasManualFields = hasCustomerFields(fields) || hasAdvisorFields(fields)
     return {
       packageRelated: true,
       key: "precontract_info",
       order: 50,
       stepLabel: null,
-      kindLabel: "Nur Download",
-      description: "Zur Information ansehen oder herunterladen. Keine Unterschrift erforderlich.",
-      actionLabel: "PDF ansehen",
+      kindLabel: hasManualFields ? "Manuelle Signatur" : "Nur Download",
+      description: hasManualFields
+        ? "Bitte prüfen und die manuell ergänzten Felder ausfüllen."
+        : "Zur Information ansehen oder herunterladen. Keine Unterschrift erforderlich.",
+      actionLabel: hasManualFields ? "Dokument unterschreiben" : "PDF ansehen",
       optional: false,
-      downloadOnly: true,
-      completionRequired: false,
+      downloadOnly: !hasManualFields,
+      completionRequired: hasManualFields,
       requiresWetSignature: false,
     }
   }

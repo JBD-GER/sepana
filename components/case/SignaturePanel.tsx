@@ -930,7 +930,7 @@ function SignatureRequestCard({
   const statusLabel = downloadOnly ? "Zur Ansicht" : isComplete ? "Abgeschlossen" : hasAnySignature ? "Gestartet" : "Entwurf"
   const alreadySigned = canEdit ? !!req.advisor_signed_at : !!req.customer_signed_at
   const advisorLabel = advisorRequired ? (req.advisor_signed_at ? shortIso(req.advisor_signed_at) : "--") : "nicht erforderlich"
-  const allowEditor = canEdit && !downloadOnly && !lockedUntilInvoice && meta.key !== "brokerage_mandate"
+  const allowEditor = canEdit && !lockedUntilInvoice && meta.key !== "brokerage_mandate"
   const canOpenSign = lockedUntilInvoice
     ? false
     : downloadOnly
@@ -1143,10 +1143,11 @@ function SignatureRequestCard({
         <div className={`flex w-full flex-col gap-2 ${canEdit ? "sm:w-auto sm:flex-row sm:flex-wrap" : "sm:w-[290px] sm:items-end"}`}>
           {allowEditor ? (
             <button
+              type="button"
               onClick={() => setEditorOpen(true)}
               className="w-full rounded-full border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 sm:w-auto sm:py-1"
             >
-              Editor öffnen
+              {req.fields.length ? "Editor öffnen" : "Editor starten"}
             </button>
           ) : null}
           {canEdit && !(meta.packageRelated && (meta.completionRequired || meta.key === "precontract_info")) ? (

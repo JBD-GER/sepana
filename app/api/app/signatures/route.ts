@@ -138,13 +138,6 @@ export async function GET(req: Request) {
     const admin = supabaseAdmin()
     const allowed = await canAccessCase(admin, caseId, user.id, role)
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    const { data: caseRow, error: caseRowError } = await admin
-      .from("cases")
-      .select("case_type")
-      .eq("id", caseId)
-      .maybeSingle()
-    if (caseRowError) return NextResponse.json({ error: caseRowError.message }, { status: 500 })
-    const isSchufaFreeCase = String(caseRow?.case_type ?? "").trim().toLowerCase() === "schufa_frei"
 
     const { data: requests, error } = await admin
       .from("case_signature_requests")
@@ -212,23 +205,14 @@ export async function GET(req: Request) {
 
     const items = (requests ?? []).map((r) => {
       const storedFields = normalizeFields(r.fields)
-      const meta = getSchufaFreeSignatureRequestMeta({
-        title: r.title,
-        requiresWetSignature: Boolean(r.requires_wet_signature),
-        fields: storedFields,
-      })
-      const fields = isSchufaFreeCase && meta.key === "precontract_info" ? [] : storedFields
       const documents = docsByRequest.get(r.id) ?? []
-      const isReadOnlyPrecontract = isSchufaFreeCase && meta.key === "precontract_info"
       return {
         ...r,
         provider_name: r.provider_id ? providerMap.get(r.provider_id) ?? null : null,
-        fields,
-        documents: isReadOnlyPrecontract
-          ? documents.filter((document) => document.document_kind === "signature_original")
-          : documents,
-        my_values: isReadOnlyPrecontract ? null : myValueMap.get(r.id) ?? null,
-        values_by_role: isReadOnlyPrecontract ? null : valuesByRoleMap.get(r.id) ?? null,
+        fields: storedFields,
+        documents,
+        my_values: myValueMap.get(r.id) ?? null,
+        values_by_role: valuesByRoleMap.get(r.id) ?? null,
       }
     })
 
@@ -386,9 +370,6 @@ export async function PATCH(req: Request) {
       requiresWetSignature: Boolean(reqRow.requires_wet_signature),
       fields: normalizeFields(reqRow.fields),
     })
-    if (isSchufaFreeCase && requestMeta.key === "precontract_info") {
-      return NextResponse.json({ error: "Dieses Dokument dient nur zur Durchsicht." }, { status: 409 })
-    }
     if (isSchufaFreeCase && requestMeta.key === "brokerage_mandate") {
       return NextResponse.json(
         { error: "Das Unterschriftsfeld des Kreditvermittlungsauftrags wird automatisch gesetzt." },
