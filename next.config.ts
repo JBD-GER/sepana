@@ -8,6 +8,7 @@ const noIndexHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["pdfjs-dist"],
   experimental: {
     proxyClientMaxBodySize: "30mb",
   },
