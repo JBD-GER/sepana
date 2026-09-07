@@ -10,7 +10,7 @@ const noIndexHeaders = [
 const nextConfig: NextConfig = {
   serverExternalPackages: ["pdfjs-dist"],
   outputFileTracingIncludes: {
-    "/api/tippgeber/agreement": ["./lib/tippgeber/fonts/*.ttf"],
+    "/api/tippgeber/agreement": ["./lib/tippgeber/fonts/*.ttf", "./public/og.png"],
     "/*": [
       "./node_modules/pdfjs-dist/build/pdf.worker.mjs",
       "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",

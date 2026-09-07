@@ -12,12 +12,15 @@ export async function renderPartnershipAgreementPdf(input: {
 }) {
   const pdf = await PDFDocument.create()
   pdf.registerFontkit(fontkit)
-  const [regularBytes, boldBytes] = await Promise.all([
+  const [regularBytes, boldBytes, logoBytes] = await Promise.all([
     readFile(path.join(process.cwd(), "lib/tippgeber/fonts/NotoSans-Regular.ttf")),
     readFile(path.join(process.cwd(), "lib/tippgeber/fonts/NotoSans-Bold.ttf")),
+    readFile(path.join(process.cwd(), "public/og.png")),
   ])
   const regular = await pdf.embedFont(regularBytes, { subset: true })
   const bold = await pdf.embedFont(boldBytes, { subset: true })
+  const logo = await pdf.embedPng(logoBytes)
+  const logoSize = logo.scaleToFit(120, 30)
   const { document, signedAt, documentHash, signature } = input
   pdf.setTitle(document.title)
   pdf.setAuthor(document.provider.name)
@@ -27,7 +30,6 @@ export async function renderPartnershipAgreementPdf(input: {
 
   const ink = rgb(0.09, 0.15, 0.22)
   const muted = rgb(0.36, 0.42, 0.47)
-  const green = rgb(0.02, 0.39, 0.29)
   const margin = 48
   const width = 595.28
   const height = 841.89
@@ -119,7 +121,7 @@ export async function renderPartnershipAgreementPdf(input: {
 
   const pages = pdf.getPages()
   pages.forEach((current, index) => {
-    current.drawText("SEPANA", { x: margin, y: height - 42, size: 17, font: bold, color: green })
+    current.drawImage(logo, { x: margin, y: height - 48, ...logoSize })
     current.drawText("PARTNERSCHAFT · BAUFINANZIERUNG", { x: 290, y: height - 40, size: 8, font: bold, color: muted })
     current.drawLine({ start: { x: margin, y: height - 57 }, end: { x: width - margin, y: height - 57 }, thickness: 0.6, color: rgb(0.83, 0.89, 0.86) })
     current.drawText(`Fassung ${document.version} | Elektronisch unterzeichnet`, { x: margin, y: 35, size: 7.5, font: regular, color: muted })

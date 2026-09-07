@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
@@ -168,6 +169,7 @@ export default function PartnershipAgreement({ initialStatus, companyName, autoO
               <div className="space-y-7">
                 <article aria-label="Vollständiger Partnerschaftsvertrag" className="space-y-6 text-sm leading-7">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <Image src="/og.png" alt="SEPANA" width={160} height={40} className="mb-5 h-10 w-auto" />
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Vertragsfassung {preview.document.version}</p>
                     <h3 className="mt-2 text-lg font-semibold">{preview.document.title}</h3>
                     <div className="mt-4 grid gap-5 sm:grid-cols-2">
