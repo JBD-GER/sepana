@@ -10,7 +10,10 @@ function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ")
 }
 
-const NAV = [{ href: "/tippgeber", label: "Dashboard" }]
+const NAV = [
+  { href: "/tippgeber", label: "Dashboard" },
+  { href: "/tippgeber/einstellungen", label: "Einstellungen" },
+]
 
 function isActive(pathname: string, href: string) {
   if (href === "/tippgeber") return pathname === href
@@ -150,4 +153,3 @@ export default function TippgeberHeader({ initialEmail }: { initialEmail?: strin
     </header>
   )
 }
-

@@ -14,6 +14,8 @@ import {
   type TippgeberKind,
 } from "@/lib/tippgeber/kinds"
 import TippgeberReferralForm from "./ui/TippgeberReferralForm"
+import PartnershipAgreement from "./ui/PartnershipAgreement"
+import { getPartnershipAgreementStatus } from "@/lib/tippgeber/partnershipAgreementServer"
 
 function dt(value: string | null | undefined) {
   if (!value) return "-"
@@ -112,6 +114,7 @@ export default async function TippgeberDashboardPage() {
 
   const tippgeberKind = normalizeTippgeberKind(profile?.tippgeber_kind)
   const isPrivateCredit = tippgeberKind === "private_credit"
+  const agreementStatus = profile && !isPrivateCredit ? await getPartnershipAgreementStatus(user.id) : null
 
   const metrics = computeTippgeberYtdMetrics(referrals)
   const companyName = profile?.company_name ?? "Tippgeber"
@@ -122,6 +125,7 @@ export default async function TippgeberDashboardPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
+      {agreementStatus ? <PartnershipAgreement initialStatus={agreementStatus} companyName={companyName} autoOpen /> : null}
       <section className="relative overflow-hidden rounded-[32px] border border-slate-200/70 bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 p-6 text-white shadow-[0_24px_64px_rgba(15,23,42,0.35)] sm:p-8">
         <div className="pointer-events-none absolute -left-12 -top-12 h-40 w-40 rounded-full bg-emerald-300/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-16 right-0 h-48 w-48 rounded-full bg-cyan-300/20 blur-3xl" />
@@ -396,6 +400,5 @@ export default async function TippgeberDashboardPage() {
     </div>
   )
 }
-
 
 
