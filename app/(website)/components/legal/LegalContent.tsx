@@ -29,53 +29,13 @@ export function ImpressumContent() {
         <p>Telefon: +49 5761 8429660</p>
       </Section>
 
-      <Section title="Register- und Erlaubnisangaben">
+      <Section title="Umsatzsteuer-Identifikationsnummer">
         <p>Umsatzsteuer-Identifikationsnummer gemäß § 27 a UStG: DE352217621</p>
-        <p>Registrierungsnummer: D-W-133-TNSL-07</p>
-        <p>Registrierung gemäß § 34i Abs. 1 Satz 1 GewO</p>
-        <p>Erlaubnis gemäß § 34c Abs. 1 GewO</p>
-        <p>Erlaubnis gemäß § 34i Abs. 1 GewO</p>
       </Section>
 
-      <Section title="Aufsichtsbehörde">
-        <p>IHK Hannover</p>
-        <p>Bischofsholer Damm 91</p>
-        <p>30173 Hannover</p>
+      <Section title="Zusammenarbeit mit Kreditvermittlern">
         <p>
-          <a
-            href="https://www.ihk.de/hannover/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-slate-900 underline underline-offset-4"
-          >
-            https://www.ihk.de/hannover/
-          </a>
-        </p>
-      </Section>
-
-      <Section title="Vermittlerregister">
-        <p>
-          Registerstelle: Deutscher Industrie- und Handelskammertag (DIHK) e. V., Breite Straße 29, 10178 Berlin
-        </p>
-        <p>
-          <a
-            href="https://www.vermittlerregister.info/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-slate-900 underline underline-offset-4"
-          >
-            www.vermittlerregister.info
-          </a>
-        </p>
-        <p>
-          <a
-            href="https://www.vermittlerregister.info/recherche?a=suche&unternehmensname=Flaaq%20Holding%20GmbH"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-slate-900 underline underline-offset-4"
-          >
-            Unser Eintrag im Vermittlerregister
-          </a>
+          Wir arbeiten eng mit anderen Kreditvermittlern zusammen, die über eine entsprechende IHK-Erlaubnis verfügen.
         </p>
       </Section>
 

@@ -271,13 +271,5 @@ export async function renderSchufaFreeProvisionInvoicePdf(input: {
     cursorY = drawTextBlock(page, font, `- ${line}`, 50, cursorY, 10, 500, 14) - 4
   }
 
-  page.drawText(`Registrierungsnummer: ${SCHUFA_FREE_PROVISION_COMPANY.registrationNumber}`, {
-    x: 40,
-    y: 56,
-    size: 9,
-    font,
-    color: rgb(0.39, 0.45, 0.54),
-  })
-
   return new Uint8Array(await pdfDoc.save())
 }

@@ -440,12 +440,9 @@ export function buildEmailHtml(opts: {
                   <tr>
                     <td style="padding:18px 20px; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
                       <div style="font-size:12px; line-height:18px; color:#475569;">
-                        <strong style="color:#0f172a;">Register- und Erlaubnisangaben</strong><br />
+                        <strong style="color:#0f172a;">Unternehmensangaben</strong><br />
                         Umsatzsteuer-Identifikationsnummer gemäß Paragraf 27 a UStG: <span style="color:#0f172a; font-weight:700;">DE352217621</span><br />
-                        Registrierungsnummer: <span style="color:#0f172a; font-weight:700;">D-W-133-TNSL-07</span><br />
-                        Registrierung gemäß Paragraf 34i Abs. 1 Satz 1 GewO<br />
-                        Erlaubnis gemäß Paragraf 34c Abs. 1 GewO<br />
-                        Erlaubnis gemäß Paragraf 34i Abs. 1 GewO
+                        Wir arbeiten eng mit anderen Kreditvermittlern zusammen, die über eine entsprechende IHK-Erlaubnis verfügen.
                       </div>
                       <div style="margin-top:10px; font-size:11px; line-height:16px; color:#94a3b8;">
                         (c) SEPANA - Diese E-Mail wurde automatisch versendet. Bitte antworten Sie nicht direkt auf diese Nachricht.

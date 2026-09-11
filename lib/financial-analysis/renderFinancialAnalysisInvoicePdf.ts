@@ -208,13 +208,5 @@ export async function renderFinancialAnalysisInvoicePdf(input: {
     14
   )
 
-  page.drawText(`Registrierungsnummer: ${FINANCIAL_ANALYSIS_INVOICE_COMPANY.registrationNumber}`, {
-    x: 40,
-    y: 56,
-    size: 9,
-    font,
-    color: rgb(0.39, 0.45, 0.54),
-  })
-
   return new Uint8Array(await pdfDoc.save())
 }

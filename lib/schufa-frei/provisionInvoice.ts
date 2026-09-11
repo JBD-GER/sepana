@@ -18,7 +18,6 @@ export const SCHUFA_FREE_PROVISION_COMPANY = {
   email: "info@sepana.de",
   phone: "+49 5761 8429660",
   vatId: "DE352217621",
-  registrationNumber: "D-W-133-TNSL-07",
 } as const
 
 export type SchufaFreeProvisionInvoiceStatus = "sent" | "paid" | "refunded" | "cancelled"
