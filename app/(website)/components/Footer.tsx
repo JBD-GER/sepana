@@ -98,12 +98,22 @@ export default function Footer() {
       </div>
 
       <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-4 text-xs text-slate-300/85 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <span>© {new Date().getFullYear()} SEPANA</span>
-          <span>Konditionen sind bonitäts- und objektabhängig. Angaben auf der Website dienen der ersten Orientierung.</span>
+        <div className="mx-auto max-w-7xl space-y-3 px-4 py-4 text-xs text-slate-300/85 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span>© {new Date().getFullYear()} SEPANA</span>
+            <span>Konditionen sind bonitäts- und objektabhängig. Angaben auf der Website dienen der ersten Orientierung.</span>
+          </div>
+          <p className="sm:text-right">
+            Konzeption &amp; Umsetzung durch{" "}
+            <a
+              className="underline underline-offset-4 transition hover:text-white"
+              href="https://www.justbedigital.de/"
+            >
+              JustBeDigital
+            </a>
+          </p>
         </div>
       </div>
     </footer>
   )
 }
-
