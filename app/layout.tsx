@@ -1,6 +1,7 @@
 ﻿import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
+import Script from "next/script"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -78,9 +79,19 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="de" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased`}>{children}</body>
+      <body className={`${inter.variable} font-sans antialiased`}>
+        <Script id="sepana-consent-default" strategy="beforeInteractive">{`
+          window.dataLayer = window.dataLayer || [];
+          window.gtag = window.gtag || function(){ window.dataLayer.push(arguments); };
+          window.gtag('consent', 'default', {
+            ad_storage:'denied', analytics_storage:'denied', ad_user_data:'denied',
+            ad_personalization:'denied', personalization_storage:'denied',
+            functionality_storage:'granted', security_storage:'granted'
+          });
+        `}</Script>
+        {children}
+      </body>
     </html>
   )
 }
-
 

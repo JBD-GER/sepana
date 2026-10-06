@@ -45,6 +45,19 @@ export function ImpressumContent() {
           den Inhalt der verlinkten Seiten sind ausschließlich deren Betreiber verantwortlich.
         </p>
       </Section>
+
+      <Section title="CHECK24.net Partnerprogramm">
+        <p><strong>CHECK24.net Partnerprogramm</strong></p>
+        <p>
+          Wir nehmen am CHECK24.net Partnerprogramm teil. Auf unseren Seiten werden iFrame-Buchungsmasken und andere
+          Werbemittel eingebunden, an denen wir über Transaktionen, zum Beispiel durch Leads und Sales, eine
+          Werbekostenerstattung erhalten können.
+        </p>
+        <p>
+          Weitere Informationen zur Datennutzung durch CHECK24.net erhalten Sie in der Datenschutzerklärung von{" "}
+          <a href="https://www.check24.net" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">CHECK24.net</a>.
+        </p>
+      </Section>
     </div>
   )
 }
@@ -126,6 +139,32 @@ export function DatenschutzContent() {
           jederzeit widerrufen.
         </p>
         <p>Zudem haben Sie ein Beschwerderecht bei einer zuständigen Datenschutzaufsichtsbehörde.</p>
+      </Section>
+
+      <Section title="Stromvergleich und CHECK24.net Partnerprogramm">
+        <p>
+          Der Stromvergleich wird durch CHECK24 in einem eingebundenen Rechner bereitgestellt. Erst wenn Sie den
+          Vergleich starten, wird eine Verbindung zu CHECK24 hergestellt. Dabei werden Ihre Postleitzahl, Ihr
+          angegebener Jahresverbrauch und Ihre Ökostrom-Auswahl sowie technisch erforderliche Verbindungsdaten
+          (insbesondere die IP-Adresse und Browserinformationen) an CHECK24 übermittelt.
+        </p>
+        <p>
+          Die Partner- und Tracking-ID ordnen den Vergleich SEPANA zu. Nach Ihrer Einwilligung in Marketing kann
+          zusätzlich die Google-Ads-Klick-ID zur Zuordnung eines Anzeigenklicks übermittelt werden. Ein von CHECK24
+          gemeldeter abgeschlossener Antrag kann nach Ihrer Marketing-Einwilligung an Google Ads als Conversion
+          gemeldet werden. Der Start des Vergleichs wird dabei getrennt vom Abschluss erfasst. Namen,
+          E-Mail-Adressen, Telefonnummern, Postleitzahlen und Stromverbrauch übermitteln wir nicht in diesen
+          Conversion-Ereignissen an Google.
+        </p>
+        <p>
+          Die Google-Messung im Stromvergleich wird erst nach Ihrer Marketing-Einwilligung geladen. Sie können
+          Ihre Einwilligung jederzeit über die Cookie-Einstellungen widerrufen. Die im CHECK24-Rechner
+          eingegebenen Antragsdaten verarbeitet CHECK24 nach seinen eigenen Datenschutzhinweisen. Weitere
+          Informationen finden Sie unter{" "}
+          <a href="https://www.check24.net/datenschutz/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Datenschutz bei CHECK24.net</a>{" "}
+          und unter{" "}
+          <a href="https://policies.google.com/privacy?hl=de" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Datenschutz bei Google</a>.
+        </p>
       </Section>
 
       <Section title="8. Hinweis">

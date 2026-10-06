@@ -25,6 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: number
   }> = [
     { path: "/", changeFrequency: "daily", priority: 1 },
+    { path: "/stromvergleich", changeFrequency: "weekly", priority: 0.9 },
     { path: "/kreditanfrage", changeFrequency: "weekly", priority: 0.9 },
     { path: "/onlinekredit", changeFrequency: "weekly", priority: 0.9 },
     { path: "/kredit-ohne-schufa", changeFrequency: "weekly", priority: 0.9 },

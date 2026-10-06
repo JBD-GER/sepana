@@ -217,7 +217,7 @@ function ToggleCard({
   )
 }
 
-export default function ConsentBanner() {
+export default function ConsentBanner({ compact = false }: { compact?: boolean }) {
   const hydrated = useSyncExternalStore(subscribeHydration, () => true, () => false)
   const storedConsentRaw = useSyncExternalStore(subscribeConsent, readStoredConsentRaw, () => null)
   const storedConsent = useMemo(() => parseStoredConsent(storedConsentRaw), [storedConsentRaw])
@@ -237,13 +237,13 @@ export default function ConsentBanner() {
   }, [storedConsent])
 
   useEffect(() => {
-    if (!open) return
+    if (!open || (compact && !showSettings)) return
     const previous = document.body.style.overflow
     document.body.style.overflow = "hidden"
     return () => {
       document.body.style.overflow = previous
     }
-  }, [open])
+  }, [open, compact, showSettings])
 
   useEffect(() => {
     const handleOpenSettings = () => {
@@ -283,12 +283,25 @@ export default function ConsentBanner() {
 
   if (!open) return null
 
+  if (compact && !showSettings) return (
+    <section aria-label="Cookie-Einstellungen" className="fixed inset-x-0 bottom-0 z-[120] border-t border-slate-200 bg-white px-4 py-4 shadow-[0_-8px_30px_rgba(10,35,66,0.1)]">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
+        <div className="max-w-lg"><p className="text-sm font-semibold text-[#0a2342]">Deine Privatsphäre. Deine Entscheidung.</p><p className="mt-1 text-xs leading-relaxed text-slate-600">Optionale Cookies helfen uns, Werbung und Nutzung zu messen. Du kannst sie ablehnen und den Vergleich trotzdem nutzen. <Link href="/datenschutz" className="underline">Datenschutz</Link></p></div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => saveDecision(DEFAULT_PREFERENCES)} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-[#0a2342]">Alle optionalen Cookies ablehnen</button>
+          <button type="button" onClick={() => setShowSettings(true)} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-[#0a2342]">Einstellungen</button>
+          <button type="button" onClick={() => saveDecision({ analytics: true, marketing: true, personalization: true })} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-[#0a2342]">Alle Cookies akzeptieren</button>
+        </div>
+      </div>
+    </section>
+  )
+
   return (
     <div className="fixed inset-0 z-[120] flex items-end bg-slate-950/55 p-3 sm:items-center sm:justify-center sm:p-6">
       <div className="w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_30px_80px_rgba(2,6,23,0.35)] sm:p-7">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Consent Mode v2</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Ihre Privatsphäre</div>
             <h2 className="mt-2 text-xl font-semibold text-slate-900 sm:text-2xl">Cookie-Einstellungen</h2>
           </div>
           {!blockingMode ? (

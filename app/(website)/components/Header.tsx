@@ -298,6 +298,7 @@ export default function Header({ reviewStats = null }: HeaderProps) {
         </div>
 
         <nav className="hidden items-center gap-2 lg:flex" aria-label="Hauptnavigation">
+          <Link href="/stromvergleich" onClick={handleNavLinkClick} className="inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900">Stromvergleich</Link>
           <div className="relative group">
             <button
               type="button"
@@ -575,6 +576,8 @@ export default function Header({ reviewStats = null }: HeaderProps) {
             </span>
           </Link>
 
+          <Link href="/stromvergleich" onClick={handleNavLinkClick} className="flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-4 text-base font-semibold text-slate-800">Stromvergleich mit CHECK24</Link>
+
           <Link
             href="/live-beratung"
             onClick={handleNavLinkClick}
@@ -614,4 +617,3 @@ export default function Header({ reviewStats = null }: HeaderProps) {
     </header>
   )
 }
-
