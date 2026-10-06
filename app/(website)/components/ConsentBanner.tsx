@@ -1,108 +1,19 @@
 ﻿"use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
+import { usePathname } from "next/navigation"
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { CONSENT_UPDATED_EVENT, OPEN_CONSENT_EVENT } from "./consent-events"
 
-const CONSENT_KEY = "sepana_consent_v2"
-
-type ConsentState = "granted" | "denied"
-
-type ConsentPreferences = {
-  analytics: boolean
-  marketing: boolean
-  personalization: boolean
-}
-
-type StoredConsent = ConsentPreferences & {
-  version: 2
-  updatedAt: string
-}
-
-type ConsentPayload = {
-  ad_storage: ConsentState
-  analytics_storage: ConsentState
-  ad_user_data: ConsentState
-  ad_personalization: ConsentState
-  personalization_storage: ConsentState
-  functionality_storage: ConsentState
-  security_storage: ConsentState
-  wait_for_update?: number
-}
-
-type Gtag = (command: "consent", action: "default" | "update", params: ConsentPayload) => void
-
-type BrowserWindow = Window & {
-  dataLayer?: unknown[]
-  gtag?: Gtag
-}
-
-const DEFAULT_PREFERENCES: ConsentPreferences = {
-  analytics: false,
-  marketing: false,
-  personalization: false,
-}
-
-function extractPreferences(consent: StoredConsent): ConsentPreferences {
-  return {
-    analytics: consent.analytics,
-    marketing: consent.marketing,
-    personalization: consent.personalization,
-  }
-}
-
-function parseStoredConsent(raw: string | null): StoredConsent | null {
-  if (!raw) return null
-
-  if (raw === "accepted") {
-    return {
-      version: 2,
-      updatedAt: new Date(0).toISOString(),
-      analytics: true,
-      marketing: true,
-      personalization: true,
-    }
-  }
-
-  if (raw === "declined") {
-    return {
-      version: 2,
-      updatedAt: new Date(0).toISOString(),
-      ...DEFAULT_PREFERENCES,
-    }
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as Partial<StoredConsent>
-    if (
-      parsed.version === 2 &&
-      typeof parsed.analytics === "boolean" &&
-      typeof parsed.marketing === "boolean" &&
-      typeof parsed.personalization === "boolean"
-    ) {
-      return {
-        version: 2,
-        updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : new Date().toISOString(),
-        analytics: parsed.analytics,
-        marketing: parsed.marketing,
-        personalization: parsed.personalization,
-      }
-    }
-  } catch {
-    return null
-  }
-
-  return null
-}
-
-function readStoredConsentRaw(): string | null {
-  if (typeof window === "undefined") return null
-  try {
-    return window.localStorage.getItem(CONSENT_KEY)
-  } catch {
-    return null
-  }
-}
+import {
+  applyConsentUpdate,
+  CONSENT_KEY,
+  DEFAULT_PREFERENCES,
+  parseStoredConsent,
+  readStoredConsentRaw,
+  type ConsentPreferences,
+  type StoredConsent,
+} from "@/lib/ads/consent"
 
 function subscribeHydration(onStoreChange: () => void) {
   if (typeof window === "undefined") return () => {}
@@ -121,61 +32,6 @@ function subscribeConsent(onStoreChange: () => void) {
     window.removeEventListener("storage", handleChange)
     window.removeEventListener(CONSENT_UPDATED_EVENT, handleChange)
   }
-}
-
-function ensureGtag(win: BrowserWindow): Gtag {
-  if (!Array.isArray(win.dataLayer)) {
-    win.dataLayer = []
-  }
-
-  if (typeof win.gtag !== "function") {
-    win.gtag = ((...args: Parameters<Gtag>) => {
-      win.dataLayer!.push(args)
-    }) as Gtag
-  }
-
-  return win.gtag
-}
-
-function toConsentPayload(preferences: ConsentPreferences | null): ConsentPayload {
-  if (!preferences) {
-    return {
-      ad_storage: "denied",
-      analytics_storage: "denied",
-      ad_user_data: "denied",
-      ad_personalization: "denied",
-      personalization_storage: "denied",
-      functionality_storage: "granted",
-      security_storage: "granted",
-    }
-  }
-
-  const adPersonalizationGranted = preferences.marketing && preferences.personalization
-
-  return {
-    ad_storage: preferences.marketing ? "granted" : "denied",
-    analytics_storage: preferences.analytics ? "granted" : "denied",
-    ad_user_data: preferences.marketing ? "granted" : "denied",
-    ad_personalization: adPersonalizationGranted ? "granted" : "denied",
-    personalization_storage: preferences.personalization ? "granted" : "denied",
-    functionality_storage: "granted",
-    security_storage: "granted",
-  }
-}
-
-function applyConsentMode(action: "default" | "update", preferences: ConsentPreferences | null) {
-  if (typeof window === "undefined") return
-
-  const win = window as BrowserWindow
-  const gtag = ensureGtag(win)
-  const payload = toConsentPayload(preferences)
-
-  if (action === "default") {
-    gtag("consent", "default", { ...payload, wait_for_update: 500 })
-    return
-  }
-
-  gtag("consent", "update", payload)
 }
 
 function ToggleCard({
@@ -218,22 +74,22 @@ function ToggleCard({
 }
 
 export default function ConsentBanner({ compact = false }: { compact?: boolean }) {
+  const pathname = usePathname()
   const hydrated = useSyncExternalStore(subscribeHydration, () => true, () => false)
   const storedConsentRaw = useSyncExternalStore(subscribeConsent, readStoredConsentRaw, () => null)
   const storedConsent = useMemo(() => parseStoredConsent(storedConsentRaw), [storedConsentRaw])
   const [preferences, setPreferences] = useState<ConsentPreferences>(DEFAULT_PREFERENCES)
   const [showSettings, setShowSettings] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
+  const dialogRef = useRef<HTMLDivElement>(null)
   const blockingMode = hydrated && storedConsent === null
-  const open = hydrated && (blockingMode || manageOpen)
+  // Legal information must remain readable before a visitor decides.
+  const legalPage = pathname === "/datenschutz" || pathname === "/impressum" || pathname === "/agb"
+  const open = hydrated && (manageOpen || (blockingMode && !legalPage))
 
   useEffect(() => {
-    applyConsentMode("default", null)
-  }, [])
-
-  useEffect(() => {
-    if (!storedConsent) return
-    applyConsentMode("update", extractPreferences(storedConsent))
+    // The default belongs in the root bootstrap, once per document.
+    applyConsentUpdate(storedConsent ?? DEFAULT_PREFERENCES)
   }, [storedConsent])
 
   useEffect(() => {
@@ -246,9 +102,48 @@ export default function ConsentBanner({ compact = false }: { compact?: boolean }
   }, [open, compact, showSettings])
 
   useEffect(() => {
+    if (!open) return
+    const panel = dialogRef.current
+    if (!panel) return
+    const previousFocus = document.activeElement as HTMLElement | null
+    const background: Array<{ element: HTMLElement; inert: boolean }> = []
+    let branch: HTMLElement = panel
+    while (branch.parentElement) {
+      for (const sibling of branch.parentElement.children) {
+        if (sibling !== branch && sibling instanceof HTMLElement) {
+          background.push({ element: sibling, inert: sibling.inert })
+          sibling.inert = true
+        }
+      }
+      branch = branch.parentElement
+      if (branch === document.body) break
+    }
+    panel.focus()
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault()
+        if (!blockingMode) { setManageOpen(false); setShowSettings(false) }
+      }
+      if (event.key !== "Tab") return
+      const controls = Array.from(panel!.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),[tabindex="0"]')).filter(element => element.offsetParent !== null)
+      const first = controls[0]
+      const last = controls[controls.length - 1]
+      if (!first || !last) { event.preventDefault(); panel!.focus(); return }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === panel)) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === panel)) { event.preventDefault(); first.focus() }
+    }
+    panel.addEventListener("keydown", onKey)
+    return () => {
+      panel.removeEventListener("keydown", onKey)
+      for (const item of background) item.element.inert = item.inert
+      if (previousFocus?.isConnected) previousFocus.focus()
+    }
+  }, [open, blockingMode, showSettings])
+
+  useEffect(() => {
     const handleOpenSettings = () => {
       const latest = parseStoredConsent(readStoredConsentRaw())
-      setPreferences(latest ? extractPreferences(latest) : DEFAULT_PREFERENCES)
+      setPreferences(latest ? latest : DEFAULT_PREFERENCES)
       setShowSettings(true)
       setManageOpen(true)
     }
@@ -275,6 +170,8 @@ export default function ConsentBanner({ compact = false }: { compact?: boolean }
     }
 
     document.cookie = `${CONSENT_KEY}=${encodeURIComponent(JSON.stringify(nextConsent))}; Path=/; Max-Age=31536000; SameSite=Lax`
+    // Update immediately, before subscribers can load a tag or send an event.
+    applyConsentUpdate(nextPreferences)
     window.dispatchEvent(new Event(CONSENT_UPDATED_EVENT))
     setPreferences(nextPreferences)
     setShowSettings(false)
@@ -298,11 +195,11 @@ export default function ConsentBanner({ compact = false }: { compact?: boolean }
 
   return (
     <div className="fixed inset-0 z-[120] flex items-end bg-slate-950/55 p-3 sm:items-center sm:justify-center sm:p-6">
-      <div className="w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_30px_80px_rgba(2,6,23,0.35)] sm:p-7">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="consent-title" aria-describedby="consent-description" tabIndex={-1} className="max-h-[90dvh] w-full max-w-3xl overflow-y-auto overscroll-contain rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_30px_80px_rgba(2,6,23,0.35)] sm:p-7">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Ihre Privatsphäre</div>
-            <h2 className="mt-2 text-xl font-semibold text-slate-900 sm:text-2xl">Cookie-Einstellungen</h2>
+            <h2 id="consent-title" className="mt-2 text-xl font-semibold text-slate-900 sm:text-2xl">Deine Cookie-Einstellungen</h2>
           </div>
           {!blockingMode ? (
             <button
@@ -318,12 +215,13 @@ export default function ConsentBanner({ compact = false }: { compact?: boolean }
           ) : null}
         </div>
 
-        <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-          Wir nutzen optionale Cookies für Analyse, Marketing und Personalisierung. Sie können alle optionalen
-          Kategorien ablehnen, akzeptieren oder individuell einstellen.
+        <p id="consent-description" className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
+          Mit deiner Zustimmung helfen uns optionale Cookies, unsere Website und Werbung zu verbessern. Wähle,
+          welche Kategorien du erlauben möchtest. Du kannst alle optionalen Cookies akzeptieren, ablehnen oder
+          individuell einstellen.
         </p>
 
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-600">
+        {showSettings ? <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-600">
           Details finden Sie in unserer{" "}
           <Link href="/datenschutz" className="font-semibold text-slate-900 underline underline-offset-2">
             Datenschutzerklärung
@@ -337,7 +235,7 @@ export default function ConsentBanner({ compact = false }: { compact?: boolean }
             AGB
           </Link>
           .
-        </div>
+        </div> : null}
 
         <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between gap-4">

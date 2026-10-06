@@ -43,7 +43,7 @@ test("conversion and resize messages require both the CHECK24 origin and the cur
 test("marketing measurement requires an explicit stored marketing decision", () => {
   const previous = globalThis.window
   try {
-    for (const [stored, expected] of [[null, false], ["broken", false], ["declined", false], [JSON.stringify({ version: 2, analytics: true, marketing: false }), false], [JSON.stringify({ version: 2, marketing: true }), true]]) {
+    for (const [stored, expected] of [[null, false], ["broken", false], ["declined", false], [JSON.stringify({ version: 2, analytics: true, marketing: false, personalization: false }), false], [JSON.stringify({ version: 2, marketing: true }), false], [JSON.stringify({ version: 2, analytics: false, marketing: true, personalization: false }), true]]) {
       globalThis.window = { localStorage: { getItem: () => stored } }
       assert.equal(hasMarketingConsent(), expected)
     }

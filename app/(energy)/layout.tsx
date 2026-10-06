@@ -6,6 +6,6 @@ export default function EnergyLayout({ children }: { children: React.ReactNode }
   return <>
     <GoogleAdsTag id={ENERGY_GOOGLE_ADS_ID} />
     {children}
-    <ConsentBanner compact />
+    <ConsentBanner />
   </>
 }
