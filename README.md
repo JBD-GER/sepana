@@ -39,6 +39,10 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 Die Landingpage liegt unter `/stromvergleich`. Sie wird statisch erstellt. CHECK24 wird erst nach dem aktiven Start des Vergleichs geladen; PLZ, Verbrauch und Ökostrom-Auswahl gelangen direkt an den Partnerrechner. Es gibt keine zusätzliche SEPANA-Datenbank und keine Vorab-Abfrage von Kontaktdaten. Das lokale Familienmotiv wird als 86-KB-WebP geladen.
 
+Die aufklappbare Sparkarte zeigt die vom Auftraggeber bereitgestellte CHECK24-Beispielrechnung vom 06.10.2026 (07546 Gera, 6.600 kWh): 2.833,15 € Grundversorgung minus 1.974,59 € Vergleichstarif = 858,56 € im ersten Jahr. „Bis zu 850 €“ ist als Beispiel gekennzeichnet; die Quelle wird ohne Link angezeigt. Nach dem ersten Laden scrollt jeder weitere iframe-Seitenwechsel zum Anfang des Rechners, entsprechend dem offiziellen CHECK24-Widget. Größenmeldungen allein lösen kein Scrollen aus.
+
+Der CHECK24-Parameter `ref` enthält ausdrücklich `https://www.sepana.de/stromvergleich`. Außerhalb von `www.sepana.de` und `sepana.de` erhalten Aufrufe die Tracking-ID `sepana_strom_funnel_test`, keine GCLID und keine Google-Ads-Funnel-Ereignisse. Bereits erfasste CHECK24-Sales werden dadurch nicht nachträglich verändert.
+
 - Partner-ID: `1164717`, Tracking-ID: `sepana_strom_funnel`.
 - Generierter Referenzcode: `<div style="width: 100%" id="sepana-strom-rechner" data-tid="sepana_strom_funnel" data-scrollto="iframe"></div><script src="https://files.check24.net/widgets/auto/1164717/sepana-strom-rechner/power-iframe.js"></script>`.
 - Die Integration verwendet die Iframe- und Pixel-Parameter dieses offiziellen Widgets direkt. Damit wird dessen automatische Speicherung der GCLID ohne Marketing-Einwilligung vermieden. Resize- und Abschlussnachrichten werden nur vom aktuellen Iframe und von `https://koop.energie.check24.de` angenommen.

@@ -1,6 +1,7 @@
 export const CHECK24_PARTNER_ID = "1164717"
 export const CHECK24_TRACKING_ID = "sepana_strom_funnel"
 export const CHECK24_ORIGIN = "https://koop.energie.check24.de"
+export const CHECK24_REFERRER = "https://www.sepana.de/stromvergleich"
 export const CHECK24_WIDGET_SCRIPT = "https://files.check24.net/widgets/auto/1164717/sepana-strom-rechner/power-iframe.js"
 
 export type PowerComparison = { zipcode: string; consumption: number; eco: boolean }
@@ -11,13 +12,18 @@ export function isValidPowerComparison(value: PowerComparison) {
 
 // These parameters and the conversion message are supplied by the generated
 // CHECK24 widget. A direct iframe avoids its unconditional GCLID localStorage write.
-export function buildPowerComparisonUrl(value: PowerComparison, mobile: boolean, gclid?: string) {
+export function isLivePowerHost(hostname: string) {
+  return hostname === "www.sepana.de" || hostname === "sepana.de"
+}
+
+export function buildPowerComparisonUrl(value: PowerComparison, mobile: boolean, gclid?: string, testMode = false) {
   if (!isValidPowerComparison(value)) throw new Error("Invalid power comparison")
-  const trackingId = gclid && /^[A-Za-z0-9_-]{1,250}$/.test(gclid)
-    ? `${CHECK24_TRACKING_ID}_GCLID:${gclid}` : CHECK24_TRACKING_ID
+  const baseTrackingId = testMode ? `${CHECK24_TRACKING_ID}_test` : CHECK24_TRACKING_ID
+  const trackingId = !testMode && gclid && /^[A-Za-z0-9_-]{1,250}$/.test(gclid)
+    ? `${baseTrackingId}_GCLID:${gclid}` : baseTrackingId
   const url = new URL(`/${CHECK24_PARTNER_ID}/default/strom/`, CHECK24_ORIGIN)
   url.search = new URLSearchParams({
-    tracking_id: trackingId, tracking_id2: "264", zipcode: value.zipcode,
+    tracking_id: trackingId, tracking_id2: "264", ref: CHECK24_REFERRER, zipcode: value.zipcode,
     totalconsumption: String(value.consumption), calculate: "yes",
     deviceoutput: mobile ? "mobile" : "desktop", considerdeposit: "no",
     considerdiscounts: "yes", paymentperiod: "month", priceguarantee: "yes",

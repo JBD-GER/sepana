@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import Image from "next/image"
-import { buildPowerComparisonUrl, buildPowerTrackingPixelUrl, CHECK24_ORIGIN, isTrustedCheck24Message, isValidPowerComparison, type PowerComparison } from "@/lib/energy/check24"
+import { buildPowerComparisonUrl, buildPowerTrackingPixelUrl, CHECK24_ORIGIN, isLivePowerHost, isTrustedCheck24Message, isValidPowerComparison, type PowerComparison } from "@/lib/energy/check24"
 import { hasMarketingConsent } from "@/lib/ads/consent"
 import { trackEnergyEvent } from "@/lib/ads/energy"
 import styles from "./strom.module.css"
@@ -11,6 +11,7 @@ const HOUSEHOLDS = [{ people: 1, kwh: 2000 }, { people: 2, kwh: 3500 }, { people
 
 function ComparisonFrame({ url, onEdit }: { url: string; onEdit: () => void }) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const firstFrameLoad = useRef(true)
   const conversionSent = useRef(false)
   const transactionId = useRef<string | null>(null)
   const [height, setHeight] = useState(1100)
@@ -21,7 +22,7 @@ function ComparisonFrame({ url, onEdit }: { url: string; onEdit: () => void }) {
     const timer = window.setTimeout(() => setSlow(true), 12000)
     function handleMessage(event: MessageEvent) {
       if (!isTrustedCheck24Message(event, iframeRef.current?.contentWindow ?? null)) return
-      if (event.data === "funnel=conversion" && !conversionSent.current) {
+      if (event.data === "funnel=conversion" && isLivePowerHost(window.location.hostname) && !conversionSent.current) {
         transactionId.current ??= crypto.randomUUID()
         conversionSent.current = trackEnergyEvent("strom_antrag_abgeschlossen", transactionId.current)
       }
@@ -47,6 +48,13 @@ function ComparisonFrame({ url, onEdit }: { url: string; onEdit: () => void }) {
     {slow && !loaded && <p className={styles.fallback}>Der Rechner lädt länger als erwartet. <a href={url} target="_blank" rel="noopener sponsored">Vergleich direkt bei CHECK24 öffnen</a></p>}
     <iframe ref={iframeRef} src={url} title="CHECK24 Stromtarife vergleichen und online beantragen" style={{ width: "100%", height, border: 0 }} onLoad={() => {
       iframeRef.current?.contentWindow?.postMessage(window.location.origin, CHECK24_ORIGIN)
+      // Match CHECK24's widget: keep the initial comparison position, then
+      // return to the start of the iframe when a new form step loads.
+      if (firstFrameLoad.current) { firstFrameLoad.current = false; return }
+      requestAnimationFrame(() => iframeRef.current?.scrollIntoView({
+        behavior: "instant",
+        block: "start",
+      }))
     }} />
     <Image src={buildPowerTrackingPixelUrl(url)} width={1} height={1} alt="" unoptimized className={styles.trackingPixel} />
     <p className={styles.partnerNote}>Vergleich und Antrag werden durch CHECK24 bereitgestellt. Tarifdetails und Vertragsbedingungen findest du im jeweiligen Angebot.</p>
@@ -70,9 +78,10 @@ export default function PowerFunnel() {
     if (!/^\d{5}$/.test(values.zipcode)) { setError("Bitte gib eine fünfstellige deutsche Postleitzahl ein."); plzRef.current?.focus(); return }
     if (!isValidPowerComparison(values)) { setError("Bitte gib einen Jahresverbrauch zwischen 500 und 100.000 kWh ein."); return }
     setError("")
-    const gclid = hasMarketingConsent() ? new URLSearchParams(window.location.search).get("gclid") ?? undefined : undefined
-    setComparisonUrl(buildPowerComparisonUrl(values, window.innerWidth < 760, gclid))
-    trackEnergyEvent("strom_vergleich_start")
+    const live = isLivePowerHost(window.location.hostname)
+    const gclid = live && hasMarketingConsent() ? new URLSearchParams(window.location.search).get("gclid") ?? undefined : undefined
+    setComparisonUrl(buildPowerComparisonUrl(values, window.innerWidth < 760, gclid, !live))
+    if (live) trackEnergyEvent("strom_vergleich_start")
     requestAnimationFrame(() => { resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); resultRef.current?.focus({ preventScroll: true }) })
   }
 

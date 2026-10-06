@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildPowerComparisonUrl, CHECK24_ORIGIN, CHECK24_TRACKING_ID, isTrustedCheck24Message, isValidPowerComparison } from "../lib/energy/check24.ts"
+import { buildPowerComparisonUrl, CHECK24_ORIGIN, CHECK24_REFERRER, CHECK24_TRACKING_ID, isLivePowerHost, isTrustedCheck24Message, isValidPowerComparison } from "../lib/energy/check24.ts"
 import { hasMarketingConsent } from "../lib/ads/consent.ts"
 
 const values = { zipcode: "01067", consumption: 3500, eco: false }
@@ -13,6 +13,18 @@ test("the affiliate comparison preserves leading zeroes and the correct partner 
   assert.equal(url.searchParams.get("tracking_id"), CHECK24_TRACKING_ID)
   assert.equal(url.searchParams.get("totalconsumption"), "3500")
   assert.equal(url.searchParams.get("calculate"), "yes")
+  assert.equal(url.searchParams.get("ref"), CHECK24_REFERRER)
+})
+
+test("local and preview comparisons cannot be attributed as live advertising conversions", () => {
+  for (const hostname of ["localhost", "127.0.0.1", "sepana-preview.vercel.app", "www.sepana.de.evil.example"]) {
+    assert.equal(isLivePowerHost(hostname), false)
+  }
+  assert.equal(isLivePowerHost("www.sepana.de"), true)
+  assert.equal(isLivePowerHost("sepana.de"), true)
+  const url = new URL(buildPowerComparisonUrl(values, false, "fake-click-id", true))
+  assert.equal(url.searchParams.get("tracking_id"), `${CHECK24_TRACKING_ID}_test`)
+  assert.equal(url.searchParams.get("ref"), "https://www.sepana.de/stromvergleich")
 })
 
 test("invalid location and consumption never create a partner request", () => {

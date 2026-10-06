@@ -3,6 +3,7 @@ import Image from "next/image"
 import Link from "next/link"
 import OpenConsentButton from "@/app/(website)/components/OpenConsentButton"
 import PowerFunnel from "./PowerFunnel"
+import SavingsExample from "./SavingsExample"
 import styles from "./strom.module.css"
 
 export const metadata: Metadata = {
@@ -38,6 +39,7 @@ export default function PowerPage() {
           <h1 id="strom-title">Stromtarife vergleichen.<br /><span>Einfach weniger zahlen.</span></h1>
           <p className={styles.heroText}>Mach mehr aus deinem Haushaltsbudget. Vergleiche Stromtarife für dein Zuhause und beantrage deinen Wechsel bequem online.</p>
           <ul className={styles.heroChecks}><li><Check />Kostenlos & unverbindlich vergleichen</li><li><Check />100 % online beantragen</li><li><Check />Mit der Vergleichstechnologie von CHECK24</li></ul>
+          <SavingsExample />
           <div className={styles.heroTrust}><div className={styles.trustNumber}>10.000<span>+</span></div><div>vertrauen SEPANA<small>über unsere Angebote hinweg</small></div></div>
         </div>
         <PowerFunnel />
