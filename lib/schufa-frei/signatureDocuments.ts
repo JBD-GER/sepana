@@ -396,8 +396,8 @@ export async function renderSchufaFreeSeparateMandatePdf(input: {
   cursorY = 550
 
   const introParagraphs = [
-    `Hiermit beauftrage ich die ${SCHUFA_FREE_PROVISION_COMPANY.name}, ${SCHUFA_FREE_PROVISION_COMPANY.street}, ${SCHUFA_FREE_PROVISION_COMPANY.city}, vertreten durch ${advisorName}, ergänzend zu dem bestehenden Darlehensvermittlungsvertrag mit der Beschaffung eines schufafreien Darlehens.`,
-    `Der Auftraggeber zahlt für die erhaltenen Beratungs- und Vermittlungsleistungen in Bezug auf die Beschaffung eines schufafreien Darlehens eine pauschale Vergütung in Höhe von ${formatEuro(input.amountTotal)} an den Auftragnehmer.`,
+    `Hiermit beauftrage ich die ${SCHUFA_FREE_PROVISION_COMPANY.name}, ${SCHUFA_FREE_PROVISION_COMPANY.street}, ${SCHUFA_FREE_PROVISION_COMPANY.city}, vertreten durch ${advisorName}, ergänzend zu dem bestehenden Darlehensvermittlungsvertrag mit der Beschaffung eines Privatdarlehens.`,
+    `Der Auftraggeber zahlt für die erhaltenen Beratungs- und Vermittlungsleistungen in Bezug auf die Beschaffung eines Privatdarlehens eine pauschale Vergütung in Höhe von ${formatEuro(input.amountTotal)} an den Auftragnehmer.`,
     "Der Betrag ist erst mit Gewährung des Darlehens durch die finanzierende Bank zur Zahlung fällig und wird gegenüber dem Auftraggeber mittels gesonderter Rechnung abgerechnet.",
     "Die Vergütung deckt ausschließlich die Leistungen des Auftragnehmers ab und ist unabhängig von den weiteren Kosten und Gebühren des Kredites, die sich aus den vorvertraglichen Informationen der finanzierenden Bank ergeben.",
     "Der Auftrag kommt mit der Vornahme der Vermittlungsleistungen durch den Auftragnehmer zustande. Der Auftraggeber verzichtet auf den Zugang einer gesonderten Annahmeerklärung.",

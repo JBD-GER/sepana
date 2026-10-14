@@ -135,7 +135,7 @@ export function buildInsuranceInvoiceDescription(opts: {
   const reference = buildInsuranceInvoicePaymentReference(opts.partnerCode, opts.caseRef)
 
   return [
-    "Versicherungsprovision fuer Kredit ohne Schufa",
+    "Versicherungsprovision fuer Privatkredit",
     opts.caseRef ? `Fall ${opts.caseRef}` : null,
     opts.partnerCode ? `Partner-ID ${opts.partnerCode}` : null,
     reference ? `Verwendungszweck ${reference}` : null,
@@ -158,7 +158,7 @@ export function buildInsuranceInvoiceCancellationDescription(opts: {
   const reference = buildInsuranceInvoicePaymentReference(opts.partnerCode, opts.caseRef)
 
   return [
-    "Stornierung der Versicherungsprovision fuer Kredit ohne Schufa",
+    "Stornierung der Versicherungsprovision fuer Privatkredit",
     opts.caseRef ? `Fall ${opts.caseRef}` : null,
     opts.partnerCode ? `Partner-ID ${opts.partnerCode}` : null,
     opts.originalInvoiceNumber ? `Originalrechnung ${opts.originalInvoiceNumber}` : null,

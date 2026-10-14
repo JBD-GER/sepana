@@ -59,7 +59,7 @@ async function syncSchufaFreeAdvisorStatusForBankSubmission(admin: SupabaseClien
     actorRole: "system",
     type: "schufa_free_bank_submission_ready",
     title: "Bereit für Bankeinreichung",
-    body: "Das Schufa-frei-Vertragspaket ist vollständig unterschrieben und kann jetzt eingereicht werden.",
+    body: "Das Privatkredit-Vertragspaket ist vollständig unterschrieben und kann jetzt eingereicht werden.",
     meta: {
       advisor_status: "bankeinreichung",
     },
@@ -141,8 +141,8 @@ export async function maybeNotifyAdvisorAboutCompletedSchufaFreeContractPackage(
       .filter((value): value is string => Boolean(value))
 
     const html = buildEmailHtml({
-      title: "Schufa-frei-Vertrag vollständig abgeschlossen",
-      intro: "Alle Pflichtdokumente des Schufa-frei-Vertragspakets wurden vom Kunden abgeschlossen.",
+      title: "Privatkredit-Vertrag vollständig abgeschlossen",
+      intro: "Alle Pflichtdokumente des Privatkredit-Vertragspakets wurden vom Kunden abgeschlossen.",
       steps: requiredSteps.length
         ? requiredSteps
         : [
@@ -152,13 +152,13 @@ export async function maybeNotifyAdvisorAboutCompletedSchufaFreeContractPackage(
           ],
       ctaLabel: "Fall öffnen",
       ctaUrl,
-      preheader: "Alle Pflichtdokumente des Schufa-frei-Vertragspakets sind abgeschlossen.",
-      eyebrow: "Schufa-frei Signaturstatus",
+      preheader: "Alle Pflichtdokumente des Privatkredit-Vertragspakets sind abgeschlossen.",
+      eyebrow: "Privatkredit Signaturstatus",
     })
 
     await sendEmail({
       to: caseMeta.advisor_email,
-      subject: "Schufa-frei-Vertrag vollständig abgeschlossen",
+      subject: "Privatkredit-Vertrag vollständig abgeschlossen",
       html,
     }).catch(() => null)
   }
@@ -168,7 +168,7 @@ export async function maybeNotifyAdvisorAboutCompletedSchufaFreeContractPackage(
     actorId: null,
     actorRole: "system",
     type: "schufa_free_signature_package_completed",
-    title: "Schufa-frei-Vertrag vollständig abgeschlossen",
+    title: "Privatkredit-Vertrag vollständig abgeschlossen",
     body: "Alle Pflichtdokumente des Vertragspakets wurden abgeschlossen.",
     meta: {
       completed_request_id: completedRequestId ?? null,

@@ -89,7 +89,7 @@ export async function runSchufaFreePrecheckDecisionAutomation(input: {
                 Bei verheirateten Paaren ist es oft sinnvoll, die Person mit dem hoeheren Nettoeinkommen als ersten
                 Kreditnehmer einzutragen, weil Banken sich primaer den ersten Kreditnehmer anschauen. Wenn Sie das
                 aendern moechten, starten Sie bitte eine neue Anfrage ueber
-                <a href="${restartRequestUrl}" style="color:#92400e; font-weight:700; text-decoration:underline;"> kredit-ohne-schufa</a>.
+                <a href="${restartRequestUrl}" style="color:#92400e; font-weight:700; text-decoration:underline;"> unsere Kreditanfrage</a>.
               </p>
             </div>
           `,

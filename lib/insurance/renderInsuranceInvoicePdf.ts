@@ -188,8 +188,8 @@ export async function renderInsuranceInvoicePdf(input: {
     page,
     font,
     isCancellation
-      ? "Diese Stornorechnung dokumentiert die intern rueckabgewickelte Versicherungsprovision fuer den weitergeleiteten Kredit-ohne-Schufa-Fall."
-      : "Diese Rechnung dokumentiert die intern angelegte Versicherungsprovision fuer den weitergeleiteten Kredit-ohne-Schufa-Fall.",
+      ? "Diese Stornorechnung dokumentiert die intern rueckabgewickelte Versicherungsprovision fuer den weitergeleiteten Privatkredit-Fall."
+      : "Diese Rechnung dokumentiert die intern angelegte Versicherungsprovision fuer den weitergeleiteten Privatkredit-Fall.",
     40,
     cursorY,
     10,

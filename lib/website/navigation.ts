@@ -55,12 +55,12 @@ export const WEBSITE_HEADER_PAGE_GROUPS: WebsiteHeaderPageGroup[] = [
       },
       {
         href: "/kredit-ohne-schufa",
-        label: "Kredit ohne Schufa",
-        description: "Kredit trotz negativer Schufa, Online abschließbar.",
-        ctaLabel: "Zum Kredit ohne Schufa",
-        ctaTitle: "Kredit ohne Schufa direkt pruefen",
+        label: "Privatkredit",
+        description: "Kreditanfrage digital stellen und individuell prüfen lassen.",
+        ctaLabel: "Zum Privatkredit",
+        ctaTitle: "Privatkredit direkt prüfen",
         ctaText:
-          "Wenn fuer Sie ein Kredit ohne Schufa relevant ist, wechseln Sie direkt in unseren passenden Ablauf und pruefen Sie die Voraussetzungen strukturiert.",
+          "Stellen Sie Ihre Privatkreditanfrage digital und lassen Sie Ihre Möglichkeiten individuell prüfen.",
       },
       {
         href: "/privatkredit/hochzeitskredit",

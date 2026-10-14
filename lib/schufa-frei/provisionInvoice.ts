@@ -218,7 +218,7 @@ export function buildSchufaFreeProvisionCancellationInvoiceTitle() {
 export function buildLegacySchufaFreeProvisionDescription(loanAmount: number) {
   const { netAmount, vatAmount, grossAmount } = getSchufaFreeProvisionBreakdown(loanAmount)
 
-  return `Vorauszahlung auf die Serviceprovision fuer Kredit ohne Schufa (${formatPercent(
+  return `Vorauszahlung auf die Serviceprovision fuer Privatkredit (${formatPercent(
     SCHUFA_FREE_PROVISION_RATE
   )} netto von ${formatEuro(loanAmount)} = ${formatEuro(netAmount)}, zzgl. ${formatPercent(
     SCHUFA_FREE_PROVISION_VAT_RATE
@@ -233,7 +233,7 @@ export function buildLegacySchufaFreeProvisionCancellationDescription(opts: {
   const originalInvoiceNumber = trimOrNull(opts.originalInvoiceNumber)
   const referencePart = originalInvoiceNumber ? ` zur Vorauszahlungsrechnung ${originalInvoiceNumber}` : ""
 
-  return `Stornierung${referencePart} fuer Kredit ohne Schufa (${formatPercent(
+  return `Stornierung${referencePart} fuer Privatkredit (${formatPercent(
     SCHUFA_FREE_PROVISION_RATE
   )} netto von ${formatEuro(opts.loanAmount)} = ${formatEuro(-netAmount)}, zzgl. ${formatPercent(
     SCHUFA_FREE_PROVISION_VAT_RATE
@@ -243,7 +243,7 @@ export function buildLegacySchufaFreeProvisionCancellationDescription(opts: {
 export function buildSchufaFreeProvisionDescription(amountTotal: number) {
   const { netAmount, vatAmount, grossAmount } = getSchufaFreeProvisionBreakdownFromGrossAmount(amountTotal)
 
-  return `Servicepauschale fuer Kredit ohne Schufa (netto ${formatEuro(netAmount)}, zzgl. ${formatPercent(
+  return `Servicepauschale fuer Privatkredit (netto ${formatEuro(netAmount)}, zzgl. ${formatPercent(
     SCHUFA_FREE_PROVISION_VAT_RATE
   )} MwSt. ${formatEuro(vatAmount)}, Gesamtbetrag ${formatEuro(grossAmount)}).`
 }
@@ -256,7 +256,7 @@ export function buildSchufaFreeProvisionCancellationDescription(opts: {
   const originalInvoiceNumber = trimOrNull(opts.originalInvoiceNumber)
   const referencePart = originalInvoiceNumber ? ` zur Servicepauschalenrechnung ${originalInvoiceNumber}` : ""
 
-  return `Stornierung${referencePart} fuer Kredit ohne Schufa (netto ${formatEuro(-netAmount)}, zzgl. ${formatPercent(
+  return `Stornierung${referencePart} fuer Privatkredit (netto ${formatEuro(-netAmount)}, zzgl. ${formatPercent(
     SCHUFA_FREE_PROVISION_VAT_RATE
   )} MwSt. ${formatEuro(-vatAmount)}, Gesamtbetrag ${formatEuro(-grossAmount)}).`
 }

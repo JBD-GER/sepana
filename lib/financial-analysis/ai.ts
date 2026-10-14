@@ -412,7 +412,7 @@ export async function generateFinancialAnalysisDraft(input: {
     "householdCalculation ist die wichtigste Grundlage für die spätere grafische Darstellung. Rechne monatlich: Einnahmen - belegte Fixkosten - bankübliche Haushalts-/Lebenshaltungspauschale - laufende Raten/Verpflichtungen - variable Kosten - Sicherheitsabschlag = freie Liquidität.",
     "bankHouseholdAllowanceMonthly soll eine realistische bankübliche Pauschale für Lebenshaltung/Haushalt sein. Wenn Personenzahl unbekannt ist, nutze eine vorsichtige Schätzung und erkläre das in assessment.",
     "Nimm in recommendations und actionPlan immer einen klaren Baustein auf: zusätzliche Einnahmen durch eine Nebentätigkeit prüfen und, wenn zeitlich, gesundheitlich und rechtlich realistisch möglich, aufnehmen. Formuliere seriös mit Hinweis auf Anmeldung, Steuer/Sozialversicherung und Belastbarkeit.",
-    "Schufa-Hinweise dürfen nur erstellt werden, wenn ausdrücklich eine Schufa-Auskunft vorliegt. Ohne Schufa-Auskunft muss schufaNotes kurz erklären, dass dieser Teil nach Upload ergänzt wird.",
+    "Schufa-Hinweise dürfen nur erstellt werden, wenn ausdrücklich eine Schufa-Auskunft vorliegt. Solange keine Schufa-Auskunft vorliegt, muss schufaNotes kurz erklären, dass dieser Teil nach Upload ergänzt wird.",
     "Formatiere die Texte gut lesbar mit kurzen Abschnitten, Überschriften und Bulletpoints als Klartext. Keine Markdown-Tabellen.",
   ].join("\n")
 

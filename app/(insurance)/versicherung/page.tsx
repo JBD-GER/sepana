@@ -238,7 +238,7 @@ export default async function InsuranceDashboardPage({
               {profile?.company_name ?? profile?.display_name ?? "Versicherungsbereich"}
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-200/90">
-              Alle intern weitergeleiteten Kredit-ohne-Schufa-Faelle mit kompletter Dateneinsicht, Notizen,
+              Alle intern weitergeleiteten Privatkredit-Faelle mit kompletter Dateneinsicht, Notizen,
               Statuspflege, Dokumentdownloads und interner Provisionsrechnung.
             </p>
           </div>
@@ -300,7 +300,7 @@ export default async function InsuranceDashboardPage({
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Falluebersicht</div>
             <h2 className="mt-1 text-lg font-semibold text-slate-900">Alle uebergebenen Faelle</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Sichtbar sind negative Vorpruefungen und manuell weitergeleitete Kredit-ohne-Schufa-Faelle.
+              Sichtbar sind negative Vorpruefungen und manuell weitergeleitete Privatkredit-Faelle.
             </p>
           </div>
           <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600">
