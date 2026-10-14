@@ -558,6 +558,7 @@ type EmailAttachment = {
 }
 
 export async function sendEmail(opts: {
+  idempotencyKey?: string
   to: string
   subject: string
   html: string
@@ -576,7 +577,9 @@ export async function sendEmail(opts: {
     headers: {
       Authorization: `Bearer ${key}`,
       "content-type": "application/json",
+      ...(opts.idempotencyKey ? { "Idempotency-Key": opts.idempotencyKey } : {}),
     },
+    signal: opts.idempotencyKey ? AbortSignal.timeout(15000) : undefined,
     body: JSON.stringify({
       from: normalizedFrom,
       to: opts.to,

@@ -162,7 +162,7 @@ export default async function CasesPage({
     requestedProduct ??
     ((dashboardData?.openCases ?? 0) === 1 ? normalizeProduct(dashboardData?.latestCaseType ?? null) : null) ??
     "baufi"
-  const productLabel = product === "konsum" ? "Privatkredit" : product === "schufa_frei" ? "Kredit ohne Schufa" : "Baufinanzierung"
+  const productLabel = product === "konsum" ? "Privatkredit" : product === "schufa_frei" ? "Privatkredit" : "Baufinanzierung"
   const res = await authFetch(`/api/app/cases/list?limit=10&page=${requestedPage}&caseType=${product}`).catch(() => null)
   const data: CaseListResp = res && res.ok ? await res.json() : { cases: [], page: 1, pageSize: 10, total: 0, totalPages: 1 }
 
@@ -184,7 +184,7 @@ export default async function CasesPage({
                 {product === "konsum"
                   ? "Hier fuehren Sie Ihren Privatkredit Schritt fuer Schritt weiter: Angaben, Live-Angebote, Unterlagen und Abschluss."
                   : product === "schufa_frei"
-                    ? "Hier sehen Sie den aktuellen Stand Ihrer Schufa-frei Anfrage inklusive Unterlagen und SEPANA-Status."
+                    ? "Hier sehen Sie den aktuellen Stand Ihrer Privatkredit Anfrage inklusive Unterlagen und SEPANA-Status."
                     : `Hier sehen Sie den aktuellen Stand Ihrer ${productLabel} inklusive Unterlagen und Angeboten.`}
               </p>
             </div>
@@ -207,7 +207,7 @@ export default async function CasesPage({
             {([
               { id: "baufi" as const, label: "Baufinanzierung" },
               { id: "konsum" as const, label: "Privatkredit" },
-              { id: "schufa_frei" as const, label: "Kredit ohne Schufa" },
+              { id: "schufa_frei" as const, label: "Privatkredit" },
             ] as const).map((tab) => {
               const active = product === tab.id
               return (

@@ -16,14 +16,14 @@ import {
 } from "@/lib/websiteReviews"
 
 export const metadata: Metadata = {
-  title: "Kredit ohne Schufa | Kredit trotz negativer Schufa | SEPANA",
+  title: "Privatkredit | Privatkredit anfragen | SEPANA",
   description:
-    "Kredit ohne Schufa anfragen: auch bei negativer Schufa. Diskrete Vorprüfung, klare Einschätzung und digitaler Ablauf.",
+    "Privatkredit anfragen: Angaben erfassen, Antrag vervollständigen und persönlich begleitet werden.",
   alternates: { canonical: "/kredit-ohne-schufa" },
   openGraph: {
-    title: "Kredit ohne Schufa | Kredit trotz negativer Schufa | SEPANA",
+    title: "Privatkredit | Privatkredit anfragen | SEPANA",
     description:
-      "Diskrete Vorprüfung für Kredit ohne Schufa. Klarer Ablauf, persönliche Begleitung und digitaler Antrag bei passender Strecke.",
+      "Diskrete Vorprüfung für Privatkredit. Klarer Ablauf, persönliche Begleitung und digitaler Antrag bei passender Strecke.",
     url: "/kredit-ohne-schufa",
     type: "website",
   },
@@ -35,9 +35,9 @@ type ReviewCard = {
 }
 
 const HERO_CHIPS = [
-  "Kredit ohne Schufa",
-  "Kredit trotz negativer Schufa",
-  "Ohne klassische Schufa-Abfrage",
+  "Privatkredit",
+  "Privatkredit anfragen",
+  "Digitaler Antrag",
 ] as const
 
 const TRUST_ITEMS = [
@@ -47,10 +47,10 @@ const TRUST_ITEMS = [
 ] as const
 
 const BENEFIT_ITEMS = [
-  "Für Fälle mit negativer Schufa oder bewusst ohne klassische Schufa-Strecke.",
+  "Für Ihre persönlichen Finanzierungswünsche.",
   "Diskreter Einstieg mit klarer erster Einschätzung.",
   "Online anfragbar und strukturiert begleitet.",
-  "Vollständiger Antrag erst nach positiver Vorprüfung.",
+  "Schritt für Schritt zum vollständigen Antrag.",
 ] as const
 
 const PROCESS_STEPS = [
@@ -73,11 +73,11 @@ const PROCESS_STEPS = [
 
 const CONTENT_SECTIONS = [
   {
-    eyebrow: "Kredit trotz negativer Schufa",
+    eyebrow: "Privatkredit anfragen",
     title: "Wofür diese Anfrage gedacht ist",
     paragraphs: [
-      "Diese Strecke richtet sich an Menschen, die eine diskrete Anfrage außerhalb der üblichen klassischen Schufa-Strecke suchen und dabei erst mit wenig sensiblen Angaben starten möchten.",
-      "Mit Kredit ohne Schufa ist meist eine Anfrage gemeint, die nicht über die übliche klassische Schufa-Strecke aus einem Standardvergleich läuft. Genau das ist für viele Interessenten relevant, wenn bereits eine negative Schufa vorliegt oder kein zusätzlicher klassischer Eintrag aus der üblichen Anfrage gewünscht ist.",
+      "Diese Kreditanfrage führt Sie Schritt für Schritt durch die erforderlichen Angaben.",
+      "Creditolo ergänzt uns in der Anfragenbearbeitung. Vollständige Anträge werden nach Ihrer Einwilligung automatisch an Creditolo übermittelt.",
       "Entscheidend ist dabei eine saubere Reihenfolge: zuerst die erste Vorprüfung mit wenig sensiblen Angaben, danach erst der vollständige Antrag. So bleibt der Einstieg einfacher und gleichzeitig klar.",
     ],
   },
@@ -85,7 +85,7 @@ const CONTENT_SECTIONS = [
     eyebrow: "Mehr zum Thema",
     title: "Bonität, Voraussetzungen und Kreditprüfung",
     paragraphs: [
-      "Eine negative Schufa bedeutet nicht automatisch, dass jede Möglichkeit ausgeschlossen ist. Relevant sind auch Beschäftigungsdauer, Staatsangehörigkeit, Familienstand, Unterhaltspflichten und die späteren vollständigen Antragsdaten.",
+      "Für die Bearbeitung benötigt Creditolo Ihre vollständigen Antragsdaten, einschließlich Beschäftigung, Einkommen und Haushaltsangaben.",
       "Deshalb ist diese Anfrage bewusst nicht als überladenes Standardformular gebaut. Erst wenn die Strecke grundsätzlich passt, werden die vollständigen Antragsdaten erfasst.",
     ],
   },
@@ -93,9 +93,9 @@ const CONTENT_SECTIONS = [
 
 const FAQ_ITEMS = [
   {
-    question: "Kann ich auch mit negativer Schufa anfragen?",
+    question: "Wer bearbeitet meine Kreditanfrage?",
     answer:
-      "Ja. Genau dafür ist diese Strecke gedacht. Die erste Vorprüfung zeigt, ob Ihr Fall grundsätzlich passt.",
+      "Creditolo ergänzt SEPANA bei der Bearbeitung. Ihr vollständiger Antrag wird nach Ihrer Einwilligung automatisch an Creditolo weitergeleitet.",
   },
   {
     question: "Kann ich den Antrag online abschließen?",
@@ -118,14 +118,14 @@ const FAQ_ITEMS = [
       "Typische Varianten dieser Strecke liegen bei 3.500 EUR, 5.000 EUR, 7.500 EUR und 10.000 EUR mit vorgegebenen Laufzeiten.",
   },
   {
-    question: "Was bedeutet ohne klassischen Schufa-Eintrag?",
+    question: "Wie wird meine Anfrage bearbeitet?",
     answer:
-      "Gemeint ist der Wunsch, nicht über die übliche klassische Vergleichs- und Anfrage-Strecke zu gehen. Genau dafür ist diese Seite aufgebaut.",
+      "Nach dem vollständigen Antrag und Ihrer Einwilligung wird Ihre Anfrage zur ergänzenden Bearbeitung an Creditolo weitergeleitet.",
   },
   {
     question: "Wie geht es nach der Vorprüfung weiter?",
     answer:
-      "Wenn die erste Vorprüfung positiv ausfällt, gelangen Sie direkt in den vollständigen Antrag und ergänzen dort die restlichen Angaben.",
+      "Sie gelangen in den vollständigen Antrag und ergänzen dort die restlichen Angaben.",
   },
 ] as const
 
@@ -169,7 +169,7 @@ function formatEuro(value: number | null) {
 
 function mapReviews(reviews: WebsiteReview[]): ReviewCard[] {
   const schufaReviews = reviews
-    .filter((item) => item.category === "schufa_frei")
+    .filter((item) => item.category === "schufa_frei" && !/schufa/i.test(item.quote))
     .slice(0, 3)
     .map((item) => ({
       quote: item.quote,
@@ -179,7 +179,7 @@ function mapReviews(reviews: WebsiteReview[]): ReviewCard[] {
   if (schufaReviews.length) return schufaReviews
 
   const privatkreditReviews = reviews
-    .filter((item) => item.category === "privatkredit")
+    .filter((item) => item.category === "privatkredit" && !/schufa/i.test(item.quote))
     .slice(0, 3)
     .map((item) => ({
       quote: item.quote,
@@ -233,18 +233,18 @@ export default async function SchufaFreeLandingPage() {
         <div className="relative grid gap-6 xl:grid-cols-[1.1fr_0.9fr] xl:items-center">
           <div>
             <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-100">
-              SEPANA Sonderstrecke
+              SEPANA Privatkredit
             </div>
             <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
-              Kredit ohne Schufa.
+              Privatkredit.
               <br />
-              Trotz negativer Schufa.
+              Persönlich begleitet.
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-100/95 sm:text-lg">
-              Sie erhalten bei Banken nur Absagen auf Ihren Kreditwunsch?
+              Sie möchten Ihren Kreditwunsch digital anfragen?
               <br />
-              Für Fälle, in denen keine klassische Schufa-Abfrage im üblichen Anfrageprozess gewünscht ist. Die
-              Vorprüfung startet diskret und prüft Schritt für Schritt, welche Möglichkeiten bestehen.
+              Erfassen Sie Ihre Angaben Schritt für Schritt. Nach vollständigem Antrag und Ihrer Einwilligung
+              leiten wir Ihre Anfrage zur ergänzenden Bearbeitung an Creditolo weiter.
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2 text-xs text-slate-100/95">
@@ -285,10 +285,10 @@ export default async function SchufaFreeLandingPage() {
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-900/15 to-transparent" />
                 <div className="absolute inset-x-3 bottom-3 rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200">
-                    Kredit trotz negativer Schufa
+                    Privatkredit anfragen
                   </div>
                   <div className="mt-1 text-sm font-semibold text-white">
-                    Sie erhalten nur Ablehnungen bei den Banken? Bei uns nicht.
+                    Ihre persönliche Kreditanfrage, Schritt für Schritt.
                   </div>
                 </div>
               </div>

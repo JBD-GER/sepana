@@ -8,12 +8,11 @@ import {
   getSchufaFreeProfessionLabel,
 } from "@/lib/schufa-frei/application"
 import { normalizeSchufaFreeDocumentRequest } from "@/lib/schufa-frei/documentRecommendations"
-import { hasDedicatedSkagVariantCredentials } from "@/lib/skag/config"
 import { resolvePublicOnlinekreditCaseAccess } from "@/lib/onlinekredit/caseAccess"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export const metadata: Metadata = {
-  title: "Kredit ohne Schufa Antrag | SEPANA",
+  title: "Privatkredit Antrag | SEPANA",
   robots: { index: false, follow: false },
 }
 
@@ -49,7 +48,7 @@ export default async function SchufaFreeApplicationPage({
     return (
       <div className="rounded-[28px] border border-amber-200 bg-white p-5 shadow-sm">
         <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700">
-          Kredit ohne Schufa
+          Privatkredit
         </div>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Link ungültig</h1>
         <p className="mt-2 text-sm text-slate-600">Für diese Seite fehlt der öffentliche Fallzugriff.</p>
@@ -75,7 +74,7 @@ export default async function SchufaFreeApplicationPage({
     return (
       <div className="rounded-[28px] border border-amber-200 bg-white p-5 shadow-sm">
         <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700">
-          Kredit ohne Schufa
+          Privatkredit
         </div>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
           Link ungültig oder abgelaufen
@@ -146,8 +145,9 @@ export default async function SchufaFreeApplicationPage({
     []) as Array<{ status_alias?: string | null; status_description?: string | null; created_at?: string | null }>
   const skagDocuments = (skagDocumentsResult.data ??
     []) as Array<{ local_document_id?: string | null; upload_status?: string | null; last_error?: string | null }>
-  const allowTaxClassSix = hasDedicatedSkagVariantCredentials("open")
-  const hasSubmittedToSkag = Boolean(sync?.skag_credit_id)
+  const allowTaxClassSix = true
+  const {data:creditolo}=await admin.from("creditolo_deliveries").select("status").eq("case_id",caseId).maybeSingle()
+  const hasSubmittedToSkag = Boolean(sync?.skag_credit_id) || ["delivered","pending","sending","unknown"].includes(creditolo?.status ?? "")
 
   const initialForm = {
     firstName: applicant?.first_name ?? "",
@@ -203,7 +203,7 @@ export default async function SchufaFreeApplicationPage({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-              Kredit ohne Schufa · Fall {caseRow?.case_ref ?? caseId}
+              Privatkredit · Fall {caseRow?.case_ref ?? caseId}
             </div>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
               {hasSubmittedToSkag ? "Status, Angaben und Unterlagen" : "Antrag jetzt vollständig ausfüllen"}
@@ -226,13 +226,13 @@ export default async function SchufaFreeApplicationPage({
 
       {hasSubmittedToSkag ? (
         <>
-          <SchufaFreeStatusOverview
+          {sync?.skag_credit_id ? <SchufaFreeStatusOverview
             caseStatus={caseRow?.status ?? null}
             sync={sync}
             pushEvents={pushEvents}
             documentCount={documents.length}
             requestCount={requests.length}
-          />
+          /> : <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-xl font-semibold">Ihre Kreditanfrage</h2><p className="mt-2">{creditolo?.status === "delivered" ? "Ihre Anfrage wurde an Creditolo übermittelt." : "Ihre Anfrage ist gespeichert. Die Weiterleitung an Creditolo wird geprüft."}</p></section>}
 
           <SchufaFreeDetailsOverview applicant={applicant} details={details} />
         </>

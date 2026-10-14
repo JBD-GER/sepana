@@ -74,7 +74,7 @@ export default async function AdvisorConfirmedCasesPage({
   await requireAdvisor()
   const resolvedSearchParams = searchParams ? await searchParams : undefined
   const product = normalizeProduct(resolvedSearchParams?.product)
-  const productLabel = product === "konsum" ? "Privatkredit" : product === "schufa_frei" ? "Kredit ohne Schufa" : "Baufinanzierung"
+  const productLabel = product === "konsum" ? "Privatkredit" : product === "schufa_frei" ? "Privatkredit" : "Baufinanzierung"
 
   const res = await authFetch(`/api/app/cases/list?advisorBucket=confirmed&limit=1000&caseType=${product}`).catch(() => null)
   const data: CaseListResp = res && res.ok ? await res.json() : { cases: [] }
@@ -130,7 +130,7 @@ export default async function AdvisorConfirmedCasesPage({
                 : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
             }`}
           >
-            Kredit ohne Schufa
+            Privatkredit
           </Link>
           <Link
             href="/advisor/faelle/bestaetigt?product=baufi"

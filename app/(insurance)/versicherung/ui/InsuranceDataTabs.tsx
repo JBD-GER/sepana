@@ -28,7 +28,7 @@ export default function InsuranceDataTabs({ sections }: { sections: TabSection[]
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Antragsdaten</div>
           <h2 className="mt-2 text-lg font-semibold text-slate-900">Kreditdaten sauber gegliedert</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Die kompletten Angaben aus Kredit ohne Schufa sind hier in Bereiche aufgeteilt.
+            Die kompletten Angaben aus Privatkredit sind hier in Bereiche aufgeteilt.
           </p>
         </div>
 

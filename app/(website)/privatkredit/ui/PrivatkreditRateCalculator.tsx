@@ -1,5 +1,7 @@
 ﻿"use client"
 
+import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
+
 import Link from "next/link"
 import { useMemo, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
@@ -77,7 +79,7 @@ type PrivatkreditRateCalculatorProps = {
 export default function PrivatkreditRateCalculator({
   successSource = "privatkredit",
   pagePath = "/privatkredit/anfrage",
-  continuePathBase = null,
+  continuePathBase = "/onlinekredit",
 }: PrivatkreditRateCalculatorProps = {}) {
   const router = useRouter()
   const [amount, setAmount] = useState(DEFAULT_AMOUNT)
@@ -500,6 +502,7 @@ export default function PrivatkreditRateCalculator({
                       {requestBusy ? "Sende Anfrage..." : "Anfrage senden"}
                     </button>
                   </div>
+                <CreditoloNotice />
                 </form>
               </>
             ) : (

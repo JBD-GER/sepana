@@ -530,7 +530,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
                 {"<-"} Zurück zu Fälle
               </Link>
               <div className="mt-4 inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-800">
-                Berateransicht · Kredit ohne Schufa
+                Berateransicht · Privatkredit
               </div>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
                 Fall {c.case_ref || c.id.slice(0, 8)} klar steuern.
@@ -549,7 +549,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
               />
               <SchufaFreeHeroMetric
                 label="Technische Referenz"
-                value={c.case_ref || "Schufa-frei"}
+                value={c.case_ref || "Privatkredit"}
                 hint={`Fall-ID: ${c.id}`}
                 tone="accent"
               />

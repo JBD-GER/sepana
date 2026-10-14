@@ -1,5 +1,8 @@
 "use client"
 
+import CreditoloFields from "@/components/creditolo/CreditoloFields"
+import { emptyCreditoloExtra } from "@/lib/creditolo/fields"
+
 import Link from "next/link"
 import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react"
 import { looksLikeIban, normalizeIbanInput } from "@/lib/banking/iban"
@@ -435,7 +438,13 @@ export default function SchufaFreeApplicationClient({
     update("childrenAgesCsv", joinChildAges(nextAges))
   }
 
+  const [creditoloExtra, setCreditoloExtra] = useState(emptyCreditoloExtra)
+
   async function submit() {
+    if (!creditoloExtra.consent) {
+      setFeedback({tone:"error",text:"Bitte Datenweitergabe an Creditolo bestätigen."})
+      return
+    }
     const firstInvalid = STEP_META.find((entry) => issues[entry.id].length)
     if (firstInvalid) {
       setStep(firstInvalid.id)
@@ -453,6 +462,7 @@ export default function SchufaFreeApplicationClient({
           caseId,
           caseRef,
           accessToken,
+          creditolo: creditoloExtra,
           form: {
             ...form,
             nationality: form.nationality.trim().toUpperCase(),
@@ -468,13 +478,13 @@ export default function SchufaFreeApplicationClient({
       if (!response.ok || !json?.ok) throw new Error(String(json?.error ?? "Antrag konnte nicht übermittelt werden."))
       window.localStorage.removeItem(storageKey)
       const uploadedDocumentCount = Number(json?.uploadedDocumentCount ?? 0)
-      const successParts = ["Ihr Antrag ist sicher bei SEPANA eingegangen."]
+      const successParts = [json?.creditolo?.status === "delivered" ? "Ihr Antrag wurde erfolgreich an Creditolo übermittelt." : "Ihr Antrag ist bei SEPANA gespeichert. Die Weiterleitung an Creditolo wird geprüft."]
       if (form.ratenschutzOptIn) {
         successParts.push("Der Wunsch nach Ratenschutz wurde für den Fall vorgemerkt.")
       }
       if (uploadedDocumentCount > 0) {
         successParts.push(
-          `${uploadedDocumentCount} Dokument${uploadedDocumentCount === 1 ? "" : "e"} wurde${uploadedDocumentCount === 1 ? "" : "n"} direkt weitergeleitet.`
+          `${uploadedDocumentCount} Dokument${uploadedDocumentCount === 1 ? "" : "e"} ist im SEPANA-Dashboard gespeichert.`
         )
       }
       successParts.push("Status und Upload-Bereich werden jetzt für Sie geladen.")
@@ -650,6 +660,7 @@ export default function SchufaFreeApplicationClient({
               <Field label="Name der Bank"><Input value={form.bankName} onChange={(e) => update("bankName", e.target.value)} /></Field>
               <Field label="IBAN"><Input value={formatIban(form.iban)} onChange={(e) => update("iban", normalizeIbanInput(e.target.value))} className="uppercase tracking-[0.08em]" /></Field>
             </div>
+            <CreditoloFields value={creditoloExtra} onChange={setCreditoloExtra} schufaFree />
             <div className="grid gap-3">
               <label className="flex items-start gap-3 rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700"><input type="checkbox" checked={form.employmentRelationshipLimited} onChange={(e) => update("employmentRelationshipLimited", e.target.checked)} className={CHECKBOX_CLASS} /><span className="min-w-0 leading-relaxed">Arbeitsverhältnis ist befristet oder gekündigt</span></label>
               <label className="flex items-start gap-3 rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700"><input type="checkbox" checked={form.wageGarnishmentAssignment} onChange={(e) => update("wageGarnishmentAssignment", e.target.checked)} className={CHECKBOX_CLASS} /><span className="min-w-0 leading-relaxed">Lohnpfändung / Abtretung vorhanden</span></label>

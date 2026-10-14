@@ -8,6 +8,10 @@
     {
       "path": "/api/system/financial-analysis/sweep",
       "schedule": "47 3 * * *"
+    },
+    {
+      "path": "/api/system/creditolo",
+      "schedule": "*/10 * * * *"
     }
   ]
 }

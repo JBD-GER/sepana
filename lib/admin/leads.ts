@@ -603,6 +603,10 @@ export async function createCaseFromLead(opts: {
     notifyAdvisor: false,
   })
 
+  if (caseType === "konsum" || caseType === "schufa_frei") {
+    const {error:creditoloError}=await admin.from("creditolo_deliveries").upsert({case_id:caseId,variant:caseType==="schufa_frei"?"schufa_free":"standard",status:"awaiting_data"},{onConflict:"case_id",ignoreDuplicates:true})
+    if (creditoloError) throw creditoloError
+  }
   return { caseId, caseRef }
 }
 

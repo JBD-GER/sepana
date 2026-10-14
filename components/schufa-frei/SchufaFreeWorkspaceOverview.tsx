@@ -363,10 +363,10 @@ export default function SchufaFreeWorkspaceOverview({
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div className="max-w-4xl">
               <div className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">
-                SEPANA Berater-Workspace - Kredit ohne Schufa
+                SEPANA Berater-Workspace - Privatkredit
               </div>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-                Fall {caseRef || "Schufa-frei"} im klaren Ablauf von Unterlagen bis Auszahlung.
+                Fall {caseRef || "Privatkredit"} im klaren Ablauf von Unterlagen bis Auszahlung.
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600 sm:text-base">
                 Diese Ansicht buendelt Status, Dokumente, Vertrag, PostIdent und Auszahlung in einem klaren operativen Ablauf.

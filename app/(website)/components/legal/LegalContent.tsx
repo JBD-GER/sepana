@@ -106,11 +106,11 @@ export function DatenschutzContent() {
           sowie an eingebundene Partner weitergegeben werden, soweit dies für den jeweiligen Zweck erforderlich ist.
         </p>
         <p>
-          Bei Anfragen im Bereich <span className="font-medium text-slate-900">Kredit ohne Schufa</span> übermitteln
-          wir die von Ihnen bereitgestellten Daten im erforderlichen Umfang auch an unseren Partner{" "}
-          <span className="font-medium text-slate-900">SKAG Vertriebs GmbH</span> sowie an die{" "}
-          <span className="font-medium text-slate-900">SIGMA Kreditbank AG</span>, soweit dies für Vorprüfung,
-          weitere Bearbeitung, Vertragsprozess, Legitimation und Auszahlung notwendig ist.
+          Bei neuen Privatkreditanfragen übermitteln wir nach Ihrer Einwilligung Ihre Kontakt-, persönlichen,
+          Beschäftigungs-, Einkommens- und Bankdaten im erforderlichen Umfang an unseren Partner <span className="font-medium text-slate-900">creditolo GmbH</span>, Julius-Ebeling-Straße 6, 06112 Halle (Saale), zur Bearbeitung Ihrer Kreditanfrage.
+          Weitere Informationen finden Sie in der <a href="https://www.creditolo.de/datenschutz/" target="_blank" rel="noreferrer" className="underline">Datenschutzerklärung von Creditolo</a>.
+          Bei bereits laufenden Vorgängen können die ursprünglich eingebundenen Finanzierungspartner weiterhin Daten zur Bearbeitung des jeweiligen Vorgangs erhalten.
+
         </p>
       </Section>
 

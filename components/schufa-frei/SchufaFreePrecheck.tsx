@@ -1,5 +1,7 @@
 "use client"
 
+import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
+
 import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useState, type InputHTMLAttributes } from "react"
@@ -214,9 +216,9 @@ export default function SchufaFreePrecheck() {
 
       setResultModal({
         tone: "success",
-        title: "Erste Vorprüfung positiv",
+        title: "Vollständige Anfrage fortsetzen",
         description:
-          "Ihre Eckdaten passen für den nächsten Schritt. Sie können den vollständigen Antrag jetzt direkt ohne Neustart fortsetzen.",
+          "Sie können den vollständigen Antrag jetzt fortsetzen. Creditolo prüft Ihre Kreditanfrage nach Übermittlung der vollständigen Angaben.",
         actionLabel: "Vollständigen Antrag starten",
         applicationHref,
         precheck,
@@ -251,7 +253,7 @@ export default function SchufaFreePrecheck() {
               Diskrete Vorprüfung
             </div>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-              Kredit ohne Schufa diskret vorprüfen
+              Privatkredit diskret vorprüfen
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-slate-600">
               Sie starten mit den wichtigsten Eckdaten und erhalten direkt eine erste Einschätzung zu Ihrer Variante.
@@ -492,6 +494,7 @@ export default function SchufaFreePrecheck() {
               </div>
             </div>
 
+            <CreditoloNotice />
             {consentError ? (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
                 {consentError}

@@ -295,7 +295,7 @@ export async function POST(req: Request) {
 
       const html = buildEmailHtml({
         title: "Ihre Vertragsunterlagen sind bereit",
-        intro: "Ihr Schufa-frei-Kreditvertrag wurde in einzelne Schritte aufgeteilt und steht jetzt im Portal bereit.",
+        intro: "Ihr Kreditvertrag wurde in einzelne Schritte aufgeteilt und steht jetzt im Portal bereit.",
         steps,
         ctaLabel: "Unterlagen öffnen",
         ctaUrl,
@@ -315,7 +315,7 @@ export async function POST(req: Request) {
       actorId: user.id,
       actorRole: role ?? "advisor",
       type: "signature_requested",
-      title: "Schufa-frei-Vertragspaket bereitgestellt",
+      title: "Privatkredit-Vertragspaket bereitgestellt",
       body: `Das Vertragspaket wurde automatisch in ${outputs.length} Dokumente aufgeteilt und zur Unterschrift bereitgestellt.`,
       meta: {
         variant,

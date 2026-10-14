@@ -1,3 +1,4 @@
+import { CREDITOLO_INTAKE_NOTICE } from "@/lib/creditolo/notice"
 ﻿import { NextResponse } from "next/server"
 import { buildEmailHtml, sanitizeNotificationRecipients, sendEmail } from "@/lib/notifications/notify"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
@@ -325,7 +326,7 @@ async function sendCustomerConfirmation(opts: {
   const html = buildEmailHtml({
     title: subject,
     intro: `${salutation} vielen Dank für Ihre Anfrage bei SEPANA.`,
-    steps,
+    steps: [...steps, CREDITOLO_INTAKE_NOTICE],
     preheader: subject,
     eyebrow: "SEPANA - Bestätigung",
   })

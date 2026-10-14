@@ -1517,7 +1517,7 @@ export default function DocumentPanel({
             ? hideTechnicalBranding
               ? "Neue Uploads werden direkt fuer deinen Antrag uebernommen. Den Uebertragungsstatus siehst du pro Datei."
               : "Neue Uploads werden zusaetzlich an Europace gespiegelt. Der Sync-Status wird pro Datei angezeigt."
-            : "Neue Uploads werden direkt im SEPANA-Fall gespeichert und bei Schufa-frei anschließend im SEPANA-Prozess weiterverarbeitet. Den Status sehen Sie pro Datei."}
+            : "Neue Uploads werden direkt im SEPANA-Fall gespeichert und bei Privatkredit anschließend im SEPANA-Prozess weiterverarbeitet. Den Status sehen Sie pro Datei."}
         </div>
       ) : null}
 

@@ -1,5 +1,7 @@
 "use client"
 
+import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
+
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState, type FormEvent } from "react"
@@ -76,7 +78,7 @@ export default function WeddingQuickStartForm() {
       })
 
       const json = (await response.json().catch(() => null)) as
-        | { ok?: boolean; error?: string; leadId?: string | number; externalLeadId?: string | number; existingAccount?: boolean }
+        | { ok?: boolean; error?: string; leadId?: string | number; externalLeadId?: string | number; existingAccount?: boolean; linkedCaseId?: string; linkedCaseRef?: string; publicAccessToken?: string }
         | null
       if (!response.ok || !json?.ok) {
         setError(json?.error || "Anfrage konnte nicht gesendet werden.")
@@ -91,7 +93,11 @@ export default function WeddingQuickStartForm() {
       if (json?.leadId) params.set("leadId", String(json.leadId))
       if (json?.externalLeadId) params.set("externalLeadId", String(json.externalLeadId))
       if (json?.existingAccount) params.set("existing", "1")
-      router.push(`/erfolgreich?${params.toString()}`)
+      const next=new URLSearchParams({purpose:"hochzeitskredit"})
+      if (json?.linkedCaseId && json.linkedCaseRef && json.publicAccessToken) {
+        next.set("caseId",json.linkedCaseId);next.set("caseRef",json.linkedCaseRef);next.set("access",json.publicAccessToken)
+      }
+      router.push(`/onlinekredit?${next.toString()}`)
       return
     } catch {
       setError("Anfrage konnte nicht gesendet werden.")
@@ -168,7 +174,8 @@ export default function WeddingQuickStartForm() {
         >
           {busy ? "Sende Anfrage..." : "Hochzeitskredit starten"}
         </button>
-      </form>
+      <div className="sm:col-span-2"><CreditoloNotice /></div>
+        </form>
     </section>
   )
 }

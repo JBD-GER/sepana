@@ -1,5 +1,7 @@
 ﻿"use client"
 
+import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
+
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useMemo, useState, type FormEvent } from "react"
@@ -313,7 +315,7 @@ export default function PvCashflowCalculator() {
       })
 
       const json = (await response.json().catch(() => null)) as
-        | { ok?: boolean; error?: string; leadId?: string | number; externalLeadId?: string | number; existingAccount?: boolean }
+        | { ok?: boolean; error?: string; leadId?: string | number; externalLeadId?: string | number; existingAccount?: boolean; linkedCaseId?: string; linkedCaseRef?: string; publicAccessToken?: string }
         | null
       if (!response.ok || !json?.ok) {
         setLeadError(json?.error || "Anfrage konnte nicht gesendet werden.")
@@ -330,7 +332,11 @@ export default function PvCashflowCalculator() {
       if (json?.leadId) params.set("leadId", String(json.leadId))
       if (json?.externalLeadId) params.set("externalLeadId", String(json.externalLeadId))
       if (json?.existingAccount) params.set("existing", "1")
-      router.push(`/erfolgreich?${params.toString()}`)
+      const next=new URLSearchParams({purpose:"pv_anlage"})
+      if (json.linkedCaseId && json.linkedCaseRef && json.publicAccessToken) {
+        next.set("caseId",json.linkedCaseId);next.set("caseRef",json.linkedCaseRef);next.set("access",json.publicAccessToken)
+      }
+      router.push(`/onlinekredit?${next.toString()}`)
       return
     } catch {
       setLeadError("Anfrage konnte nicht gesendet werden.")
@@ -720,6 +726,7 @@ export default function PvCashflowCalculator() {
                   {leadBusy ? "Sende Anfrage..." : "Anfrage senden"}
                 </button>
               </div>
+            <CreditoloNotice />
             </form>
           </div>
         </div>

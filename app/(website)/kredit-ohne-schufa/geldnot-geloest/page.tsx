@@ -14,14 +14,14 @@ import {
 } from "@/lib/websiteReviews"
 
 export const metadata: Metadata = {
-  title: "Dringend Geld benötigt? Jetzt schnell Geld erhalten | Kredit ohne Schufa | SEPANA",
+  title: "Dringend Geld benötigt? Jetzt schnell Geld erhalten | Privatkredit | SEPANA",
   description:
-    "Landingpage für Kredit ohne Schufa mit diskreter Vorprüfung, klaren Kriterien, digitalem Ablauf und sauberer mobiler Optimierung.",
+    "Landingpage für Privatkredit mit diskreter Vorprüfung, klaren Kriterien, digitalem Ablauf und sauberer mobiler Optimierung.",
   alternates: { canonical: "/kredit-ohne-schufa/geldnot-geloest" },
   openGraph: {
-    title: "Dringend Geld benötigt? Jetzt schnell Geld erhalten | Kredit ohne Schufa | SEPANA",
+    title: "Dringend Geld benötigt? Jetzt schnell Geld erhalten | Privatkredit | SEPANA",
     description:
-      "Kredit ohne Schufa mit digitaler Vorprüfung, klaren Voraussetzungen und sauberem Ablauf bis zum vollständigen Antrag.",
+      "Privatkredit mit digitaler Vorprüfung, klaren Voraussetzungen und sauberem Ablauf bis zum vollständigen Antrag.",
     url: "/kredit-ohne-schufa/geldnot-geloest",
     type: "website",
   },
@@ -34,7 +34,7 @@ type ReviewCard = {
 }
 
 const HERO_BADGES = [
-  "Kredit ohne Schufa",
+  "Privatkredit",
   "Vorprüfung in wenigen Minuten",
   "Digitale Antragstrecke",
   "Auszahlung innerhalb von 24-48 Stunden möglich",
@@ -103,9 +103,9 @@ const PROCESS_STEPS = [
 
 const FAQ_ITEMS = [
   {
-    question: "Kann ich auch mit negativer Schufa anfragen?",
+    question: "Wer bearbeitet meine Kreditanfrage?",
     answer:
-      "Ja. Genau für solche Fälle ist diese Strecke gedacht. Die erste Vorprüfung zeigt, ob Ihr Fall grundsätzlich in diese Richtung passt.",
+      "Creditolo ergänzt SEPANA bei der Bearbeitung. Ihr vollständiger Antrag wird nach Ihrer Einwilligung automatisch an Creditolo weitergeleitet.",
   },
   {
     question: "Wie schnell geht die erste Vorprüfung?",
@@ -177,7 +177,7 @@ function formatEuro(value: number | null) {
 
 function mapReviews(reviews: WebsiteReview[]): ReviewCard[] {
   const prioritized = reviews
-    .filter((item) => item.category === "schufa_frei")
+    .filter((item) => item.category === "schufa_frei" && !/schufa/i.test(item.quote))
     .slice(0, 6)
     .map((item) => ({
       quote: item.quote,
@@ -188,7 +188,7 @@ function mapReviews(reviews: WebsiteReview[]): ReviewCard[] {
   if (prioritized.length) return prioritized
 
   const fallback = reviews
-    .filter((item) => item.category === "privatkredit")
+    .filter((item) => item.category === "privatkredit" && !/schufa/i.test(item.quote))
     .slice(0, 6)
     .map((item) => ({
       quote: item.quote,
@@ -234,7 +234,7 @@ export default async function SchufaFreeLandingpagePage() {
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-100/95 sm:text-base sm:leading-8">
               Diese Seite ist für Menschen gedacht, die schnell Klarheit wollen, ob ein
-              <span className="font-semibold text-white"> Kredit ohne Schufa</span> grundsätzlich passt.
+              <span className="font-semibold text-white"> Privatkredit</span> grundsätzlich passt.
               Sie starten mit einer diskreten Vorprüfung, erst danach folgt bei positiver Rückmeldung der vollständige Antrag.
             </p>
 

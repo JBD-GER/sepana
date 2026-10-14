@@ -1,5 +1,7 @@
 ﻿"use client"
 
+import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
+
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState, type FormEvent } from "react"
@@ -265,13 +267,17 @@ export default function ScheidungKreditLeadForm() {
         body: JSON.stringify(payload),
       })
       const json = (await res.json().catch(() => null)) as
-        | { ok?: boolean; error?: string; leadId?: string | number; externalLeadId?: string | number; existingAccount?: boolean }
+        | { ok?: boolean; error?: string; leadId?: string | number; externalLeadId?: string | number; existingAccount?: boolean; linkedCaseId?: string; linkedCaseRef?: string; publicAccessToken?: string }
         | null
       if (!res.ok || !json?.ok) {
         setError(json?.error || "Anfrage konnte nicht gesendet werden.")
         return
       }
 
+      if(isPrivat && json.linkedCaseId && json.linkedCaseRef && json.publicAccessToken) {
+        router.push(`/onlinekredit?${new URLSearchParams({caseId:json.linkedCaseId,caseRef:json.linkedCaseRef,access:json.publicAccessToken}).toString()}`)
+        return
+      }
       const params = new URLSearchParams({
         source: isPrivat ? "scheidung-kredit-privat" : "scheidung-kredit-immobilie",
         conversion: isPrivat ? GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO : GOOGLE_ADS_BAUFINANZIERUNG_LEAD_SEND_TO,
@@ -575,6 +581,7 @@ export default function ScheidungKreditLeadForm() {
               </button>
             )}
           </div>
+        {form.loanKind === "privat" && <CreditoloNotice />}
         </form>
       </div>
     </section>

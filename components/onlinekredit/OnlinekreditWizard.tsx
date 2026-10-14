@@ -1,12 +1,14 @@
 ﻿"use client"
 
+import CreditoloFields from "@/components/creditolo/CreditoloFields"
+import { emptyCreditoloExtra } from "@/lib/creditolo/fields"
+
 import { useEffect, useId, useMemo, useRef, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react"
 import { useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
 import { XS2A_SANDBOX_TEST_IBAN_ALIAS, getSandboxIbanDemo, looksLikeIban, normalizeIbanInput } from "@/lib/banking/iban"
 import { getCountryOptions } from "@/lib/countries"
 import {
-  extractEuropaceOfferValidationIssue,
   getAdditionalIdDateValidationIssue,
   getEmploymentSinceValidationIssue,
   getLoanAmountMinimumValidationIssue,
@@ -186,28 +188,6 @@ type SaveResponse = {
     ok?: boolean
     error?: string | null
   }
-}
-
-type OffersValidationResponse = {
-  ok?: boolean
-  offers?: Array<{
-    angebot_id?: string
-    machbarkeit_status?: string | null
-    vollstaendigkeit_status?: string | null
-    accepted_at?: string | null
-    superseded_at?: string | null
-    angebot_snapshot?: {
-      vollstaendigkeit?: {
-        messages?: Array<{
-          text?: string | null
-          property?: string | null
-          category?: string | null
-          reason?: string | null
-        }> | null
-      } | null
-    } | null
-  }>
-  error?: string
 }
 
 type SaveResult = {
@@ -590,22 +570,6 @@ function normalizeMoneyString(value: unknown) {
 
 function customerText(value: unknown) {
   return String(value ?? "").replace(/europace/gi, "SEPANA").trim()
-}
-
-function isFinalSelectableOffer(offer: {
-  machbarkeit_status?: string | null
-  vollstaendigkeit_status?: string | null
-  accepted_at?: string | null
-  superseded_at?: string | null
-}) {
-  const machbarkeit = String(offer.machbarkeit_status ?? "").trim().toUpperCase()
-  const vollstaendigkeit = String(offer.vollstaendigkeit_status ?? "").trim().toUpperCase()
-  return (
-    !offer.accepted_at &&
-    !offer.superseded_at &&
-    vollstaendigkeit === "VOLLSTAENDIG" &&
-    (machbarkeit === "MACHBAR" || machbarkeit === "MACHBAR_UNTER_VORBEHALT")
-  )
 }
 
 function parseMoneyToNumber(value: unknown) {
@@ -1254,11 +1218,13 @@ export default function OnlinekreditWizard({
   caseRef,
   accessToken,
   existingAccount = false,
+  initialPurpose = "freie_verwendung",
 }: {
   caseId?: string | null
   caseRef?: string | null
   accessToken?: string | null
   existingAccount?: boolean
+  initialPurpose?: string
 }) {
   const router = useRouter()
   const countryOptions = useMemo(() => getCountryOptions("de-DE"), [])
@@ -1287,7 +1253,7 @@ export default function OnlinekreditWizard({
   const wizardRef = useRef<HTMLDivElement | null>(null)
   const [customerCanEdit, setCustomerCanEdit] = useState(true)
   const [primary, setPrimary] = useState<Applicant>(EMPTY_APPLICANT)
-  const [financing, setFinancing] = useState<Financing>(EMPTY_FINANCING)
+  const [financing, setFinancing] = useState<Financing>(() => ({...EMPTY_FINANCING,purpose:initialPurpose}))
   const [additional, setAdditional] = useState<Additional>(EMPTY_ADDITIONAL)
   const [autofilledBankBic, setAutofilledBankBic] = useState<string | null>(null)
   const [bankBicLookupLoading, setBankBicLookupLoading] = useState(false)
@@ -2715,7 +2681,13 @@ export default function OnlinekreditWizard({
     scrollWizardIntoView()
   }
 
+  const [creditoloExtra, setCreditoloExtra] = useState(emptyCreditoloExtra)
+
   async function finishAndScrollToOffers() {
+    if (!creditoloExtra.consent || !creditoloExtra.schufaConsent) {
+      setError("Bitte Datenweitergabe an Creditolo und SCHUFA-Einwilligung bestätigen.")
+      return
+    }
     const validationError = validateCurrentStep()
     if (validationError) {
       setError(validationError)
@@ -2767,34 +2739,13 @@ export default function OnlinekreditWizard({
     setMessage(null)
 
     try {
-      const response = await fetch("/api/onlinekredit/europace/offers", {
+      const response = await fetch("/api/creditolo/submit", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          caseId: resolved.caseId,
-          caseRef: resolved.caseRef,
-          access: resolved.accessToken,
-          existing: resolved.existingAccount ? "1" : "",
-        }),
+        body: JSON.stringify({caseId:resolved.caseId,caseRef:resolved.caseRef,access:resolved.accessToken,creditolo:creditoloExtra}),
       })
-
-      const json = (await response.json().catch(() => ({}))) as OffersValidationResponse
-      if (!response.ok || !json?.ok) {
-        throw new Error(customerText(json?.error) || "Live-Angebote konnten nicht geladen werden.")
-      }
-
-      const nextOffers = Array.isArray(json?.offers) ? json.offers : []
-      const hasSelectableOffers = nextOffers.some((offer) => isFinalSelectableOffer(offer))
-      const offerValidationIssue = !hasSelectableOffers ? extractEuropaceOfferValidationIssue(nextOffers) : null
-
-      if (offerValidationIssue) {
-        setOffersTransitionOverlayOpen(false)
-        setServerValidationIssue(offerValidationIssue)
-        setError(customerText(offerValidationIssue.message))
-        setStep(offerValidationIssue.step)
-        scrollWizardIntoView()
-        return
-      }
+      const json = await response.json().catch(() => ({}))
+      if (!response.ok || !json?.ok) throw new Error(String(json?.error ?? "Die Weiterleitung konnte nicht vorbereitet werden."))
     } catch (nextError) {
       setOffersTransitionOverlayOpen(false)
       setError(nextError instanceof Error ? customerText(nextError.message) : "Live-Angebote konnten nicht geladen werden.")
@@ -2810,7 +2761,7 @@ export default function OnlinekreditWizard({
       prefetched: "1",
     })
     if (resolved.existingAccount) params.set("existing", "1")
-    router.push(`/onlinekredit/angebote?${params.toString()}`)
+    router.push(`/onlinekredit/creditolo?${params.toString()}`)
   }
 
   if (loading) {
@@ -4329,7 +4280,8 @@ export default function OnlinekreditWizard({
               </div>
             </Card>
 
-            <Card title="Prüfen" subtitle="Wenn alle Pflichtfelder vollständig sind, kann SEPANA deine Live-Angebote berechnen.">
+            <Card title="Prüfen" subtitle="Nach vollständigen Angaben übermitteln wir deine Kreditanfrage an Creditolo.">
+              <CreditoloFields value={creditoloExtra} onChange={setCreditoloExtra} />
               {reviewFocusIssue ? (
                 <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                   <div className="font-semibold">Fehler im Bereich {reviewFocusStepTitle || "Antrag"}</div>
@@ -4357,7 +4309,7 @@ export default function OnlinekreditWizard({
                 </div>
               ) : (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                  Alle aktuell benötigten Pflichtfelder sind erfasst. Du kannst jetzt direkt die Live-Angebote berechnen.
+                  Alle aktuell benötigten Pflichtfelder sind erfasst. Du kannst jetzt deine Kreditanfrage an Creditolo übermitteln.
                 </div>
               )}
 
@@ -4426,7 +4378,7 @@ export default function OnlinekreditWizard({
                   (saving || offersTransitionOverlayOpen) && "cursor-not-allowed opacity-60"
                 )}
               >
-                {offersTransitionOverlayOpen ? "Banken werden angefragt..." : saving ? "Speichert..." : "Zu Live-Angeboten"}
+                {offersTransitionOverlayOpen ? "Anfrage wird übermittelt..." : saving ? "Speichert..." : "An Creditolo übermitteln"}
               </button>
             )}
           </div>
@@ -4448,7 +4400,7 @@ export default function OnlinekreditWizard({
               Banken werden angefragt
             </div>
             <div className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-              Wir suchen jetzt die besten Live-Angebote für dich
+              Wir übermitteln deine Anfrage an Creditolo
             </div>
             <div className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
               SEPANA fragt gerade passende Banken an, prüft die aktuellen Konditionen und sortiert die stärksten

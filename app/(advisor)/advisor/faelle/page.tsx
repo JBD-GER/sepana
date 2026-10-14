@@ -147,7 +147,7 @@ export default async function CasesPage({
   const product = normalizeProduct(resolvedSearchParams?.product)
   const statusTabs = getAdvisorCaseFilterOptions(product)
   const statusSet = getAdvisorCaseFilterSet(product)
-  const productLabel = product === "konsum" ? "Privatkredit" : product === "schufa_frei" ? "Kredit ohne Schufa" : "Baufinanzierung"
+  const productLabel = product === "konsum" ? "Privatkredit" : product === "schufa_frei" ? "Privatkredit" : "Baufinanzierung"
   const [activeRes, confirmedRes] = await Promise.all([
     authFetch(`/api/app/cases/list?advisorBucket=all&limit=1000&caseType=${product}`).catch(() => null),
     authFetch(`/api/app/cases/list?advisorBucket=confirmed&limit=1&caseType=${product}`).catch(() => null),
@@ -228,7 +228,7 @@ export default async function CasesPage({
       <div className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap gap-2">
           {([
-            { id: "schufa_frei" as const, label: "Kredit ohne Schufa" },
+            { id: "schufa_frei" as const, label: "Privatkredit" },
             { id: "baufi" as const, label: "Baufinanzierung" },
             { id: "konsum" as const, label: "Privatkredit" },
           ] as const).map((tab) => {

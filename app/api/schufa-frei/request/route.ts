@@ -1,3 +1,4 @@
+import { CREDITOLO_INTAKE_NOTICE } from "@/lib/creditolo/notice"
 import { NextResponse } from "next/server"
 import { buildEmailHtml, sendEmail } from "@/lib/notifications/notify"
 import { createCaseFromLead, ensureCustomerAccount, pickStickyAdvisorId, type LeadRow } from "@/lib/admin/leads"
@@ -131,16 +132,17 @@ async function updateLeadWithFallback(
 
 async function notifyCustomer(input: { email: string; firstName: string | null }) {
   const html = buildEmailHtml({
-    title: "Erste Vorprüfung positiv",
+    title: "Ihre Kreditanfrage ist eingegangen",
     intro: input.firstName
-      ? `Hallo ${input.firstName}, Ihre erste Vorprüfung für Kredit ohne Schufa ist positiv ausgefallen.`
-      : "Ihre erste Vorprüfung für Kredit ohne Schufa ist positiv ausgefallen.",
+      ? `Hallo ${input.firstName}, Sie können Ihre Anfrage für Privatkredit jetzt vervollständigen.`
+      : "Sie können Ihre Anfrage für Privatkredit jetzt vervollständigen.",
     steps: [
+      CREDITOLO_INTAKE_NOTICE,
       "Im nächsten Schritt vervollständigen Sie bitte Ihre Angaben inklusive Einkommen.",
       "Danach können Sie die benötigten Unterlagen direkt hochladen.",
       "Sobald sich im Fall etwas ändert, informiert SEPANA Sie automatisch.",
     ],
-    eyebrow: "SEPANA - Kredit ohne Schufa",
+    eyebrow: "SEPANA - Privatkredit",
   })
 
   await sendEmail({
@@ -248,7 +250,7 @@ export async function POST(req: Request) {
     const rowBase = {
       source: SOURCE,
       event_type: "lead.new",
-      status: precheck.eligible ? "new" : "precheck_rejected",
+      status: "new",
       source_created_at: now,
       last_event_at: now,
       first_name: firstName,
@@ -257,7 +259,7 @@ export async function POST(req: Request) {
       phone,
       phone_mobile: phone,
       birth_date: birthDate,
-      product_name: "Kredit ohne Schufa",
+      product_name: "Privatkredit",
       lead_case_type: "schufa_frei",
       product_price: desiredAmount,
       loan_amount_total: desiredAmount,
@@ -285,22 +287,6 @@ export async function POST(req: Request) {
         privacy_accepted: acceptsPrivacyPolicy,
         provision_agreement_accepted: acceptsProvisionAgreement,
       },
-    }
-
-    if (!precheck.eligible) {
-      const insertedRejectedLead = await insertLeadWithRetry(admin, rowBase)
-      if (insertedRejectedLead.error) {
-        console.error("Failed to persist rejected schufa-free precheck lead", insertedRejectedLead.error)
-      }
-
-      return NextResponse.json(
-        {
-          ok: false,
-          error: precheck.reason ?? "Die Vorpruefung ist aktuell nicht positiv.",
-          precheck,
-        },
-        { status: 422 }
-      )
     }
 
     const insertedLead = await insertLeadWithRetry(admin, rowBase)
@@ -341,9 +327,9 @@ export async function POST(req: Request) {
         address_street: null,
         address_zip: null,
         address_city: null,
-      product_name: "Kredit ohne Schufa",
+      product_name: "Privatkredit",
       product_price: desiredAmount,
-      loan_purpose: "Kredit ohne Schufa",
+      loan_purpose: "Privatkredit",
       loan_amount_total: desiredAmount,
       loan_term_months: termMonths,
       property_zip: null,
@@ -360,7 +346,7 @@ export async function POST(req: Request) {
       advisorId: stickyAdvisorId,
       caseType: "schufa_frei",
       entryChannel: "website_schufa_frei",
-      initialStatus: "prequalified",
+      initialStatus: "draft",
     })
 
     await admin.from("case_schufa_free_details").upsert(
@@ -369,7 +355,7 @@ export async function POST(req: Request) {
         loan_amount_requested: desiredAmount,
         term_months: termMonths,
         precheck_variant: precheck.variantKey,
-        precheck_passed: true,
+        precheck_passed: precheck.eligible,
         precheck_reason: precheck.reason,
         minimum_income_required: precheck.minimumIncomeRequired,
         nationality_group: nationalityGroup,

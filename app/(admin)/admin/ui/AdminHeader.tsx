@@ -30,6 +30,7 @@ export default function AdminHeader() {
         <nav className="flex items-center gap-2">
           <NavItem href="/admin" label="Übersicht" />
           <NavItem href="/admin/leads" label="Leads" />
+          <NavItem href="/admin/creditolo" label="Creditolo" />
           <NavItem href="/admin/tippgeber" label="Tippgeber" />
           <NavItem href="/admin/versicherungspartner" label="Versicherung" />
           <NavItem href="/admin/banken" label="Banken" />

@@ -5,9 +5,9 @@ import OnlinekreditWizard from "@/components/onlinekredit/OnlinekreditWizard"
 import { getPublishedWebsiteReviewSummarySet } from "@/lib/websiteReviews"
 
 export const metadata: Metadata = {
-  title: "Onlinekredit in 15 Minuten | SEPANA",
+  title: "Privatkredit digital anfragen | SEPANA",
   description:
-    "Onlinekredit 100 % digital anfragen, passende Angebote vergleichen und ausgewählte Kredite komplett online abschließen. In 15 Minuten starten.",
+    "Onlinekredit 100 % digital anfragen, passende Angebote vergleichen und ausgewählte Kredite komplett online abschließen. In Klare Angaben starten.",
   alternates: { canonical: "/onlinekredit" },
 }
 
@@ -16,6 +16,7 @@ type PageSearchParams = {
   caseRef?: string
   access?: string
   existing?: string
+  purpose?: string
 }
 
 type Provider = {
@@ -66,20 +67,20 @@ const REQUESTED_LOGO_ORDER = [
 const SERVICE_POINTS = [
   {
     title: "100 % digital",
-    text: "Anfrage, Angebotsauswahl, Unterlagen und bei passenden Banken auch Legitimation und Signatur komplett online.",
+    text: "Angaben und Einwilligung digital erfassen und die Kreditanfrage an Creditolo übermitteln.",
   },
   {
-    title: "In 15 Minuten zum Kreditvertrag",
+    title: "Schritt für Schritt zum Antrag",
     text: "Kreditsumme, Laufzeit und Haushaltsdaten in einer kompakten Strecke erfassen statt in mehreren Formularen.",
   },
   {
-    title: "Online abschließbar",
-    text: "Ausgewählte Angebote laufen direkt digital weiter, ohne Papier und ohne Medienbruch zwischen den Schritten.",
+    title: "Persönlich begleitet",
+    text: "Creditolo ergänzt SEPANA bei der Bearbeitung Ihrer vollständigen Kreditanfrage.",
   },
 ] as const
 
 const SEO_POINTS = [
-  "Onlinekredit in 15 Minuten digital starten",
+  "Onlinekredit in Klare Angaben digital starten",
   "Anfrage, Angebotsauswahl und Unterlagen in einer klaren Strecke statt in mehreren Portalen",
   "Ausgewählte Banken direkt 100 % online bis zur Legitimation und Signatur weiterführen",
 ]
@@ -191,16 +192,16 @@ export default async function OnlinekreditPage({
             100 % digitaler Onlinekredit
           </div>
           <h1 className="mt-4 max-w-4xl text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
-            In 15 Minuten zum Kreditvertrag.
+            Ihr Privatkredit. Klar und digital.
           </h1>
           <p className="mt-4 max-w-4xl text-sm leading-relaxed text-slate-200/95 sm:text-[17px]">
-            Kredit digital anfragen, passende Angebote sehen und ausgewählte Strecken komplett online abschließen.
+            Kredit digital anfragen und vollständige Angaben zur Bearbeitung an Creditolo übermitteln.
             Ohne Papier, ohne Medienbruch und in einem klaren Ablauf von der Anfrage bis zu den Unterlagen.
           </p>
 
           <div className="mt-5 flex flex-wrap gap-2 text-xs text-slate-100/95">
             <span className="rounded-full border border-emerald-300/30 bg-emerald-300/12 px-3 py-1">100 % digital</span>
-            <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">15 Minuten</span>
+            <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Klare Angaben</span>
             <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Komplett online abschließbar</span>
             <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1">Ohne Papier</span>
           </div>
@@ -278,6 +279,7 @@ export default async function OnlinekreditPage({
           caseRef={caseRef}
           accessToken={accessToken}
           existingAccount={existingAccount}
+          initialPurpose={["freie_verwendung","umschuldung","auto","pv_anlage","hochzeitskredit","modernisierung","sonstiges"].includes(sp.purpose ?? "") ? sp.purpose : "freie_verwendung"}
         />
       </section>
 
@@ -290,12 +292,12 @@ export default async function OnlinekreditPage({
           <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-600 sm:text-base">
             <p>
               Ein Onlinekredit über SEPANA verbindet eine schnelle digitale Anfrage mit einem strukturierten Ablauf.
-              Du erfasst Betrag, Laufzeit, persönliche Daten und Haushaltsangaben direkt im Wizard und siehst danach
-              passende Angebote ohne Medienbruch.
+              Du erfasst Betrag, Laufzeit, persönliche Daten und Haushaltsangaben direkt im Formular.
+              Nach deiner Einwilligung wird die vollständige Anfrage an Creditolo weitergeleitet.
             </p>
             <p>
               Wenn Unterlagen benötigt werden oder die Bank bereits Vertrags- und Datenschutzhinweise bereitstellt,
-              bleibt alles in demselben Vorgang. Das spart Rückfragen, schafft Übersicht und macht den Weg vom Antrag
+              begleiten SEPANA und Creditolo die weiteren Schritte. Das schafft Übersicht und macht den Weg vom Antrag
               bis zum Abschluss deutlich nachvollziehbarer.
             </p>
           </div>

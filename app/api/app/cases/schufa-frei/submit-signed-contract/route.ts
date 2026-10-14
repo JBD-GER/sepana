@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     {
       ok: false,
       error:
-        "Schufa-frei-Vertragsdokumente werden nicht einzeln an SKAG uebermittelt. Bitte die Bankeinreichung ueber den Button generieren.",
+        "Privatkredit-Vertragsdokumente werden nicht einzeln an SKAG uebermittelt. Bitte die Bankeinreichung ueber den Button generieren.",
     },
     { status: 409 }
   )

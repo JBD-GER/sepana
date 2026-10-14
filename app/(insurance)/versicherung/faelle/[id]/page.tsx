@@ -248,7 +248,7 @@ export default async function InsuranceCaseDetailPage({
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Versicherungsfall</div>
                 <h1 className="mt-2 text-xl font-semibold text-slate-900 sm:text-2xl">{customerName}</h1>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                  Fall {caseRow.case_ref ?? caseRow.id.slice(0, 8)} / Ursprung: Kredit ohne Schufa
+                  Fall {caseRow.case_ref ?? caseRow.id.slice(0, 8)} / Ursprung: Privatkredit
                 </p>
               </div>
 

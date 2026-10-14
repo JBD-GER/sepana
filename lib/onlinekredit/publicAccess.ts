@@ -132,5 +132,5 @@ export function buildSchufaFreeApplicationHref(input: {
 
   if (input.existingAccount) params.set("existing", "1")
 
-  return `/kredit-ohne-schufa/antrag?${params.toString()}`
+  return `/kreditanfrage/antrag?${params.toString()}`
 }

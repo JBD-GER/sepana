@@ -1,5 +1,7 @@
 ﻿"use client"
 
+import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
+
 import { useMemo, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO } from "@/lib/ads/googleAds"
@@ -61,7 +63,7 @@ export default function PrivatkreditContactForm({
   lockPurpose = false,
   successSource = "privatkredit",
   pagePath = "/privatkredit/anfrage",
-  continuePathBase = null,
+  continuePathBase = "/onlinekredit",
 }: PrivatkreditContactFormProps) {
   const router = useRouter()
   const initialState = useMemo(() => createInitialState(initialPurpose), [initialPurpose])
@@ -301,6 +303,7 @@ export default function PrivatkreditContactForm({
             {busy ? "Sende Anfrage..." : submitLabel}
           </button>
         </div>
+        <div className="sm:col-span-2"><CreditoloNotice /></div>
         </form>
       </div>
     </section>

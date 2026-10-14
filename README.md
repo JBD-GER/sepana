@@ -55,3 +55,25 @@ Die Marketing-Einwilligung steuert das Laden des Google-Tags, Google-Ereignisse 
 Verifikation: `node --experimental-strip-types --test tests/energy.test.mjs tests/consent.test.mjs` prüft Eingaben, Affiliate-Zuordnung, mobile/Ökostrom-Parameter, Consent und Absenderprüfung der Nachrichten. Browserprüfung mit Beispielangaben bestätigt echte Tarifergebnisse. Ein echter Wechselvertrag wurde nicht für Testzwecke abgeschlossen; die erste reale, eingewilligte Abschlussconversion sollte nach Veröffentlichung in Google Ads kontrolliert werden.
 
 Der Cookie-Dialog fordert Erstbesucher zu einer expliziten Auswahl auf. Der Hauptbutton akzeptiert alle optionalen Kategorien; Ablehnen und individuelle Einstellungen sind auf derselben Ebene erreichbar. Rechtliche Detailverweise werden beim Öffnen der Einstellungen angezeigt. Der Default-Status wird einmal im Root vor den Google-Tags gesetzt; gespeicherte Entscheidungen, Änderungen und Widerruf werden per v2-Update synchron übernommen, bevor Tags konfiguriert oder Ereignisse versendet werden. Auf der Strom-Landingpage bleibt die Google-Messung im Basic Consent Mode.
+
+
+## Creditolo-Weiterleitung
+
+Neue vollständige Privatkreditanfragen (einschließlich PV/Solar, Hochzeit, Auto, Umschuldung und sonstiger Zwecke) werden nach ausdrücklicher Einwilligung direkt an Creditolo eingeliefert. Die interne Variante `schufa_frei` verwendet den dafür bereitgestellten Creditolo-Endpunkt; die Kundenoberfläche verwendet neutrale Produktbezeichnungen. Creditolos eigene Systemmails werden von Creditolo gestaltet.
+
+- Servervariablen: `CREDITOLO_API_KEY` (Secret), `CREDITOLO_PARTNER_ID`, `PRIVATKREDIT_PROVIDER=creditolo`, `CRON_SECRET` (Secret). Der API-Key gehört niemals in `NEXT_PUBLIC_*`, Quellcode oder Browserdaten.
+- Die zwei Migrationen `creditolo_delivery_outbox` und `creditolo_confirmation_email` müssen vor dem Release angewendet werden. Die Tabelle ist ausschließlich für `service_role` zugänglich.
+- Kurze Kontakt-/Rückrufanfragen bleiben im SEPANA-Leadpostfach, bis die vollständigen Pflichtdaten und die Einwilligung vorliegen. PV- und Hochzeitseinstiege führen in den vollständigen Antrag. Creditolo verlangt bei direkter Einlieferung insbesondere Kontakt- und Personendaten, Adresse, Beschäftigung, Einkommen und eine deutsche IBAN. Mindestbetrag: 3.000 EUR.
+- `creditolo_deliveries` erfasst Einwilligung, Übermittlungsstatus und Antwortcode. Erfolgreiche Übermittlungen werden nicht erneut gesendet; die zusätzliche Payload-Kopie wird nach Erfolg entfernt. Unklare Ergebnisse werden zur Prüfung markiert, weil Creditolo keinen dokumentierten Idempotenzschlüssel anbietet. Vor erneutem Versand im Partnerkonto abgleichen.
+- `/admin/creditolo` zeigt die aktuellen Weiterleitungen. Der geschützte Cron `/api/system/creditolo` bearbeitet offene Sendungen alle zehn Minuten. Alte Europace-Vorgänge bleiben lesbar; für neue Vorgänge wird kein Europace-Import angelegt.
+- Formulare und Kundenbestätigungen informieren darüber, dass Creditolo SEPANA ergänzt, insbesondere bei Ressourcenengpässen, und jede vollständige Anfrage nach Einwilligung automatisch weitergeleitet wird. Bestätigungsmails verwenden eine fallbezogene Resend-Idempotenzkennung.
+
+Prüfung:
+
+```sh
+node --test scripts/creditolo.test.cjs
+npx tsc --noEmit
+npm run build
+```
+
+`node scripts/creditolo-smoke.cjs` verwendet ausschließlich Creditolos offiziellen Testmodus mit Vor- und Nachname `Test`. Creditolo versendet dabei eine eigene Testbestätigung an den Partner. `node scripts/creditolo-e2e.cjs` ist ausschließlich für einen lokalen Preview-Testserver gedacht und entfernt die von ihm angelegten Testfälle und den Testbenutzer anschließend wieder. `.env.local` benötigt für diese lokale Prüfung die Serverkonfiguration; niemals Testskripte mit echten Kundendaten verwenden.

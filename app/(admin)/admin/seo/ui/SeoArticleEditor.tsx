@@ -912,7 +912,7 @@ export default function SeoArticleEditor({ dbReady, categories, topics, articles
                     ))}
                   </select>
                   <div className="text-xs text-slate-500">
-                    Optional. Wenn gesetzt, ersetzt diese Zielseite aus dem Header die Standard-CTA im Beitrag, z. B. Kredit ohne Schufa.
+                    Optional. Wenn gesetzt, ersetzt diese Zielseite aus dem Header die Standard-CTA im Beitrag, z. B. Privatkredit.
                   </div>
                 </div>
                 <div className="flex items-end">

@@ -132,7 +132,7 @@ export async function POST(req: Request) {
     ctaUrl: applicationUrl,
     preheader: "Bitte vervollständigen Sie jetzt den noch offenen Antrag.",
     eyebrow: "SEPANA - Antrag fortsetzen",
-    supportNote: "Der Button führt direkt zurück in den noch offenen Schufa-frei-Antrag.",
+    supportNote: "Der Button führt direkt zurück in den noch offenen Privatkredit-Antrag.",
   })
 
   const mailResult = await sendEmail({
@@ -162,7 +162,7 @@ export async function POST(req: Request) {
     actorRole: role,
     type: "schufa_free_application_reminder_sent",
     title: "Erinnerung zum offenen Antrag versendet",
-    body: "Dem Kunden wurde ein Direktlink zum noch offenen Schufa-frei-Antrag per E-Mail gesendet.",
+    body: "Dem Kunden wurde ein Direktlink zum noch offenen Privatkredit-Antrag per E-Mail gesendet.",
     meta: {
       target: "/kredit-ohne-schufa/antrag",
       email_subject: subject,

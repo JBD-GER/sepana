@@ -20,9 +20,9 @@ function resolveErrorText(value: unknown) {
   if (code === "customer_email_missing") return "Beim Kunden ist keine E-Mail-Adresse hinterlegt."
   if (code === "application_already_completed") return "Der Kunde hat das zweite Formular bereits abgeschlossen."
   if (code === "application_already_completed_for_other_request") {
-    return "Mit dieser E-Mail wurde bereits ein anderer Schufa-frei-Antrag abgeschlossen."
+    return "Mit dieser E-Mail wurde bereits ein anderer Privatkreditantrag abgeschlossen."
   }
-  if (code === "case_type_not_supported") return "Die Aktion ist nur fuer Kredit ohne Schufa verfuegbar."
+  if (code === "case_type_not_supported") return "Die Aktion ist nur fuer Privatkredit verfuegbar."
   if (code === "case_ref_missing") return "Fuer diesen Fall fehlt aktuell die Fallnummer."
   if (code === "Forbidden" || code === "not_allowed") return "Sie haben keine Berechtigung fuer diesen Fall."
   return code || "E-Mail konnte nicht versendet werden."
@@ -139,7 +139,7 @@ export default function SchufaFreeApplicationReminderCard({
           <div className="text-sm font-semibold text-slate-900">Direktlink zum zweiten Formular</div>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
             Wenn der Kunde nach positiver Vorpruefung nicht weitergemacht hat, koennen Sie hier direkt eine Erinnerung mit
-            Link zum offenen Schufa-frei-Antrag versenden.
+            Link zum offenen Privatkreditantrag versenden.
           </p>
           {isCompleted ? (
             <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
@@ -147,7 +147,7 @@ export default function SchufaFreeApplicationReminderCard({
             </div>
           ) : isCompletedForOtherRequest ? (
             <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-900">
-              Mit dieser E-Mail wurde bereits ein anderer Schufa-frei-Antrag abgeschlossen. Fuer diesen offenen Duplikatfall
+              Mit dieser E-Mail wurde bereits ein anderer Privatkreditantrag abgeschlossen. Fuer diesen offenen Duplikatfall
               wird keine Erinnerung mehr versendet.
               {otherCompletedLabel ? <div className="mt-2 text-xs text-slate-600">{otherCompletedLabel}</div> : null}
             </div>

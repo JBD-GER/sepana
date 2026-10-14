@@ -15,7 +15,7 @@ type EuropaceOfferValidationMessage = {
   reason?: unknown
 }
 
-export const ONLINEKREDIT_MIN_LOAN_AMOUNT = 5000
+export const ONLINEKREDIT_MIN_LOAN_AMOUNT = 3000
 export const ONLINEKREDIT_MAX_NET_INCOME_MONTHLY = 20000
 export const ONLINEKREDIT_MAX_WARM_RENT_MONTHLY = 10000
 

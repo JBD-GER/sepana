@@ -1,11 +1,9 @@
+import { enqueueCreditolo } from "@/lib/creditolo/service"
+import { CreditoloValidationError } from "@/lib/creditolo/mapper"
 import { NextResponse } from "next/server"
 import { looksLikeIban, normalizeIbanInput } from "@/lib/banking/iban"
 import { resolvePublicOnlinekreditCaseAccess } from "@/lib/onlinekredit/caseAccess"
 import { updateCaseStatusCompat } from "@/lib/caseStatusCompat"
-import { processSkagLead } from "@/lib/skag/client"
-import { hasDedicatedSkagVariantCredentials, type SkagApiVariant } from "@/lib/skag/config"
-import { buildSkagOpenLeadPayload } from "@/lib/skag/openMapper"
-import { buildSkagStandardLeadPayload } from "@/lib/skag/standardMapper"
 import { buildEmailHtml, logCaseEvent, sanitizeNotificationRecipients, sendEmail } from "@/lib/notifications/notify"
 import {
   getSchufaFreeFamilyLabel,
@@ -130,14 +128,14 @@ async function notifyAdminSubmitted(input: {
   ].filter((entry): entry is string => Boolean(entry))
 
   const html = buildEmailHtml({
-    title: "Neuer Vollantrag: Kredit ohne Schufa",
+    title: "Neuer Vollantrag: Privatkredit",
     intro: input.caseRef
       ? `Der Vollantrag fuer den Fall ${input.caseRef} wurde erfolgreich abgeschlossen.`
-      : "Ein Vollantrag fuer Kredit ohne Schufa wurde erfolgreich abgeschlossen.",
+      : "Ein Vollantrag fuer Privatkredit wurde erfolgreich abgeschlossen.",
     steps,
     ctaLabel: "Fall ansehen",
     ctaUrl: input.advisorCaseUrl,
-    eyebrow: "SEPANA - Schufa-frei Vollantrag",
+    eyebrow: "SEPANA - Privatkredit Vollantrag",
     supportNote: "Diese Nachricht wurde automatisch nach dem Abschluss des zweiten Formulars versendet.",
   })
 
@@ -146,8 +144,8 @@ async function notifyAdminSubmitted(input: {
       sendEmail({
         to,
         subject: input.caseRef
-          ? `Neuer Vollantrag: Kredit ohne Schufa (${input.caseRef})`
-          : "Neuer Vollantrag: Kredit ohne Schufa",
+          ? `Neuer Vollantrag: Privatkredit (${input.caseRef})`
+          : "Neuer Vollantrag: Privatkredit",
         html,
       }).catch(() => null)
     )
@@ -217,28 +215,6 @@ async function upsertSchufaFreeDetailsWithFallback(
   }
 }
 
-async function updateSchufaFreeDetailsWithFallback(
-  admin: ReturnType<typeof supabaseAdmin>,
-  caseId: string,
-  payload: Record<string, unknown>
-) {
-  const mutablePayload = { ...payload }
-  const removedColumns: string[] = []
-
-  while (true) {
-    const query = await admin.from("case_schufa_free_details").update(mutablePayload).eq("case_id", caseId)
-    if (!query.error) return { error: null as null, removedColumns }
-
-    const missingColumn = extractMissingColumnName(query.error)
-    if (missingColumn && missingColumn in mutablePayload) {
-      delete mutablePayload[missingColumn]
-      removedColumns.push(missingColumn)
-      continue
-    }
-
-    return { error: query.error, removedColumns }
-  }
-}
 
 const REQUIRED_FIELD_LABELS: Record<string, string> = {
   gender: "Anrede",
@@ -286,8 +262,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Fehlende Felder." }, { status: 400 })
     }
 
+    if ((body?.creditolo as Record<string, unknown> | undefined)?.consent !== true) {
+      return NextResponse.json({ok:false,error:"Bitte Datenweitergabe an Creditolo bestätigen."},{status:400})
+    }
+
     const admin = supabaseAdmin()
-    const skagVariant: SkagApiVariant = hasDedicatedSkagVariantCredentials("open") ? "open" : "standard"
     const access = await resolvePublicOnlinekreditCaseAccess(admin, {
       caseId,
       caseRef,
@@ -428,18 +407,8 @@ export async function POST(req: Request) {
     if (!profession || profession < 1 || profession > 8) {
       return NextResponse.json({ ok: false, error: "Beruf ist ungueltig." }, { status: 400 })
     }
-    const maxTaxClass = skagVariant === "standard" ? 5 : 6
-    if (!taxClass || taxClass < 1 || taxClass > maxTaxClass) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            skagVariant === "standard"
-              ? "Steuerklasse ist ungueltig. In der aktuell konfigurierten SEPANA-Standardstrecke sind nur Steuerklassen 1 bis 5 moeglich."
-              : "Steuerklasse ist ungueltig.",
-        },
-        { status: 400 }
-      )
+    if (!taxClass || taxClass < 1 || taxClass > 6) {
+      return NextResponse.json({ok:false,error:"Steuerklasse ist ungültig."},{status:400})
     }
     if (!looksLikeIban(iban)) {
       return NextResponse.json({ ok: false, error: "IBAN ist ungueltig." }, { status: 400 })
@@ -551,62 +520,9 @@ export async function POST(req: Request) {
     }
 
     const { data: details } = await admin.from("case_schufa_free_details").select("*").eq("case_id", caseId).maybeSingle()
-    const { data: applicant } = await admin
-      .from("case_applicants")
-      .select("*")
-      .eq("case_id", caseId)
-      .eq("role", "primary")
-      .maybeSingle()
-
     const mergedDetails = { ...(details ?? {}), ...detailPayload }
-    const payload =
-      skagVariant === "open"
-        ? buildSkagOpenLeadPayload({
-            applicant: applicant ?? null,
-            details: mergedDetails as Parameters<typeof buildSkagOpenLeadPayload>[0]["details"],
-            clientId: caseRef || caseId,
-          })
-        : buildSkagStandardLeadPayload({
-            applicant: applicant ?? null,
-            details: mergedDetails as Parameters<typeof buildSkagStandardLeadPayload>[0]["details"],
-          })
-
-    const skagResult = await processSkagLead(payload, skagVariant)
-    if (!skagResult.creditId) {
-      return NextResponse.json(
-        { ok: false, error: "SEPANA hat keine credit_id zurueckgegeben.", raw: skagResult.raw ?? skagResult.rawText },
-        { status: 502 }
-      )
-    }
-
-    const syncUpsert = await admin.from("case_skag_sync").upsert(
-      {
-        case_id: caseId,
-        api_variant: skagVariant,
-        skag_client_id: skagResult.clientId,
-        skag_credit_id: skagResult.creditId,
-        last_submit_at: now,
-        last_status_alias: "submitted",
-        last_status_description: "Lead an SEPANA uebermittelt",
-        raw_last_response: skagResult.raw ?? null,
-        last_error: null,
-        updated_at: now,
-      },
-      { onConflict: "case_id" }
-    )
-    if (syncUpsert.error) throw syncUpsert.error
-
-    const detailUpdate = await updateSchufaFreeDetailsWithFallback(admin, caseId, {
-      submitted_to_skag_at: now,
-      updated_at: now,
-    })
-    if (detailUpdate.error) throw detailUpdate.error
-
-    await updateCaseStatusCompat(admin, {
-      caseId,
-      status: "skag_submitted",
-      updatedAt: now,
-    })
+    const creditolo = await enqueueCreditolo(admin,caseId,req,body?.creditolo as Record<string,unknown>)
+    await updateCaseStatusCompat(admin, {caseId,status:"submitted",updatedAt:now})
 
     const { data: uploadedDocumentRows } = await admin
       .from("documents")
@@ -627,47 +543,9 @@ export async function POST(req: Request) {
     const advisorCaseUrl = new URL(`/advisor/faelle/${encodeURIComponent(caseId)}`, siteOrigin).toString()
     const customerDashboardUrl = new URL(`/app/faelle/${encodeURIComponent(caseId)}#schufa-dokumente`, siteOrigin).toString()
 
-    let emailSent = false
-    let emailError: string | null = null
-
-    if (email) {
-      const html = buildEmailHtml({
-        title: "Antrag erfolgreich abgeschickt",
-        intro: caseRef
-          ? `Ihr Antrag für den Fall ${caseRef} wurde erfolgreich an SEPANA übermittelt.`
-          : "Ihr Antrag wurde erfolgreich an SEPANA übermittelt.",
-        bodyHtml: `
-          <p style="margin:0 0 14px 0; font-size:15px; line-height:24px; color:#0f172a;">
-            Der nächste Schritt ist jetzt der Upload Ihrer Unterlagen im Kundendashboard. Sobald die Dokumente
-            vollständig vorliegen, prüft Ihr Berater die Angaben und begleitet den Fall weiter.
-          </p>
-        `,
-        steps: [
-          "Laden Sie jetzt Ihre Unterlagen im Dokumentebereich hoch.",
-          "Danach prüft Ihr Berater Ihre Angaben.",
-          "Sobald es weitergeht, erhalten Sie automatisch die nächste Rückmeldung.",
-        ],
-        ctaLabel: "Unterlagen jetzt hochladen",
-        ctaUrl: customerDashboardUrl,
-        preheader: "Ihr Antrag wurde erfolgreich übermittelt. Als Nächstes laden Sie bitte Ihre Unterlagen hoch.",
-        eyebrow: "SEPANA - Antrag erfolgreich",
-        supportNote: "Der Dokumentebereich ist direkt über den Button im Kundendashboard erreichbar.",
-      })
-
-      const emailResult = await sendEmail({
-        to: email,
-        subject: "Ihr Antrag wurde erfolgreich abgeschickt",
-        html,
-      }).catch((error) => ({
-        ok: false as const,
-        error: error instanceof Error ? error.message : "mail_failed",
-      }))
-
-      emailSent = Boolean(emailResult?.ok)
-      emailError = emailSent ? null : String(emailResult?.error ?? "mail_failed")
-    } else {
-      emailError = "missing_customer_email"
-    }
+    const {data:confirmation}=await admin.from("creditolo_deliveries").select("confirmation_email_sent_at,confirmation_email_error").eq("case_id",caseId).maybeSingle()
+    const emailSent=Boolean(confirmation?.confirmation_email_sent_at)
+    const emailError=confirmation?.confirmation_email_error ?? null
 
     await notifyAdminSubmitted({
       caseId,
@@ -703,14 +581,16 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      creditId: skagResult.creditId,
-      clientId: skagResult.clientId,
+      creditolo,
+      creditId: null,
+      clientId: null,
       uploadedDocumentCount,
       ratenschutzOptIn,
       emailSent,
       emailError,
     })
   } catch (error) {
+    if (error instanceof CreditoloValidationError) return NextResponse.json({ok:false,error:error.message,fields:error.fields},{status:400})
     console.error("[schufa-frei/application] unexpected error", error)
     const message =
       error instanceof Error

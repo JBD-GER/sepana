@@ -107,7 +107,7 @@ function resolveLeadType(lead: Pick<LeadRow, "lead_case_type" | "product_name">)
 
 function productLabel(type: ProductTab) {
   if (type === "konsum") return "Privatkredit"
-  if (type === "schufa_frei") return "Kredit ohne Schufa"
+  if (type === "schufa_frei") return "Privatkredit"
   return "Baufinanzierung"
 }
 
@@ -134,7 +134,7 @@ function resolveSchufaLeadProgress(
     if (status === "precheck_rejected") {
       return {
         label: "Vorprüfung negativ",
-        hint: "Für diesen Lead wurde kein weiterer Schufa-frei-Fall angelegt.",
+        hint: "Für diesen Lead wurde kein weiterer Privatkredit-Fall angelegt.",
         toneClass: "border-rose-200 bg-rose-50 text-rose-900",
       }
     }
@@ -175,7 +175,7 @@ function resolveSchufaLeadProgress(
 
   return {
     label: "Zweitformular offen",
-    hint: "Der Kunde hat den Schufa-frei-Antrag nach der Vorprüfung noch nicht vervollständigt.",
+    hint: "Der Kunde hat den Privatkredit-Antrag nach der Vorprüfung noch nicht vervollständigt.",
     toneClass: "border-amber-200 bg-amber-50 text-amber-900",
   }
 }
@@ -322,7 +322,7 @@ export default async function AdvisorLeadsPage({
                 : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
             }`}
           >
-            Kredit ohne Schufa
+            Privatkredit
           </Link>
         </div>
       </div>

@@ -912,6 +912,12 @@ async function syncEuropaceImmobilieState(opts: {
 }
 
 export async function syncEuropaceCase(admin: MinimalSupabase, caseId: string) {
+  if (process.env.PRIVATKREDIT_PROVIDER === "creditolo") {
+    const {data:mapping,error:mappingError}=await admin.from("case_europace").select("vorgangsnummer").eq("case_id",caseId).maybeSingle()
+    if (mappingError) throw mappingError
+    if (!mapping?.vorgangsnummer) throw new Error("Neue Privatkreditanfragen werden über Creditolo bearbeitet. Bitte den vollständigen Antrag mit Creditolo-Einwilligung abschließen.")
+  }
+
   if (!hasEuropaceConfig()) {
     throw new Error("Europace-Konfiguration fehlt. Bitte EUROPACE_* Variablen setzen.")
   }

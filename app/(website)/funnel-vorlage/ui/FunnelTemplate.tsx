@@ -1,5 +1,7 @@
 ﻿"use client"
 
+import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
+
 import Image from "next/image"
 import { startTransition, useMemo, useState } from "react"
 import FunnelIcon from "./FunnelIcon"
@@ -370,7 +372,7 @@ export default function FunnelTemplate({
         body: JSON.stringify(payload),
       })
 
-      const result = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null
+      const result = (await response.json().catch(() => null)) as { ok?: boolean; error?: string; linkedCaseId?: string; linkedCaseRef?: string; publicAccessToken?: string } | null
       if (!response.ok || !result?.ok) {
         setError(result?.error?.trim() || "Anfrage konnte nicht gesendet werden. Bitte erneut versuchen.")
         return
@@ -378,7 +380,9 @@ export default function FunnelTemplate({
 
       setSubmitted(true)
       if (typeof window !== "undefined") {
-        window.location.assign("/erfolgreich")
+        if(form.productType === "privatkredit" && result.linkedCaseId && result.linkedCaseRef && result.publicAccessToken) {
+          window.location.assign(`/onlinekredit?${new URLSearchParams({caseId:result.linkedCaseId,caseRef:result.linkedCaseRef,access:result.publicAccessToken}).toString()}`)
+        } else window.location.assign("/erfolgreich")
       }
     } catch {
       setError("Anfrage konnte nicht gesendet werden. Bitte erneut versuchen.")
@@ -592,7 +596,8 @@ export default function FunnelTemplate({
 
             <div className="mt-5">{renderStep()}</div>
 
-            <div className="mt-6 flex items-center justify-between gap-3 border-t border-slate-200 pt-4">
+            {form.productType === "privatkredit" && stepId === "consent" && <CreditoloNotice />}
+          <div className="mt-6 flex items-center justify-between gap-3 border-t border-slate-200 pt-4">
               <button
                 type="button"
                 onClick={back}

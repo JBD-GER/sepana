@@ -250,7 +250,7 @@ export async function POST(req: Request) {
     actorRole: role ?? "advisor",
     type: "document_uploaded",
     title: "Bankeinreichung generiert",
-    body: "Die vollständige Schufa-frei-Bankeinreichung wurde als Sammel-PDF erzeugt und an SKAG übermittelt.",
+    body: "Die vollständige Privatkredit-Bankeinreichung wurde als Sammel-PDF erzeugt und an SKAG übermittelt.",
     meta: {
       document_kind: "bank_submission_bundle",
       file_name: bundle.fileName,

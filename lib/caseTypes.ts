@@ -18,7 +18,7 @@ export function normalizeSupportedCaseType(raw: unknown): SupportedCaseType | nu
 
 export function getCaseTypeLabel(caseType: SupportedCaseType | null | undefined) {
   if (caseType === "konsum") return "Privatkredit"
-  if (caseType === "schufa_frei") return "Kredit ohne Schufa"
+  if (caseType === "schufa_frei") return "Privatkredit"
   return "Baufinanzierung"
 }
 

@@ -27,13 +27,13 @@ const TAB_LABELS: Record<WebsiteReviewTab, string> = {
   overall: "Insgesamt",
   baufi: "Baufinanzierung",
   privatkredit: "Privatkredit",
-  schufa_frei: "Kredit ohne Schufa",
+  schufa_frei: "Privatkredit",
 }
 
 const CATEGORY_LABELS: Record<WebsiteReviewCategory, string> = {
   baufi: "Baufinanzierung",
   privatkredit: "Privatkredit",
-  schufa_frei: "Kredit ohne Schufa",
+  schufa_frei: "Privatkredit",
 }
 
 const CATEGORY_ACCENTS: Record<
@@ -139,7 +139,7 @@ export default function WebsiteReviewsSectionClient({
               </h2>
               <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600 sm:text-base">
                 {description ??
-                  "Transparente Abläufe, persönliche Ansprechpartner und ein sauberer digitaler Prozess sind die Punkte, die Kundinnen und Kunden bei SEPANA in Baufinanzierung, Privatkredit und Kredit ohne Schufa am häufigsten hervorheben."}
+                  "Transparente Abläufe, persönliche Ansprechpartner und ein sauberer digitaler Prozess sind die Punkte, die Kundinnen und Kunden bei SEPANA in Baufinanzierung, Privatkredit und Privatkredit am häufigsten hervorheben."}
               </p>
 
               <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600">

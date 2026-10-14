@@ -1,5 +1,7 @@
 ﻿"use client"
 
+import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
+
 import { useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO } from "@/lib/ads/googleAds"
@@ -121,6 +123,7 @@ export default function PrivatkreditCallbackBox({
               {busy ? "Sende Rückruf..." : "Rückruf anfordern"}
             </button>
           </div>
+        <div className="sm:col-span-2"><CreditoloNotice /></div>
         </form>
       </div>
     </section>

@@ -43,7 +43,7 @@ export default function SchufaFreePrecheckDecisionPanel({ caseId }: { caseId: st
           json?.error === "customer_email_missing"
             ? "Beim Kunden ist keine E-Mail-Adresse hinterlegt."
             : json?.error === "case_type_not_supported"
-              ? "Die Aktion ist nur fuer Kredit ohne Schufa verfuegbar."
+              ? "Die Aktion ist nur fuer Privatkredit verfuegbar."
               : json?.error || "E-Mail konnte nicht versendet werden."
         )
       }

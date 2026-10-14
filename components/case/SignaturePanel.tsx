@@ -679,7 +679,7 @@ export default function SignaturePanel({
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4">
                 <div className="text-sm font-semibold text-emerald-950">Vertragspaket automatisch aufteilen</div>
                 <div className="mt-1 text-sm leading-relaxed text-emerald-900">
-                  Laden Sie hier den vollständigen Schufa-frei-Kreditvertrag hoch. Das PDF wird automatisch in
+                  Laden Sie hier den vollständigen Kreditvertrag hoch. Das PDF wird automatisch in
                   Kreditvertrag, Ratenschutz, Serviceprovision, ggf. Abtretungserklärung und vorvertragliche
                   Informationen aufgeteilt.
                 </div>
@@ -700,7 +700,7 @@ export default function SignaturePanel({
                   <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Bank</div>
                   <div className="rounded-2xl border border-emerald-200 bg-white px-4 py-3 shadow-sm">
                     <div className="text-sm font-semibold text-slate-900">{lockedProviderLabel || "SIGMA Kreditbank AG"}</div>
-                    <div className="mt-0.5 text-xs text-slate-500">Vertragspaket für Kredit ohne Schufa</div>
+                    <div className="mt-0.5 text-xs text-slate-500">Vertragspaket für Privatkredit</div>
                   </div>
                 </div>
 
@@ -746,7 +746,7 @@ export default function SignaturePanel({
                 {lockedProviderLabel ? (
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
                     <div className="text-sm font-semibold text-emerald-950">{lockedProviderLabel}</div>
-                    <div className="mt-0.5 text-xs text-emerald-700">Fest für Schufa-frei hinterlegt</div>
+                    <div className="mt-0.5 text-xs text-emerald-700">Fest für Privatkredit hinterlegt</div>
                   </div>
                 ) : (
                   <select

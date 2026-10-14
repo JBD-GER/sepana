@@ -246,7 +246,7 @@ export default async function AdminInvoicesPage({
                       </Link>
                       <div className="mt-1 text-xs text-slate-500">
                         {isInsurancePartnerInvoice || isInternalInvoice || invoiceType === SCHUFA_FREE_PROVISION_INVOICE_TYPE
-                          ? "Kredit ohne Schufa"
+                          ? "Privatkredit"
                           : invoice.case_type ?? "-"}
                       </div>
                     </td>

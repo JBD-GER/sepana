@@ -2,8 +2,6 @@ import { NextResponse } from "next/server"
 import { getUserAndRole } from "@/lib/auth/getUserAndRole"
 import { getIbanDisplayValue, getSandboxIbanDemo, normalizeIbanInput } from "@/lib/banking/iban"
 import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
-import { hasEuropaceConfig } from "@/lib/europace/config"
-import { syncEuropaceCase } from "@/lib/europace/service"
 import {
   getAdditionalIdDateValidationIssue,
   getLoanAmountMinimumValidationIssue,
@@ -395,21 +393,6 @@ function customerCanEdit(offerStatus: string | null) {
   return s === "sent" || s === "rejected"
 }
 
-async function hasEuropaceAutoSyncPrerequisites(admin: ReturnType<typeof supabaseAdmin>, caseId: string) {
-  const { data: primary, error } = await admin
-    .from("case_applicants")
-    .select("first_name,last_name")
-    .eq("case_id", caseId)
-    .eq("role", "primary")
-    .maybeSingle()
-
-  if (error) throw error
-
-  const firstName = String(primary?.first_name ?? "").trim()
-  const lastName = String(primary?.last_name ?? "").trim()
-  return Boolean(firstName && lastName)
-}
-
 async function resolveAccess(
   caseId: string,
   ticketId: string,
@@ -724,7 +707,6 @@ export async function POST(req: Request) {
   const guestToken = body?.guestToken ? String(body.guestToken).trim() : null
   const caseRef = body?.caseRef ? String(body.caseRef).trim() : null
   const publicAccessToken = body?.access ? String(body.access).trim() : null
-  const triggerEuropaceSync = body?.triggerEuropaceSync === undefined ? true : Boolean(body?.triggerEuropaceSync)
   if (!caseId) return NextResponse.json({ ok: false, error: "missing_case" }, { status: 400 })
 
   const access = await resolveAccess(caseId, ticketId, guestToken, caseRef, publicAccessToken)
@@ -1366,34 +1348,9 @@ export async function POST(req: Request) {
     }
   }
 
-  let europaceSync:
-    | {
-        attempted: boolean
-        ok: boolean
-        error?: string | null
-      }
-    | undefined
-
-  if (triggerEuropaceSync && isKonsum && hasEuropaceConfig()) {
-    const canAutoSync = await hasEuropaceAutoSyncPrerequisites(readClient, caseId)
-    if (canAutoSync) {
-      europaceSync = { attempted: true, ok: false, error: null }
-      try {
-        await syncEuropaceCase(readClient, caseId)
-        europaceSync = { attempted: true, ok: true }
-      } catch (error) {
-        europaceSync = {
-          attempted: true,
-          ok: false,
-          error: error instanceof Error ? error.message : "Europace-Sync fehlgeschlagen.",
-        }
-      }
-    } else {
-      europaceSync = { attempted: false, ok: false, error: null }
-    }
-  } else {
-    europaceSync = { attempted: false, ok: false, error: null }
-  }
+  // New loan applications are delivered to Creditolo after explicit final consent.
+  // Saving a draft must never dispatch it to Europace.
+  const europaceSync = { attempted: false, ok: false, error: null }
 
   return NextResponse.json({
     ok: true,
