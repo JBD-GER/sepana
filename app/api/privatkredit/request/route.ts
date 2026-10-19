@@ -1,3 +1,7 @@
+import { POST as saveCase } from "@/lib/live/caseRoute"
+import { enqueueCreditolo } from "@/lib/creditolo/service"
+import { validateCreditoloApplication } from "@/lib/creditolo/application"
+import { CreditoloValidationError } from "@/lib/creditolo/payload"
 import { CREDITOLO_INTAKE_NOTICE } from "@/lib/creditolo/notice"
 ﻿import { NextResponse } from "next/server"
 import { buildEmailHtml, sanitizeNotificationRecipients, sendEmail } from "@/lib/notifications/notify"
@@ -9,6 +13,7 @@ import { getActiveTippgeberProfileByUserId } from "@/lib/tippgeber/service"
 import { createPublicCaseAccessToken } from "@/lib/onlinekredit/publicAccess"
 
 export const runtime = "nodejs"
+export const maxDuration = 60
 
 const SOURCE = "website_privatkredit"
 const MAX_MESSAGE_LENGTH = 2000
@@ -345,9 +350,27 @@ async function sendCustomerConfirmation(opts: {
 }
 
 export async function POST(req: Request) {
+  let recovery: Record<string, unknown> = {}
   try {
     const body = await req.json().catch(() => null)
     const requestType = normalizeRequestType(body?.requestType)
+    if (requestType !== "callback") {
+      if (!body?.application || typeof body.application !== "object") {
+        return NextResponse.json({ok:false,error:"Bitte vervollständigen Sie den Kreditantrag einschließlich der Pflichtangaben und Einwilligungen für Creditolo.", nextUrl:"/onlinekredit"},{status:400})
+      }
+      validateCreditoloApplication(body.application)
+      const applicant = body.application.primary
+      // The validated application is the source of truth for case creation.
+      body.firstName = applicant.first_name
+      body.lastName = applicant.last_name
+      body.email = applicant.email
+      body.phone = applicant.phone
+      body.loanAmount = body.application.baufi.loan_amount_requested
+      body.termMonths = body.application.baufi.term_months
+      body.purpose = body.application.baufi.purpose
+      body.requirePublicCaseAccess = true
+    }
+
 
     let firstName = trimOrNull(body?.firstName)
     let lastName = trimOrNull(body?.lastName)
@@ -488,26 +511,7 @@ export async function POST(req: Request) {
     let publicAccessToken: string | null = null
     let accountOrCaseLinkError: string | null = null
 
-    const [adminMail, customerMail] = await Promise.all([
-      sendAdminNotification({
-        requestType,
-        fullName: fullNameResolved,
-        email,
-        phone,
-        loanAmount,
-        purpose,
-        callbackTime,
-        message,
-        leadId,
-        externalLeadId,
-      }),
-      sendCustomerConfirmation({
-        requestType,
-        firstName,
-        email,
-        callbackTime,
-      }),
-    ])
+
 
     if (leadId && email) {
       try {
@@ -631,6 +635,47 @@ export async function POST(req: Request) {
       )
     }
 
+    recovery = {linkedCaseId, linkedCaseRef, publicAccessToken, existingAccount}
+
+    let creditolo = null
+    let applicationWarnings: string[] = []
+    if (body?.application && linkedCaseId && linkedCaseRef && publicAccessToken) {
+      const application = body.application
+      const saved = await saveCase(new Request(req.url, {method: "POST", headers: req.headers,
+        body: JSON.stringify({...application, caseId: linkedCaseId, caseRef: linkedCaseRef, access: publicAccessToken,
+          co: application.co ?? [], liabilities: application.liabilities ?? [], realEstateAssets: application.realEstateAssets ?? [], triggerEuropaceSync: false})}))
+      const savedData = await saved.json()
+      if (!saved.ok || !savedData.ok) {
+        return NextResponse.json({ok:false,error:savedData.message ?? savedData.error ?? "Ihre Angaben konnten nicht vollständig gespeichert werden.",
+          linkedCaseId, linkedCaseRef, publicAccessToken, existingAccount}, {status:400})
+      }
+      applicationWarnings = savedData.warnings ?? []
+      if (applicationWarnings.length) return NextResponse.json({ok:false,error:"Die vollständigen Pflichtangaben konnten nicht gespeichert werden. Bitte wenden Sie sich an SEPANA.",
+        linkedCaseId, linkedCaseRef, publicAccessToken, existingAccount}, {status:500})
+      creditolo = await enqueueCreditolo(admin, linkedCaseId, req, application.creditolo)
+    }
+
+    const [adminMail, customerMail] = await Promise.all([
+      sendAdminNotification({
+        requestType,
+        fullName: fullNameResolved,
+        email,
+        phone,
+        loanAmount,
+        purpose,
+        callbackTime,
+        message,
+        leadId,
+        externalLeadId,
+      }),
+      sendCustomerConfirmation({
+        requestType,
+        firstName,
+        email,
+        callbackTime,
+      }),
+    ])
+
     if (adminMail.successCount === 0 && adminMail.error) {
       console.error("[privatkredit-request] admin mail failed", adminMail.error)
     }
@@ -646,7 +691,9 @@ export async function POST(req: Request) {
       linkedCaseRef,
       publicAccessToken,
       existingAccount,
-      message: "Anfrage gespeichert",
+      message: creditolo ? "Anfrage verarbeitet" : "Rückruf gespeichert",
+      creditolo,
+      warnings: applicationWarnings,
       mail: {
         adminAttempted: adminMail.attempted,
         adminSent: adminMail.successCount,
@@ -655,8 +702,9 @@ export async function POST(req: Request) {
       },
     })
   } catch (error: unknown) {
+    if (error instanceof CreditoloValidationError) return NextResponse.json({ok:false,error:error.message,fields:error.fields},{status:400})
     const message = error instanceof Error ? error.message : "Serverfehler"
-    return NextResponse.json({ ok: false, error: message }, { status: 500 })
+    return NextResponse.json({ ok: false, error: message, ...recovery }, { status: 500 })
   }
 }
 

@@ -1,4 +1,6 @@
-﻿"use client"
+"use client"
+
+import { startOnlinekreditApplication } from "@/lib/onlinekredit/prefill"
 
 import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
 
@@ -7,7 +9,6 @@ import { useRouter } from "next/navigation"
 import { useState, type FormEvent } from "react"
 import {
   GOOGLE_ADS_BAUFINANZIERUNG_LEAD_SEND_TO,
-  GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO,
 } from "@/lib/ads/googleAds"
 
 type LoanKind = "privat" | "immobilie"
@@ -234,30 +235,15 @@ export default function ScheidungKreditLeadForm() {
     }
 
     const isPrivat = form.loanKind === "privat"
-    const endpoint = isPrivat ? "/api/privatkredit/request" : "/api/baufi/lead-request"
-    const payload = isPrivat
-      ? {
-          requestType: "contact" as const,
-          firstName: form.firstName,
-          lastName: form.lastName,
-          email: form.email,
-          phone: form.phone,
-          loanAmount: amountValue,
-          purpose: "sonstiges",
-          callbackTime: "",
-          message: "Landingpage Scheidung/Trennung: Neustart-Finanzierung nach Trennung",
-        }
-      : {
-          firstName: form.firstName,
-          lastName: form.lastName,
-          email: form.email,
-          phone: form.phone,
-          financingNeed: amountValue,
-          purpose: "umschuldung",
-          propertyType: form.propertyType,
-          consentAccepted: true,
-          website: form.website,
-        }
+    if (isPrivat) {
+      try { startOnlinekreditApplication({purpose: "sonstiges", loanAmount: amountValue,
+        primary: {first_name: form.firstName, last_name: form.lastName, email: form.email, phone: form.phone}}) }
+      catch { setError("Der Antrag konnte nicht geöffnet werden. Bitte Browser-Speicher erlauben und erneut versuchen.") }
+      return
+    }
+    const endpoint = "/api/baufi/lead-request"
+    const payload = {firstName: form.firstName, lastName: form.lastName, email: form.email, phone: form.phone,
+      financingNeed: amountValue, purpose: "umschuldung", propertyType: form.propertyType, consentAccepted: true, website: form.website}
 
     setBusy(true)
     try {
@@ -274,13 +260,9 @@ export default function ScheidungKreditLeadForm() {
         return
       }
 
-      if(isPrivat && json.linkedCaseId && json.linkedCaseRef && json.publicAccessToken) {
-        router.push(`/onlinekredit?${new URLSearchParams({caseId:json.linkedCaseId,caseRef:json.linkedCaseRef,access:json.publicAccessToken}).toString()}`)
-        return
-      }
       const params = new URLSearchParams({
-        source: isPrivat ? "scheidung-kredit-privat" : "scheidung-kredit-immobilie",
-        conversion: isPrivat ? GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO : GOOGLE_ADS_BAUFINANZIERUNG_LEAD_SEND_TO,
+        source: "scheidung-kredit-immobilie",
+        conversion: GOOGLE_ADS_BAUFINANZIERUNG_LEAD_SEND_TO,
       })
       params.set("convref", `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`)
       if (json?.leadId) params.set("leadId", String(json.leadId))
@@ -577,7 +559,7 @@ export default function ScheidungKreditLeadForm() {
                 disabled={busy}
                 className="h-11 w-full rounded-xl bg-white px-5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
-                {busy ? "Sende Anfrage..." : "Jetzt kostenlos anfragen"}
+                {busy ? "Bitte warten..." : form.loanKind === "privat" ? "Weiter zum vollständigen Kreditantrag" : "Jetzt kostenlos anfragen"}
               </button>
             )}
           </div>

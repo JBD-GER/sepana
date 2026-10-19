@@ -1,4 +1,6 @@
-﻿"use client"
+"use client"
+
+import { startOnlinekreditApplication, normalizeCreditPurpose } from "@/lib/onlinekredit/prefill"
 
 import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
 
@@ -352,18 +354,17 @@ export default function FunnelTemplate({
           },
         }
       } else {
-        endpoint = "/api/privatkredit/request"
-        payload = {
-          requestType: "contact",
-          firstName: form.firstName.trim(),
-          lastName: form.lastName.trim(),
-          email: form.email.trim(),
-          phone: form.mobile.trim(),
-          loanAmount: form.loanAmount.trim() || null,
-          purpose: form.purpose,
-          pagePath,
-          partnerId: partnerId ?? undefined,
-        }
+        startOnlinekreditApplication({
+          purpose: normalizeCreditPurpose(form.purpose), loanAmount: form.loanAmount, termMonths: form.desiredTermMonths,
+          hasCoApplicant: form.coApplicant === "yes",
+          primary: {salutation: form.salutation, first_name: form.firstName, last_name: form.lastName,
+            email: form.email, phone: form.mobile, birth_date: form.birthDate,
+            address_street: form.street, address_house_no: form.houseNumber, address_zip: form.zip, address_city: form.city,
+            marital_status: ({ledig:"single",verheiratet:"married",geschieden:"divorced",verwitwet:"widowed"} as Record<string,string>)[form.familyStatus],
+            employment_type: ({angestellt_unbefristet:"employed",angestellt_befristet:"employed",selbstständig:"self_employed",beamter:"civil_servant",rentner:"retired",student:"student"} as Record<string,string>)[form.employmentStatus],
+            employment_status: form.employmentStatus === "angestellt_unbefristet" ? "permanent" : form.employmentStatus === "angestellt_befristet" ? "fixed_term" : ""},
+        })
+        return
       }
 
       const response = await fetch(endpoint, {
@@ -380,9 +381,7 @@ export default function FunnelTemplate({
 
       setSubmitted(true)
       if (typeof window !== "undefined") {
-        if(form.productType === "privatkredit" && result.linkedCaseId && result.linkedCaseRef && result.publicAccessToken) {
-          window.location.assign(`/onlinekredit?${new URLSearchParams({caseId:result.linkedCaseId,caseRef:result.linkedCaseRef,access:result.publicAccessToken}).toString()}`)
-        } else window.location.assign("/erfolgreich")
+        window.location.assign("/erfolgreich")
       }
     } catch {
       setError("Anfrage konnte nicht gesendet werden. Bitte erneut versuchen.")
@@ -462,7 +461,7 @@ export default function FunnelTemplate({
       <div className="space-y-4">
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-sm leading-relaxed text-emerald-900">
           {isKreditanfrage
-            ? "Nach dem Absenden kann eine Einladung zum Portal folgen. Dort können Unterlagen hochgeladen und die nächsten Schritte digital weitergeführt werden."
+            ? form.productType === "privatkredit" ? "Im nächsten Schritt ergänzen Sie die Pflichtangaben für Creditolo. Ihre Anfrage wird erst danach mit Ihrer Einwilligung übermittelt." : "Nach dem Absenden kann eine Einladung zum Portal folgen. Dort können Unterlagen hochgeladen und die nächsten Schritte digital weitergeführt werden."
             : "Nach dem Absenden erhält die Person eine Einladung zum Portal. Dort können Unterlagen hochgeladen und weitere Schritte mit der Beratung abgestimmt werden."}
         </div>
         <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
@@ -613,7 +612,7 @@ export default function FunnelTemplate({
                   disabled={submitting}
                   className="rounded-2xl border border-slate-900 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-95 disabled:pointer-events-none disabled:opacity-60"
                 >
-                  {submitting ? "Wird gesendet..." : "Anfrage absenden"}
+                  {submitting ? "Bitte warten..." : form.productType === "privatkredit" ? "Weiter zum vollständigen Kreditantrag" : "Anfrage absenden"}
                 </button>
               ) : (
                 <button

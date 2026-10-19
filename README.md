@@ -63,7 +63,8 @@ Neue vollständige Privatkreditanfragen (einschließlich PV/Solar, Hochzeit, Aut
 
 - Servervariablen: `CREDITOLO_API_KEY` (Secret), `CREDITOLO_PARTNER_ID`, `PRIVATKREDIT_PROVIDER=creditolo`, `CRON_SECRET` (Secret). Der API-Key gehört niemals in `NEXT_PUBLIC_*`, Quellcode oder Browserdaten.
 - Die zwei Migrationen `creditolo_delivery_outbox` und `creditolo_confirmation_email` müssen vor dem Release angewendet werden. Die Tabelle ist ausschließlich für `service_role` zugänglich.
-- Kurze Kontakt-/Rückrufanfragen bleiben im SEPANA-Leadpostfach, bis die vollständigen Pflichtdaten und die Einwilligung vorliegen. PV- und Hochzeitseinstiege führen in den vollständigen Antrag. Creditolo verlangt bei direkter Einlieferung insbesondere Kontakt- und Personendaten, Adresse, Beschäftigung, Einkommen und eine deutsche IBAN. Mindestbetrag: 3.000 EUR.
+- Kredit-Einstiege (allgemeine Anfrage, Umschuldung, Hochzeit, PV, Rechner und Scheidung) führen mit ihren Eingaben in den vollständigen Antrag. Die Übergabe erfolgt ausschließlich im aktuellen Tab über kurzlebigen Session-Speicher, nicht über personenbezogene URL-Parameter. Erst nach allen Creditolo-Pflichtangaben und ausdrücklicher Einwilligung kann abgesendet werden. Explizite Rückrufbitten bleiben Kontaktanfragen. Vorprüfungen der zweiten Strecke sind als Entwurf vom abgesendeten Vollantrag getrennt. Creditolo verlangt bei direkter Einlieferung insbesondere Kontakt- und Personendaten, Adresse, Beschäftigung, Einkommen und eine deutsche IBAN. Mindestbetrag: 3.000 EUR.
+- `POST /api/privatkredit/request` weist unvollständige Kredit-Anfragen vor der Lead-Anlage zurück. Ein vollständiger Antrag wird innerhalb derselben Serveranfrage gespeichert und an Creditolo übermittelt. Browser und Server teilen die Pflichtfeldprüfung; es gibt keinen separaten Browseraufruf mehr, der die erstmalige Übermittlung auslösen muss.
 - `creditolo_deliveries` erfasst Einwilligung, Übermittlungsstatus und Antwortcode. Erfolgreiche Übermittlungen werden nicht erneut gesendet; die zusätzliche Payload-Kopie wird nach Erfolg entfernt. Unklare Ergebnisse werden zur Prüfung markiert, weil Creditolo keinen dokumentierten Idempotenzschlüssel anbietet. Vor erneutem Versand im Partnerkonto abgleichen.
 - `/admin/creditolo` zeigt die aktuellen Weiterleitungen. Der geschützte Cron `/api/system/creditolo` bearbeitet offene Sendungen alle zehn Minuten. Alte Europace-Vorgänge bleiben lesbar; für neue Vorgänge wird kein Europace-Import angelegt.
 - Formulare und Kundenbestätigungen informieren darüber, dass Creditolo SEPANA ergänzt, insbesondere bei Ressourcenengpässen, und jede vollständige Anfrage nach Einwilligung automatisch weitergeleitet wird. Bestätigungsmails verwenden eine fallbezogene Resend-Idempotenzkennung.
@@ -71,7 +72,7 @@ Neue vollständige Privatkreditanfragen (einschließlich PV/Solar, Hochzeit, Aut
 Prüfung:
 
 ```sh
-node --test scripts/creditolo.test.cjs
+node --require ./scripts/creditolo-test-loader.cjs --test scripts/creditolo.test.cjs scripts/creditolo-required-submission.test.cjs
 npx tsc --noEmit
 npm run build
 ```

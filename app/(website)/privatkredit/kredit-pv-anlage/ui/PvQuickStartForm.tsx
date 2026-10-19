@@ -1,11 +1,11 @@
-﻿"use client"
+"use client"
+
+import { startOnlinekreditApplication } from "@/lib/onlinekredit/prefill"
 
 import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useState, type FormEvent } from "react"
-import { GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO } from "@/lib/ads/googleAds"
 
 type QuickStartFormState = {
   email: string
@@ -29,7 +29,6 @@ function isPhone(value: string) {
 }
 
 export default function PvQuickStartForm() {
-  const router = useRouter()
   const [form, setForm] = useState<QuickStartFormState>(INITIAL_STATE)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -63,47 +62,9 @@ export default function PvQuickStartForm() {
     }
 
     setBusy(true)
-    try {
-      const response = await fetch("/api/privatkredit/request", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          requestType: "quick_start",
-          email: email || null,
-          phone: phone || null,
-          purpose: "pv_anlage",
-          pagePath: "/privatkredit/kredit-pv-anlage",
-          message: "Schnellstart-Anfrage über PV-Landingpage.",
-        }),
-      })
-
-      const json = (await response.json().catch(() => null)) as
-        | { ok?: boolean; error?: string; leadId?: string | number; externalLeadId?: string | number; existingAccount?: boolean; linkedCaseId?: string; linkedCaseRef?: string; publicAccessToken?: string }
-        | null
-      if (!response.ok || !json?.ok) {
-        setError(json?.error || "Anfrage konnte nicht gesendet werden.")
-        return
-      }
-
-      setForm(INITIAL_STATE)
-      const params = new URLSearchParams({
-        source: "privatkredit",
-        conversion: GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO,
-      })
-      if (json?.leadId) params.set("leadId", String(json.leadId))
-      if (json?.externalLeadId) params.set("externalLeadId", String(json.externalLeadId))
-      if (json?.existingAccount) params.set("existing", "1")
-      const next=new URLSearchParams({purpose:"pv_anlage"})
-      if (json?.linkedCaseId && json.linkedCaseRef && json.publicAccessToken) {
-        next.set("caseId",json.linkedCaseId);next.set("caseRef",json.linkedCaseRef);next.set("access",json.publicAccessToken)
-      }
-      router.push(`/onlinekredit?${next.toString()}`)
-      return
-    } catch {
-      setError("Anfrage konnte nicht gesendet werden.")
-    } finally {
-      setBusy(false)
-    }
+    try { startOnlinekreditApplication({purpose: "pv_anlage", primary: {email, phone}}) }
+    catch { setError("Der Antrag konnte nicht geöffnet werden. Bitte Browser-Speicher erlauben und erneut versuchen.") }
+    finally { setBusy(false) }
   }
 
   return (
@@ -171,7 +132,7 @@ export default function PvQuickStartForm() {
           disabled={busy}
           className="h-11 rounded-xl bg-gradient-to-r from-slate-900 to-emerald-700 px-4 text-sm font-semibold text-white transition hover:from-slate-800 hover:to-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {busy ? "Sende Anfrage..." : "Kreditanfrage starten"}
+          {busy ? "Antrag wird geöffnet..." : "Weiter zum Kreditantrag"}
         </button>
       <div className="sm:col-span-2"><CreditoloNotice /></div>
         </form>

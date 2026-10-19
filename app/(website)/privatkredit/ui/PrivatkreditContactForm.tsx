@@ -1,10 +1,10 @@
-﻿"use client"
+"use client"
+
+import { startOnlinekreditApplication } from "@/lib/onlinekredit/prefill"
 
 import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
 
 import { useMemo, useState, type FormEvent } from "react"
-import { useRouter } from "next/navigation"
-import { GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO } from "@/lib/ads/googleAds"
 import { getPrivatkreditPurposeLabel, PRIVATKREDIT_PURPOSE_OPTIONS } from "@/lib/privatkredit/purposes"
 
 type FormState = {
@@ -57,15 +57,10 @@ function createInitialState(initialPurpose: string): FormState {
 export default function PrivatkreditContactForm({
   eyebrow = "Sichere Anfrage",
   title = "Persönliche Kreditanfrage starten",
-  description = "Senden Sie Ihre Eckdaten in weniger als zwei Minuten. Wir melden uns mit einer klaren Einschätzung und den passenden nächsten Schritten.",
-  submitLabel = "Anfrage senden",
+  description = "Starten Sie mit Ihren Kontaktdaten. Im nächsten Schritt ergänzen Sie alle Pflichtangaben. Erst danach wird Ihre Kreditanfrage an Creditolo gesendet.",
   initialPurpose = "freie_verwendung",
   lockPurpose = false,
-  successSource = "privatkredit",
-  pagePath = "/privatkredit/anfrage",
-  continuePathBase = "/onlinekredit",
 }: PrivatkreditContactFormProps) {
-  const router = useRouter()
   const initialState = useMemo(() => createInitialState(initialPurpose), [initialPurpose])
   const [form, setForm] = useState<FormState>(initialState)
   const [busy, setBusy] = useState(false)
@@ -106,56 +101,11 @@ export default function PrivatkreditContactForm({
 
     setBusy(true)
     try {
-      const res = await fetch("/api/privatkredit/request", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          requestType: "contact",
-          firstName: form.firstName,
-          lastName: form.lastName,
-          email: form.email,
-          phone: form.phone,
-          loanAmount: form.loanAmount,
-          purpose: form.purpose,
-          callbackTime: form.callbackTime,
-          message: form.message,
-          pagePath,
-        }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok || !json?.ok) {
-        setError(String(json?.error || "Anfrage konnte nicht gesendet werden."))
-        return
-      }
-      const linkedCaseId = String(json?.linkedCaseId ?? "").trim()
-      const linkedCaseRef = String(json?.linkedCaseRef ?? "").trim()
-      const publicAccessToken = String(json?.publicAccessToken ?? "").trim()
-
-      if (continuePathBase && linkedCaseId && linkedCaseRef && publicAccessToken) {
-        setForm(initialState)
-        const params = new URLSearchParams({
-          caseId: linkedCaseId,
-          caseRef: linkedCaseRef,
-          access: publicAccessToken,
-        })
-        if (json?.existingAccount) params.set("existing", "1")
-        router.push(`${continuePathBase}?${params.toString()}`)
-        return
-      }
-
-      setForm(initialState)
-      const params = new URLSearchParams({
-        source: successSource,
-        conversion: GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO,
-      })
-      if (json?.leadId) params.set("leadId", String(json.leadId))
-      if (json?.externalLeadId) params.set("externalLeadId", String(json.externalLeadId))
-      if (json?.existingAccount) params.set("existing", "1")
-      router.push(`/erfolgreich?${params.toString()}`)
-      return
-    } finally {
-      setBusy(false)
-    }
+      startOnlinekreditApplication({purpose: form.purpose, loanAmount: amountHint,
+        primary: {first_name: form.firstName, last_name: form.lastName, email: form.email, phone: form.phone},
+        note: [form.callbackTime ? `Beste Erreichbarkeit: ${form.callbackTime}` : "", form.message].filter(Boolean).join("\n")})
+    } catch { setError("Der Antrag konnte nicht geöffnet werden. Bitte Browser-Speicher erlauben und erneut versuchen.") }
+    finally { setBusy(false) }
   }
 
   return (
@@ -300,7 +250,7 @@ export default function PrivatkreditContactForm({
             disabled={busy}
             className="h-12 rounded-2xl bg-gradient-to-r from-slate-900 to-cyan-900 px-5 text-sm font-semibold text-white transition hover:from-slate-800 hover:to-cyan-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {busy ? "Sende Anfrage..." : submitLabel}
+            {busy ? "Antrag wird geöffnet..." : "Weiter zum vollständigen Kreditantrag"}
           </button>
         </div>
         <div className="sm:col-span-2"><CreditoloNotice /></div>

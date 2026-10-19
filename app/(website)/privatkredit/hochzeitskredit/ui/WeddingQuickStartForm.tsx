@@ -1,11 +1,11 @@
 "use client"
 
+import { startOnlinekreditApplication } from "@/lib/onlinekredit/prefill"
+
 import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useState, type FormEvent } from "react"
-import { GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO } from "@/lib/ads/googleAds"
 
 type QuickStartFormState = {
   email: string
@@ -29,7 +29,6 @@ function isPhone(value: string) {
 }
 
 export default function WeddingQuickStartForm() {
-  const router = useRouter()
   const [form, setForm] = useState<QuickStartFormState>(INITIAL_STATE)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -63,47 +62,9 @@ export default function WeddingQuickStartForm() {
     }
 
     setBusy(true)
-    try {
-      const response = await fetch("/api/privatkredit/request", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          requestType: "quick_start",
-          email: email || null,
-          phone: phone || null,
-          purpose: "hochzeitskredit",
-          pagePath: "/privatkredit/hochzeitskredit",
-          message: "Schnellstart-Anfrage über Hochzeitskredit-Landingpage.",
-        }),
-      })
-
-      const json = (await response.json().catch(() => null)) as
-        | { ok?: boolean; error?: string; leadId?: string | number; externalLeadId?: string | number; existingAccount?: boolean; linkedCaseId?: string; linkedCaseRef?: string; publicAccessToken?: string }
-        | null
-      if (!response.ok || !json?.ok) {
-        setError(json?.error || "Anfrage konnte nicht gesendet werden.")
-        return
-      }
-
-      setForm(INITIAL_STATE)
-      const params = new URLSearchParams({
-        source: "hochzeitskredit",
-        conversion: GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO,
-      })
-      if (json?.leadId) params.set("leadId", String(json.leadId))
-      if (json?.externalLeadId) params.set("externalLeadId", String(json.externalLeadId))
-      if (json?.existingAccount) params.set("existing", "1")
-      const next=new URLSearchParams({purpose:"hochzeitskredit"})
-      if (json?.linkedCaseId && json.linkedCaseRef && json.publicAccessToken) {
-        next.set("caseId",json.linkedCaseId);next.set("caseRef",json.linkedCaseRef);next.set("access",json.publicAccessToken)
-      }
-      router.push(`/onlinekredit?${next.toString()}`)
-      return
-    } catch {
-      setError("Anfrage konnte nicht gesendet werden.")
-    } finally {
-      setBusy(false)
-    }
+    try { startOnlinekreditApplication({purpose: "hochzeitskredit", primary: {email, phone}}) }
+    catch { setError("Der Antrag konnte nicht geöffnet werden. Bitte Browser-Speicher erlauben und erneut versuchen.") }
+    finally { setBusy(false) }
   }
 
   return (
@@ -172,7 +133,7 @@ export default function WeddingQuickStartForm() {
           disabled={busy}
           className="h-12 rounded-2xl bg-gradient-to-r from-slate-950 via-[#4f1d3c] to-rose-700 px-4 text-sm font-semibold text-white transition hover:from-slate-900 hover:to-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {busy ? "Sende Anfrage..." : "Hochzeitskredit starten"}
+          {busy ? "Antrag wird geöffnet..." : "Weiter zum Kreditantrag"}
         </button>
       <div className="sm:col-span-2"><CreditoloNotice /></div>
         </form>

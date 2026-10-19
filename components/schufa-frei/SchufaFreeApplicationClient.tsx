@@ -1,5 +1,6 @@
 "use client"
 
+import { getCreditoloExtraErrors } from "@/lib/creditolo/application"
 import CreditoloFields from "@/components/creditolo/CreditoloFields"
 import { emptyCreditoloExtra } from "@/lib/creditolo/fields"
 
@@ -440,7 +441,13 @@ export default function SchufaFreeApplicationClient({
 
   const [creditoloExtra, setCreditoloExtra] = useState(emptyCreditoloExtra)
 
+  const creditoloIssues = getCreditoloExtraErrors(creditoloExtra, true, form.nationality)
+
   async function submit() {
+    if (creditoloIssues.length) {
+      setFeedback({tone:"error",text:creditoloIssues.join(" ")})
+      return
+    }
     if (!creditoloExtra.consent) {
       setFeedback({tone:"error",text:"Bitte Datenweitergabe an Creditolo bestätigen."})
       return
@@ -476,6 +483,10 @@ export default function SchufaFreeApplicationClient({
       })
       const json = await response.json().catch(() => ({}))
       if (!response.ok || !json?.ok) throw new Error(String(json?.error ?? "Antrag konnte nicht übermittelt werden."))
+      if (!["delivered", "test_ok"].includes(json?.creditolo?.status)) {
+        setFeedback({tone:"error",title:"Weiterleitung noch nicht bestätigt",text:"Ihre Angaben sind gespeichert. Creditolo hat die Übermittlung noch nicht bestätigt. Bitte versuchen Sie es nicht mehrfach; SEPANA prüft den Vorgang."})
+        return
+      }
       window.localStorage.removeItem(storageKey)
       const uploadedDocumentCount = Number(json?.uploadedDocumentCount ?? 0)
       const successParts = [json?.creditolo?.status === "delivered" ? "Ihr Antrag wurde erfolgreich an Creditolo übermittelt." : "Ihr Antrag ist bei SEPANA gespeichert. Die Weiterleitung an Creditolo wird geprüft."]
@@ -660,7 +671,8 @@ export default function SchufaFreeApplicationClient({
               <Field label="Name der Bank"><Input value={form.bankName} onChange={(e) => update("bankName", e.target.value)} /></Field>
               <Field label="IBAN"><Input value={formatIban(form.iban)} onChange={(e) => update("iban", normalizeIbanInput(e.target.value))} className="uppercase tracking-[0.08em]" /></Field>
             </div>
-            <CreditoloFields value={creditoloExtra} onChange={setCreditoloExtra} schufaFree />
+            <CreditoloFields value={creditoloExtra} onChange={setCreditoloExtra} schufaFree nationality={form.nationality} />
+            {creditoloIssues.length > 0 && <p role="status" className="mb-4 text-sm text-amber-800">Noch erforderlich: {creditoloIssues.join(" ")}</p>}
             <div className="grid gap-3">
               <label className="flex items-start gap-3 rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700"><input type="checkbox" checked={form.employmentRelationshipLimited} onChange={(e) => update("employmentRelationshipLimited", e.target.checked)} className={CHECKBOX_CLASS} /><span className="min-w-0 leading-relaxed">Arbeitsverhältnis ist befristet oder gekündigt</span></label>
               <label className="flex items-start gap-3 rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700"><input type="checkbox" checked={form.wageGarnishmentAssignment} onChange={(e) => update("wageGarnishmentAssignment", e.target.checked)} className={CHECKBOX_CLASS} /><span className="min-w-0 leading-relaxed">Lohnpfändung / Abtretung vorhanden</span></label>
@@ -773,7 +785,7 @@ export default function SchufaFreeApplicationClient({
 
         <div className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
           <button type="button" onClick={prev} disabled={stepIndex === 0 || busy} className={SECONDARY_BUTTON_CLASS}>Zurück</button>
-          {step !== "bank" ? <button type="button" onClick={next} disabled={busy} className={PRIMARY_BUTTON_CLASS}>Weiter</button> : <button type="button" onClick={submit} disabled={busy} className={PRIMARY_BUTTON_CLASS}>{busy ? "Wird übermittelt..." : "Antrag jetzt an SEPANA übermitteln"}</button>}
+          {step !== "bank" ? <button type="button" onClick={next} disabled={busy} className={PRIMARY_BUTTON_CLASS}>Weiter</button> : <button type="button" onClick={submit} disabled={busy || creditoloIssues.length > 0} className={PRIMARY_BUTTON_CLASS}>{busy ? "Wird übermittelt..." : "Anfrage an Creditolo senden"}</button>}
         </div>
       </div>
     </section>

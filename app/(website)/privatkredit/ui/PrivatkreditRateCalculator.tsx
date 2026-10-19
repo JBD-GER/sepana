@@ -1,11 +1,11 @@
-﻿"use client"
+"use client"
+
+import { startOnlinekreditApplication } from "@/lib/onlinekredit/prefill"
 
 import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
 
 import Link from "next/link"
 import { useMemo, useState, type FormEvent } from "react"
-import { useRouter } from "next/navigation"
-import { GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO } from "@/lib/ads/googleAds"
 
 const APR_PERCENT = 5.99
 const MIN_AMOUNT = 1000
@@ -76,12 +76,7 @@ type PrivatkreditRateCalculatorProps = {
   continuePathBase?: string | null
 }
 
-export default function PrivatkreditRateCalculator({
-  successSource = "privatkredit",
-  pagePath = "/privatkredit/anfrage",
-  continuePathBase = "/onlinekredit",
-}: PrivatkreditRateCalculatorProps = {}) {
-  const router = useRouter()
+export default function PrivatkreditRateCalculator(...[]: [PrivatkreditRateCalculatorProps?]) {
   const [amount, setAmount] = useState(DEFAULT_AMOUNT)
   const [termMonths, setTermMonths] = useState(DEFAULT_TERM)
   const [amountInput, setAmountInput] = useState(() => formatEUR(DEFAULT_AMOUNT))
@@ -164,79 +159,11 @@ export default function PrivatkreditRateCalculator({
       return
     }
 
-    const summary = [
-      `Rechnerdaten Privatkredit: Betrag ${formatEUR(amount)}`,
-      `Laufzeit ${termMonths} Monate`,
-      `Beispielzins ${APR_PERCENT.toFixed(2).replace(".", ",")} % p.a.`,
-      `Monatsrate ${formatEUR(calc.monthly)}`,
-      `Zinsanteil Monat 1 ${formatEUR(calc.interestMonthly)}`,
-      `Tilgungsanteil Monat 1 ${formatEUR(calc.principalMonthly)}`,
-    ].join(" | ")
-
     setRequestBusy(true)
-    try {
-      const response = await fetch("/api/privatkredit/request", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          requestType: "contact",
-          firstName: requestForm.firstName,
-          lastName: requestForm.lastName,
-          email: requestForm.email.trim().toLowerCase(),
-          phone: requestForm.phone,
-          loanAmount: amount,
-          purpose: "freie_verwendung",
-          message: summary,
-          pagePath,
-        }),
-      })
-
-      const json = (await response.json().catch(() => null)) as
-        | {
-            ok?: boolean
-            error?: string
-            leadId?: string | number
-            externalLeadId?: string | number
-            existingAccount?: boolean
-            linkedCaseId?: string
-            linkedCaseRef?: string
-            publicAccessToken?: string
-          }
-        | null
-      if (!response.ok || !json?.ok) {
-        setRequestError(json?.error || "Anfrage konnte nicht gesendet werden.")
-        return
-      }
-
-      const linkedCaseId = String(json?.linkedCaseId ?? "").trim()
-      const linkedCaseRef = String(json?.linkedCaseRef ?? "").trim()
-      const publicAccessToken = String(json?.publicAccessToken ?? "").trim()
-
-      if (continuePathBase && linkedCaseId && linkedCaseRef && publicAccessToken) {
-        const params = new URLSearchParams({
-          caseId: linkedCaseId,
-          caseRef: linkedCaseRef,
-          access: publicAccessToken,
-        })
-        if (json?.existingAccount) params.set("existing", "1")
-        router.push(`${continuePathBase}?${params.toString()}`)
-        return
-      }
-
-      const params = new URLSearchParams({
-        source: successSource,
-        conversion: GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO,
-      })
-      if (json?.leadId) params.set("leadId", String(json.leadId))
-      if (json?.externalLeadId) params.set("externalLeadId", String(json.externalLeadId))
-      if (json?.existingAccount) params.set("existing", "1")
-      router.push(`/erfolgreich?${params.toString()}`)
-      return
-    } catch {
-      setRequestError("Anfrage konnte nicht gesendet werden.")
-    } finally {
-      setRequestBusy(false)
-    }
+    try { startOnlinekreditApplication({purpose: "freie_verwendung", loanAmount: amount, termMonths,
+      primary: {first_name: requestForm.firstName, last_name: requestForm.lastName, email: requestForm.email, phone: requestForm.phone}}) }
+    catch { setRequestError("Der Antrag konnte nicht geöffnet werden. Bitte Browser-Speicher erlauben und erneut versuchen.") }
+    finally { setRequestBusy(false) }
   }
 
   return (
@@ -499,7 +426,7 @@ export default function PrivatkreditRateCalculator({
                       disabled={requestBusy}
                       className="h-11 rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {requestBusy ? "Sende Anfrage..." : "Anfrage senden"}
+                      {requestBusy ? "Antrag wird geöffnet..." : "Weiter zum vollständigen Kreditantrag"}
                     </button>
                   </div>
                 <CreditoloNotice />

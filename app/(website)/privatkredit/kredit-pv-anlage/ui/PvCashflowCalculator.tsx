@@ -1,11 +1,11 @@
-﻿"use client"
+"use client"
+
+import { startOnlinekreditApplication } from "@/lib/onlinekredit/prefill"
 
 import CreditoloNotice from "@/components/creditolo/CreditoloNotice"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useMemo, useState, type FormEvent } from "react"
-import { GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO } from "@/lib/ads/googleAds"
 
 const MIN_LOAN_AMOUNT = 10000
 const MAX_LOAN_AMOUNT = 250000
@@ -136,7 +136,6 @@ function formatKwh(value: number) {
 }
 
 export default function PvCashflowCalculator() {
-  const router = useRouter()
   const [loanAmount, setLoanAmount] = useState(DEFAULT_LOAN_AMOUNT)
   const [loanAmountInput, setLoanAmountInput] = useState(() => formatEUR(DEFAULT_LOAN_AMOUNT))
   const [termYears, setTermYears] = useState(DEFAULT_TERM_YEARS)
@@ -278,71 +277,11 @@ export default function PvCashflowCalculator() {
       return
     }
 
-    const summary = [
-      "PV-Rechnerdaten",
-      "Turbo-Cashflow-Modus aktiv",
-      `Kreditsumme ${formatEUR(loanAmount)}`,
-      `Laufzeit ${termYears} Jahre (${calc.months} Monate)`,
-      `Beispielzins ${formatPercent(apr)} p.a.`,
-      `Jährlicher Stromverbrauch ${formatKwh(annualConsumptionKwh)} kWh`,
-      `Jährliche Einspeisung ${formatKwh(annualFeedInKwh)} kWh`,
-      `Monatliche Kreditrate (optimiert) ${formatEUR(calc.rate, 2)}`,
-      `Monatliche Ersparnis ${formatEUR(calc.monthlySavings, 2)}`,
-      `Monatliche Einspeisung ${formatEUR(calc.monthlyFeedIn, 2)}`,
-      `Monatlicher Cashflow ${formatEUR(calc.cashflowMonthly, 2)}`,
-      calc.optimalTermYears
-        ? `Positiver Cashflow ab ${calc.optimalTermYears} Jahren (${formatEUR(calc.optimalCashflowMonthly, 2)}/Monat)`
-        : `Positiver Cashflow mit aktuellen Werten nicht innerhalb ${MAX_TERM_YEARS} Jahren`,
-      `Abbezahlt ohne Sondertilgung ${formatMonthYear(calc.payoffDate)}`,
-    ].join(" | ")
-
     setLeadBusy(true)
-    try {
-      const response = await fetch("/api/privatkredit/request", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          requestType: "contact",
-          firstName: leadForm.firstName,
-          lastName: leadForm.lastName,
-          email: leadForm.email.trim().toLowerCase(),
-          phone: leadForm.phone,
-          loanAmount,
-          purpose: "pv_anlage",
-          message: summary,
-          pagePath: "/privatkredit/kredit-pv-anlage",
-        }),
-      })
-
-      const json = (await response.json().catch(() => null)) as
-        | { ok?: boolean; error?: string; leadId?: string | number; externalLeadId?: string | number; existingAccount?: boolean; linkedCaseId?: string; linkedCaseRef?: string; publicAccessToken?: string }
-        | null
-      if (!response.ok || !json?.ok) {
-        setLeadError(json?.error || "Anfrage konnte nicht gesendet werden.")
-        return
-      }
-
-      setLeadForm(INITIAL_LEAD_FORM)
-      setShowLeadModal(false)
-
-      const params = new URLSearchParams({
-        source: "privatkredit",
-        conversion: GOOGLE_ADS_PRIVATKREDIT_LEAD_SEND_TO,
-      })
-      if (json?.leadId) params.set("leadId", String(json.leadId))
-      if (json?.externalLeadId) params.set("externalLeadId", String(json.externalLeadId))
-      if (json?.existingAccount) params.set("existing", "1")
-      const next=new URLSearchParams({purpose:"pv_anlage"})
-      if (json.linkedCaseId && json.linkedCaseRef && json.publicAccessToken) {
-        next.set("caseId",json.linkedCaseId);next.set("caseRef",json.linkedCaseRef);next.set("access",json.publicAccessToken)
-      }
-      router.push(`/onlinekredit?${next.toString()}`)
-      return
-    } catch {
-      setLeadError("Anfrage konnte nicht gesendet werden.")
-    } finally {
-      setLeadBusy(false)
-    }
+    try { startOnlinekreditApplication({purpose: "pv_anlage", loanAmount, termMonths: calc.months,
+      primary: {first_name: leadForm.firstName, last_name: leadForm.lastName, email: leadForm.email, phone: leadForm.phone}}) }
+    catch { setLeadError("Der Antrag konnte nicht geöffnet werden. Bitte Browser-Speicher erlauben und erneut versuchen.") }
+    finally { setLeadBusy(false) }
   }
 
   return (
@@ -622,7 +561,7 @@ export default function PvCashflowCalculator() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">PV-Rechner Anfrage</div>
-                <h3 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">Anfrage mit Rechnerdaten senden</h3>
+                <h3 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">Mit Rechnerdaten zum vollständigen Kreditantrag</h3>
                 <p className="mt-1 text-sm text-slate-600">Kreditsumme wird direkt aus dem Rechner übernommen.</p>
               </div>
               <button
@@ -723,7 +662,7 @@ export default function PvCashflowCalculator() {
                   disabled={leadBusy}
                   className="h-11 rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {leadBusy ? "Sende Anfrage..." : "Anfrage senden"}
+                  {leadBusy ? "Antrag wird geöffnet..." : "Weiter zum vollständigen Kreditantrag"}
                 </button>
               </div>
             <CreditoloNotice />

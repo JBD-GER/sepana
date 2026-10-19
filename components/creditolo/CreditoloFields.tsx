@@ -1,5 +1,6 @@
 "use client"
 
+import { needsResidencePermit } from "@/lib/creditolo/payload"
 import { CREDITOLO_NOTICE } from "@/lib/creditolo/notice"
 import { CREDITOLO_PROFESSIONS, type CreditoloExtra } from "@/lib/creditolo/fields"
 
@@ -7,10 +8,12 @@ export default function CreditoloFields({
   value,
   onChange,
   schufaFree = false,
+  nationality = "",
 }: {
   value: CreditoloExtra
   onChange: (value: CreditoloExtra) => void
   schufaFree?: boolean
+  nationality?: string
 }) {
   const update = (key: keyof CreditoloExtra, next: string | boolean) => onChange({ ...value, [key]: next })
   const style = "mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900"
@@ -34,9 +37,11 @@ export default function CreditoloFields({
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label>
-          Berufsgruppe
+          Berufsgruppe *
           <select
             className={style}
+            required
+            aria-required="true"
             value={value.profession}
             onChange={(e) => update("profession", e.target.value)}
           >
@@ -49,9 +54,10 @@ export default function CreditoloFields({
         {!schufaFree && (
           <>
             <label>
-              Steuerklasse
+              Steuerklasse {(["Arbeiter", "Angestellter oeffentlicher Dienst", "Angestellter Privatwirtschaft", "Auszubildender/Lehrling", "Beamter", "Soldat"] as string[]).includes(value.profession) ? "*" : "(falls zutreffend)"}
               <select
                 className={style}
+                required={["Arbeiter", "Angestellter oeffentlicher Dienst", "Angestellter Privatwirtschaft", "Auszubildender/Lehrling", "Beamter", "Soldat"].includes(value.profession)}
                 value={value.taxClass}
                 onChange={(e) => update("taxClass", e.target.value)}
               >
@@ -62,9 +68,11 @@ export default function CreditoloFields({
               </select>
             </label>
             <label>
-              Erwachsene im Haushalt
+              Erwachsene im Haushalt *
               <select
                 className={style}
+                required
+                aria-required="true"
                 value={value.adults}
                 onChange={(e) => update("adults", e.target.value)}
               >
@@ -78,6 +86,7 @@ export default function CreditoloFields({
                 {label}
                 <input
                   className={style}
+                  required
                   type="number"
                   min="0"
                   max={key.endsWith("Costs") || key === "mortgageRate" ? "9999" : "99999"}
@@ -90,10 +99,11 @@ export default function CreditoloFields({
           </>
         )}
         <label className="sm:col-span-2">
-          Aufenthaltstitel gültig bis (falls erforderlich)
+          Aufenthaltstitel gültig bis {nationality && needsResidencePermit(nationality) ? "*" : "(falls erforderlich)"}
           <input
             type="date"
             className={style}
+            required={Boolean(nationality && needsResidencePermit(nationality))}
             value={value.residencePermitUntil}
             onChange={(e) => update("residencePermitUntil", e.target.value)}
           />
@@ -107,6 +117,8 @@ export default function CreditoloFields({
         <input
           type="checkbox"
           className="mt-1 h-4 w-4 shrink-0"
+          required
+          aria-required="true"
           checked={value.consent}
           onChange={(e) => update("consent", e.target.checked)}
         />
@@ -129,6 +141,8 @@ export default function CreditoloFields({
           <input
             type="checkbox"
             className="mt-1 h-4 w-4 shrink-0"
+            required
+            aria-required="true"
             checked={value.schufaConsent}
             onChange={(e) => update("schufaConsent", e.target.checked)}
           />

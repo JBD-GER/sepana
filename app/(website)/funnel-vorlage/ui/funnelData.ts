@@ -1,4 +1,4 @@
-﻿export type ProductType = "baufi" | "privatkredit"
+export type ProductType = "baufi" | "privatkredit"
 export type CoApplicantChoice = "yes" | "no"
 export type PropertyUse = "self" | "rent"
 export type ObjectSelectionState = "yes" | "searching"
@@ -152,7 +152,7 @@ export const OBJECT_SELECTED_OPTIONS: OptionItem<ObjectSelectionState>[] = [
   { value: "searching", label: "Nein, auf Immobiliensuche", icon: "search" },
 ]
 
-export const TERM_OPTIONS = ["6", "12", "24", "36", "48", "60", "72", "84", "96", "120"] as const
+export const TERM_OPTIONS = ["12", "24", "36", "48", "60", "72", "84", "96", "120"] as const
 
 export const SALUTATION_OPTIONS = [
   { value: "herr", label: "Herr" },

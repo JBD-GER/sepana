@@ -1,5 +1,7 @@
-﻿"use client"
+"use client"
 
+import { getCreditoloApplicationErrors } from "@/lib/creditolo/application"
+import { readOnlinekreditPrefill, clearOnlinekreditPrefill, normalizeCreditPurpose } from "@/lib/onlinekredit/prefill"
 import CreditoloFields from "@/components/creditolo/CreditoloFields"
 import { emptyCreditoloExtra } from "@/lib/creditolo/fields"
 
@@ -191,6 +193,7 @@ type SaveResponse = {
 }
 
 type SaveResult = {
+  creditolo?: { status: string; code?: number | null } | null
   caseId: string
   caseRef: string
   accessToken: string
@@ -331,7 +334,7 @@ const STEP_META: Array<{ id: StepId; title: string; subtitle: string }> = [
   { id: "employment", title: "Beruf & Einkommen", subtitle: "Beruf, Arbeitgeber und Einnahmen." },
   { id: "details", title: "Legitimation & Konto", subtitle: "Ausweis, Konto und Kinder." },
   { id: "co", title: "Zweiter Kreditnehmer", subtitle: "Angaben zur zweiten Person." },
-  { id: "review", title: "Prüfen & Angebote", subtitle: "Alles prüfen und Angebote abrufen." },
+  { id: "review", title: "Prüfen & Absenden", subtitle: "Pflichtangaben prüfen und Anfrage absenden." },
 ] as const
 
 const FIELD_INFO = {
@@ -1252,6 +1255,8 @@ export default function OnlinekreditWizard({
   const lastSaveValidationIssueRef = useRef<OnlinekreditValidationIssue | null>(null)
   const wizardRef = useRef<HTMLDivElement | null>(null)
   const [customerCanEdit, setCustomerCanEdit] = useState(true)
+  const [applicationNote, setApplicationNote] = useState("")
+  const [creditoloExtra, setCreditoloExtra] = useState(emptyCreditoloExtra)
   const [primary, setPrimary] = useState<Applicant>(EMPTY_APPLICANT)
   const [financing, setFinancing] = useState<Financing>(() => ({...EMPTY_FINANCING,purpose:initialPurpose}))
   const [additional, setAdditional] = useState<Additional>(EMPTY_ADDITIONAL)
@@ -1781,6 +1786,17 @@ export default function OnlinekreditWizard({
       setError(null)
       setServerValidationIssue(null)
       if (!hasRouteCase) {
+        const prefill = readOnlinekreditPrefill()
+        if (prefill && active) {
+          setApplicationNote(String(prefill.note ?? "").slice(0,2000))
+          setPrimary({...EMPTY_APPLICANT, ...prefill.primary} as Applicant)
+          setAdditional({...EMPTY_ADDITIONAL, ...prefill.additional} as Additional)
+          setFinancing({...EMPTY_FINANCING, purpose: normalizeCreditPurpose(prefill.purpose ?? initialPurpose),
+            loan_amount_requested: prefill.loanAmount == null ? "" : normalizeMoneyString(prefill.loanAmount),
+            term_months: prefill.termMonths ?? ""})
+          setHasCoApplicant(Boolean(prefill.hasCoApplicant))
+          if (prefill.hasCoApplicant) setCoApplicants([createCoApplicant()])
+        }
         if (active) setLoading(false)
         return
       }
@@ -2242,8 +2258,11 @@ export default function OnlinekreditWizard({
     return errors
   }
 
+  const creditoloErrors = getCreditoloApplicationErrors({primary, baufi: financing, additional,
+    children: additional.has_children ? children : [], creditolo: creditoloExtra})
+
   const finalMissing = (() => {
-    const errors: string[] = []
+    const errors: string[] = [...creditoloErrors]
 
     if (!hasValue(financing.purpose)) errors.push("Verwendungszweck fehlt.")
     if (!hasValue(financing.loan_amount_requested)) errors.push("Kreditsumme fehlt.")
@@ -2487,6 +2506,8 @@ export default function OnlinekreditWizard({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         requestType: "contact",
+        message: applicationNote,
+        application: {primary, baufi: financing, additional, children: additional.has_children ? children : [], co: hasCoApplicant ? coApplicants : [], liabilities, realEstateAssets, creditolo: creditoloExtra},
         firstName: trimOrEmpty(primary.first_name),
         lastName: trimOrEmpty(primary.last_name),
         email: trimOrEmpty(primary.email).toLowerCase(),
@@ -2502,6 +2523,10 @@ export default function OnlinekreditWizard({
 
     const json = await response.json().catch(() => ({}))
     if (!response.ok || !json?.ok) {
+      if (json?.linkedCaseId && json?.linkedCaseRef && json?.publicAccessToken) {
+        setPublicCase({caseId:json.linkedCaseId,caseRef:json.linkedCaseRef,accessToken:json.publicAccessToken,existingAccount:Boolean(json.existingAccount)})
+        router.replace(`/onlinekredit?${new URLSearchParams({caseId:json.linkedCaseId,caseRef:json.linkedCaseRef,access:json.publicAccessToken})}`, {scroll:false})
+      }
       throw new Error(String(json?.error ?? "Onlinekredit-Fall konnte nicht angelegt werden."))
     }
 
@@ -2517,12 +2542,19 @@ export default function OnlinekreditWizard({
       caseRef: nextCaseRef,
       accessToken: nextAccessToken,
       existingAccount: Boolean(json?.existingAccount),
+      creditolo: json.creditolo,
+      warnings: json.warnings ?? [],
     }
   }
 
   async function save(options?: { showMessage?: boolean; triggerEuropaceSync?: boolean }): Promise<SaveResult | null> {
     const showMessage = options?.showMessage ?? true
     const triggerEuropaceSync = options?.triggerEuropaceSync ?? false
+    if (!existingCase && finalMissing.length) {
+      setError("Bitte alle Pflichtangaben ergänzen, bevor Sie Ihre Kreditanfrage absenden.")
+      setStep("review")
+      return null
+    }
     setSaving(true)
     setError(null)
     setServerValidationIssue(null)
@@ -2539,7 +2571,7 @@ export default function OnlinekreditWizard({
           }
         : await createCaseFromDraft()
 
-      const response = await fetch("/api/live/case", {
+      const response = existingCase ? await fetch("/api/live/case", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -2559,7 +2591,7 @@ export default function OnlinekreditWizard({
           liabilities,
           realEstateAssets,
         }),
-      })
+      }) : Response.json({ok:true,warnings:(resolved as SaveResult).warnings ?? []})
 
       const json = (await response.json().catch(() => ({}))) as SaveResponse
       if (!response.ok || !json?.ok) {
@@ -2631,6 +2663,7 @@ export default function OnlinekreditWizard({
 
       return {
         ...resolved,
+        creditolo: (resolved as SaveResult).creditolo,
         warnings: Array.isArray(json?.warnings) ? json.warnings : [],
       }
     } catch (saveError) {
@@ -2680,8 +2713,6 @@ export default function OnlinekreditWizard({
     setStep(target)
     scrollWizardIntoView()
   }
-
-  const [creditoloExtra, setCreditoloExtra] = useState(emptyCreditoloExtra)
 
   async function finishAndScrollToOffers() {
     if (!creditoloExtra.consent || !creditoloExtra.schufaConsent) {
@@ -2739,6 +2770,7 @@ export default function OnlinekreditWizard({
     setMessage(null)
 
     try {
+      if (!resolved.creditolo) {
       const response = await fetch("/api/creditolo/submit", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -2746,6 +2778,7 @@ export default function OnlinekreditWizard({
       })
       const json = await response.json().catch(() => ({}))
       if (!response.ok || !json?.ok) throw new Error(String(json?.error ?? "Die Weiterleitung konnte nicht vorbereitet werden."))
+      }
     } catch (nextError) {
       setOffersTransitionOverlayOpen(false)
       setError(nextError instanceof Error ? customerText(nextError.message) : "Live-Angebote konnten nicht geladen werden.")
@@ -2761,6 +2794,7 @@ export default function OnlinekreditWizard({
       prefetched: "1",
     })
     if (resolved.existingAccount) params.set("existing", "1")
+    clearOnlinekreditPrefill()
     router.push(`/onlinekredit/creditolo?${params.toString()}`)
   }
 
@@ -2802,7 +2836,7 @@ export default function OnlinekreditWizard({
             <div className="mt-3 text-lg font-semibold text-slate-950 sm:text-xl">{currentStep.title}</div>
             <div className="mt-1 text-sm text-slate-600">{currentStep.subtitle}</div>
             <div className="mt-3 inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-800">
-              Deine Angaben werden beim Wechsel automatisch gespeichert.
+              Erst mit vollständigen Pflichtangaben und Einwilligung wird deine Anfrage an Creditolo gesendet.
             </div>
           </div>
           <div className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm sm:w-auto sm:text-right">
@@ -4281,7 +4315,7 @@ export default function OnlinekreditWizard({
             </Card>
 
             <Card title="Prüfen" subtitle="Nach vollständigen Angaben übermitteln wir deine Kreditanfrage an Creditolo.">
-              <CreditoloFields value={creditoloExtra} onChange={setCreditoloExtra} />
+              <CreditoloFields value={creditoloExtra} onChange={setCreditoloExtra} nationality={String(primary.nationality ?? "")} />
               {reviewFocusIssue ? (
                 <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                   <div className="font-semibold">Fehler im Bereich {reviewFocusStepTitle || "Antrag"}</div>
@@ -4344,7 +4378,7 @@ export default function OnlinekreditWizard({
           </button>
 
           <div className="flex flex-col gap-2 sm:flex-row">
-            <button
+            {existingCase ? <button
               type="button"
               onClick={() => void save({ showMessage: true, triggerEuropaceSync: false })}
               disabled={saving || offersTransitionOverlayOpen}
@@ -4353,8 +4387,8 @@ export default function OnlinekreditWizard({
                 (saving || offersTransitionOverlayOpen) && "cursor-not-allowed opacity-60"
               )}
             >
-              {saving ? "Speichert..." : "Zwischenspeichern"}
-            </button>
+              {saving ? "Speichert..." : "Entwurf speichern"}
+            </button> : null}
 
             {step !== "review" ? (
               <button
@@ -4372,7 +4406,7 @@ export default function OnlinekreditWizard({
               <button
                 type="button"
                 onClick={() => void finishAndScrollToOffers()}
-                disabled={saving || offersTransitionOverlayOpen}
+                disabled={saving || offersTransitionOverlayOpen || finalMissing.length > 0}
                 className={cn(
                   "w-full rounded-2xl bg-[linear-gradient(90deg,#0f172a,#0369a1)] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-900/15 transition hover:-translate-y-0.5 sm:w-auto",
                   (saving || offersTransitionOverlayOpen) && "cursor-not-allowed opacity-60"
@@ -4403,7 +4437,7 @@ export default function OnlinekreditWizard({
               Wir übermitteln deine Anfrage an Creditolo
             </div>
             <div className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
-              SEPANA fragt gerade passende Banken an, prüft die aktuellen Konditionen und sortiert die stärksten
+              SEPANA übermittelt deine vollständigen Angaben an Creditolo und prüft die Bestätigung. Die weiteren
               Varianten nach Zins und Machbarkeit. Das dauert nur einen kurzen Moment.
             </div>
             <div className="mt-6 overflow-hidden rounded-full bg-slate-100">
