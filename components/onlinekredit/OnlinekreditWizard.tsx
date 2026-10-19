@@ -4431,14 +4431,14 @@ export default function OnlinekreditWizard({
               </div>
             </div>
             <div className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-800">
-              Banken werden angefragt
+              Anfrage wird gesendet
             </div>
             <div className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
               Wir übermitteln deine Anfrage an Creditolo
             </div>
             <div className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
-              SEPANA übermittelt deine vollständigen Angaben an Creditolo und prüft die Bestätigung. Die weiteren
-              Varianten nach Zins und Machbarkeit. Das dauert nur einen kurzen Moment.
+              SEPANA übermittelt deine vollständigen Angaben an Creditolo und prüft die Bestätigung.
+              Bitte lasse diese Seite geöffnet.
             </div>
             <div className="mt-6 overflow-hidden rounded-full bg-slate-100">
               <div className="flex h-2 w-full overflow-hidden rounded-full">

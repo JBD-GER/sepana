@@ -1,5 +1,5 @@
-import { enqueueCreditolo } from "@/lib/creditolo/service"
-import { CreditoloValidationError } from "@/lib/creditolo/mapper"
+import { enqueueCreditolo, creditoloRequestIp } from "@/lib/creditolo/service"
+import { CreditoloValidationError, buildCreditoloPayload, creditoloTimestamp } from "@/lib/creditolo/mapper"
 import { NextResponse } from "next/server"
 import { looksLikeIban, normalizeIbanInput } from "@/lib/banking/iban"
 import { resolvePublicOnlinekreditCaseAccess } from "@/lib/onlinekredit/caseAccess"
@@ -279,7 +279,7 @@ export async function POST(req: Request) {
     }
 
     const [existingDetailsResult, existingApplicantResult, customerAuthResult] = await Promise.all([
-      admin.from("case_schufa_free_details").select("email").eq("case_id", caseId).maybeSingle(),
+      admin.from("case_schufa_free_details").select("*").eq("case_id", caseId).maybeSingle(),
       admin.from("case_applicants").select("email").eq("case_id", caseId).eq("role", "primary").maybeSingle(),
       access.caseRow.customer_id
         ? admin.auth.admin.getUserById(access.caseRow.customer_id)
@@ -472,6 +472,11 @@ export async function POST(req: Request) {
       updated_at: now,
     }
 
+    // Provider-required fields must pass before a draft is marked complete or persisted.
+    buildCreditoloPayload({variant:"schufa_free", applicant:{first_name:firstName,last_name:lastName},
+      details:{...existingDetailsResult.data,...detailPayload}, additional:{}, extra:body.creditolo as Record<string,unknown>,
+      caseId, remote:creditoloRequestIp(req), timestamp:creditoloTimestamp()})
+
     const detailUpsert = await upsertSchufaFreeDetailsWithFallback(admin, detailPayload)
     if (detailUpsert.error) throw detailUpsert.error
     if (ratenschutzOptIn && detailUpsert.removedColumns.includes("ratenschutz_opt_in")) {
@@ -522,7 +527,7 @@ export async function POST(req: Request) {
     const { data: details } = await admin.from("case_schufa_free_details").select("*").eq("case_id", caseId).maybeSingle()
     const mergedDetails = { ...(details ?? {}), ...detailPayload }
     const creditolo = await enqueueCreditolo(admin,caseId,req,body?.creditolo as Record<string,unknown>)
-    await updateCaseStatusCompat(admin, {caseId,status:"submitted",updatedAt:now})
+    await updateCaseStatusCompat(admin, {caseId,status:["delivered","test_ok"].includes(creditolo.status) ? "submitted" : "waiting_advisor",updatedAt:now})
 
     const { data: uploadedDocumentRows } = await admin
       .from("documents")
