@@ -474,7 +474,7 @@ export async function POST(req: Request) {
 
     // Provider-required fields must pass before a draft is marked complete or persisted.
     buildCreditoloPayload({variant:"schufa_free", applicant:{first_name:firstName,last_name:lastName},
-      details:{...existingDetailsResult.data,...detailPayload}, additional:{}, extra:body.creditolo as Record<string,unknown>,
+      details:{...existingDetailsResult.data,...detailPayload}, additional:{}, extra:body?.creditolo as Record<string,unknown>,
       caseId, remote:creditoloRequestIp(req), timestamp:creditoloTimestamp()})
 
     const detailUpsert = await upsertSchufaFreeDetailsWithFallback(admin, detailPayload)
